@@ -114,7 +114,8 @@ fn print_version() {
 /// Search order (first found wins):
 ///   1. `~/.config/zylaxion/profiles/<name>.toml`  (user-local)
 ///   2. `/etc/zylaxion/profiles/<name>.toml`       (system-wide)
-///   3. Hardcoded default                          (always available)
+///   3. `./profiles/<name>.toml`                   (relative to CWD, for dev)
+///   4. Hardcoded default                          (always available)
 ///
 /// If `name` is `None`, returns the hardcoded default immediately.
 fn resolve_profile(name: &Option<String>) -> KeyProfile {
@@ -157,7 +158,21 @@ fn resolve_profile(name: &Option<String>) -> KeyProfile {
         }
     }
 
-    // 3. Fallback: hardcoded default.
+    // 3. Relative to CWD: ./profiles/<name>.toml (for development)
+    let cwd_path = std::path::PathBuf::from("profiles").join(&toml_name);
+    if cwd_path.is_file() {
+        match load_profile_from_file(&cwd_path) {
+            Ok(p) => {
+                log::info!("loaded profile '{}' from {}", name, cwd_path.display());
+                return p;
+            }
+            Err(e) => {
+                eprintln!("[zylaxion] warning: {e}");
+            }
+        }
+    }
+
+    // 4. Fallback: hardcoded default.
     eprintln!(
         "[zylaxion] profile '{}' not found — using default profile",
         name
@@ -394,7 +409,8 @@ fn cmd_list_profiles() {
     println!("  Profiles are loaded from (first found wins):");
     println!("    1. ~/.config/zylaxion/profiles/<name>.toml");
     println!("    2. /etc/zylaxion/profiles/<name>.toml");
-    println!("    3. Hardcoded default (always available)");
+    println!("    3. ./profiles/<name>.toml (relative to CWD, for dev)");
+    println!("    4. Hardcoded default (always available)");
 }
 
 fn cmd_list_backends() {
