@@ -5,26 +5,33 @@
 # Zylaxion uninstaller — removes the installed binary and profile TOMLs.
 #
 # Usage: sudo ./scripts/uninstall.sh
+#
+# Environment variables:
+#   PREFIX   Installation prefix (default: /usr/local)
+#   DESTDIR  Staging root (must match the value used during install)
 
 set -euo pipefail
 
-INSTALL_BIN="/usr/local/bin/zylaxion"
-INSTALL_DIR="/etc/zylaxion"
+PREFIX="${PREFIX:-/usr/local}"
+DESTDIR="${DESTDIR:-}"
+
+BIN_DST="${DESTDIR}${PREFIX}/bin/zylaxion"
+SHARE_DST="${DESTDIR}${PREFIX}/share/zylaxion"
 
 echo "==> Uninstalling Zylaxion..."
 
-if [ -f "$INSTALL_BIN" ]; then
-    rm -f "$INSTALL_BIN"
-    echo "    removed ${INSTALL_BIN}"
+if [ -f "$BIN_DST" ]; then
+    rm -f "$BIN_DST"
+    echo "    removed ${BIN_DST}"
 else
-    echo "    ${INSTALL_BIN} not found (already removed?)"
+    echo "    ${BIN_DST} not found (already removed?)"
 fi
 
-if [ -d "$INSTALL_DIR" ]; then
-    rm -rf "$INSTALL_DIR"
-    echo "    removed ${INSTALL_DIR}/"
+if [ -d "$SHARE_DST" ]; then
+    rm -rf "$SHARE_DST"
+    echo "    removed ${SHARE_DST}/"
 else
-    echo "    ${INSTALL_DIR} not found (already removed?)"
+    echo "    ${SHARE_DST} not found (already removed?)"
 fi
 
 echo ""

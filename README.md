@@ -42,14 +42,6 @@ decay envelopes — no wavetables, no sample libraries, no audio files.
 
 ## Installation
 
-### Quick install (system-wide)
-
-Builds the release binary and installs it to `/usr/local/bin`:
-
-```bash
-sudo ./scripts/install.sh
-```
-
 ### From source
 
 Requires: Rust toolchain ([rustup.rs](https://rustup.rs/)),
@@ -58,14 +50,37 @@ Requires: Rust toolchain ([rustup.rs](https://rustup.rs/)),
 ```bash
 git clone https://github.com/oxyzenQ/zylaxion.git
 cd zylaxion
+
+# Build the release binary
 cargo build --release --locked
-sudo install -Dm755 target/release/zylaxion /usr/local/bin/zylaxion
-sudo mkdir -p /etc/zylaxion/profiles
-sudo install -m0644 profiles/*.toml /etc/zylaxion/profiles/
+
+# Install (binary + profiles go to /usr/local by default)
+sudo ./scripts/install.sh
 ```
+
+To install to a custom prefix:
+
+```bash
+PREFIX=/usr sudo ./scripts/install.sh
+```
+
+The installer copies the binary to `${PREFIX}/bin/zylaxion` and the
+acoustic profile TOMLs to `${PREFIX}/share/zylaxion/profiles/`. It
+does **not** run `cargo build` — build first, then install.
 
 > **Note:** your user must be in the `input` group for keyboard access:
 > `sudo usermod -aG input $USER && log out/in`
+
+### Download a release binary
+
+Pre-built binaries are attached to each [GitHub release](https://github.com/oxyzenQ/zylaxion/releases).
+Download, make executable, and copy to a directory on your PATH:
+
+```bash
+wget https://github.com/oxyzenQ/zylaxion/releases/latest/download/zylaxion
+chmod +x zylaxion
+sudo install -Dm755 zylaxion /usr/local/bin/zylaxion
+```
 
 ## Usage
 
@@ -88,9 +103,10 @@ filter frequencies, resonance (Q), spring mix level, decay rate, and
 amplitude. They are loaded from (first found wins):
 
 1. `~/.config/zylaxion/profiles/<name>.toml` — user-local overrides
-2. `/etc/zylaxion/profiles/<name>.toml` — system-wide profiles
-3. `./profiles/<name>.toml` — relative to CWD (development)
-4. Hardcoded default — always available
+2. `/usr/local/share/zylaxion/profiles/<name>.toml` — installed data
+3. `/usr/share/zylaxion/profiles/<name>.toml` — system data
+4. `./profiles/<name>.toml` — relative to CWD (development)
+5. Hardcoded default — always available
 
 ### Built-in profiles
 
