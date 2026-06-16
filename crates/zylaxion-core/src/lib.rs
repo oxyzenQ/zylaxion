@@ -46,12 +46,20 @@ use zylaxion_output::AudioSink;
 const MAX_RENDER_CHUNK: usize = 256;
 
 /// Number of silence frames pre-filled into the ring buffer before
-/// starting the audio stream.  Prevents startup underruns while the
-/// producer thread stabilises its scheduling cadence.
-const PREFILL_SILENCE_FRAMES: usize = 1024;
+/// starting the audio stream.  4096 frames (~92 ms) survives the worst
+/// Linux non-RT scheduler jitter (30–50 ms) with comfortable margin,
+/// guaranteeing the audio callback never sees an empty buffer at startup.
+const PREFILL_SILENCE_FRAMES: usize = 4096;
 
-/// Sleep duration when the ring buffer is full, to avoid spinning
-/// the CPU at 100 % while the audio callback drains frames.
+/// If the ring buffer has fewer vacant frames than this threshold,
+/// the buffer is considered "mostly full" and the producer sleeps
+/// briefly to avoid burning CPU.  512 frames ≈ 11.6 ms — roughly
+/// double the period of a typical ALSA fragment, so the callback
+/// will drain some frames well before we wake up.
+const SLEEP_THRESHOLD: usize = 512;
+
+/// Sleep duration when the ring buffer is mostly full, to avoid
+/// spinning the CPU at 100 % while the audio callback drains frames.
 const FULL_BUFFER_SLEEP: Duration = Duration::from_millis(1);
 
 // ── Pan mapping ─────────────────────────────────────────────────────────
@@ -190,12 +198,13 @@ impl Orchestrator {
             MAX_RENDER_CHUNK as f64 / SAMPLE_RATE as f64 * 1000.0,
         );
         eprintln!(
-            "[zylaxion-core] Ring buffer: 4096 frames (~{:.1} ms), \
-             cpal hw buffer: 256 frames (~{:.2} ms), \
-             pre-fill: {PREFILL_SILENCE_FRAMES} frames (~{:.1} ms)",
-            4096.0 / SAMPLE_RATE as f64 * 1000.0,
-            256.0 / SAMPLE_RATE as f64 * 1000.0,
+            "[zylaxion-core] Ring buffer: 16384 frames (~{:.1} ms), \
+             cpal hw buffer: default (PipeWire/ALSA negotiated), \
+             pre-fill: {PREFILL_SILENCE_FRAMES} frames (~{:.1} ms), \
+             sleep threshold: {SLEEP_THRESHOLD} frames (~{:.1} ms)",
+            16384.0 / SAMPLE_RATE as f64 * 1000.0,
             PREFILL_SILENCE_FRAMES as f64 / SAMPLE_RATE as f64 * 1000.0,
+            SLEEP_THRESHOLD as f64 / SAMPLE_RATE as f64 * 1000.0,
         );
 
         // Pre-allocate the largest possible render buffer once —
@@ -223,9 +232,11 @@ impl Orchestrator {
             // 2. Determine how many frames the ring buffer can accept.
             let vacancy = self.sink.producer_vacancy();
 
-            if vacancy == 0 {
-                // Buffer is full — the audio callback hasn't caught up
-                // yet.  Sleep briefly to avoid burning CPU at 100 %.
+            if vacancy < SLEEP_THRESHOLD {
+                // Buffer is mostly full — the audio callback hasn't
+                // drained enough yet.  Sleep briefly to avoid 100 %
+                // CPU, then re-check.  The SLEEP_THRESHOLD ensures we
+                // always keep a comfortable headroom of audio queued.
                 std::thread::sleep(FULL_BUFFER_SLEEP);
                 continue;
             }

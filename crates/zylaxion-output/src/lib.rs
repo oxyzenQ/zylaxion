@@ -36,11 +36,13 @@ use ringbuf::HeapRb;
 /// Concrete producer type for the heap ring buffer.
 type HeapProd = <HeapRb<[f32; 2]> as Split>::Prod;
 
-/// Ring buffer capacity in stereo frames (~93 ms at 44.1 kHz).
+/// Ring buffer capacity in stereo frames (~370 ms at 44.1 kHz).
 ///
-/// Kept small to minimise latency.  4096 frames is more than enough to
-/// absorb thread-scheduling jitter without adding perceptible delay.
-const RING_BUFFER_FRAMES: usize = 4096;
+/// Sized large enough to absorb Linux non-RT scheduler jitter spikes
+/// (30–50 ms) without the audio callback ever seeing an empty buffer.
+/// The extra latency (~370 ms worst-case) is inaudible for a keyboard
+/// sound effect that plays for hundreds of milliseconds anyway.
+const RING_BUFFER_FRAMES: usize = 16384;
 
 // ── Error type ─────────────────────────────────────────────────────────
 
@@ -143,12 +145,11 @@ impl CpalSink {
         let rb = HeapRb::<[f32; 2]>::new(RING_BUFFER_FRAMES);
         let (producer, consumer) = rb.split();
 
-        let mut stream_config: cpal::StreamConfig = supported.into();
-        // Relaxed hardware buffer — balances low latency with underrun
-        // resistance on non-RT kernels.  256 frames at 44.1 kHz ≈ 5.8 ms,
-        // well below human perception (~10 ms threshold) while giving
-        // the OS scheduler enough breathing room to avoid ALSA underruns.
-        stream_config.buffer_size = cpal::BufferSize::Fixed(256);
+        let stream_config: cpal::StreamConfig = supported.into();
+        // Let cpal / PipeWire / ALSA negotiate the optimal hardware
+        // fragment size.  Forcing a small Fixed buffer causes frequent
+        // xruns on non-RT kernels; the Default lets the audio server
+        // pick its preferred period size (typically 1024–4096 frames).
         let err_fn = |err: cpal::StreamError| eprintln!("[zylaxion-output] stream error: {err}");
 
         let stream = match sample_format {
