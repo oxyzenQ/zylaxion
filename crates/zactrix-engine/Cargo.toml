@@ -1,0 +1,11 @@
+[package]
+name = "zactrix-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Polyphonic voice pool and DSP orchestration for the Zactrix engine"
+
+[dependencies]
+zactrix-profiles = { path = "../zactrix-profiles" }

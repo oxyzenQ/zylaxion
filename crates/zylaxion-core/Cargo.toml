@@ -1,0 +1,16 @@
+[package]
+name = "zylaxion-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Orchestrator that wires input, engine, and output for the Zylaxion keyboard acoustic engine"
+
+[dependencies]
+zactrix-engine = { path = "../zactrix-engine" }
+zactrix-profiles = { path = "../zactrix-profiles" }
+zylaxion-output = { path = "../zylaxion-output" }
+zylaxion-input = { path = "../zylaxion-input" }
+crossbeam-channel = "0.5"
+ringbuf = "0.4"

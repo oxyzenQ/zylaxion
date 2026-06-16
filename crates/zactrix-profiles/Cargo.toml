@@ -1,0 +1,8 @@
+[package]
+name = "zactrix-profiles"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Acoustic profile definitions and DSP models for the Zactrix engine"

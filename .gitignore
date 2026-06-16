@@ -1,0 +1,20 @@
+# Build artifacts
+/target
+
+# Rust formatter backups
+**/*.rs.bk
+
+# Debug symbols (MSVC)
+*.pdb
+
+# Mutation testing
+**/mutants.out*/
+
+# AI agent artifacts
+worklog.md
+codex/
+agent/
+
+# Test output (raw/wav audio from integration tests)
+*.raw
+*.wav
