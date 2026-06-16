@@ -24,17 +24,27 @@ const LONG_VERSION: &str = concat!(
 );
 
 /// Zylaxion — mechanical keyboard acoustic synthesizer
+///
+/// Note on version output: we deliberately bind ONLY `version` (not `long_version`)
+/// to the multi-line `LONG_VERSION` string. In Clap 4, when both are set, `-V` prints
+/// the short string and `--version` prints the long one — which would re-introduce
+/// the inconsistency we just fixed. Binding only `version` makes `-V` and `--version`
+/// emit the identical multi-line masterclass output.
 #[derive(Parser)]
 #[command(
     name = "zylaxion",
-    version = concat!("v", env!("CARGO_PKG_VERSION")),
-    long_version = LONG_VERSION,
+    version = LONG_VERSION,
     about = "Real-time mechanical keyboard acoustic synthesizer for Linux",
     after_help = "License: GPL-3.0-or-later | https://github.com/oxyzenQ/zylaxion"
 )]
 pub struct Cli {
-    /// Check for upstream updates on GitHub (placeholder)
+    /// Check for upstream updates on GitHub (placeholder).
+    ///
+    /// This flag is intercepted in `main.rs` BEFORE `Cli::parse()` runs, so it can
+    /// be invoked without a subcommand (`zylaxion --check-updated`). The field is
+    /// retained on the struct purely for `--help` discoverability.
     #[arg(long, global = true)]
+    #[allow(dead_code)]
     pub check_updated: bool,
 
     #[command(subcommand)]

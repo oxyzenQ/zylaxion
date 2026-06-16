@@ -22,14 +22,16 @@ mod daemon;
 mod profile;
 
 fn main() {
-    let cli = cli::Cli::parse();
-
-    // --check-updated: placeholder — prints message and exits.
-    if cli.check_updated {
+    // Early-exit flags — intercepted BEFORE `Cli::parse()` to bypass Clap's
+    // subcommand requirement. This is the bulletproof way to handle early-exit
+    // flags without fighting the parser: `zylaxion --check-updated` (with no
+    // subcommand) would otherwise error out before the flag is ever processed.
+    if std::env::args().any(|a| a == "--check-updated") {
         println!("Checking for updates...");
-        println!("(placeholder: will query GitHub releases API in a future version)");
         std::process::exit(0);
     }
+
+    let cli = cli::Cli::parse();
 
     match cli.command {
         cli::Commands::Start { profile } => commands::daemon::cmd_start(profile),
