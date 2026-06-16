@@ -135,6 +135,12 @@ impl VoicePool {
         }
     }
 
+    /// Returns `true` if at least one voice is currently active.
+    #[inline]
+    pub fn is_active(&self) -> bool {
+        self.voices.iter().any(|v| v.is_active())
+    }
+
     /// Return the number of currently active voices.
     #[inline]
     pub fn active_count(&self) -> usize {
