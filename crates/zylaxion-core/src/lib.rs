@@ -46,16 +46,20 @@ use zylaxion_output::AudioSink;
 const MAX_RENDER_CHUNK: usize = 256;
 
 /// Number of silence frames pre-filled into the ring buffer before
-/// starting the audio stream.  4096 frames (~92 ms) survives the worst
-/// Linux non-RT scheduler jitter (30–50 ms) with comfortable margin,
-/// guaranteeing the audio callback never sees an empty buffer at startup.
-const PREFILL_SILENCE_FRAMES: usize = 4096;
+/// starting the audio stream.  Just enough to cover one ALSA period
+/// (~46 ms) so the very first callback doesn't underrun.  Kept small
+/// because pre-fill adds perceived latency — the audio callback
+/// outputs silence naturally when the ring buffer is empty.
+const PREFILL_SILENCE_FRAMES: usize = 2048;
 
 /// If the ring buffer has fewer vacant frames than this threshold,
 /// the buffer is considered "mostly full" and the producer sleeps
 /// briefly to avoid burning CPU.  512 frames ≈ 11.6 ms — roughly
 /// double the period of a typical ALSA fragment, so the callback
 /// will drain some frames well before we wake up.
+///
+/// Only applies when voices are active.  When idle, the producer
+/// never pushes, so this threshold is irrelevant.
 const SLEEP_THRESHOLD: usize = 512;
 
 /// Sleep duration when the ring buffer is mostly full, to avoid
@@ -181,10 +185,11 @@ impl Orchestrator {
     /// * `event_rx` — Channel receiver yielding [`InputKeyEvent`]s from
     ///   the input layer.
     pub fn run<M: AcousticModel>(&mut self, model: &M, event_rx: &Receiver<InputKeyEvent>) {
-        // ── Pre-fill ring buffer with silence ──────────────────────
-        // Prevents the very first cpal callback from hitting an empty
-        // buffer (startup underrun).  The silence is harmless — it
-        // plays for ~23 ms before the loop catches up.
+        // ── Pre-fill ring buffer with minimal silence ─────────────
+        // Only enough to cover one ALSA period so the very first
+        // callback doesn't underrun.  The cpal callback outputs
+        // silence naturally when the ring buffer is empty, so we
+        // keep this small to avoid adding perceived latency.
         let silence = [0.0f32; 2];
         for _ in 0..PREFILL_SILENCE_FRAMES {
             self.sink.write_sample(silence);
@@ -229,19 +234,27 @@ impl Orchestrator {
                 }
             }
 
-            // 2. Determine how many frames the ring buffer can accept.
+            // 2. Only render and push when voices are active.
+            //    When idle, the ring buffer stays empty so the cpal
+            //    callback outputs silence naturally (zero-latency).
+            //    This eliminates the "wall of silence" delay.
+            if !self.pool.is_active() {
+                std::thread::sleep(FULL_BUFFER_SLEEP);
+                continue;
+            }
+
+            // 3. Determine how many frames the ring buffer can accept.
             let vacancy = self.sink.producer_vacancy();
 
             if vacancy < SLEEP_THRESHOLD {
                 // Buffer is mostly full — the audio callback hasn't
                 // drained enough yet.  Sleep briefly to avoid 100 %
-                // CPU, then re-check.  The SLEEP_THRESHOLD ensures we
-                // always keep a comfortable headroom of audio queued.
+                // CPU, then re-check.
                 std::thread::sleep(FULL_BUFFER_SLEEP);
                 continue;
             }
 
-            // 3. Render up to `vacancy` frames (capped at MAX_RENDER_CHUNK).
+            // 4. Render up to `vacancy` frames (capped at MAX_RENDER_CHUNK).
             let chunk_len = vacancy.min(MAX_RENDER_CHUNK);
             let chunk = &mut batch[..chunk_len];
 
@@ -256,7 +269,7 @@ impl Orchestrator {
             // NOT clear it), matching its documented contract.
             self.pool.process(model, chunk);
 
-            // 4. Push the rendered audio into the ring buffer.
+            // 5. Push the rendered audio into the ring buffer.
             //    `write_batch` never blocks — it silently drops if
             //    the buffer filled between the vacancy check and now.
             self.sink.write_batch(chunk);
