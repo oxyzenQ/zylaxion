@@ -17,6 +17,8 @@
 //! Press Ctrl+C to stop.
 
 use std::process;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 use zactrix_profiles::MechanicalClick;
 use zylaxion_core::Orchestrator;
@@ -53,7 +55,10 @@ fn main() {
     println!("[zylaxion-live] ready — press any key to hear it!");
     println!("[zylaxion-live] Ctrl+C to quit\n");
 
-    orchestrator.run(&model, &event_rx);
+    // Dummy stop flag — never set, runs until Ctrl+C disconnects input.
+    let stop_flag = Arc::new(AtomicBool::new(false));
+
+    orchestrator.run(&model, &event_rx, stop_flag);
 
     println!("\n[zylaxion-live] goodbye.");
 }
