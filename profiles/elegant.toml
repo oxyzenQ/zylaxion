@@ -1,0 +1,20 @@
+# Zylaxion Acoustic Profile: Elegant
+# Very soft, muffled, polite — for quiet environments.
+# Best for low-profile or scissor-switch keyboards.
+
+[profile]
+
+[profile.click]
+frequency = 3000.0    # Hz — muted
+resonance = 1.5       # Q factor
+duration_ms = 3.0    # ms — gentle onset
+amplitude = 0.35      # quiet
+
+[profile.spring]
+frequency = 1500.0    # Hz — subtle
+resonance = 2.5       # Q factor
+mix = 0.4             # low spring content
+
+[profile.decay]
+coefficient = 0.9991         # medium decay (~120 ms)
+voice_off_threshold = 0.0001  # higher threshold = shorter voice

@@ -1,0 +1,20 @@
+# Zylaxion Acoustic Profile: Studio
+# Softer attack, longer decay — studio-monitor feel.
+# Best for quiet office environments with Cherry MX Red / linear switches.
+
+[profile]
+
+[profile.click]
+frequency = 4000.0    # Hz
+resonance = 1.2       # Q factor — gentle
+duration_ms = 2.0    # ms — soft attack
+amplitude = 0.5       # moderate volume
+
+[profile.spring]
+frequency = 2200.0    # Hz — mid-range warmth
+resonance = 2.0       # Q factor — controlled
+mix = 0.5             # balanced mix
+
+[profile.decay]
+coefficient = 0.9997         # long tail (~280 ms)
+voice_off_threshold = 0.00001

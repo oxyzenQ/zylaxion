@@ -1,0 +1,20 @@
+# Zylaxion Acoustic Profile: Technical
+# Crisp, loud, punchy — the default profile.
+# Best for Cherry MX Blue / clicky switches.
+
+[profile]
+
+[profile.click]
+frequency = 4500.0    # Hz — sharp attack
+resonance = 2.0       # Q factor
+duration_ms = 1.5    # ms — very short burst
+amplitude = 0.8       # loud
+
+[profile.spring]
+frequency = 1800.0    # Hz — bright spring ring
+resonance = 3.5       # Q factor — prominent ring
+mix = 0.6             # spring mix level
+
+[profile.decay]
+coefficient = 0.9994         # per-sample decay
+voice_off_threshold = 0.00001 # -100 dB

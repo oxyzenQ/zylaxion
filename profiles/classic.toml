@@ -1,0 +1,20 @@
+# Zylaxion Acoustic Profile: Classic
+# Deeper, more resonant — like old bucklespring keyboards.
+# Best for Cherry MX Brown / tactile switches.
+
+[profile]
+
+[profile.click]
+frequency = 3200.0    # Hz — lower, warmer click
+resonance = 2.5       # Q factor — more ring
+duration_ms = 2.5    # ms — slightly longer burst
+amplitude = 0.7
+
+[profile.spring]
+frequency = 1200.0    # Hz — deep spring
+resonance = 4.0       # Q factor — long sustain
+mix = 0.75            # spring-heavy mix
+
+[profile.decay]
+coefficient = 0.9992         # slower decay (~140 ms to -60 dB)
+voice_off_threshold = 0.00001
