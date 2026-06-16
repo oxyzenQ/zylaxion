@@ -5,9 +5,22 @@
 # Zylaxion installer — builds the release binary and installs it
 # system-wide along with the default acoustic profile TOMLs.
 #
+# Distro-agnostic: works on Arch, Fedora, Debian/Ubuntu, and any
+# Linux distribution with a standard filesystem layout.
+#
 # Usage: sudo ./install.sh
 
 set -euo pipefail
+
+# ── Early PATH fix for sudo ─────────────────────────────────────────
+# When run via `sudo`, the root shell has a minimal PATH that does
+# NOT include the invoking user's ~/.cargo/bin.  Fix this by looking
+# up the user's home directory from /etc/passwd and prepending their
+# cargo bin to PATH.  This must happen before anything else.
+if [ -n "${SUDO_USER:-}" ]; then
+    USER_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+    export PATH="${USER_HOME}/.cargo/bin:${PATH}"
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANIFEST="${SCRIPT_DIR}/Cargo.toml"
@@ -20,13 +33,9 @@ INSTALL_PROFILES="/etc/zylaxion/profiles"
 
 check_deps() {
     local missing=()
-    local cargo_cmd
-    cargo_cmd="$(get_cargo_cmd)"
 
-    # When run via sudo, root may not have cargo in PATH, but the
-    # original user does.  Use the resolved cargo_cmd to check.
-    if ! $cargo_cmd --version &>/dev/null; then
-        missing+=("cargo (Rust toolchain)")
+    if ! command -v cargo &>/dev/null; then
+        missing+=("cargo")
     fi
 
     if ! command -v pkg-config &>/dev/null; then
@@ -34,52 +43,37 @@ check_deps() {
     fi
 
     if [ ${#missing[@]} -gt 0 ]; then
-        echo "error: missing dependencies:"
+        echo "Error: missing dependencies:"
         for dep in "${missing[@]}"; do
-            echo "  - $dep"
+            echo "  - ${dep}"
         done
         echo ""
-        echo "Install Rust: https://rustup.rs/"
-        echo "Install pkg-config: sudo apt install pkg-config (Debian/Ubuntu)"
+        echo "Please install the above via your system's package manager."
+        echo "Rust: https://rustup.rs/"
         exit 1
     fi
 }
 
 # ── Build ──────────────────────────────────────────────────────────
 
-# Determine the correct cargo command.
-# When run via sudo, root's PATH lacks the user's rustup/cargo.
-# Use SUDO_USER to run cargo as the original (non-root) user.
-get_cargo_cmd() {
-    if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
-        # Running as root via sudo — run build as the original user
-        # so we pick up their ~/.cargo/bin and rustup toolchain.
-        echo "sudo -u \"$SUDO_USER\" cargo"
-    else
-        echo "cargo"
-    fi
-}
-
 build_release() {
-    local cargo_cmd
-    cargo_cmd="$(get_cargo_cmd)"
     echo "==> Building release binary..."
-    $cargo_cmd build --release --manifest-path "$MANIFEST"
+    cargo build --release --locked --manifest-path "$MANIFEST"
 }
 
 # ── Install ─────────────────────────────────────────────────────────
 
 install_bin() {
     echo "==> Installing binary to ${INSTALL_BIN}..."
-    install -m 0755 "${SCRIPT_DIR}/target/release/zylaxion" "$INSTALL_BIN"
+    install -Dm755 "${SCRIPT_DIR}/target/release/zylaxion" "$INSTALL_BIN"
 }
 
 install_profiles() {
-    echo "==> Installing profile TOMLs to ${INSTALL_PROFILES}/..."
+    echo "==> Installing profile TOMLs to ${INSTALL_PROFILES}/"
     mkdir -p "$INSTALL_PROFILES"
     for toml in "$PROFILE_DIR"/*.toml; do
         [ -f "$toml" ] || continue
-        install -m 0644 "$toml" "$INSTALL_PROFILES/"
+        install -m0644 "$toml" "$INSTALL_PROFILES/"
         echo "    installed $(basename "$toml")"
     done
 }
@@ -87,17 +81,19 @@ install_profiles() {
 # ── Post-install notes ──────────────────────────────────────────────
 
 post_install() {
+    local target_user="${SUDO_USER:-$USER}"
+
     echo ""
     echo "==> Zylaxion installed successfully!"
     echo ""
 
-    # Check if user is in the input group.
-    if ! groups 2>/dev/null | tr ' ' '\n' | grep -qx "input"; then
-        echo "    ⚠  You are NOT in the 'input' group."
-        echo "       Run:  sudo usermod -aG input \$USER"
-        echo "       Then log out and back in."
+    # Check if the target user is in the input group.
+    if id -nG "$target_user" 2>/dev/null | tr ' ' '\n' | grep -qx "input"; then
+        echo "    OK  User '${target_user}' is in the 'input' group."
     else
-        echo "    ✓ User is in the 'input' group."
+        echo "    WARNING  User '${target_user}' is NOT in the 'input' group."
+        echo "    Run:  sudo usermod -aG input ${target_user}"
+        echo "    Then log out and back in for the change to take effect."
     fi
 
     echo ""
