@@ -51,6 +51,10 @@ pub struct VoicePool {
     voices: [Voice; MAX_POLYPHONY],
     /// Monotonic counter incremented on each trigger for voice-stealing order.
     trigger_counter: u64,
+    /// Master volume multiplier applied to the final stereo output.
+    /// Combined with a hard clamp to prevent clipping when multiple
+    /// voices sum above unity.
+    master_volume: f32,
 }
 
 impl VoicePool {
@@ -59,6 +63,7 @@ impl VoicePool {
         Self {
             voices: core::array::from_fn(|_| Voice::new()),
             trigger_counter: 0,
+            master_volume: 2.5,
         }
     }
 
@@ -119,7 +124,14 @@ impl VoicePool {
                 out[1] += right;
             }
         }
-        out
+        // Apply master volume and hard-clamp to prevent clipping.
+        // Even with 10+ simultaneous voices the output stays within
+        // [-1.0, 1.0], producing clean compression instead of
+        // horrible crackling distortion.
+        [
+            (out[0] * self.master_volume).clamp(-1.0, 1.0),
+            (out[1] * self.master_volume).clamp(-1.0, 1.0),
+        ]
     }
 
     /// Process a batch of samples, accumulating into the output buffer.

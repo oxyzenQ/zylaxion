@@ -162,9 +162,11 @@ impl CpalSink {
                             for frame in data.chunks_exact_mut(channels) {
                                 match cons.try_pop() {
                                     Some([l, r]) => {
-                                        frame[0] = l;
+                                        // Final safety net: hard-clamp to
+                                        // [-1.0, 1.0] before handing to ALSA.
+                                        frame[0] = l.clamp(-1.0, 1.0);
                                         if channels > 1 {
-                                            frame[1] = r;
+                                            frame[1] = r.clamp(-1.0, 1.0);
                                         }
                                     }
                                     None => {
