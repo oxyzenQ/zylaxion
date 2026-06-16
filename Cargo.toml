@@ -5,6 +5,7 @@ members = [
     "crates/zylaxion-output",
     "crates/zylaxion-input",
     "crates/zylaxion-core",
+    "crates/zylaxion",
 ]
 resolver = "2"
 
