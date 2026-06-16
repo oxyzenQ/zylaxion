@@ -23,8 +23,9 @@
 //!                                                          ringbuf ──►  cpal callback
 //! ```
 //!
-//! The main loop uses `recv_timeout` so that audio rendering continues
-//! even when no keys are pressed, preventing buffer underruns.
+//! The main loop uses a **continuous feed** model: the producer thread
+//! greedily fills the ring buffer and only sleeps when it is full,
+//! ensuring the cpal audio callback never starves.
 
 use std::fmt;
 use std::time::Duration;
@@ -37,19 +38,21 @@ use zylaxion_output::AudioSink;
 
 // ── Constants ───────────────────────────────────────────────────────────
 
-/// Number of stereo frames rendered per loop iteration.
+/// Maximum number of stereo frames rendered per loop iteration.
 ///
-/// 64 frames at 44.1 kHz ≈ 1.45 ms of audio.  Small enough to keep
-/// input-to-output latency well below human perception, large enough
-/// that the per-iteration overhead is negligible.
-const RENDER_CHUNK: usize = 64;
+/// 256 frames at 44.1 kHz ≈ 5.8 ms.  Matches the cpal hardware buffer
+/// size so each iteration produces exactly what the audio callback will
+/// request next, keeping the ring buffer topped up without waste.
+const MAX_RENDER_CHUNK: usize = 256;
 
-/// Timeout for `recv_timeout` when no input events are pending.
-///
-/// Should be shorter than the render-chunk duration so the loop can
-/// always keep the ring buffer fed.  At 44.1 kHz the 64-frame chunk
-/// lasts ~1.45 ms, so a 1 ms timeout is ideal.
-const EVENT_POLL_TIMEOUT: Duration = Duration::from_millis(1);
+/// Number of silence frames pre-filled into the ring buffer before
+/// starting the audio stream.  Prevents startup underruns while the
+/// producer thread stabilises its scheduling cadence.
+const PREFILL_SILENCE_FRAMES: usize = 1024;
+
+/// Sleep duration when the ring buffer is full, to avoid spinning
+/// the CPU at 100 % while the audio callback drains frames.
+const FULL_BUFFER_SLEEP: Duration = Duration::from_millis(1);
 
 // ── Pan mapping ─────────────────────────────────────────────────────────
 
@@ -170,48 +173,82 @@ impl Orchestrator {
     /// * `event_rx` — Channel receiver yielding [`InputKeyEvent`]s from
     ///   the input layer.
     pub fn run<M: AcousticModel>(&mut self, model: &M, event_rx: &Receiver<InputKeyEvent>) {
-        // Pre-allocate the render buffer once — no allocation in the loop.
-        let mut batch = [[0.0f32; 2]; RENDER_CHUNK];
+        // ── Pre-fill ring buffer with silence ──────────────────────
+        // Prevents the very first cpal callback from hitting an empty
+        // buffer (startup underrun).  The silence is harmless — it
+        // plays for ~23 ms before the loop catches up.
+        let silence = [0.0f32; 2];
+        for _ in 0..PREFILL_SILENCE_FRAMES {
+            self.sink.write_sample(silence);
+        }
 
-        // Report device info once — confirm low-latency tuning is active.
+        // Report device info once — confirm continuous-feed tuning.
         let device_rate = self.sink.sample_rate();
         eprintln!(
-            "[zylaxion-core] Low-latency mode active — device rate: {device_rate} Hz, \
-             render chunk: {RENDER_CHUNK} frames (~{:.2} ms)",
-            RENDER_CHUNK as f64 / SAMPLE_RATE as f64 * 1000.0,
+            "[zylaxion-core] Continuous-feed mode — device rate: {device_rate} Hz, \
+             max render chunk: {MAX_RENDER_CHUNK} frames (~{:.2} ms)",
+            MAX_RENDER_CHUNK as f64 / SAMPLE_RATE as f64 * 1000.0,
         );
         eprintln!(
             "[zylaxion-core] Ring buffer: 4096 frames (~{:.1} ms), \
-             cpal hw buffer: 64 frames (~{:.2} ms)",
+             cpal hw buffer: 256 frames (~{:.2} ms), \
+             pre-fill: {PREFILL_SILENCE_FRAMES} frames (~{:.1} ms)",
             4096.0 / SAMPLE_RATE as f64 * 1000.0,
-            64.0 / SAMPLE_RATE as f64 * 1000.0,
+            256.0 / SAMPLE_RATE as f64 * 1000.0,
+            PREFILL_SILENCE_FRAMES as f64 / SAMPLE_RATE as f64 * 1000.0,
         );
 
-        // ── Main loop ──────────────────────────────────────────────
+        // Pre-allocate the largest possible render buffer once —
+        // no allocation in the hot loop.  We slice it down to the
+        // actual chunk size each iteration.
+        let mut batch = [[0.0f32; 2]; MAX_RENDER_CHUNK];
+
+        // ── Continuous feed loop ───────────────────────────────────
         loop {
-            // Drain all pending key events before rendering.  This
-            // ensures that rapid key presses within one poll window
-            // are all processed at the same sample position, avoiding
-            // ordering artefacts.
+            // 1. Drain all pending KeyEvents (non-blocking).
+            //    Also detects channel disconnect for clean shutdown:
+            //    when the Sender is dropped, `try_recv` returns
+            //    `Disconnected` once the queue is empty.
             loop {
-                match event_rx.recv_timeout(EVENT_POLL_TIMEOUT) {
+                match event_rx.try_recv() {
                     Ok(event) => Self::handle_input_event(&mut self.pool, model, &event),
-                    Err(crossbeam_channel::RecvTimeoutError::Timeout) => break,
-                    Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
+                    Err(crossbeam_channel::TryRecvError::Empty) => break,
+                    Err(crossbeam_channel::TryRecvError::Disconnected) => {
                         eprintln!("[zylaxion-core] input channel disconnected — shutting down");
                         return;
                     }
                 }
             }
 
-            // Render a chunk of audio from the voice pool.
-            for frame in batch.iter_mut() {
-                *frame = self.pool.process_sample(model);
+            // 2. Determine how many frames the ring buffer can accept.
+            let vacancy = self.sink.producer_vacancy();
+
+            if vacancy == 0 {
+                // Buffer is full — the audio callback hasn't caught up
+                // yet.  Sleep briefly to avoid burning CPU at 100 %.
+                std::thread::sleep(FULL_BUFFER_SLEEP);
+                continue;
             }
 
-            // Push the rendered audio into the ring buffer that feeds
-            // the cpal audio callback.  `write_batch` never blocks.
-            self.sink.write_batch(&batch);
+            // 3. Render up to `vacancy` frames (capped at MAX_RENDER_CHUNK).
+            let chunk_len = vacancy.min(MAX_RENDER_CHUNK);
+            let chunk = &mut batch[..chunk_len];
+
+            // Render silence into the chunk first, then let process()
+            // accumulate on top — this zeroes any residual from a
+            // previous iteration that used a shorter slice.
+            for frame in chunk.iter_mut() {
+                *frame = [0.0f32; 2];
+            }
+
+            // VoicePool::process accumulates into the buffer (does
+            // NOT clear it), matching its documented contract.
+            self.pool.process(model, chunk);
+
+            // 4. Push the rendered audio into the ring buffer.
+            //    `write_batch` never blocks — it silently drops if
+            //    the buffer filled between the vacancy check and now.
+            self.sink.write_batch(chunk);
         }
     }
 
@@ -296,10 +333,10 @@ mod tests {
 
     #[test]
     fn render_chunk_duration_is_sane() {
-        let duration_ms = RENDER_CHUNK as f64 / SAMPLE_RATE as f64 * 1000.0;
+        let duration_ms = MAX_RENDER_CHUNK as f64 / SAMPLE_RATE as f64 * 1000.0;
         assert!(
             duration_ms > 0.5 && duration_ms < 10.0,
-            "render chunk duration should be 0.5–10 ms, got {duration_ms:.2} ms"
+            "max render chunk duration should be 0.5–10 ms, got {duration_ms:.2} ms"
         );
     }
 

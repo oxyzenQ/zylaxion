@@ -144,10 +144,11 @@ impl CpalSink {
         let (producer, consumer) = rb.split();
 
         let mut stream_config: cpal::StreamConfig = supported.into();
-        // Force a small hardware buffer for low latency.  PipeWire / ALSA
-        // default to large buffers (~1024+ frames) which add tens of ms
-        // of delay.  64 frames at 44.1 kHz ≈ 1.45 ms.
-        stream_config.buffer_size = cpal::BufferSize::Fixed(64);
+        // Relaxed hardware buffer — balances low latency with underrun
+        // resistance on non-RT kernels.  256 frames at 44.1 kHz ≈ 5.8 ms,
+        // well below human perception (~10 ms threshold) while giving
+        // the OS scheduler enough breathing room to avoid ALSA underruns.
+        stream_config.buffer_size = cpal::BufferSize::Fixed(256);
         let err_fn = |err: cpal::StreamError| eprintln!("[zylaxion-output] stream error: {err}");
 
         let stream = match sample_format {
