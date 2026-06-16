@@ -1,23 +1,32 @@
 <p align="center">
+  <img src="assets/zylaxion-logo-master.png" alt="Zylaxion logo" width="260">
+</p>
+
+<h1 align="center">Zylaxion</h1>
+
+<p align="center">
+  <strong>Linux-first real-time mechanical keyboard acoustic engine.</strong>
+</p>
+
+<p align="center">
+  Pure procedural synthesis. Zero audio samples. Ultra-low latency.
+</p>
+
+<p align="center">
   <a href="https://ko-fi.com/rezky">
-    <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support on Ko-fi">
+    <img src="https://img.shields.io/badge/Ko--fi-support-7C3AED?style=flat-square&logo=kofi&logoColor=white&labelColor=111827" alt="Support on Ko-fi">
   </a>
 </p>
 
-<h1 align="center">zylaxion</h1>
+---
 
-<p align="center">
-  Linux-first real-time mechanical keyboard acoustic engine.<br>
-  Pure procedural synthesis. Zero audio samples. Low-latency.
-</p>
+Zylaxion transforms every keystroke into a spatially accurate mechanical keyboard sound using Linux's `evdev` interface and real-time audio output through `cpal` and PipeWire.
 
-zylaxion transforms every keystroke into a spatially-accurate click sound
-through your speakers using the kernel's evdev interface and real-time
-audio via cpal / PipeWire. Every sound is generated mathematically
-through TPT State Variable Filters, noise excitation, and exponential
-decay envelopes — no wavetables, no sample libraries, no audio files.
+Instead of replaying recorded samples, every sound is synthesized mathematically using noise excitation, TPT State Variable Filters, resonance modeling, and exponential decay envelopes.
 
-**Works flawlessly on Wayland, X11, and TTY.**
+No audio files. No sample libraries. No wavetable playback.
+
+**Works on Wayland, X11, and Linux TTY.**
 
 ## Features
 
