@@ -28,6 +28,8 @@
 //! ensuring the cpal audio callback never starves.
 
 use std::fmt;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crossbeam_channel::Receiver;
@@ -170,9 +172,13 @@ impl Orchestrator {
 
     /// Run the main input → render → output loop.
     ///
-    /// Blocks the calling thread until the `event_rx` receiver is
-    /// disconnected (e.g. the input background thread has shut down
-    /// due to Ctrl+C).
+    /// Blocks the calling thread until one of three conditions:
+    ///
+    /// 1. `event_rx` is disconnected (input source shut down).
+    /// 2. `stop_flag` is set to `true` (e.g. IPC "stop" command or SIGTERM).
+    ///
+    /// When the loop exits, `CpalSink` is dropped, releasing the audio
+    /// device and un-stalling the PipeWire graph.
     ///
     /// # Arguments
     ///
@@ -181,7 +187,14 @@ impl Orchestrator {
     ///   orchestrator (e.g. a static reference).
     /// * `event_rx` — Channel receiver yielding [`InputKeyEvent`]s from
     ///   the input layer.
-    pub fn run<M: AcousticModel>(&mut self, model: &M, event_rx: &Receiver<InputKeyEvent>) {
+    /// * `stop_flag` — Shared flag checked each loop iteration; when
+    ///   `true`, the loop breaks and the audio device is released.
+    pub fn run<M: AcousticModel>(
+        &mut self,
+        model: &M,
+        event_rx: &Receiver<InputKeyEvent>,
+        stop_flag: Arc<AtomicBool>,
+    ) {
         // ── Pre-fill ring buffer with minimal silence ─────────────
         // Only enough to cover one ALSA period so the very first
         // callback doesn't underrun.  The cpal callback outputs
@@ -214,6 +227,14 @@ impl Orchestrator {
 
         // ── Interrupt-driven loop ────────────────────────────────
         loop {
+            // 0. Check stop flag — IPC "stop" command or SIGTERM
+            //    handler sets this to true.  Break immediately so
+            //    CpalSink is dropped and PipeWire graph is released.
+            if stop_flag.load(Ordering::Relaxed) {
+                eprintln!("[zylaxion-core] stop flag set — shutting down");
+                return;
+            }
+
             // 1. Block until a key event arrives (wakes immediately)
             //    or the 1 ms timeout expires.  This is the primary
             //    idle mechanism — no CPU spin when no keys are pressed.
@@ -234,7 +255,8 @@ impl Orchestrator {
                 Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
                     eprintln!("[zylaxion-core] input channel disconnected — shutting down");
                     return;
-                }
+                } // Timeout is handled by falling through — the loop
+                  // re-checks the stop flag at the top of the next iteration.
             }
 
             // 2. Only render and push when voices are active.

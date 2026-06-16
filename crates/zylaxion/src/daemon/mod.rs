@@ -8,18 +8,46 @@ pub mod ipc;
 use std::fs;
 use std::io::Write;
 use std::os::unix::net::UnixListener;
+use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::Arc;
 
 use nix::sys::signal::{self, SigHandler, Signal};
 use nix::unistd::{fork, getpid, setsid, ForkResult, Pid};
 
-/// A flag set by the SIGTERM/SIGINT handler to tell the IPC
-/// listener thread to stop.
-pub static SHUTDOWN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// Global pointer to the stop flag, bridging the Rust `Arc<AtomicBool>`
+/// into the C signal handler (which cannot capture Rust variables).
+/// Written once during `install_signal_handlers()`, read from the
+/// signal handler.  Uses `AtomicPtr` to avoid `unsafe static mut`.
+static STOP_FLAG_PTR: AtomicPtr<AtomicBool> = AtomicPtr::new(std::ptr::null_mut());
 
-/// Install signal handlers that set the SHUTDOWN flag.
-pub fn install_signal_handlers() {
+/// Ignore `SIGHUP` and `SIGPIPE` so the daemon child does not die or
+/// hang when the controlling terminal disappears or a socket write fails.
+pub fn ignore_hup_pipe() {
+    let _ = unsafe { signal::signal(Signal::SIGHUP, SigHandler::SigIgn) };
+    let _ = unsafe { signal::signal(Signal::SIGPIPE, SigHandler::SigIgn) };
+}
+
+/// Install SIGTERM / SIGINT handlers that atomically set `stop_flag` to
+/// `true`.  The `Arc<AtomicBool>` is intentionally leaked via
+/// `Arc::into_raw` because signal handlers cannot safely manage Rust
+/// ownership — the flag lives for the entire daemon process lifetime.
+pub fn install_signal_handlers(stop_flag: Arc<AtomicBool>) {
+    // Leak the Arc so the C signal handler can reach the AtomicBool.
+    // This is safe: `AtomicBool::store(Relaxed)` is async-signal-safe,
+    // and the allocation outlives the process.
+    let ptr = Arc::into_raw(stop_flag) as *mut AtomicBool;
+    STOP_FLAG_PTR.store(ptr, Ordering::Release);
+
     extern "C" fn handle_signal(_: std::os::raw::c_int) {
-        SHUTDOWN.store(true, std::sync::atomic::Ordering::Relaxed);
+        let ptr = STOP_FLAG_PTR.load(Ordering::Acquire);
+        if !ptr.is_null() {
+            // SAFETY: `ptr` is a leaked `Arc<AtomicBool>` that lives for
+            // the entire process lifetime.  `AtomicBool::store(Relaxed)`
+            // is an async-signal-safe atomic operation.
+            unsafe {
+                (*ptr).store(true, Ordering::Relaxed);
+            }
+        }
     }
 
     let handler = SigHandler::Handler(handle_signal);
@@ -82,17 +110,22 @@ pub fn is_daemon_running() -> Result<Pid, String> {
     Ok(pid)
 }
 
-/// Spawn the IPC listener on a dedicated thread.
+/// Spawn the IPC listener on a dedicated background thread.
 ///
-/// When a "stop" command is received, `SHUTDOWN` is set and the thread exits.
-pub fn spawn_ipc_thread(listener: UnixListener) -> std::thread::JoinHandle<()> {
+/// When a "stop" command is received, `stop_flag` is set to `true` and
+/// the thread exits.  The main-thread orchestrator loop checks this
+/// flag and breaks cleanly, dropping `CpalSink` and releasing audio.
+pub fn spawn_ipc_thread(
+    listener: UnixListener,
+    stop_flag: Arc<AtomicBool>,
+) -> std::thread::JoinHandle<()> {
     std::thread::Builder::new()
         .name("zylaxion-ipc".into())
         .spawn(move || loop {
             match ipc::handle_one_connection(&listener) {
                 Some(cmd) if cmd == "stop" => {
                     log::info!("received 'stop' command via IPC");
-                    SHUTDOWN.store(true, std::sync::atomic::Ordering::Relaxed);
+                    stop_flag.store(true, Ordering::Relaxed);
                     break;
                 }
                 Some(_) | None => continue,

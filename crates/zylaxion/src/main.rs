@@ -20,6 +20,8 @@
 mod daemon;
 
 use std::process;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 use cpal::traits::{DeviceTrait, HostTrait};
@@ -134,10 +136,14 @@ fn cmd_start() {
 
     let (event_rx, mut orchestrator) = bootstrap();
 
+    // Dummy stop flag — always false so the foreground mode runs
+    // until the input channel disconnects (Ctrl+C).
+    let stop_flag = Arc::new(AtomicBool::new(false));
+
     let model = MechanicalClick::new();
     log::info!("ready — press any key to hear it (Ctrl+C to quit)");
 
-    orchestrator.run(&model, &event_rx);
+    orchestrator.run(&model, &event_rx, stop_flag);
 
     log::info!("shutdown complete");
 }
@@ -174,8 +180,16 @@ fn cmd_daemon() {
         process::exit(1);
     }
 
-    // Install signal handlers.
-    daemon::install_signal_handlers();
+    // Ignore SIGHUP / SIGPIPE so the daemon survives terminal closure
+    // and broken socket writes.
+    daemon::ignore_hup_pipe();
+
+    // Shared stop flag: IPC thread and signal handlers both set this.
+    // The orchestrator main loop checks it every iteration.
+    let stop_flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    // Install signal handlers (SIGTERM / SIGINT → set stop_flag).
+    daemon::install_signal_handlers(Arc::clone(&stop_flag));
 
     // Create IPC socket.
     let listener = match daemon::ipc::create_listener() {
@@ -188,12 +202,15 @@ fn cmd_daemon() {
     };
     log::info!("IPC socket ready: {}", daemon::ipc::socket_path().display());
 
-    // Spawn IPC listener thread.
-    let _ipc_handle = daemon::spawn_ipc_thread(listener);
+    // Spawn IPC listener on a BACKGROUND thread.
+    // The orchestrator runs on the MAIN thread — same as zylaxion_live.
+    let _ipc_handle = daemon::spawn_ipc_thread(listener, Arc::clone(&stop_flag));
 
-    // Run the audio loop (blocks until channel disconnect or stop).
+    // Run the audio loop on the MAIN thread (blocks until stop or
+    // channel disconnect).  When this returns, CpalSink is dropped,
+    // releasing the PipeWire audio device.
     let model = MechanicalClick::new();
-    orchestrator.run(&model, &event_rx);
+    orchestrator.run(&model, &event_rx, stop_flag);
 
     // Clean shutdown.
     log::info!("shutting down");
