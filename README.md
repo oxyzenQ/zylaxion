@@ -2,7 +2,7 @@
   <img src="assets/zylaxion-logo-master.png" alt="Zylaxion logo" width="260">
 </p>
 
-<h1 align="center">Zylaxion</h1>
+<h1 align="center">zylaxion</h1>
 
 <p align="center">
   <strong>Linux-first real-time mechanical keyboard acoustic engine.</strong>
