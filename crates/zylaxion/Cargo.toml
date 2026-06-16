@@ -16,7 +16,7 @@ zactrix-profiles = { path = "../zactrix-profiles" }
 clap = { version = "4", features = ["derive"] }
 log = "0.4"
 env_logger = "0.11"
-nix = { version = "0.29", features = ["signal", "process", "user"] }
+nix = { version = "0.29", features = ["signal", "process", "user", "fs"] }
 cpal = "0.15"
 crossbeam-channel = "0.5"
 serde = { version = "1", features = ["derive"] }

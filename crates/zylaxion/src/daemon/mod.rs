@@ -7,12 +7,13 @@ pub mod ipc;
 
 use std::fs;
 use std::io::Write;
+use std::os::fd::AsRawFd;
 use std::os::unix::net::UnixListener;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 use std::sync::Arc;
 
 use nix::sys::signal::{self, SigHandler, Signal};
-use nix::unistd::{fork, getpid, setsid, ForkResult, Pid};
+use nix::unistd::{dup2, fork, getpid, setsid, ForkResult, Pid};
 
 /// Global pointer to the stop flag, bridging the Rust `Arc<AtomicBool>`
 /// into the C signal handler (which cannot capture Rust variables).
@@ -70,24 +71,37 @@ pub fn cleanup() {
     let _ = fs::remove_file(ipc::socket_path());
 }
 
-/// Fork into the background.  The child calls `setsid()` to become
-/// a session leader, then returns.  The parent exits with 0.
+/// Fork into the background.  The parent prints the child PID and
+/// exits with 0.  The child calls `setsid()` to become a session
+/// leader and detach from the controlling terminal.
 pub fn daemonize() -> Result<(), String> {
     match unsafe { fork() } {
-        Ok(ForkResult::Parent { .. }) => std::process::exit(0),
+        Ok(ForkResult::Parent { child }) => {
+            println!("{}", child.as_raw());
+            std::process::exit(0);
+        }
         Ok(ForkResult::Child) => {
             if let Err(e) = setsid() {
                 return Err(format!("setsid failed: {e}"));
             }
-            // Second fork to guarantee we can never re-acquire a terminal.
-            match unsafe { fork() } {
-                Ok(ForkResult::Parent { .. }) => std::process::exit(0),
-                Ok(ForkResult::Child) => Ok(()),
-                Err(e) => Err(format!("second fork failed: {e}")),
-            }
+            Ok(())
         }
         Err(e) => Err(format!("fork failed: {e}")),
     }
+}
+
+/// Close standard file descriptors (stdin, stdout, stderr) and
+/// redirect them to `/dev/null` so the daemon cannot read from or
+/// write to the controlling terminal.
+pub fn close_std_fds() {
+    let null = std::fs::File::open("/dev/null").expect("failed to open /dev/null");
+    let null_fd = null.as_raw_fd();
+    // Prevent File's Drop from closing the fd before dup2 completes.
+    std::mem::forget(null);
+
+    let _ = dup2(null_fd, 0); // stdin
+    let _ = dup2(null_fd, 1); // stdout
+    let _ = dup2(null_fd, 2); // stderr
 }
 
 /// Check if a daemon is already running by reading the PID file,

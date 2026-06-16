@@ -99,14 +99,15 @@ fn print_version() {
     println!("Source: https://github.com/oxyzenQ/zylaxion");
 }
 
-// ── Shared runtime bootstrap ────────────────────────────────────────────
+// ── Subcommands ─────────────────────────────────────────────────────────
 
-/// Create the input source and orchestrator.  Returns them or exits
-/// with a user-friendly error message.
-fn bootstrap() -> (
-    crossbeam_channel::Receiver<zylaxion_input::KeyEvent>,
-    Orchestrator,
-) {
+fn cmd_start() {
+    env_logger::init();
+    log::info!("starting zylaxion in foreground mode");
+
+    // Mirror the zylaxion_live example exactly.
+    //
+    // 1. Start input capture (background thread).
     let mut input_source = LibinputSource::new();
     let event_rx = match input_source.listen() {
         Ok(rx) => rx,
@@ -116,7 +117,8 @@ fn bootstrap() -> (
         }
     };
 
-    let orchestrator = match Orchestrator::new() {
+    // 2. Create the orchestrator (audio + engine).
+    let mut orchestrator = match Orchestrator::new() {
         Ok(o) => o,
         Err(e) => {
             eprintln!("[zylaxion] audio error: {e}");
@@ -125,21 +127,8 @@ fn bootstrap() -> (
         }
     };
 
-    (event_rx, orchestrator)
-}
-
-// ── Subcommands ─────────────────────────────────────────────────────────
-
-fn cmd_start() {
-    env_logger::init();
-    log::info!("starting zylaxion in foreground mode");
-
-    let (event_rx, mut orchestrator) = bootstrap();
-
-    // Dummy stop flag — always false so the foreground mode runs
-    // until the input channel disconnects (Ctrl+C).
+    // 3. Run the main loop on the MAIN thread (blocks until Ctrl+C).
     let stop_flag = Arc::new(AtomicBool::new(false));
-
     let model = MechanicalClick::new();
     log::info!("ready — press any key to hear it (Ctrl+C to quit)");
 
@@ -149,24 +138,25 @@ fn cmd_start() {
 }
 
 fn cmd_daemon() {
-    // Check if already running.
+    // Check if already running (with /proc/<pid>/comm PID recycling check).
     if daemon::is_daemon_running().is_ok() {
         eprintln!("error: zylaxion daemon is already running");
         process::exit(1);
     }
 
-    // Pre-bootstrap: validate devices before forking so errors
-    // are reported to the terminal, not lost in the background.
-    let (event_rx, mut orchestrator) = bootstrap();
-
-    // Fork into the background.
+    // ── Fork FIRST — do NOT touch audio/input before forking. ──
+    // daemonize() prints the child PID and the parent exits with 0.
     if let Err(e) = daemon::daemonize() {
         eprintln!("error: daemonize failed: {e}");
         process::exit(1);
     }
 
-    // We are now the daemon child.  Initialise logging to a file
-    // since we no longer have a terminal.
+    // We are now the daemon child.  Close inherited std fds so
+    // we cannot read from or write to the controlling terminal.
+    daemon::close_std_fds();
+
+    // Initialise logging (stderr is now /dev/null — messages are
+    // silently discarded; wire to syslog in a future iteration).
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Info)
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
@@ -175,8 +165,8 @@ fn cmd_daemon() {
     log::info!("daemon started (PID: {})", nix::unistd::getpid().as_raw());
 
     // Write PID file.
-    if let Err(e) = daemon::write_pid_file() {
-        log::error!("failed to write PID file: {e}");
+    if let Err(_e) = daemon::write_pid_file() {
+        // Can't log — stderr is /dev/null.  Just exit.
         process::exit(1);
     }
 
@@ -186,7 +176,7 @@ fn cmd_daemon() {
 
     // Shared stop flag: IPC thread and signal handlers both set this.
     // The orchestrator main loop checks it every iteration.
-    let stop_flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let stop_flag = Arc::new(AtomicBool::new(false));
 
     // Install signal handlers (SIGTERM / SIGINT → set stop_flag).
     daemon::install_signal_handlers(Arc::clone(&stop_flag));
@@ -202,13 +192,37 @@ fn cmd_daemon() {
     };
     log::info!("IPC socket ready: {}", daemon::ipc::socket_path().display());
 
+    // ── NOW initialize audio (mirror zylaxion_live exactly) ──
+    // Everything below runs ONLY in the detached child process.
+
+    // 1. Start input capture (background thread).
+    let mut input_source = LibinputSource::new();
+    let event_rx = match input_source.listen() {
+        Ok(rx) => rx,
+        Err(e) => {
+            log::error!("input error: {e}");
+            daemon::cleanup();
+            process::exit(1);
+        }
+    };
+
+    // 2. Create the orchestrator (audio + engine).
+    let mut orchestrator = match Orchestrator::new() {
+        Ok(o) => o,
+        Err(e) => {
+            log::error!("audio error: {e}");
+            daemon::cleanup();
+            process::exit(1);
+        }
+    };
+
     // Spawn IPC listener on a BACKGROUND thread.
     // The orchestrator runs on the MAIN thread — same as zylaxion_live.
     let _ipc_handle = daemon::spawn_ipc_thread(listener, Arc::clone(&stop_flag));
 
-    // Run the audio loop on the MAIN thread (blocks until stop or
-    // channel disconnect).  When this returns, CpalSink is dropped,
-    // releasing the PipeWire audio device.
+    // 3. Run the audio loop on the MAIN thread (blocks until stop
+    //    or channel disconnect).  When this returns, CpalSink is
+    //    dropped, releasing the PipeWire audio device.
     let model = MechanicalClick::new();
     orchestrator.run(&model, &event_rx, stop_flag);
 
