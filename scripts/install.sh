@@ -8,34 +8,36 @@
 # Distro-agnostic: works on Arch, Fedora, Debian/Ubuntu, and any
 # Linux distribution with a standard filesystem layout.
 #
-# Usage: sudo ./install.sh
+# Usage: sudo ./scripts/install.sh
 
 set -euo pipefail
 
-# ── Early PATH fix for sudo ─────────────────────────────────────────
-# When run via `sudo`, the root shell has a minimal PATH that does
-# NOT include the invoking user's ~/.cargo/bin.  Fix this by looking
-# up the user's home directory from /etc/passwd and prepending their
-# cargo bin to PATH.  This must happen before anything else.
-if [ -n "${SUDO_USER:-}" ]; then
-    USER_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
-    export PATH="${USER_HOME}/.cargo/bin:${PATH}"
-fi
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MANIFEST="${SCRIPT_DIR}/Cargo.toml"
-PROFILE_DIR="${SCRIPT_DIR}/profiles"
+WORKSPACE_ROOT="${SCRIPT_DIR}/.."
+MANIFEST="${WORKSPACE_ROOT}/Cargo.toml"
+PROFILE_DIR="${WORKSPACE_ROOT}/profiles"
 
 INSTALL_BIN="/usr/local/bin/zylaxion"
 INSTALL_PROFILES="/etc/zylaxion/profiles"
+
+# ── Resolve the invoking user (if run via sudo) ──────────────────────
+TARGET_USER="${SUDO_USER:-$USER}"
 
 # ── Prerequisites ───────────────────────────────────────────────────
 
 check_deps() {
     local missing=()
 
-    if ! command -v cargo &>/dev/null; then
-        missing+=("cargo")
+    # When run via sudo, check cargo as the original user since root
+    # may not have it in PATH.
+    if [ -n "${SUDO_USER:-}" ]; then
+        if ! sudo -Eu "$SUDO_USER" cargo --version &>/dev/null; then
+            missing+=("cargo")
+        fi
+    else
+        if ! command -v cargo &>/dev/null; then
+            missing+=("cargo")
+        fi
     fi
 
     if ! command -v pkg-config &>/dev/null; then
@@ -58,14 +60,22 @@ check_deps() {
 
 build_release() {
     echo "==> Building release binary..."
-    cargo build --release --locked --manifest-path "$MANIFEST"
+    if [ -n "${SUDO_USER:-}" ]; then
+        # Run cargo as the invoking user to inherit RUSTUP_HOME,
+        # CARGO_HOME, and the correct toolchain.  --manifest-path
+        # uses the absolute path computed above.
+        sudo -Eu "$SUDO_USER" cargo build --release --locked \
+            --manifest-path "$MANIFEST"
+    else
+        cargo build --release --locked --manifest-path "$MANIFEST"
+    fi
 }
 
 # ── Install ─────────────────────────────────────────────────────────
 
 install_bin() {
     echo "==> Installing binary to ${INSTALL_BIN}..."
-    install -Dm755 "${SCRIPT_DIR}/target/release/zylaxion" "$INSTALL_BIN"
+    install -Dm755 "${WORKSPACE_ROOT}/target/release/zylaxion" "$INSTALL_BIN"
 }
 
 install_profiles() {
@@ -81,18 +91,16 @@ install_profiles() {
 # ── Post-install notes ──────────────────────────────────────────────
 
 post_install() {
-    local target_user="${SUDO_USER:-$USER}"
-
     echo ""
     echo "==> Zylaxion installed successfully!"
     echo ""
 
     # Check if the target user is in the input group.
-    if id -nG "$target_user" 2>/dev/null | tr ' ' '\n' | grep -qx "input"; then
-        echo "    OK  User '${target_user}' is in the 'input' group."
+    if id -nG "$TARGET_USER" 2>/dev/null | tr ' ' '\n' | grep -qx "input"; then
+        echo "    OK  User '${TARGET_USER}' is in the 'input' group."
     else
-        echo "    WARNING  User '${target_user}' is NOT in the 'input' group."
-        echo "    Run:  sudo usermod -aG input ${target_user}"
+        echo "    WARNING  User '${TARGET_USER}' is NOT in the 'input' group."
+        echo "    Run:  sudo usermod -aG input ${TARGET_USER}"
         echo "    Then log out and back in for the change to take effect."
     fi
 
@@ -103,7 +111,7 @@ post_install() {
     echo "      zylaxion list-profiles              (see all profiles)"
     echo "      zylaxion doctor                     (system check)"
     echo ""
-    echo "    Uninstall:  sudo ${SCRIPT_DIR}/uninstall.sh"
+    echo "    Uninstall:  sudo ./scripts/uninstall.sh"
 }
 
 # ── Main ────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@
 #
 # Zylaxion uninstaller — removes the installed binary and profile TOMLs.
 #
-# Usage: sudo ./uninstall.sh
+# Usage: sudo ./scripts/uninstall.sh
 
 set -euo pipefail
 
