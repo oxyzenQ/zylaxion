@@ -90,8 +90,13 @@ pub fn daemonize() -> Result<(), String> {
     }
 }
 
-/// Check if a daemon is already running by reading the PID file
-/// and checking if the process exists.
+/// Check if a daemon is already running by reading the PID file,
+/// verifying the process exists via `kill(pid, None)`, and
+/// confirming the process is actually `zylaxion` (not a recycled PID).
+///
+/// On stale detection (dead process or PID recycled by another program),
+/// both the PID file and socket file are removed so the daemon can
+/// start cleanly on the next attempt.
 pub fn is_daemon_running() -> Result<Pid, String> {
     let path = ipc::pid_path();
     let content = fs::read_to_string(&path).map_err(|_| "daemon is not running".to_string())?;
@@ -101,10 +106,31 @@ pub fn is_daemon_running() -> Result<Pid, String> {
         .map_err(|_| "invalid PID file".to_string())?;
     let pid = Pid::from_raw(pid);
 
-    // Send signal 0 (check existence) via nix.
+    // Step 1: Does a process with this PID exist at all?
+    //         signal 0 is a no-op that checks liveness.
     if signal::kill(pid, None).is_err() {
-        let _ = fs::remove_file(&path);
-        return Err("daemon is not running (stale PID file cleaned)".to_string());
+        // Process is gone — stale PID file from a crash / kill -9.
+        cleanup();
+        return Err("daemon is not running (stale PID — cleaned up)".to_string());
+    }
+
+    // Step 2: The PID is live, but Linux recycles PIDs aggressively.
+    //         A completely unrelated process may now own this PID.
+    //         Verify it is actually zylaxion by reading /proc/<pid>/comm.
+    let comm_path = format!("/proc/{}/comm", pid.as_raw());
+    if let Ok(comm) = fs::read_to_string(&comm_path) {
+        if comm.trim() != "zylaxion" {
+            // PID was recycled by a different program.
+            cleanup();
+            return Err(
+                "daemon is not running (PID recycled by '{comm}' — cleaned up)".to_string(),
+            );
+        }
+    } else {
+        // /proc/<pid>/comm unreadable (e.g. race: process exited
+        // between the kill check and this read).  Treat as stale.
+        cleanup();
+        return Err("daemon is not running (stale PID — cleaned up)".to_string());
     }
 
     Ok(pid)
