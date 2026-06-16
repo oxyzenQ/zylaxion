@@ -3,12 +3,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Zylaxion build gatekeeper — local CI before commit/push.
-# Usage: ./build.sh --check-all
+# Usage: ./scripts/build.sh --check-all
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MANIFEST="${SCRIPT_DIR}/Cargo.toml"
+WORKSPACE_ROOT="${SCRIPT_DIR}/.."
+MANIFEST="${WORKSPACE_ROOT}/Cargo.toml"
 
 MODE="${1:---check-all}"
 
@@ -26,7 +27,7 @@ case "$MODE" in
         echo "==> All checks passed."
         ;;
     *)
-        echo "Usage: ./build.sh --check-all"
+        echo "Usage: ./scripts/build.sh --check-all"
         exit 1
         ;;
 esac
