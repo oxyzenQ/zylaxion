@@ -20,8 +20,12 @@ INSTALL_PROFILES="/etc/zylaxion/profiles"
 
 check_deps() {
     local missing=()
+    local cargo_cmd
+    cargo_cmd="$(get_cargo_cmd)"
 
-    if ! command -v cargo &>/dev/null; then
+    # When run via sudo, root may not have cargo in PATH, but the
+    # original user does.  Use the resolved cargo_cmd to check.
+    if ! $cargo_cmd --version &>/dev/null; then
         missing+=("cargo (Rust toolchain)")
     fi
 
@@ -43,9 +47,24 @@ check_deps() {
 
 # ── Build ──────────────────────────────────────────────────────────
 
+# Determine the correct cargo command.
+# When run via sudo, root's PATH lacks the user's rustup/cargo.
+# Use SUDO_USER to run cargo as the original (non-root) user.
+get_cargo_cmd() {
+    if [ "$(id -u)" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+        # Running as root via sudo — run build as the original user
+        # so we pick up their ~/.cargo/bin and rustup toolchain.
+        echo "sudo -u \"$SUDO_USER\" cargo"
+    else
+        echo "cargo"
+    fi
+}
+
 build_release() {
+    local cargo_cmd
+    cargo_cmd="$(get_cargo_cmd)"
     echo "==> Building release binary..."
-    cargo build --release --manifest-path "$MANIFEST"
+    $cargo_cmd build --release --manifest-path "$MANIFEST"
 }
 
 # ── Install ─────────────────────────────────────────────────────────
