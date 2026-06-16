@@ -40,10 +40,10 @@ use zylaxion_output::AudioSink;
 
 /// Maximum number of stereo frames rendered per loop iteration.
 ///
-/// 256 frames at 44.1 kHz ≈ 5.8 ms.  Matches the cpal hardware buffer
-/// size so each iteration produces exactly what the audio callback will
-/// request next, keeping the ring buffer topped up without waste.
-const MAX_RENDER_CHUNK: usize = 256;
+/// 64 frames at 44.1 kHz ≈ 1.45 ms.  Small enough that simultaneous
+/// key presses are processed within one render cycle, preventing
+/// the second key from waiting behind a large chunk.
+const MAX_RENDER_CHUNK: usize = 64;
 
 /// Number of silence frames pre-filled into the ring buffer before
 /// starting the audio stream.  Just enough to cover one ALSA period
@@ -53,18 +53,15 @@ const MAX_RENDER_CHUNK: usize = 256;
 const PREFILL_SILENCE_FRAMES: usize = 2048;
 
 /// If the ring buffer has fewer vacant frames than this threshold,
-/// the buffer is considered "mostly full" and the producer sleeps
-/// briefly to avoid burning CPU.  512 frames ≈ 11.6 ms — roughly
-/// double the period of a typical ALSA fragment, so the callback
-/// will drain some frames well before we wake up.
-///
-/// Only applies when voices are active.  When idle, the producer
-/// never pushes, so this threshold is irrelevant.
-const SLEEP_THRESHOLD: usize = 512;
+/// the buffer is considered "mostly full" and the producer yields.
+/// 128 frames ≈ 2.9 ms — enough for the ALSA callback to drain a
+/// few periods before we re-check.
+const SLEEP_THRESHOLD: usize = 128;
 
-/// Sleep duration when the ring buffer is mostly full, to avoid
-/// spinning the CPU at 100 % while the audio callback drains frames.
-const FULL_BUFFER_SLEEP: Duration = Duration::from_millis(1);
+/// Timeout for `recv_timeout` when waiting for key events.
+/// Wakes immediately on event arrival; 1 ms fallback keeps the
+/// render loop responsive when voices are decaying.
+const EVENT_POLL_TIMEOUT: Duration = Duration::from_millis(1);
 
 // ── Pan mapping ─────────────────────────────────────────────────────────
 
@@ -195,21 +192,19 @@ impl Orchestrator {
             self.sink.write_sample(silence);
         }
 
-        // Report device info once — confirm continuous-feed tuning.
+        // Report device info once — confirm interrupt-driven tuning.
         let device_rate = self.sink.sample_rate();
         eprintln!(
-            "[zylaxion-core] Continuous-feed mode — device rate: {device_rate} Hz, \
-             max render chunk: {MAX_RENDER_CHUNK} frames (~{:.2} ms)",
+            "[zylaxion-core] Interrupt-driven mode — device rate: {device_rate} Hz, \
+             render chunk: {MAX_RENDER_CHUNK} frames (~{:.2} ms)",
             MAX_RENDER_CHUNK as f64 / SAMPLE_RATE as f64 * 1000.0,
         );
         eprintln!(
             "[zylaxion-core] Ring buffer: 16384 frames (~{:.1} ms), \
              cpal hw buffer: default (PipeWire/ALSA negotiated), \
-             pre-fill: {PREFILL_SILENCE_FRAMES} frames (~{:.1} ms), \
-             sleep threshold: {SLEEP_THRESHOLD} frames (~{:.1} ms)",
+             pre-fill: {PREFILL_SILENCE_FRAMES} frames (~{:.1} ms)",
             16384.0 / SAMPLE_RATE as f64 * 1000.0,
             PREFILL_SILENCE_FRAMES as f64 / SAMPLE_RATE as f64 * 1000.0,
-            SLEEP_THRESHOLD as f64 / SAMPLE_RATE as f64 * 1000.0,
         );
 
         // Pre-allocate the largest possible render buffer once —
@@ -217,29 +212,35 @@ impl Orchestrator {
         // actual chunk size each iteration.
         let mut batch = [[0.0f32; 2]; MAX_RENDER_CHUNK];
 
-        // ── Continuous feed loop ───────────────────────────────────
+        // ── Interrupt-driven loop ────────────────────────────────
         loop {
-            // 1. Drain all pending KeyEvents (non-blocking).
-            //    Also detects channel disconnect for clean shutdown:
-            //    when the Sender is dropped, `try_recv` returns
-            //    `Disconnected` once the queue is empty.
-            loop {
-                match event_rx.try_recv() {
-                    Ok(event) => Self::handle_input_event(&mut self.pool, model, &event),
-                    Err(crossbeam_channel::TryRecvError::Empty) => break,
-                    Err(crossbeam_channel::TryRecvError::Disconnected) => {
-                        eprintln!("[zylaxion-core] input channel disconnected — shutting down");
-                        return;
+            // 1. Block until a key event arrives (wakes immediately)
+            //    or the 1 ms timeout expires.  This is the primary
+            //    idle mechanism — no CPU spin when no keys are pressed.
+            //    Crucially, recv_timeout wakes the thread the instant
+            //    the first key of a simultaneous pair arrives, so the
+            //    second key (arriving µs later) is processed in the
+            //    drain loop below with zero extra latency.
+            match event_rx.recv_timeout(EVENT_POLL_TIMEOUT) {
+                Ok(event) => {
+                    Self::handle_input_event(&mut self.pool, model, &event);
+                    // Drain any co-arriving events (e.g. 'k' and 'a'
+                    // pressed within the same µs window).
+                    while let Ok(event) = event_rx.try_recv() {
+                        Self::handle_input_event(&mut self.pool, model, &event);
                     }
+                }
+                Err(crossbeam_channel::RecvTimeoutError::Timeout) => {}
+                Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
+                    eprintln!("[zylaxion-core] input channel disconnected — shutting down");
+                    return;
                 }
             }
 
             // 2. Only render and push when voices are active.
             //    When idle, the ring buffer stays empty so the cpal
             //    callback outputs silence naturally (zero-latency).
-            //    This eliminates the "wall of silence" delay.
             if !self.pool.is_active() {
-                std::thread::sleep(FULL_BUFFER_SLEEP);
                 continue;
             }
 
@@ -248,9 +249,8 @@ impl Orchestrator {
 
             if vacancy < SLEEP_THRESHOLD {
                 // Buffer is mostly full — the audio callback hasn't
-                // drained enough yet.  Sleep briefly to avoid 100 %
-                // CPU, then re-check.
-                std::thread::sleep(FULL_BUFFER_SLEEP);
+                // drained enough yet.  Loop back to recv_timeout
+                // which blocks efficiently instead of spinning.
                 continue;
             }
 
