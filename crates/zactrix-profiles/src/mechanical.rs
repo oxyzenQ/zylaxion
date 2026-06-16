@@ -39,19 +39,25 @@ use crate::{AcousticModel, KeyEvent, KeyProfile, SynthState, SAMPLE_RATE};
 /// exponential decay, typical of Cherry MX-style mechanical switches. This
 /// implementation is fully procedural — no wavetable samples are used.
 ///
-/// # Future Extensions
-///
-/// - Per-scancode frequency variation (key position / switch lot tolerance).
-/// - Bottom-out thud component (low-frequency transient for heavy presses).
-/// - Key release sound (separate profile with lower amplitude and different
-///   resonance characteristics).
-pub struct MechanicalClick;
+/// By default uses the built-in [`KeyProfile::default`].  Use
+/// [`MechanicalClick::with_profile`] to load a custom profile from TOML.
+pub struct MechanicalClick {
+    profile: KeyProfile,
+}
 
 impl MechanicalClick {
     /// Create a new `MechanicalClick` model with default parameters.
     #[inline]
     pub fn new() -> Self {
-        Self
+        Self {
+            profile: KeyProfile::default(),
+        }
+    }
+
+    /// Create a `MechanicalClick` model with a custom [`KeyProfile`].
+    #[inline]
+    pub fn with_profile(profile: KeyProfile) -> Self {
+        Self { profile }
     }
 }
 
@@ -63,9 +69,7 @@ impl Default for MechanicalClick {
 
 impl AcousticModel for MechanicalClick {
     fn get_profile(&self, _event: &KeyEvent) -> KeyProfile {
-        // Uniform profile for all keys. Future: per-scancode variation
-        // based on physical key position or user-configurable TOML.
-        KeyProfile::default()
+        self.profile
     }
 
     fn init_state(&self, profile: &KeyProfile, state: &mut SynthState, stereo_position: f32) {

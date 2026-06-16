@@ -15,6 +15,8 @@
 //! - [`MechanicalClick`] — the reference implementation for mechanical switches.
 //! - [`TptSvf`] — topology-preserving SVF for numerically stable filtering.
 
+use serde::{Deserialize, Serialize};
+
 mod mechanical;
 mod tpt;
 
@@ -56,7 +58,7 @@ pub struct KeyEvent {
 /// | `frequency` | 4000–5500 Hz | 3500–4500 Hz | 2500–3500 Hz |
 /// | `resonance` | 1.5–3.0 | 1.0–2.0 | 2.0–4.0 |
 /// | `duration_ms` | 1.0–2.0 ms | 0.8–1.5 ms | 1.5–3.0 ms |
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ClickParams {
     /// Center frequency of the click bandpass filter (Hz).
     pub frequency: f32,
@@ -75,7 +77,7 @@ pub struct ClickParams {
 /// natural frequency, simulating the spring snapping back and the keycap
 /// housing vibrating. The `mix` parameter controls how prominent this
 /// resonance is relative to the click transient.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct SpringParams {
     /// Resonance frequency of the spring element (Hz).
     pub frequency: f32,
@@ -100,7 +102,7 @@ pub struct SpringParams {
 /// ```
 ///
 /// For `coefficient = 0.9994` at 44100 Hz, this gives roughly 180 ms.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct DecayParams {
     /// Per-sample multiplicative decay factor. Must be in (0.0, 1.0).
     pub coefficient: f32,
@@ -114,7 +116,7 @@ pub struct DecayParams {
 /// keystroke sound. Profiles can be created manually, loaded from TOML
 /// configuration files, or generated procedurally by an [`AcousticModel`]
 /// implementation based on the scancode.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct KeyProfile {
     /// Click transient parameters.
     pub click: ClickParams,
@@ -273,4 +275,35 @@ impl Default for DecayParams {
             voice_off_threshold: 1e-5,
         }
     }
+}
+
+// ── Profile loading ──────────────────────────────────────────────────
+
+/// Load a [`KeyProfile`] from a TOML file.
+///
+/// The file must contain a `[profile]` table with `click`, `spring`, and
+/// `decay` sub-tables matching the DSP parameter structure.
+///
+/// # Errors
+///
+/// Returns a human-readable error string if the file cannot be read or
+/// parsed.  This function is intentionally fallible — callers should
+/// fall back to a hardcoded default on failure.
+pub fn load_profile_from_file(path: &std::path::Path) -> Result<KeyProfile, String> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+    load_profile_from_str(&content)
+}
+
+/// Parse a [`KeyProfile`] from a TOML string.
+///
+/// Expects the standard `[profile]` top-level table.
+pub fn load_profile_from_str(toml: &str) -> Result<KeyProfile, String> {
+    #[derive(Deserialize)]
+    struct ProfileFile {
+        profile: KeyProfile,
+    }
+    let file: ProfileFile =
+        toml::from_str(toml).map_err(|e| format!("failed to parse profile TOML: {e}"))?;
+    Ok(file.profile)
 }

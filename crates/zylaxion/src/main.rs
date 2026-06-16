@@ -25,7 +25,7 @@ use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
 use cpal::traits::{DeviceTrait, HostTrait};
-use zactrix_profiles::MechanicalClick;
+use zactrix_profiles::{load_profile_from_file, KeyProfile, MechanicalClick};
 use zylaxion_core::Orchestrator;
 use zylaxion_input::{InputSource, LibinputSource};
 
@@ -46,10 +46,18 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Run in the foreground (press Ctrl+C to quit)
-    Start,
+    Start {
+        /// Acoustic profile name (e.g. technical, classic, studio, elegant, whisper)
+        #[arg(long, global = true)]
+        profile: Option<String>,
+    },
 
     /// Run as a background daemon (controlled via Unix socket)
-    Daemon,
+    Daemon {
+        /// Acoustic profile name (e.g. technical, classic, studio, elegant, whisper)
+        #[arg(long, global = true)]
+        profile: Option<String>,
+    },
 
     /// Stop a running daemon
     Stop,
@@ -79,8 +87,8 @@ fn main() {
     }
 
     match cli.command {
-        Commands::Start => cmd_start(),
-        Commands::Daemon => cmd_daemon(),
+        Commands::Start { profile } => cmd_start(profile),
+        Commands::Daemon { profile } => cmd_daemon(profile),
         Commands::Stop => cmd_stop(),
         Commands::Status => daemon::cmd_status(),
         Commands::Doctor => cmd_doctor(),
@@ -99,11 +107,75 @@ fn print_version() {
     println!("Source: https://github.com/oxyzenQ/zylaxion");
 }
 
+// ── Profile resolution ─────────────────────────────────────────────────
+
+/// Resolve an acoustic profile by name.
+///
+/// Search order (first found wins):
+///   1. `~/.config/zylaxion/profiles/<name>.toml`  (user-local)
+///   2. `/etc/zylaxion/profiles/<name>.toml`       (system-wide)
+///   3. Hardcoded default                          (always available)
+///
+/// If `name` is `None`, returns the hardcoded default immediately.
+fn resolve_profile(name: &Option<String>) -> KeyProfile {
+    let name = match name.as_deref() {
+        Some(n) => n,
+        None => return KeyProfile::default(),
+    };
+
+    let toml_name = format!("{name}.toml");
+
+    // 1. User-local: ~/.config/zylaxion/profiles/<name>.toml
+    if let Some(home) = std::env::var_os("HOME") {
+        let user_path = std::path::PathBuf::from(home)
+            .join(".config/zylaxion/profiles")
+            .join(&toml_name);
+        if user_path.is_file() {
+            match load_profile_from_file(&user_path) {
+                Ok(p) => {
+                    log::info!("loaded profile '{}' from {}", name, user_path.display());
+                    return p;
+                }
+                Err(e) => {
+                    eprintln!("[zylaxion] warning: {e}");
+                }
+            }
+        }
+    }
+
+    // 2. System-wide: /etc/zylaxion/profiles/<name>.toml
+    let system_path = std::path::PathBuf::from("/etc/zylaxion/profiles").join(&toml_name);
+    if system_path.is_file() {
+        match load_profile_from_file(&system_path) {
+            Ok(p) => {
+                log::info!("loaded profile '{}' from {}", name, system_path.display());
+                return p;
+            }
+            Err(e) => {
+                eprintln!("[zylaxion] warning: {e}");
+            }
+        }
+    }
+
+    // 3. Fallback: hardcoded default.
+    eprintln!(
+        "[zylaxion] profile '{}' not found — using default profile",
+        name
+    );
+    KeyProfile::default()
+}
+
 // ── Subcommands ─────────────────────────────────────────────────────────
 
-fn cmd_start() {
+fn cmd_start(profile_name: Option<String>) {
     env_logger::init();
-    log::info!("starting zylaxion in foreground mode");
+
+    // Resolve the acoustic profile (TOML or hardcoded default).
+    let profile = resolve_profile(&profile_name);
+    log::info!(
+        "starting zylaxion in foreground mode (profile: {})",
+        profile_name.as_deref().unwrap_or("default")
+    );
 
     // Mirror the zylaxion_live example exactly.
     //
@@ -129,7 +201,7 @@ fn cmd_start() {
 
     // 3. Run the main loop on the MAIN thread (blocks until Ctrl+C).
     let stop_flag = Arc::new(AtomicBool::new(false));
-    let model = MechanicalClick::new();
+    let model = MechanicalClick::with_profile(profile);
     log::info!("ready — press any key to hear it (Ctrl+C to quit)");
 
     orchestrator.run(&model, &event_rx, stop_flag);
@@ -137,7 +209,7 @@ fn cmd_start() {
     log::info!("shutdown complete");
 }
 
-fn cmd_daemon() {
+fn cmd_daemon(profile_name: Option<String>) {
     // Check if already running (with /proc/<pid>/comm PID recycling check).
     if daemon::is_daemon_running().is_ok() {
         eprintln!("error: zylaxion daemon is already running");
@@ -192,6 +264,13 @@ fn cmd_daemon() {
     };
     log::info!("IPC socket ready: {}", daemon::ipc::socket_path().display());
 
+    // Resolve the acoustic profile (TOML or hardcoded default).
+    let profile = resolve_profile(&profile_name);
+    log::info!(
+        "using profile: {}",
+        profile_name.as_deref().unwrap_or("default")
+    );
+
     // ── NOW initialize audio (mirror zylaxion_live exactly) ──
     // Everything below runs ONLY in the detached child process.
 
@@ -223,7 +302,7 @@ fn cmd_daemon() {
     // 3. Run the audio loop on the MAIN thread (blocks until stop
     //    or channel disconnect).  When this returns, CpalSink is
     //    dropped, releasing the PipeWire audio device.
-    let model = MechanicalClick::new();
+    let model = MechanicalClick::with_profile(profile);
     orchestrator.run(&model, &event_rx, stop_flag);
 
     // Clean shutdown.
@@ -298,9 +377,24 @@ fn cmd_doctor() {
 
 fn cmd_list_profiles() {
     println!("Available acoustic profiles:\n");
-    println!("  mechanical-click    Mechanical key switch (default)");
-    println!("                      Cherry MX-style bandpass click with");
-    println!("                      spring resonance and exponential decay.");
+    println!("  technical    Crisp, loud, punchy (default)");
+    println!("              Cherry MX Blue click with bright spring ring.");
+    println!("  classic      Deeper, more resonant");
+    println!("              Old bucklespring warmth, long spring sustain.");
+    println!("  studio       Softer attack, longer decay");
+    println!("              Gentle click for quiet office environments.");
+    println!("  elegant      Very soft, muffled, polite");
+    println!("              Subtle click for low-profile keyboards.");
+    println!("  whisper      Extremely quiet, short decay");
+    println!("              Barely audible — for libraries and meetings.");
+    println!();
+    println!("  Usage: zylaxion start --profile <name>");
+    println!("         zylaxion daemon --profile <name>");
+    println!();
+    println!("  Profiles are loaded from (first found wins):");
+    println!("    1. ~/.config/zylaxion/profiles/<name>.toml");
+    println!("    2. /etc/zylaxion/profiles/<name>.toml");
+    println!("    3. Hardcoded default (always available)");
 }
 
 fn cmd_list_backends() {
