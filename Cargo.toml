@@ -1,0 +1,23 @@
+[workspace]
+members = [
+    "crates/zactrix-engine",
+    "crates/zactrix-profiles",
+    "crates/zylaxion-output",
+    "crates/zylaxion-input",
+    "crates/zylaxion-core",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+authors = ["rezky_nightky"]
+repository = "https://github.com/oxyzenQ/zylaxion"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+strip = true
+panic = "abort"

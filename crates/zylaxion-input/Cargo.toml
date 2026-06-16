@@ -1,0 +1,14 @@
+[package]
+name = "zylaxion-input"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Linux kernel keyboard input capture via libinput for the Zylaxion engine"
+
+[dependencies]
+input = { version = "0.9", features = ["udev"] }
+udev = "0.8"
+nix = { version = "0.29", features = ["time"] }
+crossbeam-channel = "0.5"
