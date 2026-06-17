@@ -66,16 +66,30 @@ pub struct Cli {
 pub enum Commands {
     /// Run in the foreground (press Ctrl+C to quit).
     ///
-    /// Acoustic parameters are loaded from `config.toml` (searched in
-    /// `~/.config/zylaxion/`, `/etc/zylaxion/`, `/usr/local/share/zylaxion/`,
-    /// or the hardcoded default). Edits to the config file are picked up
-    /// automatically — no restart needed.
-    Start,
+    /// Acoustic parameters are loaded from the `[preset.<preset>]` table
+    /// in `config.toml` (searched in `~/.config/zylaxion/`,
+    /// `/etc/zylaxion/`, `/usr/local/share/zylaxion/`, or the hardcoded
+    /// default). Edits to the config file are picked up automatically
+    /// within 1 second — no restart needed.
+    Start {
+        /// Name of the `[preset.<name>]` table to load from `config.toml`.
+        /// Built-in presets: technical (default), cherryMX, classic,
+        /// studio, elegant, whisper.
+        #[arg(long, default_value = crate::config::DEFAULT_PRESET)]
+        preset: String,
+    },
 
     /// Run as a background daemon (controlled via Unix socket).
     ///
-    /// Same config-search and auto-reload behaviour as `start`.
-    Daemon,
+    /// Same config-search, preset selection, and auto-reload behaviour
+    /// as `start`.
+    Daemon {
+        /// Name of the `[preset.<name>]` table to load from `config.toml`.
+        /// Built-in presets: technical (default), cherryMX, classic,
+        /// studio, elegant, whisper.
+        #[arg(long, default_value = crate::config::DEFAULT_PRESET)]
+        preset: String,
+    },
 
     /// Stop a running daemon
     Stop,
@@ -88,9 +102,10 @@ pub enum Commands {
 
     /// Validate config.toml syntax and parameter ranges.
     ///
-    /// Exits 0 with "Config OK: <path>" if the config parses and all
-    /// parameters are within safe DSP ranges. Exits 1 with a detailed
-    /// error message otherwise. Equivalent to `nginx -t` or `sshd -t`.
+    /// Exits 0 with "Config OK: <absolute path>" if the config parses
+    /// and all parameters are within safe DSP ranges. Exits 1 with a
+    /// detailed error message otherwise. Equivalent to `nginx -t` or
+    /// `sshd -t`.
     Testconf,
 
     /// List available audio backends

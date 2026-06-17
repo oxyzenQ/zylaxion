@@ -2,68 +2,75 @@
 # =============================================================================
 #
 # This is the single source of truth for all acoustic DSP parameters.
-# Edit this file, save, and the running daemon (or foreground `start`)
-# will pick up the changes within 1 second — no restart needed.
+# The file defines multiple named presets; the active one is selected at
+# startup via `--preset <name>` (default: technical).
 #
-# Search path (first found wins):
+# -----------------------------------------------------------------------------
+# USAGE
+# -----------------------------------------------------------------------------
+#
+# Start in foreground with a specific preset:
+#   zylaxion start --preset cherryMX
+#
+# Start as daemon with a specific preset:
+#   zylaxion daemon --preset classic
+#
+# Default (no --preset flag): uses "technical".
+#
+# Validate the config before applying:
+#   zylaxion testconf
+#
+# Edit, save, and the running daemon (or foreground `start`) will pick up
+# changes within 1 second — no restart needed. The same `[preset.<name>]`
+# table that was active at startup is re-read on each file change.
+#
+# -----------------------------------------------------------------------------
+# SEARCH PATH (first found wins)
+# -----------------------------------------------------------------------------
+#
 #   1. ~/.config/zylaxion/config.toml          (user-local override)
 #   2. /etc/zylaxion/config.toml               (system config)
 #   3. /usr/local/share/zylaxion/config.toml   (FHS installed default)
 #   4. ./config.toml                            (relative to CWD, for dev)
 #   5. Hardcoded default                        (always available)
 #
-# Validate before applying:
-#   zylaxion testconf
+# -----------------------------------------------------------------------------
+# ADDING A NEW PRESET
+# -----------------------------------------------------------------------------
+#
+# 1. Copy any existing [preset.NAME] block below.
+# 2. Rename the table to your new preset name (e.g. [preset.mycherry]).
+# 3. Tweak the parameters to taste. Respect the documented Min/Max ranges.
+# 4. Save the file.
+# 5. Activate it with `zylaxion start --preset mycherry` (or `daemon`).
 #
 # -----------------------------------------------------------------------------
-# PRESETS
+# PER-KEY OVERRIDES
 # -----------------------------------------------------------------------------
-# Copy-paste any of the blocks below into the [default] table to switch
-# the overall sound character. Each preset is the full parameter set for
-# one of the legacy v0.3.0 profiles.
 #
-# --- technical (default — crisp, loud, punchy; Cherry MX Blue) ---
-#   click.frequency = 4500.0    click.resonance = 2.0
-#   click.duration_ms = 1.5     click.amplitude = 0.8
-#   spring.frequency = 1800.0   spring.resonance = 3.5
-#   spring.mix = 0.6
-#   decay.coefficient = 0.9994  decay.voice_off_threshold = 0.00001
+# Each preset table can include an optional `[[preset.NAME.keys]]` array
+# of per-scancode overrides. Unspecified parameters inherit from the
+# preset's [default] values. Example:
 #
-# --- classic (deeper, resonant; Cherry MX Brown) ---
-#   click.frequency = 3200.0    click.resonance = 2.5
-#   click.duration_ms = 2.5     click.amplitude = 0.7
-#   spring.frequency = 1200.0   spring.resonance = 4.0
-#   spring.mix = 0.75
-#   decay.coefficient = 0.9992  decay.voice_off_threshold = 0.00001
+# [preset.technical]
+# [preset.technical.click]
+# frequency = 4500.0
+# # ...
 #
-# --- studio (soft attack, long decay; Cherry MX Red) ---
-#   click.frequency = 4000.0    click.resonance = 1.2
-#   click.duration_ms = 2.0     click.amplitude = 0.5
-#   spring.frequency = 2200.0   spring.resonance = 2.0
-#   spring.mix = 0.5
-#   decay.coefficient = 0.9997  decay.voice_off_threshold = 0.00001
+# [[preset.technical.keys]]
+# scancode = 28  # Enter
+# [preset.technical.keys.click]
+# frequency = 3000.0  # deeper thump for Enter only
 #
-# --- elegant (very soft, muffled; scissor-switch) ---
-#   click.frequency = 3000.0    click.resonance = 1.5
-#   click.duration_ms = 3.0     click.amplitude = 0.35
-#   spring.frequency = 1500.0   spring.resonance = 2.5
-#   spring.mix = 0.4
-#   decay.coefficient = 0.9991  decay.voice_off_threshold = 0.0001
-#
-# --- whisper (extremely quiet; libraries/meetings) ---
-#   click.frequency = 5500.0    click.resonance = 0.8
-#   click.duration_ms = 0.8     click.amplitude = 0.15
-#   spring.frequency = 2500.0   spring.resonance = 0.5
-#   spring.mix = 0.2
-#   decay.coefficient = 0.9985  decay.voice_off_threshold = 0.001
-#
-# -----------------------------------------------------------------------------
-# CURRENT DEFAULT: technical
-# -----------------------------------------------------------------------------
+# =============================================================================
 
-[default]
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: technical (default)
+# Crisp, loud, punchy — best for Cherry MX Blue / clicky switches.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.technical]
 
-[default.click]
+[preset.technical.click]
 # Click frequency in Hertz. Controls the pitch of the key click.
 # Range: 500.0 - 8000.0
 frequency = 4500.0
@@ -82,7 +89,7 @@ duration_ms = 1.5
 # Range: 0.0 - 1.0
 amplitude = 0.8
 
-[default.spring]
+[preset.technical.spring]
 # Spring/housing resonance frequency in Hertz. Lower values produce a
 # deeper, warmer spring ring; higher values a brighter, tinnier ring.
 # Range: 500.0 - 8000.0
@@ -98,7 +105,7 @@ resonance = 3.5
 # Range: 0.0 - 1.0
 mix = 0.6
 
-[default.decay]
+[preset.technical.decay]
 # Per-sample multiplicative decay factor applied to the envelope.
 # WARNING: MUST be less than 1.0. Values >= 1.0 cause infinite loops
 # (voice never deactivates, consuming a polyphony slot forever).
@@ -112,25 +119,162 @@ coefficient = 0.9994
 # Range: 1e-7 - 1e-2
 voice_off_threshold = 0.00001
 
-# =============================================================================
-# PER-KEY OVERRIDES
-# =============================================================================
-# Add [[keys]] blocks below to give specific scancodes distinct sounds.
-# Each override starts from the [default] profile and replaces only the
-# parameters you specify. Unspecified parameters inherit from [default].
-#
-# Find scancodes with `libinput debug-events` or `evtest`.
-#
-# Example: deeper thump for Enter (scancode 28), louder ring for Space.
-#
-# [[keys]]
-# scancode = 28  # Enter
-# [keys.click]
-# frequency = 3000.0
-#
-# [[keys]]
-# scancode = 57  # Space
-# [keys.spring]
-# mix = 0.8
-# [keys.decay]
-# coefficient = 0.9996
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: cherryMX
+# Balanced reference Cherry MX sound — clicky but not harsh. Good default
+# for general mechanical keyboards (MX Blue / MX Brown).
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.cherryMX]
+
+[preset.cherryMX.click]
+# Range: 500.0 - 8000.0
+frequency = 4200.0
+# Range: 0.1 - 10.0
+resonance = 2.2
+# Range: 0.1 - 10.0
+duration_ms = 1.8
+# Range: 0.0 - 1.0
+amplitude = 0.75
+
+[preset.cherryMX.spring]
+# Range: 500.0 - 8000.0
+frequency = 1900.0
+# Range: 0.1 - 10.0
+resonance = 3.0
+# Range: 0.0 - 1.0
+mix = 0.55
+
+[preset.cherryMX.decay]
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9995
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: classic
+# Deeper, more resonant — like old bucklespring keyboards.
+# Best for Cherry MX Brown / tactile switches.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.classic]
+
+[preset.classic.click]
+# Range: 500.0 - 8000.0
+frequency = 3200.0
+# Range: 0.1 - 10.0
+resonance = 2.5
+# Range: 0.1 - 10.0
+duration_ms = 2.5
+# Range: 0.0 - 1.0
+amplitude = 0.7
+
+[preset.classic.spring]
+# Range: 500.0 - 8000.0
+frequency = 1200.0
+# Range: 0.1 - 10.0
+resonance = 4.0
+# Range: 0.0 - 1.0
+mix = 0.75
+
+[preset.classic.decay]
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9992
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: studio
+# Softer attack, longer decay — studio-monitor feel.
+# Best for quiet office environments with Cherry MX Red / linear switches.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.studio]
+
+[preset.studio.click]
+# Range: 500.0 - 8000.0
+frequency = 4000.0
+# Range: 0.1 - 10.0
+resonance = 1.2
+# Range: 0.1 - 10.0
+duration_ms = 2.0
+# Range: 0.0 - 1.0
+amplitude = 0.5
+
+[preset.studio.spring]
+# Range: 500.0 - 8000.0
+frequency = 2200.0
+# Range: 0.1 - 10.0
+resonance = 2.0
+# Range: 0.0 - 1.0
+mix = 0.5
+
+[preset.studio.decay]
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9997
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: elegant
+# Very soft, muffled, polite — for quiet environments.
+# Best for low-profile or scissor-switch keyboards.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.elegant]
+
+[preset.elegant.click]
+# Range: 500.0 - 8000.0
+frequency = 3000.0
+# Range: 0.1 - 10.0
+resonance = 1.5
+# Range: 0.1 - 10.0
+duration_ms = 3.0
+# Range: 0.0 - 1.0
+amplitude = 0.35
+
+[preset.elegant.spring]
+# Range: 500.0 - 8000.0
+frequency = 1500.0
+# Range: 0.1 - 10.0
+resonance = 2.5
+# Range: 0.0 - 1.0
+mix = 0.4
+
+[preset.elegant.decay]
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9991
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.0001
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: whisper
+# Extremely quiet, short decay, minimal resonance.
+# For libraries, meetings, and shared spaces.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.whisper]
+
+[preset.whisper.click]
+# Range: 500.0 - 8000.0
+frequency = 5500.0
+# Range: 0.1 - 10.0
+resonance = 0.8
+# Range: 0.1 - 10.0
+duration_ms = 0.8
+# Range: 0.0 - 1.0
+amplitude = 0.15
+
+[preset.whisper.spring]
+# Range: 500.0 - 8000.0
+frequency = 2500.0
+# Range: 0.1 - 10.0
+resonance = 0.5
+# Range: 0.0 - 1.0
+mix = 0.2
+
+[preset.whisper.decay]
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9985
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.001
