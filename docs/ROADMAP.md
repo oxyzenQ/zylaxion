@@ -16,7 +16,7 @@
 ## v1.0.0 - The Stable Release
 - Engine precision & optimization
 - 100% crash-proof
-- Tuning sound dasar
+- Basic sound tuning
 
 ## v2.0.0 - PipeWire Native
 - Bypass ALSA, direct custom PipeWire node
@@ -24,14 +24,14 @@
 
 ## v3.0.0 - Linux Ecosystem Integration
 - systemd user-service integration
-- Integrasi polis (policy/rules)
-- Optimasi kernel real-time khusus Linux
+- Policy/rules integration
+- Linux-specific real-time kernel optimization
 
 ## v4.0.0 - Acoustic Masterclass
-- Penambahan 10+ profile sound presisi tinggi (bukan cuma 'tek', tapi simulasi mechanical keyboard realism: IBM Model M, Cherry MX, Topre, dll)
+- Add 10+ high-precision sound profiles (not just 'tek', but realistic mechanical keyboard simulation: IBM Model M, Cherry MX, Topre, etc.)
 - CLI profiling tools
 
 ## v5.0.0 - The Tightened Core
-- Dependency tightening (perketat security & audit tanpa zero-dep ekstrem)
+- Dependency tightening (tighten security & audit without extreme zero-dep)
 - Final engine optimization
-- Stabilisasi absolute
+- Absolute stabilization
