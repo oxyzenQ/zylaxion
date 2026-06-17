@@ -20,6 +20,7 @@ use std::process::Command;
 mod cli;
 mod commands;
 mod daemon;
+mod instance_lock;
 mod profile;
 
 fn main() {
