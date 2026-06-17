@@ -14,3 +14,4 @@ zylaxion-output = { path = "../zylaxion-output" }
 zylaxion-input = { path = "../zylaxion-input" }
 crossbeam-channel = "0.5"
 ringbuf = "0.4"
+arc-swap = "1.7"

@@ -119,6 +119,13 @@ pub fn handle_one_connection(listener: &UnixListener) -> Option<String> {
             },
             true,
         ),
+        "reload" => (
+            IpcResponse {
+                ok: true,
+                message: "reloading profiles".into(),
+            },
+            false,
+        ),
         "status" => (
             IpcResponse {
                 ok: true,
@@ -136,9 +143,10 @@ pub fn handle_one_connection(listener: &UnixListener) -> Option<String> {
     };
 
     let _ = writeln!(writer, "{}\n", serde_json::to_string(&response).unwrap());
-    if should_stop {
-        Some(request.cmd)
-    } else {
-        None
-    }
+    // Always return the command string so the IPC thread can dispatch
+    // on it (stop, reload, etc.). The `should_stop` flag only affects
+    // the response message — the actual lifecycle decision is made by
+    // the IPC thread, not by this per-connection handler.
+    let _ = should_stop;
+    Some(request.cmd)
 }

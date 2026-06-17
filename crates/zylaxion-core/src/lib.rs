@@ -32,6 +32,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use arc_swap::ArcSwap;
 use crossbeam_channel::Receiver;
 use zactrix_engine::VoicePool;
 use zactrix_profiles::{AcousticModel, KeyEvent as ProfileKeyEvent, SAMPLE_RATE};
@@ -194,18 +195,32 @@ impl Orchestrator {
     /// When the loop exits, `CpalSink` is dropped, releasing the audio
     /// device and un-stalling the PipeWire graph.
     ///
+    /// # Hot-reload support
+    ///
+    /// The `model` parameter is an `Arc<ArcSwap<M>>` — a lock-free
+    /// atomic pointer to the acoustic model. The IPC "reload" command
+    /// can swap the pointer at any time (from another thread) by
+    /// calling `model.store(Arc::new(new_model))`. The render loop
+    /// picks up the new model on its next iteration without blocking.
+    ///
+    /// - **Active voices** (currently decaying) keep using the profile
+    ///   they captured at trigger time — they finish naturally.
+    /// - **New keypresses** pick up the new model immediately.
+    ///
+    /// This satisfies the strict rule: no blocking locks inside the
+    /// cpal audio callback. `ArcSwap::load()` is a single atomic load,
+    /// no Mutex involved.
+    ///
     /// # Arguments
     ///
-    /// * `model` — The acoustic model that synthesises key sounds.
-    ///   Must implement [`AcousticModel`] and typically outlive the
-    ///   orchestrator (e.g. a static reference).
+    /// * `model` — Hot-swappable acoustic model behind an `ArcSwap`.
     /// * `event_rx` — Channel receiver yielding [`InputKeyEvent`]s from
     ///   the input layer.
     /// * `stop_flag` — Shared flag checked each loop iteration; when
     ///   `true`, the loop breaks and the audio device is released.
     pub fn run<M: AcousticModel>(
         &mut self,
-        model: &M,
+        model: &Arc<ArcSwap<M>>,
         event_rx: &Receiver<InputKeyEvent>,
         stop_flag: Arc<AtomicBool>,
     ) {
@@ -259,11 +274,20 @@ impl Orchestrator {
             //    drain loop below with zero extra latency.
             match event_rx.recv_timeout(EVENT_POLL_TIMEOUT) {
                 Ok(event) => {
-                    Self::handle_input_event(&mut self.pool, model, &event);
+                    // Snapshot the current model ONCE per event batch.
+                    // ArcSwap::load() is a single atomic load — no
+                    // blocking, no allocation. The Guard keeps the
+                    // snapshot alive for the duration of this batch
+                    // even if another thread swaps in a new model
+                    // mid-batch.
+                    let model_guard = model.load();
+                    let model_ref: &M = &model_guard;
+
+                    Self::handle_input_event(&mut self.pool, model_ref, &event);
                     // Drain any co-arriving events (e.g. 'k' and 'a'
                     // pressed within the same µs window).
                     while let Ok(event) = event_rx.try_recv() {
-                        Self::handle_input_event(&mut self.pool, model, &event);
+                        Self::handle_input_event(&mut self.pool, model_ref, &event);
                     }
                 }
                 Err(crossbeam_channel::RecvTimeoutError::Timeout) => {}
@@ -303,9 +327,15 @@ impl Orchestrator {
                 *frame = [0.0f32; 2];
             }
 
+            // Snapshot the model for this render batch. Same lock-free
+            // load as above. Active voices use whatever profile they
+            // captured at trigger time, so a mid-batch swap is safe.
+            let model_guard = model.load();
+            let model_ref: &M = &model_guard;
+
             // VoicePool::process accumulates into the buffer (does
             // NOT clear it), matching its documented contract.
-            self.pool.process(model, chunk);
+            self.pool.process(model_ref, chunk);
 
             // 5. Push the rendered audio into the ring buffer.
             //    `write_batch` never blocks — it silently drops if

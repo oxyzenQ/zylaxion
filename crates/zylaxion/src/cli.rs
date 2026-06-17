@@ -81,6 +81,9 @@ pub enum Commands {
     /// Stop a running daemon
     Stop,
 
+    /// Reload acoustic profiles without restarting the daemon
+    Reload,
+
     /// Show daemon status
     Status,
 

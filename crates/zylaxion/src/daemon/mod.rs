@@ -12,8 +12,12 @@ use std::os::unix::net::UnixListener;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 use std::sync::Arc;
 
+use arc_swap::ArcSwap;
 use nix::sys::signal::{self, SigHandler, Signal};
 use nix::unistd::{dup2, fork, getpid, setsid, ForkResult, Pid};
+use zactrix_profiles::MechanicalClick;
+
+use crate::profile::resolve_profile;
 
 /// Global pointer to the stop flag, bridging the Rust `Arc<AtomicBool>`
 /// into the C signal handler (which cannot capture Rust variables).
@@ -152,12 +156,24 @@ pub fn is_daemon_running() -> Result<Pid, String> {
 
 /// Spawn the IPC listener on a dedicated background thread.
 ///
-/// When a "stop" command is received, `stop_flag` is set to `true` and
-/// the thread exits.  The main-thread orchestrator loop checks this
-/// flag and breaks cleanly, dropping `CpalSink` and releasing audio.
+/// Handles two commands:
+///
+/// - **"stop"** — sets `stop_flag` to `true` and exits the thread. The
+///   main-thread orchestrator loop checks this flag and breaks cleanly,
+///   dropping `CpalSink` and releasing audio.
+///
+/// - **"reload"** — re-reads the current profile TOML from disk (using
+///   the same `--profile <name>` the daemon was started with), constructs
+///   a new `MechanicalClick`, and atomically swaps it into the `ArcSwap`.
+///   The render loop picks up the new model on its next iteration.
+///   Active voices finish naturally with their old profile; new keypresses
+///   use the new model immediately. The IPC thread never blocks the
+///   audio callback — `ArcSwap::store()` is a single atomic swap.
 pub fn spawn_ipc_thread(
     listener: UnixListener,
     stop_flag: Arc<AtomicBool>,
+    model: Arc<ArcSwap<MechanicalClick>>,
+    profile_name: Arc<Option<String>>,
 ) -> std::thread::JoinHandle<()> {
     std::thread::Builder::new()
         .name("zylaxion-ipc".into())
@@ -167,6 +183,16 @@ pub fn spawn_ipc_thread(
                     log::info!("received 'stop' command via IPC");
                     stop_flag.store(true, Ordering::Relaxed);
                     break;
+                }
+                Some(cmd) if cmd == "reload" => {
+                    log::info!("received 'reload' command via IPC — re-reading profile");
+                    let profiles = resolve_profile(&profile_name);
+                    let new_model = MechanicalClick::with_overrides(profiles);
+                    model.store(Arc::new(new_model));
+                    log::info!(
+                        "profile reloaded (name: {})",
+                        profile_name.as_deref().unwrap_or("default")
+                    );
                 }
                 Some(_) | None => continue,
             }

@@ -10,3 +10,4 @@ description = "Acoustic profile definitions and DSP models for the Zactrix engin
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
+log = "0.4"

@@ -53,6 +53,7 @@ fn main() {
         cli::Commands::Start { profile } => commands::daemon::cmd_start(profile),
         cli::Commands::Daemon { profile } => commands::daemon::cmd_daemon(profile),
         cli::Commands::Stop => commands::daemon::cmd_stop(),
+        cli::Commands::Reload => commands::daemon::cmd_reload(),
         cli::Commands::Status => daemon::cmd_status(),
         cli::Commands::Doctor => commands::info::cmd_doctor(),
         cli::Commands::ListProfiles => commands::info::cmd_list_profiles(),
