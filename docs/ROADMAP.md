@@ -25,7 +25,7 @@ Fix `--version` / `-V` interception. Current `std::env::args().nth(1)` only
 catches positional `version`, not the clap `--version` flag. Use clap's
 `long_version` or override `Cli::version()`.
 
-### 7.3 `--check-updated` subcommand
+### 7.3 `--check-update` subcommand
 Implement a GitHub Releases API check (`/repos/oxyzenQ/zylaxion/releases/latest`)
 using `ureq` or `reqwest`. Compare semver against current version. Print
 update available / already up to date.

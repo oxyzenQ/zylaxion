@@ -25,10 +25,10 @@ mod profile;
 fn main() {
     // Early-exit flags — intercepted BEFORE `Cli::parse()` to bypass Clap's
     // subcommand requirement. This is the bulletproof way to handle early-exit
-    // flags without fighting the parser: `zylaxion --check-updated` (with no
+    // flags without fighting the parser: `zylaxion --check-update` (with no
     // subcommand) would otherwise error out before the flag is ever processed.
-    if std::env::args().any(|a| a == "--check-updated") {
-        run_check_updated();
+    if std::env::args().any(|a| a == "--check-update") {
+        run_check_update();
         std::process::exit(0);
     }
 
@@ -65,7 +65,7 @@ const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/oxyzenQ/zylaxion/
 /// Maximum seconds to wait for the GitHub API to respond.
 const CHECK_UPDATE_TIMEOUT_SECS: u32 = 5;
 
-/// Implements `zylaxion --check-updated`.
+/// Implements `zylaxion --check-update`.
 ///
 /// Shells out to `curl` (pre-installed on ~99% of Linux distros) to fetch the
 /// GitHub releases/latest JSON, then extracts the `"tag_name"` field with a
@@ -84,7 +84,7 @@ const CHECK_UPDATE_TIMEOUT_SECS: u32 = 5;
 /// Network errors, curl-not-installed, non-200 responses, and malformed JSON
 /// are all reported gracefully — the command never panics, only prints a
 /// human message and exits 0 (this is an informational flag, not a critical op).
-fn run_check_updated() {
+fn run_check_update() {
     let current = format!("v{}", env!("CARGO_PKG_VERSION"));
 
     println!("Checking for updates...");

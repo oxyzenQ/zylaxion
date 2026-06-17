@@ -26,7 +26,7 @@ License: GPL-3.0-or-later
 Source: https://github.com/oxyzenQ/zylaxion
 ```
 
-A `--check-updated` subcommand MUST be implemented to check the latest
+A `--check-update` subcommand MUST be implemented to check the latest
 upstream GitHub release.
 
 ## Local Tooling
