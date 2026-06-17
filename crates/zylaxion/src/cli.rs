@@ -49,6 +49,15 @@ pub struct Cli {
     #[allow(dead_code)]
     pub check_updated: bool,
 
+    /// Enable verbose (debug-level) logging.
+    ///
+    /// When set, `RUST_LOG=debug` is exported before subcommand dispatch,
+    /// causing `env_logger` (initialised inside `cmd_start` / `cmd_daemon`)
+    /// to emit debug-level lines from all crates in the workspace. Without
+    /// this flag, the default level is `info`.
+    #[arg(short, long, global = true)]
+    pub verbose: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }

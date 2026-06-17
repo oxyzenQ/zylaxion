@@ -54,6 +54,20 @@ const MAX_RENDER_CHUNK: usize = 64;
 /// outputs silence naturally when the ring buffer is empty.
 const PREFILL_SILENCE_FRAMES: usize = 2048;
 
+/// Number of silence frames pushed into the ring buffer immediately
+/// before the orchestrator exits and drops `CpalSink`.
+///
+/// Without this tail, dropping `CpalSink` mid-playback can leave a
+/// non-zero DC offset in PipeWire's internal buffer. When the next
+/// audio client (e.g. a music player) starts writing to the same
+/// device, PipeWire reuses the same buffer and the sudden jump from
+/// the residual offset to the new client's signal is heard as a
+/// "pop" or an audible volume jump. Flushing ~23 ms of pure silence
+/// (1024 frames at 44.1 kHz) gives the cpal callback time to drain
+/// any remaining non-zero samples and settle the device back to a
+/// zero baseline before the stream is torn down.
+const FADEOUT_SILENCE_FRAMES: usize = 1024;
+
 /// If the ring buffer has fewer vacant frames than this threshold,
 /// the buffer is considered "mostly full" and the producer yields.
 /// 128 frames ≈ 2.9 ms — enough for the ALSA callback to drain a
@@ -232,6 +246,7 @@ impl Orchestrator {
             //    CpalSink is dropped and PipeWire graph is released.
             if stop_flag.load(Ordering::Relaxed) {
                 eprintln!("[zylaxion-core] stop flag set — shutting down");
+                self.fade_out_before_drop();
                 return;
             }
 
@@ -254,6 +269,7 @@ impl Orchestrator {
                 Err(crossbeam_channel::RecvTimeoutError::Timeout) => {}
                 Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
                     eprintln!("[zylaxion-core] input channel disconnected — shutting down");
+                    self.fade_out_before_drop();
                     return;
                 } // Timeout is handled by falling through — the loop
                   // re-checks the stop flag at the top of the next iteration.
@@ -317,6 +333,27 @@ impl Orchestrator {
             );
         } else {
             pool.release(event.scancode);
+        }
+    }
+
+    /// Flush a tail of pure silence into the ring buffer before the
+    /// orchestrator returns and `CpalSink` is dropped.
+    ///
+    /// This prevents the "pop" / volume-jump artefact that otherwise occurs
+    /// when PipeWire reuses its internal buffer for the next audio client
+    /// while it still holds a non-zero DC offset from Zylaxion's last
+    /// rendered frame. The 1024-frame silence pad gives the cpal callback
+    /// enough time (~23 ms at 44.1 kHz) to drain any remaining non-zero
+    /// samples and settle the device back to a zero baseline before the
+    /// stream is torn down.
+    ///
+    /// Called from both exit paths of [`run`](Self::run): the `stop_flag`
+    /// path (IPC `stop` command / SIGTERM) and the input-channel
+    /// `Disconnected` path (input source thread died).
+    fn fade_out_before_drop(&mut self) {
+        let silence = [0.0f32; 2];
+        for _ in 0..FADEOUT_SILENCE_FRAMES {
+            self.sink.write_sample(silence);
         }
     }
 }
