@@ -61,14 +61,31 @@ pub struct KeyEvent {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ClickParams {
     /// Center frequency of the click bandpass filter (Hz).
+    #[serde(default = "default_click_frequency")]
     pub frequency: f32,
     /// Quality factor of the click filter. Higher values produce a narrower,
     /// more resonant click with longer ring-out.
+    #[serde(default = "default_click_resonance")]
     pub resonance: f32,
     /// Duration of the noise excitation burst in milliseconds.
+    #[serde(default = "default_click_duration_ms")]
     pub duration_ms: f32,
     /// Peak amplitude of the click transient (0.0–1.0).
+    #[serde(default = "default_click_amplitude")]
     pub amplitude: f32,
+}
+
+fn default_click_frequency() -> f32 {
+    4500.0
+}
+fn default_click_resonance() -> f32 {
+    2.0
+}
+fn default_click_duration_ms() -> f32 {
+    1.5
+}
+fn default_click_amplitude() -> f32 {
+    0.8
 }
 
 /// Parameters controlling the spring/housing resonance after the initial click.
@@ -80,11 +97,24 @@ pub struct ClickParams {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct SpringParams {
     /// Resonance frequency of the spring element (Hz).
+    #[serde(default = "default_spring_frequency")]
     pub frequency: f32,
     /// Quality factor. Higher values produce longer, more pronounced ringing.
+    #[serde(default = "default_spring_resonance")]
     pub resonance: f32,
     /// Mix level of the spring component in the final output (0.0–1.0).
+    #[serde(default = "default_spring_mix")]
     pub mix: f32,
+}
+
+fn default_spring_frequency() -> f32 {
+    1800.0
+}
+fn default_spring_resonance() -> f32 {
+    3.5
+}
+fn default_spring_mix() -> f32 {
+    0.6
 }
 
 /// Parameters controlling the exponential decay envelope applied to the output.
@@ -105,9 +135,55 @@ pub struct SpringParams {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct DecayParams {
     /// Per-sample multiplicative decay factor. Must be in (0.0, 1.0).
+    #[serde(default = "default_decay_coefficient")]
     pub coefficient: f32,
     /// Amplitude threshold below which the voice is deactivated.
+    #[serde(default = "default_decay_voice_off_threshold")]
     pub voice_off_threshold: f32,
+}
+
+fn default_decay_coefficient() -> f32 {
+    0.9994
+}
+fn default_decay_voice_off_threshold() -> f32 {
+    1e-5
+}
+
+/// Parameters controlling the ambient case-rattle / hollow-housing noise.
+///
+/// Real mechanical keyboards produce a secondary "rattle" sound when a
+/// key is pressed: the keycap stem hits the switch housing, the PCB
+/// flexes slightly, and the hollow case amplifies the impact. This is
+/// distinct from the click transient (which is the switch mechanism
+/// itself) and the spring resonance (which is the spring vibrating).
+///
+/// The ambient noise is modeled as a short burst of high-pass filtered
+/// white noise with its own decay envelope, mixed into the final output.
+/// When `enabled` is `false`, no ambient noise is generated (zero CPU
+/// cost).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct AmbientParams {
+    /// Master enable for the ambient rattle path. When `false`, the
+    /// engine skips ambient noise generation entirely.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Peak amplitude of the ambient noise burst (0.0 = silent,
+    /// 1.0 = full). Typical values: 0.05 (subtle) to 0.3 (heavy rattle).
+    #[serde(default = "default_ambient_noise_level")]
+    pub noise_level: f32,
+    /// Per-sample multiplicative decay factor for the ambient envelope.
+    /// Controls how long the rattle persists after the keypress.
+    /// MUST be < 1.0 (same constraint as `DecayParams::coefficient`).
+    /// Lower values = faster rattle decay; higher values = longer ring.
+    #[serde(default = "default_ambient_noise_decay")]
+    pub noise_decay: f32,
+}
+
+fn default_ambient_noise_level() -> f32 {
+    0.1
+}
+fn default_ambient_noise_decay() -> f32 {
+    0.99
 }
 
 /// Complete acoustic profile for a single key event.
@@ -119,11 +195,17 @@ pub struct DecayParams {
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct KeyProfile {
     /// Click transient parameters.
+    #[serde(default)]
     pub click: ClickParams,
     /// Spring resonance parameters.
+    #[serde(default)]
     pub spring: SpringParams,
     /// Decay envelope parameters.
+    #[serde(default)]
     pub decay: DecayParams,
+    /// Ambient case-rattle parameters.
+    #[serde(default)]
+    pub ambient: AmbientParams,
 }
 
 /// Mutable DSP state for a single voice instance.
@@ -180,6 +262,36 @@ pub struct SynthState {
     /// Pre-computed spring mix level (from profile).
     pub spring_mix: f32,
 
+    // --- Ambient rattle path (optional, enabled per-profile) ---
+    /// Whether the ambient rattle path is active for this voice.
+    /// Copied from `KeyProfile::ambient::enabled` at init time. When
+    /// `false`, the render path skips all ambient computation (zero
+    /// cost).
+    pub ambient_enabled: bool,
+    /// Pre-computed peak amplitude of the ambient noise burst (from
+    /// `KeyProfile::ambient::noise_level`).
+    pub ambient_level: f32,
+    /// Pre-computed per-sample decay coefficient for the ambient
+    /// envelope (from `KeyProfile::ambient::noise_decay`).
+    pub ambient_decay: f32,
+    /// Current ambient envelope amplitude value. Decays per-sample via
+    /// `ambient_decay`. When it falls below `ambient_level * 1e-4`,
+    /// ambient generation stops for this voice.
+    pub ambient_envelope: f32,
+    /// Separate xorshift32 state for the ambient noise generator so
+    /// it doesn't correlate with the click excitation noise.
+    pub ambient_noise_state: u32,
+    /// High-pass filter state for the ambient noise (one-pole).
+    /// Stores the previous input sample for the difference equation
+    /// `y[n] = x[n] - x[n-1] + hp_coeff * y[n-1]`.
+    pub ambient_hp_prev_input: f32,
+    /// High-pass filter state for the ambient noise (one-pole).
+    /// Stores the previous output sample.
+    pub ambient_hp_prev_output: f32,
+    /// Pre-computed high-pass filter coefficient. Derived from a fixed
+    /// cutoff (e.g. 2 kHz) at the sample rate.
+    pub ambient_hp_coeff: f32,
+
     // --- Voice lifecycle ---
     /// Whether this voice is currently producing audio.
     pub active: bool,
@@ -205,6 +317,14 @@ impl Default for SynthState {
             pan_left: std::f32::consts::FRAC_1_SQRT_2,
             pan_right: std::f32::consts::FRAC_1_SQRT_2,
             spring_mix: 0.6,
+            ambient_enabled: false,
+            ambient_level: 0.0,
+            ambient_decay: 0.99,
+            ambient_envelope: 0.0,
+            ambient_noise_state: 1,
+            ambient_hp_prev_input: 0.0,
+            ambient_hp_prev_output: 0.0,
+            ambient_hp_coeff: 0.0,
             active: false,
         }
     }
@@ -273,6 +393,16 @@ impl Default for DecayParams {
         Self {
             coefficient: 0.9994,
             voice_off_threshold: 1e-5,
+        }
+    }
+}
+
+impl Default for AmbientParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            noise_level: 0.1,
+            noise_decay: 0.99,
         }
     }
 }
@@ -367,6 +497,15 @@ pub mod ranges {
 
     pub const VOICE_OFF_THRESHOLD_MIN: f32 = 1e-7;
     pub const VOICE_OFF_THRESHOLD_MAX: f32 = 1e-2;
+
+    /// Ambient noise level range. 0.0 = silent, 1.0 = full.
+    pub const AMBIENT_NOISE_LEVEL_MIN: f32 = 0.0;
+    pub const AMBIENT_NOISE_LEVEL_MAX: f32 = 1.0;
+
+    /// Ambient noise decay. Same constraint as DECAY_COEFF: must be < 1.0
+    /// to prevent infinite rattle.
+    pub const AMBIENT_NOISE_DECAY_MIN: f32 = 0.0;
+    pub const AMBIENT_NOISE_DECAY_MAX: f32 = 0.9999;
 }
 
 /// Helper: clamp a value into `[min, max]`, treating NaN and infinities
@@ -537,6 +676,35 @@ impl KeyProfile {
             );
         }
         self.decay.voice_off_threshold = v;
+
+        // Ambient parameters
+        let (v, c) = clamp_finite(
+            self.ambient.noise_level,
+            ranges::AMBIENT_NOISE_LEVEL_MIN,
+            ranges::AMBIENT_NOISE_LEVEL_MAX,
+        );
+        if c {
+            log::warn!(
+                "Invalid ambient.noise_level {}, clamping to {}",
+                self.ambient.noise_level,
+                v
+            );
+        }
+        self.ambient.noise_level = v;
+
+        let (v, c) = clamp_finite(
+            self.ambient.noise_decay,
+            ranges::AMBIENT_NOISE_DECAY_MIN,
+            ranges::AMBIENT_NOISE_DECAY_MAX,
+        );
+        if c {
+            log::warn!(
+                "Invalid ambient.noise_decay {}, clamping to {} (must be < 1.0 to prevent infinite rattle)",
+                self.ambient.noise_decay,
+                v
+            );
+        }
+        self.ambient.noise_decay = v;
     }
 }
 
@@ -566,6 +734,9 @@ pub struct KeyOverride {
     /// Optional decay parameter overrides.
     #[serde(default)]
     pub decay: Option<OverrideDecay>,
+    /// Optional ambient parameter overrides.
+    #[serde(default)]
+    pub ambient: Option<OverrideAmbient>,
 }
 
 /// Optional click parameter overrides for a `[[keys]]` block.
@@ -603,6 +774,17 @@ pub struct OverrideDecay {
     pub coefficient: Option<f32>,
     #[serde(default)]
     pub voice_off_threshold: Option<f32>,
+}
+
+/// Optional ambient parameter overrides for a `[[keys]]` block.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct OverrideAmbient {
+    #[serde(default)]
+    pub enabled: Option<bool>,
+    #[serde(default)]
+    pub noise_level: Option<f32>,
+    #[serde(default)]
+    pub noise_decay: Option<f32>,
 }
 
 /// A loaded acoustic profile with optional per-key overrides.
@@ -748,6 +930,11 @@ mod tests {
             decay: DecayParams {
                 coefficient: 0.9994,
                 voice_off_threshold: 1e-5,
+            },
+            ambient: AmbientParams {
+                enabled: false,
+                noise_level: 0.1,
+                noise_decay: 0.99,
             },
         }
     }

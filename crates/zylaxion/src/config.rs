@@ -249,6 +249,8 @@ struct PresetEntry {
     #[serde(default)]
     decay: Option<zactrix_profiles::DecayParams>,
     #[serde(default)]
+    ambient: Option<zactrix_profiles::AmbientParams>,
+    #[serde(default)]
     keys: Vec<zactrix_profiles::KeyOverride>,
 }
 
@@ -330,6 +332,9 @@ fn build_profile_from_entry(entry: &PresetEntry) -> ProfileWithOverrides {
     if let Some(decay) = entry.decay {
         default.decay = decay;
     }
+    if let Some(ambient) = entry.ambient {
+        default.ambient = ambient;
+    }
     default.validate_and_clamp();
 
     let mut overrides = HashMap::with_capacity(entry.keys.len());
@@ -366,6 +371,17 @@ fn build_profile_from_entry(entry: &PresetEntry) -> ProfileWithOverrides {
             }
             if let Some(v) = decay.voice_off_threshold {
                 merged.decay.voice_off_threshold = v;
+            }
+        }
+        if let Some(ambient) = &ko.ambient {
+            if let Some(v) = ambient.enabled {
+                merged.ambient.enabled = v;
+            }
+            if let Some(v) = ambient.noise_level {
+                merged.ambient.noise_level = v;
+            }
+            if let Some(v) = ambient.noise_decay {
+                merged.ambient.noise_decay = v;
             }
         }
         merged.validate_and_clamp();
@@ -745,6 +761,7 @@ tuning = "technical"
                 coefficient: 9999.0, // would cause infinite loop
                 voice_off_threshold: 0.00001,
             }),
+            ambient: None,
             keys: vec![],
         };
         let profiles = build_profile_from_entry(&entry);
@@ -771,6 +788,7 @@ tuning = "technical"
                 coefficient: 0.9994,
                 voice_off_threshold: 0.00001,
             }),
+            ambient: None,
             keys: vec![KeyOverride {
                 scancode: 28,
                 click: Some(zactrix_profiles::OverrideClick {
