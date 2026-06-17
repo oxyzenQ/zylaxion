@@ -56,7 +56,7 @@ pub fn cmd_start(cli_preset: Option<String>) {
     {
         Ok(tuple) => tuple,
         Err(e) => {
-            eprintln!("error: {e}");
+            crate::error_format::error(e);
             process::exit(1);
         }
     };
@@ -67,7 +67,7 @@ pub fn cmd_start(cli_preset: Option<String>) {
     let event_rx = match input_source.listen() {
         Ok(rx) => rx,
         Err(e) => {
-            eprintln!("[zylaxion] input error: {e}");
+            crate::error_format::error(format!("input error: {e}"));
             process::exit(1);
         }
     };
@@ -76,8 +76,8 @@ pub fn cmd_start(cli_preset: Option<String>) {
     let mut orchestrator = match Orchestrator::new() {
         Ok(o) => o,
         Err(e) => {
-            eprintln!("[zylaxion] audio error: {e}");
-            eprintln!("[zylaxion] make sure PipeWire or PulseAudio is running");
+            crate::error_format::error(format!("audio error: {e}"));
+            crate::error_format::warning("make sure PipeWire or PulseAudio is running");
             process::exit(1);
         }
     };
@@ -96,6 +96,15 @@ pub fn cmd_start(cli_preset: Option<String>) {
 
     // 5. Run the main loop.
     let stop_flag = Arc::new(AtomicBool::new(false));
+
+    // Install signal handlers so Ctrl+C / SIGTERM / SIGQUIT set the
+    // stop_flag, letting the orchestrator exit gracefully (fade-out,
+    // CpalSink drop, Flock drop). Without this, `kill -9` would skip
+    // Drop guards and leave the terminal / PipeWire in a broken state.
+    if let Err(e) = crate::signals::install_graceful_shutdown_handlers(Arc::clone(&stop_flag)) {
+        log::warn!("failed to install signal handlers: {e}");
+    }
+
     log::info!("ready — press any key to hear it (Ctrl+C to quit)");
     orchestrator.run(&model, &event_rx, stop_flag);
     log::info!("shutdown complete");
@@ -119,12 +128,12 @@ pub fn cmd_daemon(cli_preset: Option<String>) {
     let cli_preset_arc = Arc::new(cli_preset);
 
     if daemon::is_daemon_running().is_ok() {
-        eprintln!("error: zylaxion daemon is already running");
+        crate::error_format::error("zylaxion daemon is already running");
         process::exit(1);
     }
 
     if let Err(e) = daemon::daemonize() {
-        eprintln!("error: daemonize failed: {e}");
+        crate::error_format::error(format!("daemonize failed: {e}"));
         process::exit(1);
     }
 
@@ -139,7 +148,7 @@ pub fn cmd_daemon(cli_preset: Option<String>) {
         match config::resolve_config(cli_preset_arc.as_deref()) {
             Ok(tuple) => tuple,
             Err(e) => {
-                eprintln!("error: {e}");
+                crate::error_format::error(e);
                 process::exit(1);
             }
         };
@@ -156,7 +165,15 @@ pub fn cmd_daemon(cli_preset: Option<String>) {
     daemon::ignore_hup_pipe();
 
     let stop_flag = Arc::new(AtomicBool::new(false));
-    daemon::install_signal_handlers(Arc::clone(&stop_flag));
+
+    // Install signal handlers so SIGTERM / SIGINT / SIGQUIT set the
+    // stop_flag, letting the orchestrator exit gracefully (fade-out,
+    // CpalSink drop, Flock drop, PID file cleanup). Without this,
+    // `pkill -f zylaxion` would skip Drop guards and leave stale lock
+    // files + a broken PipeWire graph.
+    if let Err(e) = crate::signals::install_graceful_shutdown_handlers(Arc::clone(&stop_flag)) {
+        log::warn!("failed to install signal handlers: {e}");
+    }
 
     let listener = match daemon::ipc::create_listener() {
         Ok(fd) => fd,

@@ -352,6 +352,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
+name = "errno"
+version = "0.3.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
+dependencies = [
+ "libc",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -934,6 +944,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
+name = "signal-hook"
+version = "0.3.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d881a16cf4426aa584979d30bd82cb33429027e42122b169753d6ef1085ed6e2"
+dependencies = [
+ "libc",
+ "signal-hook-registry",
+]
+
+[[package]]
+name = "signal-hook-registry"
+version = "1.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b"
+dependencies = [
+ "errno",
+ "libc",
+]
+
+[[package]]
 name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1442,14 +1472,14 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "zactrix-engine"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "zactrix-profiles",
 ]
 
 [[package]]
 name = "zactrix-profiles"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "log",
  "serde",
@@ -1464,7 +1494,7 @@ checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
 
 [[package]]
 name = "zylaxion"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "arc-swap",
  "clap",
@@ -1475,6 +1505,7 @@ dependencies = [
  "nix",
  "serde",
  "serde_json",
+ "signal-hook",
  "toml",
  "zactrix-engine",
  "zactrix-profiles",
@@ -1485,7 +1516,7 @@ dependencies = [
 
 [[package]]
 name = "zylaxion-core"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "arc-swap",
  "crossbeam-channel",
@@ -1498,7 +1529,7 @@ dependencies = [
 
 [[package]]
 name = "zylaxion-input"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "crossbeam-channel",
  "input",
@@ -1508,7 +1539,7 @@ dependencies = [
 
 [[package]]
 name = "zylaxion-output"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "cpal",
  "ringbuf",
