@@ -10,7 +10,7 @@
 //! # Architecture
 //!
 //! - [`cli`]       — clap argument definitions & masterclass version format
-//! - [`profile`]   — filesystem search for acoustic profile TOMLs
+//! - [`config`]    — filesystem search for the central `config.toml`
 //! - [`commands`]  — subcommand handlers (`start`, `daemon`, `stop`, `doctor`, …)
 //! - [`daemon`]    — POSIX daemonization, PID file, signal handling, IPC
 
@@ -19,9 +19,9 @@ use std::process::Command;
 
 mod cli;
 mod commands;
+mod config;
 mod daemon;
 mod instance_lock;
-mod profile;
 
 fn main() {
     // Early-exit flags — intercepted BEFORE `Cli::parse()` to bypass Clap's
@@ -50,13 +50,12 @@ fn main() {
     }
 
     match cli.command {
-        cli::Commands::Start { profile } => commands::daemon::cmd_start(profile),
-        cli::Commands::Daemon { profile } => commands::daemon::cmd_daemon(profile),
+        cli::Commands::Start => commands::daemon::cmd_start(),
+        cli::Commands::Daemon => commands::daemon::cmd_daemon(),
         cli::Commands::Stop => commands::daemon::cmd_stop(),
-        cli::Commands::Reload => commands::daemon::cmd_reload(),
         cli::Commands::Status => daemon::cmd_status(),
         cli::Commands::Doctor => commands::info::cmd_doctor(),
-        cli::Commands::ListProfiles => commands::info::cmd_list_profiles(),
+        cli::Commands::Testconf => commands::info::cmd_testconf(),
         cli::Commands::ListBackends => commands::info::cmd_list_backends(),
     }
 }

@@ -2,7 +2,7 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Zylaxion uninstaller — removes the installed binary and profile TOMLs.
+# Zylaxion uninstaller — removes the installed binary and config.toml.
 #
 # Usage: sudo ./scripts/uninstall.sh
 #

@@ -1,11 +1,13 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Information subcommands: `doctor`, `list-profiles`, `list-backends`.
+//! Information subcommands: `doctor`, `testconf`, `list-backends`.
 
 use std::process;
 
 use cpal::traits::{DeviceTrait, HostTrait};
+
+use crate::config;
 
 /// Print a system-health diagnostic report (input group, XDG, audio).
 pub fn cmd_doctor() {
@@ -66,29 +68,34 @@ pub fn cmd_doctor() {
     }
 }
 
-/// List available acoustic profiles and show their search-path order.
-pub fn cmd_list_profiles() {
-    println!("Available acoustic profiles:\n");
-    println!("  technical    Crisp, loud, punchy (default)");
-    println!("              Cherry MX Blue click with bright spring ring.");
-    println!("  classic      Deeper, more resonant");
-    println!("              Old bucklespring warmth, long spring sustain.");
-    println!("  studio       Softer attack, longer decay");
-    println!("              Gentle click for quiet office environments.");
-    println!("  elegant      Very soft, muffled, polite");
-    println!("              Subtle click for low-profile keyboards.");
-    println!("  whisper      Extremely quiet, short decay");
-    println!("              Barely audible — for libraries and meetings.");
-    println!();
-    println!("  Usage: zylaxion start --profile <name>");
-    println!("         zylaxion daemon --profile <name>");
-    println!();
-    println!("  Profiles are loaded from (first found wins):");
-    println!("    1. ~/.config/zylaxion/profiles/<name>.toml");
-    println!("    2. /etc/zylaxion/profiles/<name>.toml");
-    println!("    3. /usr/local/share/zylaxion/profiles/<name>.toml");
-    println!("    4. ./profiles/<name>.toml (relative to CWD, for dev)");
-    println!("    5. Hardcoded default (always available)");
+/// Validate the central `config.toml`: find it via the search path,
+/// parse, and run all DSP parameter clamping checks.
+///
+/// Exits 0 with "Config OK: <path>" if everything parses and validates.
+/// Exits 1 with "Config Error in <path>: <error>" otherwise.
+///
+/// Equivalent in spirit to `nginx -t` or `sshd -t` — lets users catch
+/// TOML typos and out-of-bounds DSP values before restarting the daemon.
+pub fn cmd_testconf() {
+    match config::validate_config() {
+        Ok(path) => {
+            println!("Config OK: {}", path.display());
+        }
+        Err((Some(path), err)) => {
+            eprintln!("Config Error in {}: {err}", path.display());
+            process::exit(1);
+        }
+        Err((None, err)) => {
+            eprintln!("Config Error: {err}");
+            eprintln!();
+            eprintln!("Searched:");
+            eprintln!("  1. $HOME/.config/zylaxion/config.toml");
+            eprintln!("  2. /etc/zylaxion/config.toml");
+            eprintln!("  3. /usr/local/share/zylaxion/config.toml");
+            eprintln!("  4. ./config.toml (current directory)");
+            process::exit(1);
+        }
+    }
 }
 
 /// List available audio backends via cpal.
