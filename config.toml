@@ -2,27 +2,34 @@
 # =============================================================================
 #
 # This is the single source of truth for all acoustic DSP parameters.
-# The file defines multiple named presets; the active one is selected at
-# startup via `--preset <name>` (default: technical).
+# The file defines multiple named presets; the active one is selected
+# via the `tuning` key below OR overridden by `--preset <name>` on the
+# CLI.
 #
 # -----------------------------------------------------------------------------
 # USAGE
 # -----------------------------------------------------------------------------
 #
-# Start in foreground with a specific preset:
-#   zylaxion start --preset cherryMX
+# Option A — set the active preset in this file:
+#   Edit `tuning = "technical"` below, save. Done.
+#   zylaxion start                    # uses preset.tuning
+#   zylaxion daemon                   # uses preset.tuning
 #
-# Start as daemon with a specific preset:
+# Option B — override from CLI (takes precedence over tuning):
+#   zylaxion start --preset cherryMX
 #   zylaxion daemon --preset classic
 #
-# Default (no --preset flag): uses "technical".
+# List available presets:
+#   zylaxion list-presets
 #
 # Validate the config before applying:
 #   zylaxion testconf
 #
-# Edit, save, and the running daemon (or foreground `start`) will pick up
-# changes within 1 second — no restart needed. The same `[preset.<name>]`
-# table that was active at startup is re-read on each file change.
+# Edit, save, and the running daemon (or foreground `start`) will pick
+# up changes within 1 second — no restart needed. If you change
+# `tuning = "cherryMX"` and save, the watcher swaps to cherryMX
+# automatically (unless --preset was passed on the CLI, in which case
+# the CLI value wins and tuning changes are ignored).
 #
 # -----------------------------------------------------------------------------
 # SEARCH PATH (first found wins)
@@ -42,7 +49,8 @@
 # 2. Rename the table to your new preset name (e.g. [preset.mycherry]).
 # 3. Tweak the parameters to taste. Respect the documented Min/Max ranges.
 # 4. Save the file.
-# 5. Activate it with `zylaxion start --preset mycherry` (or `daemon`).
+# 5. Activate it by setting `tuning = "mycherry"` above, or use
+#    `zylaxion start --preset mycherry`.
 #
 # -----------------------------------------------------------------------------
 # PER-KEY OVERRIDES
@@ -50,7 +58,7 @@
 #
 # Each preset table can include an optional `[[preset.NAME.keys]]` array
 # of per-scancode overrides. Unspecified parameters inherit from the
-# preset's [default] values. Example:
+# preset's values. Example:
 #
 # [preset.technical]
 # [preset.technical.click]
@@ -63,6 +71,13 @@
 # frequency = 3000.0  # deeper thump for Enter only
 #
 # =============================================================================
+
+# Active preset name. Change this to switch the default sound character.
+# Override from CLI with: zylaxion start --preset <name>
+# If the named preset does not exist below, the program will error and
+# exit — there is NO silent fallback.
+[preset]
+tuning = "technical"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Preset: technical (default)

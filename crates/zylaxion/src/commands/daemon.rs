@@ -41,24 +41,26 @@ const CONFIG_WATCH_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Run zylaxion in the foreground (Ctrl+C to quit).
 ///
-/// Loads the `[preset.<preset_name>]` table from `config.toml` (found
-/// via the search path), spawns the config-watcher thread (auto-reload
-/// on file change), and runs the orchestrator loop on the main thread
-/// until Ctrl+C disconnects the input channel.
-pub fn cmd_start(preset_name: String) {
+/// Loads the active preset (from `--preset` CLI flag or `preset.tuning`
+/// in config.toml), spawns the config-watcher thread (auto-reload on
+/// file change), and runs the orchestrator loop until Ctrl+C.
+///
+/// If the resolved preset does not exist in config.toml, prints a clear
+/// error and exits — there is NO silent fallback.
+pub fn cmd_start(cli_preset: Option<String>) {
     env_logger::init();
 
-    // Acquire the single-instance lock BEFORE touching audio or input.
-    // If another zylaxion process (start OR daemon) is already running,
-    // this prints "error: Zylaxion is already running..." and exits 1.
-    // The `_lock` guard is held for the entire function scope; when
-    // cmd_start returns (or the process is killed), the kernel releases
-    // the flock atomically.
     let _lock = instance_lock::acquire_or_exit();
 
-    log::info!("starting zylaxion in foreground mode (preset: {preset_name})");
-
-    let (profiles, config_path) = config::resolve_config(&preset_name);
+    let (profiles, config_path, active_preset) = match config::resolve_config(cli_preset.as_deref())
+    {
+        Ok(tuple) => tuple,
+        Err(e) => {
+            eprintln!("error: {e}");
+            process::exit(1);
+        }
+    };
+    log::info!("starting zylaxion in foreground mode (preset: {active_preset})");
 
     // 1. Start input capture (background thread).
     let mut input_source = LibinputSource::new();
@@ -80,27 +82,22 @@ pub fn cmd_start(preset_name: String) {
         }
     };
 
-    // 3. Wrap the model in Arc<ArcSwap<>> for hot-reload. The
-    //    config-watcher thread (spawned below) will atomically swap
-    //    this when config.toml changes on disk.
+    // 3. Wrap the model in Arc<ArcSwap<>> for hot-reload.
     let model: Arc<ArcSwap<MechanicalClick>> = Arc::new(ArcSwap::from_pointee(
         MechanicalClick::with_overrides(profiles),
     ));
 
-    // 4. Spawn the config-watcher thread. It polls config.toml's mtime
-    //    every CONFIG_WATCH_INTERVAL; on change, it re-reads the SAME
-    //    preset that was active at startup, validates, clamps, and
-    //    atomically swaps the model. On parse error, it logs a warn!
-    //    and keeps the old model.
+    // 4. Spawn the config-watcher thread. If cli_preset is None, the
+    //    watcher re-reads preset.tuning on each file change — so
+    //    changing the tuning value and saving causes an immediate
+    //    swap to the new preset.
     let _watcher_handle =
-        spawn_config_watcher(Arc::clone(&model), config_path, Arc::new(preset_name));
+        spawn_config_watcher(Arc::clone(&model), config_path, Arc::new(cli_preset));
 
-    // 5. Run the main loop on the MAIN thread (blocks until Ctrl+C).
+    // 5. Run the main loop.
     let stop_flag = Arc::new(AtomicBool::new(false));
     log::info!("ready — press any key to hear it (Ctrl+C to quit)");
-
     orchestrator.run(&model, &event_rx, stop_flag);
-
     log::info!("shutdown complete");
 }
 
@@ -110,33 +107,22 @@ pub fn cmd_start(preset_name: String) {
 /// hardware, writes the PID file, installs signal handlers, spawns the
 /// IPC thread (for `stop`/`status`) and the config-watcher thread (for
 /// auto-reload), and runs the orchestrator loop.
-pub fn cmd_daemon(preset_name: String) {
-    // Acquire the single-instance lock BEFORE forking. The lock is
-    // associated with the open file description (kernel struct file),
-    // not the process — so fork() inherits it into the child via the
-    // duplicated file descriptor. When the parent exits via
-    // `daemonize()`, the kernel keeps the lock alive because the child
-    // still holds a reference to the same file description.
-    //
-    // This is the correct order: acquire-then-fork guarantees that no
-    // other zylaxion process can slip in between the fork and the child
-    // calling `acquire()`.
+///
+/// If the resolved preset does not exist in config.toml, prints a clear
+/// error and exits — there is NO silent fallback.
+pub fn cmd_daemon(cli_preset: Option<String>) {
     let _lock = instance_lock::acquire_or_exit();
 
-    // Stash the preset name in an Arc so the config-watcher thread can
-    // re-read the SAME preset from disk on each file change (without
-    // taking ownership away from the main thread).
-    let preset_name_arc = Arc::new(preset_name);
+    // Stash the CLI preset in an Arc so the config-watcher thread can
+    // share it. If None, the watcher re-reads preset.tuning on each
+    // file change.
+    let cli_preset_arc = Arc::new(cli_preset);
 
-    // Check if already running (with /proc/<pid>/comm PID recycling check).
-    // This is a soft check for nicer error messages — the flock above is
-    // the authoritative single-instance guard.
     if daemon::is_daemon_running().is_ok() {
         eprintln!("error: zylaxion daemon is already running");
         process::exit(1);
     }
 
-    // Fork FIRST — do NOT touch audio/input before forking.
     if let Err(e) = daemon::daemonize() {
         eprintln!("error: daemonize failed: {e}");
         process::exit(1);
@@ -145,17 +131,22 @@ pub fn cmd_daemon(preset_name: String) {
     // We are now the daemon child.
     daemon::close_std_fds();
 
-    // Respect RUST_LOG if the parent process set it (e.g. via `zylaxion -v
-    // daemon`), otherwise default to `info`. The parent's env vars survive
-    // `daemonize()`'s fork, so `--verbose` propagates into the daemon child.
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
 
+    let (profiles, config_path, active_preset) =
+        match config::resolve_config(cli_preset_arc.as_deref()) {
+            Ok(tuple) => tuple,
+            Err(e) => {
+                eprintln!("error: {e}");
+                process::exit(1);
+            }
+        };
+
     log::info!(
-        "daemon started (PID: {}, preset: {})",
-        nix::unistd::getpid().as_raw(),
-        preset_name_arc
+        "daemon started (PID: {}, preset: {active_preset})",
+        nix::unistd::getpid().as_raw()
     );
 
     if let Err(_e) = daemon::write_pid_file() {
@@ -177,10 +168,6 @@ pub fn cmd_daemon(preset_name: String) {
     };
     log::info!("IPC socket ready: {}", daemon::ipc::socket_path().display());
 
-    let (profiles, config_path) = config::resolve_config(&preset_name_arc);
-    log::info!("config loaded (preset: {})", preset_name_arc);
-
-    // Initialise audio (mirror zylaxion_live exactly).
     let mut input_source = LibinputSource::new();
     let event_rx = match input_source.listen() {
         Ok(rx) => rx,
@@ -200,19 +187,13 @@ pub fn cmd_daemon(preset_name: String) {
         }
     };
 
-    // Wrap the acoustic model in an ArcSwap so the config-watcher
-    // thread can swap it at runtime (auto-reload). The render loop
-    // loads a snapshot per event batch — lock-free, no Mutex.
     let model: Arc<ArcSwap<MechanicalClick>> = Arc::new(ArcSwap::from_pointee(
         MechanicalClick::with_overrides(profiles),
     ));
 
     let _ipc_handle = daemon::spawn_ipc_thread(listener, Arc::clone(&stop_flag));
-    let _watcher_handle = spawn_config_watcher(
-        Arc::clone(&model),
-        config_path,
-        Arc::clone(&preset_name_arc),
-    );
+    let _watcher_handle =
+        spawn_config_watcher(Arc::clone(&model), config_path, Arc::clone(&cli_preset_arc));
 
     orchestrator.run(&model, &event_rx, stop_flag);
 
@@ -232,33 +213,28 @@ pub fn cmd_stop() {
 ///
 /// - Polls `config_path`'s modification time (mtime) every
 ///   [`CONFIG_WATCH_INTERVAL`] (1 second) via `std::fs::metadata`.
-/// - When the mtime advances, the thread re-reads the file, extracts
-///   the SAME `[preset.<preset_name>]` table that was active at
-///   startup (passed in via `preset_name`), validates + clamps it,
-///   constructs a new `MechanicalClick`, and calls
-///   `model.store(Arc::new(new_model))` — an atomic swap.
-/// - If the re-read or parse fails, the thread logs a `warn!` and keeps
-///   the old model. The user can fix the TOML and save again to retry.
+/// - When the mtime advances, the thread re-reads the file via
+///   [`config::reload_preset`], which determines the active preset:
+///   - If `cli_preset` is `Some(name)`, that preset is always loaded
+///     (CLI override).
+///   - If `cli_preset` is `None`, the `preset.tuning` value from the
+///     freshly-read file is used — so changing `tuning = "cherryMX"`
+///     and saving causes an immediate swap to cherryMX.
+/// - On any error (parse failure, preset not found), the thread logs
+///   a `warn!` and keeps the old model. The user can fix the TOML and
+///   save again to retry.
 /// - If `config_path` is `None` (hardcoded default fallback, no file to
-///   watch), the thread exits immediately after one log line.
-///
-/// # Why a separate thread (not in the orchestrator loop)
-///
-/// The orchestrator loop is audio-critical. Putting fs::metadata polls
-/// there would add latency spikes. A dedicated watcher thread keeps
-/// the audio path clean while still picking up config changes within
-/// 1 second.
+///   watch), the thread exits immediately.
 ///
 /// # No blocking of the audio callback
 ///
 /// `ArcSwap::store()` is a single atomic pointer swap. The cpal audio
 /// callback never touches the ArcSwap — it only reads the cached
-/// `KeyProfile` snapshot that each voice captured at trigger time. So
-/// even mid-callback swaps are safe.
+/// `KeyProfile` snapshot that each voice captured at trigger time.
 fn spawn_config_watcher(
     model: Arc<ArcSwap<MechanicalClick>>,
     config_path: Option<std::path::PathBuf>,
-    preset_name: Arc<String>,
+    cli_preset: Arc<Option<String>>,
 ) -> std::thread::JoinHandle<()> {
     std::thread::Builder::new()
         .name("zylaxion-config-watcher".into())
@@ -271,16 +247,12 @@ fn spawn_config_watcher(
             };
 
             log::info!(
-                "config-watcher: watching {} for changes (preset: {}, poll interval: {:?})",
+                "config-watcher: watching {} for changes (cli_preset: {}, poll interval: {:?})",
                 path.display(),
-                preset_name,
+                cli_preset.as_deref().unwrap_or("<from tuning>"),
                 CONFIG_WATCH_INTERVAL
             );
 
-            // Snapshot the initial mtime so we don't immediately re-read
-            // the file we just loaded. None means the file wasn't
-            // statable at startup (shouldn't happen since resolve_config
-            // just loaded it, but be defensive).
             let mut last_mtime: Option<SystemTime> = current_mtime(&path);
 
             loop {
@@ -288,45 +260,28 @@ fn spawn_config_watcher(
 
                 let now_mtime = match current_mtime(&path) {
                     Some(t) => t,
-                    None => {
-                        // File disappeared (e.g. user deleted it). Skip
-                        // this cycle; if the user recreates it, the next
-                        // poll will pick up the new mtime.
-                        continue;
-                    }
+                    None => continue,
                 };
 
-                // Skip if mtime hasn't advanced. The `last_mtime.is_none()`
-                // branch handles the rare case where the initial stat
-                // failed but later succeeded — treat that as a change.
                 if let Some(prev) = last_mtime {
                     if now_mtime <= prev {
                         continue;
                     }
                 }
 
-                // mtime advanced — re-read and swap.
-                log::info!(
-                    "config-watcher: {} changed, reloading preset '{}'",
-                    path.display(),
-                    preset_name
-                );
+                log::info!("config-watcher: {} changed, reloading", path.display());
                 last_mtime = Some(now_mtime);
 
-                match crate::config::load_preset_from_file(&path, &preset_name) {
-                    Ok(profiles) => {
+                match crate::config::reload_preset(&path, cli_preset.as_deref()) {
+                    Ok((profiles, active)) => {
                         let new_model = MechanicalClick::with_overrides(profiles);
                         model.store(Arc::new(new_model));
-                        log::info!("config-watcher: reloaded successfully");
+                        log::info!("config-watcher: reloaded preset '{active}' successfully");
                     }
                     Err(e) => {
-                        // Keep the old model. User can fix the TOML and
-                        // save again — the next mtime advance will
-                        // trigger another reload attempt.
                         log::warn!(
-                            "config-watcher: failed to reload {} (preset '{}') — keeping previous config. Error: {}",
+                            "config-watcher: failed to reload {} — keeping previous config. Error: {}",
                             path.display(),
-                            preset_name,
                             e
                         );
                     }

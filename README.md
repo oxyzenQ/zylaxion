@@ -22,9 +22,14 @@
 
 Zylaxion transforms every keystroke into a spatially accurate mechanical keyboard sound using Linux's `evdev` interface and real-time audio output through `cpal` and PipeWire.
 
-Instead of replaying recorded samples, every sound is synthesized mathematically using noise excitation, TPT State Variable Filters, resonance modeling, and exponential decay envelopes.
+Instead of replaying recorded samples, every sound is **synthesized mathematically** using noise excitation, TPT State Variable Filters, resonance modeling, and exponential decay envelopes. This pure procedural approach means:
 
-No audio files. No sample libraries. No wavetable playback.
+- **Zero audio samples** — no wavetables, no recorded clips, no sample libraries. The entire sound engine is mathematical computation.
+- **Ultra-lightweight** — the binary is self-contained; no audio assets to load, store, or manage.
+- **Infinitely tunable** — every parameter (filter frequencies, resonance Q, decay coefficients, spring mix) is a number in `config.toml`, adjustable in real time.
+- **Deterministic** — the same key + same config always produces the same waveform. No random variation from sample playback.
+
+No audio files. No sample libraries. No wavetable playback. Just math.
 
 **Works on Wayland, X11, and Linux TTY.**
 
@@ -97,11 +102,13 @@ sudo install -Dm755 zylaxion /usr/local/bin/zylaxion
 
 ```
 zylaxion start                    # Foreground mode (Ctrl+C to quit)
+zylaxion start --preset cherryMX  # Override active preset from CLI
 zylaxion daemon                   # Background daemon mode
 zylaxion stop                     # Stop a running daemon
 zylaxion status                   # Check if daemon is running
 zylaxion doctor                   # System health diagnostic
 zylaxion testconf                 # Validate config.toml syntax + ranges
+zylaxion list-presets             # List available presets + active one
 zylaxion list-backends            # Show available audio backends
 ```
 
@@ -118,19 +125,37 @@ is loaded from (first found wins):
 4. `./config.toml` — relative to CWD (development)
 5. Hardcoded default — always available
 
-The running daemon polls the file's mtime every 1 second and
-auto-reloads on change. Edits take effect immediately — no restart
-needed. Run `zylaxion testconf` after editing to catch TOML typos
-and out-of-bounds DSP values.
+#### Active preset selection
+
+The file defines multiple named `[preset.NAME]` tables. The active
+preset is determined by:
+
+1. `--preset <name>` on the CLI (highest priority — overrides everything)
+2. `tuning = "<name>"` in the `[preset]` table of `config.toml`
+3. `"technical"` (hardcoded default) if neither is set
+
+If the resolved preset does NOT exist in `config.toml`, the program
+prints a clear error listing the available presets and exits — there
+is **no silent fallback**. This prevents accidental misconfiguration.
+
+#### Auto-reload
+
+The running daemon polls `config.toml`'s mtime every 1 second and
+auto-reloads on change. If you started without `--preset`, changing
+`tuning = "cherryMX"` and saving causes an immediate swap to the
+cherryMX preset — no restart needed. If you started with `--preset`,
+the CLI value wins and `tuning` changes are ignored (you'd need to
+restart with a different `--preset`).
+
+Run `zylaxion testconf` after editing to catch TOML typos and
+out-of-bounds DSP values before they affect the running daemon.
 
 ### Built-in sound presets
-
-Copy-paste any block from the top of `config.toml` into `[default]`
-to switch the overall sound character:
 
 | Preset    | Description                                      |
 |-----------|--------------------------------------------------|
 | technical | Crisp, loud, punchy. Cherry MX Blue click style. |
+| cherryMX  | Balanced reference. General MX Blue/Brown.       |
 | classic   | Deeper, resonant. Warm bucklespring tone.        |
 | studio    | Softer attack, longer decay. Office-friendly.     |
 | elegant   | Very soft, muffled. Low-profile keyboards.       |
@@ -175,9 +200,21 @@ LibinputSource ──►      recv_timeout()
                                           ringbuf ──►  cpal callback
 ```
 
-## License
+## License & Trademark
 
 Copyright (c) 2026 rezky_nightky (oxyzenQ)
 
 Licensed under the GNU General Public License v3.0 or later.
 See [LICENSE](LICENSE) for the full text.
+
+### Intellectual Property
+
+The Zylaxion DSP architecture, TPT (Topology-Preserving Transform)
+filter implementations, procedural acoustic models, and all
+mathematical algorithms in the `zactrix-engine` and `zactrix-profiles`
+crates are the intellectual property of `rezky_nightky (oxyzenQ)`.
+
+Unauthorized commercial redistribution of the code or algorithms
+without adhering to the GPL-3.0-or-later license is strictly
+prohibited. See [docs/trademark.md](docs/trademark.md) for full
+details.

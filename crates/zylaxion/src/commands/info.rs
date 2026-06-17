@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Information subcommands: `doctor`, `testconf`, `list-backends`.
+//! Information subcommands: `doctor`, `testconf`, `list-presets`, `list-backends`.
 
 use std::process;
 
@@ -93,6 +93,32 @@ pub fn cmd_testconf() {
             eprintln!("  2. /etc/zylaxion/config.toml");
             eprintln!("  3. /usr/local/share/zylaxion/config.toml");
             eprintln!("  4. ./config.toml (current directory)");
+            process::exit(1);
+        }
+    }
+}
+
+/// List all acoustic presets defined in `config.toml` and mark the
+/// active one (based on the `preset.tuning` value in the file).
+///
+/// Exits 0 on success, 1 if no config file is found or parsing fails.
+pub fn cmd_list_presets() {
+    match config::list_presets() {
+        Ok((path, active, names)) => {
+            println!("Available presets (from {}):\n", path.display());
+            for name in &names {
+                let marker = if name == &active { " <- active" } else { "" };
+                println!("  {name}{marker}");
+            }
+            println!();
+            println!("Active preset: {active}");
+            println!();
+            println!("Switch preset:");
+            println!("  Edit `tuning = \"{active}\"` in config.toml, OR");
+            println!("  Run: zylaxion start --preset <name>");
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
             process::exit(1);
         }
     }

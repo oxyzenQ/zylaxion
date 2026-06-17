@@ -72,11 +72,12 @@ pub enum Commands {
     /// default). Edits to the config file are picked up automatically
     /// within 1 second — no restart needed.
     Start {
-        /// Name of the `[preset.<name>]` table to load from `config.toml`.
-        /// Built-in presets: technical (default), cherryMX, classic,
-        /// studio, elegant, whisper.
-        #[arg(long, default_value = crate::config::DEFAULT_PRESET)]
-        preset: String,
+        /// Override the active preset from `[preset.<name>]` in config.toml.
+        /// If omitted, the `preset.tuning` value in config.toml is used.
+        /// Built-in presets: technical, cherryMX, classic, studio,
+        /// elegant, whisper.
+        #[arg(long)]
+        preset: Option<String>,
     },
 
     /// Run as a background daemon (controlled via Unix socket).
@@ -84,11 +85,12 @@ pub enum Commands {
     /// Same config-search, preset selection, and auto-reload behaviour
     /// as `start`.
     Daemon {
-        /// Name of the `[preset.<name>]` table to load from `config.toml`.
-        /// Built-in presets: technical (default), cherryMX, classic,
-        /// studio, elegant, whisper.
-        #[arg(long, default_value = crate::config::DEFAULT_PRESET)]
-        preset: String,
+        /// Override the active preset from `[preset.<name>]` in config.toml.
+        /// If omitted, the `preset.tuning` value in config.toml is used.
+        /// Built-in presets: technical, cherryMX, classic, studio,
+        /// elegant, whisper.
+        #[arg(long)]
+        preset: Option<String>,
     },
 
     /// Stop a running daemon
@@ -107,6 +109,9 @@ pub enum Commands {
     /// detailed error message otherwise. Equivalent to `nginx -t` or
     /// `sshd -t`.
     Testconf,
+
+    /// List available acoustic presets from config.toml
+    ListPresets,
 
     /// List available audio backends
     ListBackends,
