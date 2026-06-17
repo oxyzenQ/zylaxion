@@ -1,0 +1,136 @@
+# Zylaxion Central Configuration
+# =============================================================================
+#
+# This is the single source of truth for all acoustic DSP parameters.
+# Edit this file, save, and the running daemon (or foreground `start`)
+# will pick up the changes within 1 second — no restart needed.
+#
+# Search path (first found wins):
+#   1. ~/.config/zylaxion/config.toml          (user-local override)
+#   2. /etc/zylaxion/config.toml               (system config)
+#   3. /usr/local/share/zylaxion/config.toml   (FHS installed default)
+#   4. ./config.toml                            (relative to CWD, for dev)
+#   5. Hardcoded default                        (always available)
+#
+# Validate before applying:
+#   zylaxion testconf
+#
+# -----------------------------------------------------------------------------
+# PRESETS
+# -----------------------------------------------------------------------------
+# Copy-paste any of the blocks below into the [default] table to switch
+# the overall sound character. Each preset is the full parameter set for
+# one of the legacy v0.3.0 profiles.
+#
+# --- technical (default — crisp, loud, punchy; Cherry MX Blue) ---
+#   click.frequency = 4500.0    click.resonance = 2.0
+#   click.duration_ms = 1.5     click.amplitude = 0.8
+#   spring.frequency = 1800.0   spring.resonance = 3.5
+#   spring.mix = 0.6
+#   decay.coefficient = 0.9994  decay.voice_off_threshold = 0.00001
+#
+# --- classic (deeper, resonant; Cherry MX Brown) ---
+#   click.frequency = 3200.0    click.resonance = 2.5
+#   click.duration_ms = 2.5     click.amplitude = 0.7
+#   spring.frequency = 1200.0   spring.resonance = 4.0
+#   spring.mix = 0.75
+#   decay.coefficient = 0.9992  decay.voice_off_threshold = 0.00001
+#
+# --- studio (soft attack, long decay; Cherry MX Red) ---
+#   click.frequency = 4000.0    click.resonance = 1.2
+#   click.duration_ms = 2.0     click.amplitude = 0.5
+#   spring.frequency = 2200.0   spring.resonance = 2.0
+#   spring.mix = 0.5
+#   decay.coefficient = 0.9997  decay.voice_off_threshold = 0.00001
+#
+# --- elegant (very soft, muffled; scissor-switch) ---
+#   click.frequency = 3000.0    click.resonance = 1.5
+#   click.duration_ms = 3.0     click.amplitude = 0.35
+#   spring.frequency = 1500.0   spring.resonance = 2.5
+#   spring.mix = 0.4
+#   decay.coefficient = 0.9991  decay.voice_off_threshold = 0.0001
+#
+# --- whisper (extremely quiet; libraries/meetings) ---
+#   click.frequency = 5500.0    click.resonance = 0.8
+#   click.duration_ms = 0.8     click.amplitude = 0.15
+#   spring.frequency = 2500.0   spring.resonance = 0.5
+#   spring.mix = 0.2
+#   decay.coefficient = 0.9985  decay.voice_off_threshold = 0.001
+#
+# -----------------------------------------------------------------------------
+# CURRENT DEFAULT: technical
+# -----------------------------------------------------------------------------
+
+[default]
+
+[default.click]
+# Click frequency in Hertz. Controls the pitch of the key click.
+# Range: 500.0 - 8000.0
+frequency = 4500.0
+
+# Quality factor (Q) of the click bandpass filter. Higher values produce
+# a narrower, more resonant click with longer ring-out.
+# Range: 0.1 - 10.0
+resonance = 2.0
+
+# Duration of the noise excitation burst in milliseconds. Shorter values
+# produce a sharper transient; longer values a softer attack.
+# Range: 0.1 - 10.0
+duration_ms = 1.5
+
+# Peak amplitude of the click transient.
+# Range: 0.0 - 1.0
+amplitude = 0.8
+
+[default.spring]
+# Spring/housing resonance frequency in Hertz. Lower values produce a
+# deeper, warmer spring ring; higher values a brighter, tinnier ring.
+# Range: 500.0 - 8000.0
+frequency = 1800.0
+
+# Quality factor (Q) of the spring bandpass filter. Higher values produce
+# longer, more pronounced ringing.
+# Range: 0.1 - 10.0
+resonance = 3.5
+
+# Mix level of the spring component in the final output. 0.0 = click
+# only, 1.0 = spring only.
+# Range: 0.0 - 1.0
+mix = 0.6
+
+[default.decay]
+# Per-sample multiplicative decay factor applied to the envelope.
+# WARNING: MUST be less than 1.0. Values >= 1.0 cause infinite loops
+# (voice never deactivates, consuming a polyphony slot forever).
+# Range: 0.0 - 0.9999
+# Approximate -60 dB decay time at 44100 Hz:
+#   0.9994 ≈ 180 ms, 0.9990 ≈ 110 ms, 0.9997 ≈ 280 ms
+coefficient = 0.9994
+
+# Amplitude threshold below which the voice is deactivated. Smaller
+# values let voices ring longer; larger values cut them off sooner.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+# =============================================================================
+# PER-KEY OVERRIDES
+# =============================================================================
+# Add [[keys]] blocks below to give specific scancodes distinct sounds.
+# Each override starts from the [default] profile and replaces only the
+# parameters you specify. Unspecified parameters inherit from [default].
+#
+# Find scancodes with `libinput debug-events` or `evtest`.
+#
+# Example: deeper thump for Enter (scancode 28), louder ring for Space.
+#
+# [[keys]]
+# scancode = 28  # Enter
+# [keys.click]
+# frequency = 3000.0
+#
+# [[keys]]
+# scancode = 57  # Space
+# [keys.spring]
+# mix = 0.8
+# [keys.decay]
+# coefficient = 0.9996

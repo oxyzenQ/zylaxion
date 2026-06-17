@@ -37,10 +37,12 @@ No audio files. No sample libraries. No wavetable playback.
   rendering. Typical latency under 3 ms.
 - **Polyphonic voice pool** — 16 simultaneous voices with oldest-first voice
   stealing, stereo panning based on key position, and exponential decay.
-- **5 acoustic profiles** — `technical`, `classic`, `studio`, `elegant`,
-  `whisper`. TOML-configurable DSP parameters (click frequency, resonance,
-  spring mix, decay coefficient). Custom profiles supported via
-  `~/.config/zylaxion/profiles/`.
+- **Central `config.toml`** — single source of truth for all acoustic
+  DSP parameters (click frequency, resonance, spring mix, decay
+  coefficient, per-key overrides). Edit, save, and the running daemon
+  auto-reloads within 1 second — no restart needed. Presets for 5 sound
+  characters (`technical`, `classic`, `studio`, `elegant`, `whisper`)
+  are documented as copy-paste blocks at the top of the file.
 - **Daemon mode** — POSIX-compliant daemonization with signal handling,
   PID file with recycling protection, and Unix Domain Socket IPC for
   remote stop/status commands.
@@ -63,7 +65,7 @@ cd zylaxion
 # Build the release binary
 cargo build --release --locked
 
-# Install (binary + profiles go to /usr/local by default)
+# Install (binary + config.toml go to /usr/local by default)
 sudo ./scripts/install.sh
 ```
 
@@ -74,7 +76,7 @@ PREFIX=/usr sudo ./scripts/install.sh
 ```
 
 The installer copies the binary to `${PREFIX}/bin/zylaxion` and the
-acoustic profile TOMLs to `${PREFIX}/share/zylaxion/profiles/`. It
+central `config.toml` to `${PREFIX}/share/zylaxion/config.toml`. It
 does **not** run `cargo build` — build first, then install.
 
 > **Note:** your user must be in the `input` group for keyboard access:
@@ -95,37 +97,44 @@ sudo install -Dm755 zylaxion /usr/local/bin/zylaxion
 
 ```
 zylaxion start                    # Foreground mode (Ctrl+C to quit)
-zylaxion start --profile whisper  # With acoustic profile
 zylaxion daemon                   # Background daemon mode
-zylaxion daemon --profile classic
 zylaxion stop                     # Stop a running daemon
 zylaxion status                   # Check if daemon is running
 zylaxion doctor                   # System health diagnostic
-zylaxion list-profiles            # Show available acoustic profiles
+zylaxion testconf                 # Validate config.toml syntax + ranges
 zylaxion list-backends            # Show available audio backends
 ```
 
-### Acoustic profiles
+### Configuration
 
-Profiles are TOML files that control every aspect of the click sound:
+The central `config.toml` controls every aspect of the click sound:
 filter frequencies, resonance (Q), spring mix level, decay rate, and
-amplitude. They are loaded from (first found wins):
+amplitude, plus optional `[[keys]]` per-scancode overrides. The file
+is loaded from (first found wins):
 
-1. `~/.config/zylaxion/profiles/<name>.toml` — user-local overrides
-2. `/usr/local/share/zylaxion/profiles/<name>.toml` — installed data
-3. `/usr/share/zylaxion/profiles/<name>.toml` — system data
-4. `./profiles/<name>.toml` — relative to CWD (development)
+1. `~/.config/zylaxion/config.toml` — user-local override
+2. `/etc/zylaxion/config.toml` — system config
+3. `/usr/local/share/zylaxion/config.toml` — installed default
+4. `./config.toml` — relative to CWD (development)
 5. Hardcoded default — always available
 
-### Built-in profiles
+The running daemon polls the file's mtime every 1 second and
+auto-reloads on change. Edits take effect immediately — no restart
+needed. Run `zylaxion testconf` after editing to catch TOML typos
+and out-of-bounds DSP values.
 
-| Profile    | Description                                      |
-|------------|--------------------------------------------------|
-| technical  | Crisp, loud, punchy. Cherry MX Blue click style. |
-| classic    | Deeper, resonant. Warm bucklespring tone.        |
-| studio     | Softer attack, longer decay. Office-friendly.     |
-| elegant    | Very soft, muffled. Low-profile keyboards.       |
-| whisper    | Extremely quiet, short decay. Libraries/meetings. |
+### Built-in sound presets
+
+Copy-paste any block from the top of `config.toml` into `[default]`
+to switch the overall sound character:
+
+| Preset    | Description                                      |
+|-----------|--------------------------------------------------|
+| technical | Crisp, loud, punchy. Cherry MX Blue click style. |
+| classic   | Deeper, resonant. Warm bucklespring tone.        |
+| studio    | Softer attack, longer decay. Office-friendly.     |
+| elegant   | Very soft, muffled. Low-profile keyboards.       |
+| whisper   | Extremely quiet, short decay. Libraries/meetings. |
 
 ## Building
 

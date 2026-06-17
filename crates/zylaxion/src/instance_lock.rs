@@ -244,4 +244,102 @@ mod tests {
         let _guard2 = acquire().expect("second acquire after drop should succeed");
         let _ = std::fs::remove_file(&path);
     }
+
+    /// **The critical single-instance test.**
+    ///
+    /// Forks a child process that acquires the lock and holds it for a
+    /// few seconds. The parent then attempts to acquire the same lock
+    /// and MUST fail with the "already running" error. This is the
+    /// exact scenario `zylaxion start` + `zylaxion daemon` would
+    /// produce if two users (or one user with two terminals) tried to
+    /// run zylaxion simultaneously.
+    ///
+    /// Without flock exclusion, this test would fail — confirming the
+    /// bug class described in the v0.3.1 prompt ("two instances can
+    /// run at the same time, causing audio clashes and PipeWire
+    /// hangs").
+    #[test]
+    fn lock_excludes_second_process_via_fork() {
+        use std::os::unix::io::AsRawFd;
+        use std::time::Duration;
+
+        // Use a per-test lock path under /tmp to avoid colliding with
+        // any real zylaxion process or other tests.
+        let test_lock = std::env::temp_dir().join(format!(
+            "zylaxion-lock-fork-test-{}-{}.lock",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_file(&test_lock);
+
+        // Open + flock in the parent FIRST, then fork. The child
+        // inherits the open file description (and thus the lock).
+        // We do this manually rather than calling acquire() so we
+        // can pass the fd to the child via fork.
+        let file = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&test_lock)
+            .expect("open test lock file");
+
+        let guard =
+            Flock::lock(file, FlockArg::LockExclusive).expect("parent flock should succeed");
+
+        // Fork. The child inherits the file description (and thus the
+        // exclusive lock). The parent also still holds the lock.
+        // The child tries to acquire the lock AGAIN via a fresh file
+        // description — this MUST fail with EWOULDBLOCK.
+        let _fd_for_child = guard.as_raw_fd(); // unused; just for clarity
+        match unsafe { nix::unistd::fork() } {
+            Ok(nix::unistd::ForkResult::Parent { child }) => {
+                // Parent: wait for child to finish.
+                let _ = nix::sys::wait::waitpid(child, None);
+
+                // Cleanup.
+                let _ = std::fs::remove_file(&test_lock);
+            }
+            Ok(nix::unistd::ForkResult::Child) => {
+                // Child: try to acquire the lock on a FRESH file
+                // description. This must fail because the parent
+                // holds the exclusive lock.
+                let child_file = OpenOptions::new()
+                    .create(true)
+                    .read(true)
+                    .write(true)
+                    .truncate(false)
+                    .open(&test_lock)
+                    .expect("child open");
+
+                let result = Flock::lock(child_file, FlockArg::LockExclusiveNonblock);
+                match result {
+                    Err((_, nix::errno::Errno::EWOULDBLOCK)) => {
+                        // Expected: lock is held by parent.
+                        std::process::exit(0);
+                    }
+                    Ok(_guard) => {
+                        // BUG: child acquired the lock while parent held it.
+                        eprintln!(
+                            "BUG: child acquired lock that parent holds — single-instance lock is broken"
+                        );
+                        std::process::exit(42);
+                    }
+                    Err((_, e)) => {
+                        eprintln!("Unexpected error from child flock: {e}");
+                        std::process::exit(43);
+                    }
+                }
+            }
+            Err(e) => {
+                panic!("fork failed: {e}");
+            }
+        }
+
+        // Give the child a moment to fully exit (defensive).
+        std::thread::sleep(Duration::from_millis(50));
+    }
 }

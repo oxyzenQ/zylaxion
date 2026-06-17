@@ -69,12 +69,21 @@ upstream GitHub release.
   and other AI tool directories.
 - No tracked AI artifacts.
 
-## Profile System (Zylaxion-Specific)
+## Configuration System (Zylaxion-Specific)
 
-- Profiles are TOML files in `profiles/` (development), installed to
-  `${PREFIX}/share/zylaxion/profiles/`.
-- Search order: `~/.config/zylaxion/profiles/` → `/usr/local/share/` →
-  `/usr/share/` → `./profiles/` → hardcoded default.
-- DSP parameters flow: `KeyProfile` → `MechanicalClick::with_profile()` →
+- A single `config.toml` (repo root, installed to
+  `${PREFIX}/share/zylaxion/config.toml`) holds all DSP parameters.
+- Search order: `~/.config/zylaxion/config.toml` → `/etc/zylaxion/` →
+  `/usr/local/share/zylaxion/` → `./config.toml` → hardcoded default.
+- The file uses a `[default]` table plus optional `[[keys]]` per-scancode
+  overrides. Both are validated and clamped by `KeyProfile::validate_and_clamp`
+  on load — out-of-bounds values (e.g. `decay = 9999`) are silently clamped
+  to safe ranges with a `log::warn!`.
+- The running daemon polls `config.toml`'s mtime every 1 second (via the
+  `config-watcher` thread) and atomically swaps the `AcousticModel` behind
+  an `ArcSwap` on change. No restart, no IPC `reload` command.
+- `zylaxion testconf` validates the config without starting the engine —
+  equivalent to `nginx -t` or `sshd -t`.
+- DSP parameters flow: `KeyProfile` → `MechanicalClick::with_overrides()` →
   `VoicePool::trigger()` → `init_state()`. All TPT filter coefficients are
   set from profile values — this chain must never be broken.

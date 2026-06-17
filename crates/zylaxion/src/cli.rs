@@ -64,25 +64,21 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Run in the foreground (press Ctrl+C to quit)
-    Start {
-        /// Acoustic profile name (e.g. technical, classic, studio, elegant, whisper)
-        #[arg(long, global = true)]
-        profile: Option<String>,
-    },
+    /// Run in the foreground (press Ctrl+C to quit).
+    ///
+    /// Acoustic parameters are loaded from `config.toml` (searched in
+    /// `~/.config/zylaxion/`, `/etc/zylaxion/`, `/usr/local/share/zylaxion/`,
+    /// or the hardcoded default). Edits to the config file are picked up
+    /// automatically — no restart needed.
+    Start,
 
-    /// Run as a background daemon (controlled via Unix socket)
-    Daemon {
-        /// Acoustic profile name (e.g. technical, classic, studio, elegant, whisper)
-        #[arg(long, global = true)]
-        profile: Option<String>,
-    },
+    /// Run as a background daemon (controlled via Unix socket).
+    ///
+    /// Same config-search and auto-reload behaviour as `start`.
+    Daemon,
 
     /// Stop a running daemon
     Stop,
-
-    /// Reload acoustic profiles without restarting the daemon
-    Reload,
 
     /// Show daemon status
     Status,
@@ -90,8 +86,12 @@ pub enum Commands {
     /// Print system health diagnostic
     Doctor,
 
-    /// List available acoustic profiles
-    ListProfiles,
+    /// Validate config.toml syntax and parameter ranges.
+    ///
+    /// Exits 0 with "Config OK: <path>" if the config parses and all
+    /// parameters are within safe DSP ranges. Exits 1 with a detailed
+    /// error message otherwise. Equivalent to `nginx -t` or `sshd -t`.
+    Testconf,
 
     /// List available audio backends
     ListBackends,

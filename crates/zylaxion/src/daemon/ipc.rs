@@ -119,13 +119,6 @@ pub fn handle_one_connection(listener: &UnixListener) -> Option<String> {
             },
             true,
         ),
-        "reload" => (
-            IpcResponse {
-                ok: true,
-                message: "reloading profiles".into(),
-            },
-            false,
-        ),
         "status" => (
             IpcResponse {
                 ok: true,
