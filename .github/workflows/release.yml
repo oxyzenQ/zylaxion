@@ -12,6 +12,15 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
 
+# The default GITHUB_TOKEN cannot create releases unless we explicitly
+# grant `contents: write`. Without this, softprops/action-gh-release@v2
+# fails with HTTP 403 "Resource not accessible by integration".
+# Placing the block at the workflow level (rather than per-job) keeps
+# the declaration co-located with the trigger and matches the pattern
+# already used in maintenance.yml.
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
