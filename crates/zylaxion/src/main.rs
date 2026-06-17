@@ -27,7 +27,7 @@ fn main() {
     // flags without fighting the parser: `zylaxion --check-updated` (with no
     // subcommand) would otherwise error out before the flag is ever processed.
     if std::env::args().any(|a| a == "--check-updated") {
-        println!("Checking for updates...");
+        run_check_updated();
         std::process::exit(0);
     }
 
@@ -42,4 +42,76 @@ fn main() {
         cli::Commands::ListProfiles => commands::info::cmd_list_profiles(),
         cli::Commands::ListBackends => commands::info::cmd_list_backends(),
     }
+}
+
+/// GitHub API endpoint for the latest published release of `oxyzenQ/zylaxion`.
+const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/oxyzenQ/zylaxion/releases/latest";
+
+/// Subset of the GitHub `GET /releases/latest` JSON payload that we care about.
+#[derive(serde::Deserialize)]
+struct GithubRelease {
+    tag_name: String,
+}
+
+/// Implements `zylaxion --check-updated`.
+///
+/// Performs an HTTP GET against the GitHub API for the latest published
+/// release of `oxyzenQ/zylaxion`, parses the `tag_name` field, and compares
+/// it against the current crate version (prefixed with `v` to match
+/// GitHub's `vX.Y.Z` release-tag convention).
+///
+/// Output format:
+///   - On latest:  `You are running the latest version (vX.Y.Z).`
+///   - Behind:     `Update available: <tag_name>. Please check https://github.com/oxyzenQ/zylaxion/releases.`
+///   - On error:   `Failed to check for updates: <error>.`
+///
+/// Network errors, non-200 responses, and JSON decode failures are all
+/// reported gracefully — the command never panics, only prints a human
+/// message and exits 0 (this is an informational flag, not a critical op).
+fn run_check_updated() {
+    let current = format!("v{}", env!("CARGO_PKG_VERSION"));
+
+    println!("Checking for updates...");
+
+    let release = match fetch_latest_release() {
+        Ok(r) => r,
+        Err(err) => {
+            println!("Failed to check for updates: {}.", err);
+            return;
+        }
+    };
+
+    if release.tag_name == current {
+        println!("You are running the latest version ({}).", current);
+    } else {
+        println!(
+            "Update available: {}. Please check https://github.com/oxyzenQ/zylaxion/releases.",
+            release.tag_name
+        );
+    }
+}
+
+/// Fetches and decodes the latest release payload from the GitHub API.
+///
+/// Uses `ureq` with a 5-second timeout and a custom `User-Agent` (GitHub
+/// rejects requests without one). Returns an `anyhow`-free error string
+/// suitable for direct display to the user.
+fn fetch_latest_release() -> Result<GithubRelease, String> {
+    let agent = ureq::AgentBuilder::new()
+        .timeout(std::time::Duration::from_secs(5))
+        .build();
+
+    let response = agent
+        .get(LATEST_RELEASE_URL)
+        .set(
+            "User-Agent",
+            &format!("zylaxion/{}", env!("CARGO_PKG_VERSION")),
+        )
+        .set("Accept", "application/vnd.github+json")
+        .call()
+        .map_err(|e| format!("HTTP request failed: {e}"))?;
+
+    response
+        .into_json::<GithubRelease>()
+        .map_err(|e| format!("failed to decode release payload: {e}"))
 }

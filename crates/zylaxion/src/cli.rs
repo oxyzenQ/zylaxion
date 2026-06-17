@@ -8,16 +8,18 @@
 
 use clap::{Parser, Subcommand};
 
-/// Build hash placeholder — replaced at release time by CI.
-#[allow(dead_code)]
-const BUILD_HASH: &str = "a1b2c3d";
-
 /// Masterclass multi-line version string.
+///
+/// `GIT_HASH` is injected at compile time by `build.rs`, which runs
+/// `git rev-parse --short HEAD`. If git is unavailable or the crate is
+/// built outside a git work tree, `build.rs` falls back to `"unknown"`.
 const LONG_VERSION: &str = concat!(
     "Version: v",
     env!("CARGO_PKG_VERSION"),
     "\n",
-    "Build: linux-x86_64 (a1b2c3d)\n",
+    "Build: linux-x86_64 (",
+    env!("GIT_HASH"),
+    ")\n",
     "Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n",
     "License: GPL-3.0-or-later\n",
     "Source: https://github.com/oxyzenQ/zylaxion"
@@ -38,7 +40,7 @@ const LONG_VERSION: &str = concat!(
     after_help = "License: GPL-3.0-or-later | https://github.com/oxyzenQ/zylaxion"
 )]
 pub struct Cli {
-    /// Check for upstream updates on GitHub (placeholder).
+    /// Check for upstream updates on GitHub.
     ///
     /// This flag is intercepted in `main.rs` BEFORE `Cli::parse()` runs, so it can
     /// be invoked without a subcommand (`zylaxion --check-updated`). The field is
