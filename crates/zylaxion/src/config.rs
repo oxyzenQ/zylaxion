@@ -124,19 +124,36 @@ pub fn resolve_config(
 
 /// Re-load the active preset from a known config file path.
 ///
-/// Used by the auto-reload watcher thread. Re-reads the file, determines
-/// the active preset (same logic as `resolve_config`), and returns the
-/// profile + active preset name. On any error, returns `Err` so the
-/// caller can log a warning and keep the old model.
+/// Used by the auto-reload watcher thread. Re-reads the file and
+/// determines the active preset **from the file's `preset.tuning`
+/// value** — the `cli_preset` argument is IGNORED here.
+///
+/// # Why `cli_preset` is ignored on reload
+///
+/// The `--preset` CLI flag is an *initial-load* override only. Once the
+/// daemon is running, `config.toml` is the single source of truth: if
+/// the user edits `preset.tuning = "elegant"` and saves, the watcher
+/// must swap to `elegant` immediately, even if the daemon was started
+/// with `--preset cherryMX`. Treating the CLI flag as permanent would
+/// make file edits silently ignored, violating the principle that
+/// "save the file = apply the change".
+///
+/// The `cli_preset` parameter is retained in the signature for API
+/// symmetry with `resolve_config` and to make the "ignored on reload"
+/// contract explicit in the type. Callers should pass the same value
+/// they passed to `resolve_config` at startup; this function will
+/// disregard it.
 pub fn reload_preset(
     path: &Path,
-    cli_preset: Option<&str>,
+    _cli_preset: Option<&str>,
 ) -> Result<(ProfileWithOverrides, String), String> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
 
     let parsed = parse_config(&content)?;
-    let active = determine_active_preset(cli_preset, &parsed);
+    // ALWAYS use preset.tuning from the file on reload. The CLI flag
+    // was only for the initial load.
+    let active = determine_active_preset(None, &parsed);
 
     let entry = parsed.presets.get(&active).ok_or_else(|| {
         format!(
@@ -566,15 +583,20 @@ voice_off_threshold = 0.00001
     }
 
     #[test]
-    fn reload_preset_respects_cli_override() {
-        // Use the real config.toml from the repo root.
+    fn reload_preset_ignores_cli_preset_and_uses_tuning() {
+        // The --preset CLI flag is for INITIAL load only. On reload,
+        // preset.tuning from the file is the single source of truth.
+        // This test verifies that passing Some("cherryMX") to
+        // reload_preset does NOT override the file's tuning="technical".
         let path = Path::new("config.toml");
         if !path.exists() {
             return; // skip if not running from repo root
         }
-        let (_profiles, active) =
-            reload_preset(path, Some("cherryMX")).expect("should reload cherryMX");
-        assert_eq!(active, "cherryMX");
+        let (_profiles, active) = reload_preset(path, Some("cherryMX"))
+            .expect("should reload from tuning, ignoring cli_preset");
+        // The file's tuning is "technical", so reload must return
+        // "technical" — NOT "cherryMX" from the cli_preset arg.
+        assert_eq!(active, "technical");
     }
 
     #[test]
@@ -585,6 +607,63 @@ voice_off_threshold = 0.00001
         }
         let (_profiles, active) = reload_preset(path, None).expect("should reload via tuning");
         assert_eq!(active, "technical");
+    }
+
+    #[test]
+    fn reload_preset_follows_tuning_change_in_file() {
+        // Simulate the user editing config.toml: write a temp file with
+        // tuning = "classic", reload, and verify the active preset is
+        // "classic" — even when cli_preset is Some("technical").
+        let toml = r#"
+[preset]
+tuning = "classic"
+
+[preset.technical]
+[preset.technical.click]
+frequency = 4500.0
+resonance = 2.0
+duration_ms = 1.5
+amplitude = 0.8
+[preset.technical.spring]
+frequency = 1800.0
+resonance = 3.5
+mix = 0.6
+[preset.technical.decay]
+coefficient = 0.9994
+voice_off_threshold = 0.00001
+
+[preset.classic]
+[preset.classic.click]
+frequency = 3200.0
+resonance = 2.5
+duration_ms = 2.5
+amplitude = 0.7
+[preset.classic.spring]
+frequency = 1200.0
+resonance = 4.0
+mix = 0.75
+[preset.classic.decay]
+coefficient = 0.9992
+voice_off_threshold = 0.00001
+"#;
+        let path = std::env::temp_dir().join(format!(
+            "zylaxion-reload-test-{}-{}.toml",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::write(&path, toml).expect("write tmp");
+
+        // Pass Some("technical") as cli_preset — reload MUST ignore it
+        // and use the file's tuning = "classic".
+        let (profiles, active) =
+            reload_preset(&path, Some("technical")).expect("should reload classic");
+        assert_eq!(active, "classic");
+        assert_eq!(profiles.default.click.frequency, 3200.0);
+
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]
