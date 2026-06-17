@@ -31,7 +31,7 @@
 
 use std::f32::consts::FRAC_PI_2;
 
-use crate::{AcousticModel, KeyEvent, KeyProfile, SynthState, SAMPLE_RATE};
+use crate::{AcousticModel, KeyEvent, KeyProfile, ProfileWithOverrides, SynthState, SAMPLE_RATE};
 
 /// Default acoustic model for mechanical keyboard switches.
 ///
@@ -39,25 +39,67 @@ use crate::{AcousticModel, KeyEvent, KeyProfile, SynthState, SAMPLE_RATE};
 /// exponential decay, typical of Cherry MX-style mechanical switches. This
 /// implementation is fully procedural — no wavetable samples are used.
 ///
-/// By default uses the built-in [`KeyProfile::default`].  Use
-/// [`MechanicalClick::with_profile`] to load a custom profile from TOML.
+/// # Profile lookup
+///
+/// A `MechanicalClick` holds a [`ProfileWithOverrides`] — a default
+/// [`KeyProfile`] plus an optional per-scancode override map. When a key
+/// is pressed, [`get_profile`](AcousticModel::get_profile) checks the
+/// override map first; if no entry exists for the scancode, the default
+/// profile is returned. This allows users to give specific keys (e.g.
+/// Space, Enter) distinct sounds via `[[keys]]` blocks in the TOML.
+///
+/// # Hot-reload
+///
+/// The model is `Send + Sync` and immutable once constructed. Hot-reload
+/// is implemented at the orchestrator level by swapping the entire
+/// `MechanicalClick` instance behind an `ArcSwap` — active voices
+/// continue rendering with their cached profile (captured at trigger
+/// time), while new keypresses pick up the new model automatically.
 pub struct MechanicalClick {
-    profile: KeyProfile,
+    profiles: ProfileWithOverrides,
 }
 
 impl MechanicalClick {
-    /// Create a new `MechanicalClick` model with default parameters.
+    /// Create a new `MechanicalClick` model with default parameters and
+    /// no per-key overrides.
     #[inline]
     pub fn new() -> Self {
         Self {
-            profile: KeyProfile::default(),
+            profiles: ProfileWithOverrides {
+                default: KeyProfile::default(),
+                overrides: std::collections::HashMap::new(),
+            },
         }
     }
 
-    /// Create a `MechanicalClick` model with a custom [`KeyProfile`].
+    /// Create a `MechanicalClick` model with a custom default
+    /// [`KeyProfile`] and no per-key overrides.
+    ///
+    /// The caller is responsible for ensuring `profile` is already
+    /// validated/clamped — this constructor does NOT re-validate. It is
+    /// intended for use with the hardcoded default profile (which is
+    /// known safe) or with profiles already loaded via
+    /// [`crate::load_profile_from_file`] (which validates on load).
     #[inline]
     pub fn with_profile(profile: KeyProfile) -> Self {
-        Self { profile }
+        Self {
+            profiles: ProfileWithOverrides {
+                default: profile,
+                overrides: std::collections::HashMap::new(),
+            },
+        }
+    }
+
+    /// Create a `MechanicalClick` model from a loaded
+    /// [`ProfileWithOverrides`] (default + per-key overrides).
+    ///
+    /// The caller is responsible for ensuring `profiles` was loaded via
+    /// [`ProfileWithOverrides::from_file`] or
+    /// [`ProfileWithOverrides::from_str`], both of which validate and
+    /// clamp on parse.
+    #[inline]
+    pub fn with_overrides(profiles: ProfileWithOverrides) -> Self {
+        Self { profiles }
     }
 }
 
@@ -68,8 +110,10 @@ impl Default for MechanicalClick {
 }
 
 impl AcousticModel for MechanicalClick {
-    fn get_profile(&self, _event: &KeyEvent) -> KeyProfile {
-        self.profile
+    fn get_profile(&self, event: &KeyEvent) -> KeyProfile {
+        // Per-key override lookup. Falls back to default if the scancode
+        // has no entry in the override map.
+        self.profiles.for_scancode(event.scancode)
     }
 
     fn init_state(&self, profile: &KeyProfile, state: &mut SynthState, stereo_position: f32) {

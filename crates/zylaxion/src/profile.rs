@@ -10,84 +10,80 @@
 //!   3. `/usr/local/share/zylaxion/profiles/`       (FHS installed data)
 //!   4. `./profiles/<name>.toml`                      (relative to CWD, for dev)
 //!   5. Hardcoded default                             (always available)
+//!
+//! The resolver returns a [`ProfileWithOverrides`] (default profile + an
+//! optional per-scancode override map). Callers can construct a
+//! [`MechanicalClick`](zactrix_profiles::MechanicalClick) from it via
+//! [`MechanicalClick::with_overrides`].
 
 use std::path::PathBuf;
 
-use zactrix_profiles::{load_profile_from_file, KeyProfile};
+use zactrix_profiles::{KeyProfile, ProfileWithOverrides};
 
 /// System-wide data directories searched for installed profiles.
 const SYSTEM_DATA_DIRS: &[&str] = &["/usr/local/share/zylaxion/profiles"];
 
 /// Resolve an acoustic profile by name.
 ///
-/// If `name` is `None`, returns the hardcoded default immediately.
-/// Otherwise walks the search path list and loads the first `.toml` found.
-pub fn resolve_profile(name: &Option<String>) -> KeyProfile {
+/// If `name` is `None`, returns a profile with the hardcoded default and
+/// no per-key overrides. Otherwise walks the search path list and loads
+/// the first `.toml` found. Both the default profile and any per-key
+/// overrides are validated and clamped to safe DSP ranges by
+/// [`ProfileWithOverrides::from_file`].
+///
+/// # Fallback behaviour
+///
+/// If a profile file is found but cannot be read or parsed, a warning is
+/// logged and the search continues to the next location. If no file is
+/// found in any location, the hardcoded default is returned.
+pub fn resolve_profile(name: &Option<String>) -> ProfileWithOverrides {
     let name = match name.as_deref() {
         Some(n) => n,
-        None => return KeyProfile::default(),
+        None => {
+            return ProfileWithOverrides {
+                default: KeyProfile::default(),
+                overrides: std::collections::HashMap::new(),
+            }
+        }
     };
 
     let toml_name = format!("{name}.toml");
 
+    // Build the candidate path list. Order matters — first found wins.
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
     // 1. User-local: ~/.config/zylaxion/profiles/<name>.toml
     if let Some(home) = std::env::var_os("HOME") {
-        let user_path = PathBuf::from(home)
-            .join(".config/zylaxion/profiles")
-            .join(&toml_name);
-        if user_path.is_file() {
-            match load_profile_from_file(&user_path) {
-                Ok(p) => {
-                    log::info!("loaded profile '{}' from {}", name, user_path.display());
-                    return p;
-                }
-                Err(e) => {
-                    eprintln!("[zylaxion] warning: {e}");
-                }
-            }
-        }
+        candidates.push(
+            PathBuf::from(home)
+                .join(".config/zylaxion/profiles")
+                .join(&toml_name),
+        );
     }
 
     // 2. System config: /etc/zylaxion/profiles/<name>.toml
-    let etc_path = PathBuf::from("/etc/zylaxion/profiles").join(&toml_name);
-    if etc_path.is_file() {
-        match load_profile_from_file(&etc_path) {
-            Ok(p) => {
-                log::info!("loaded profile '{}' from {}", name, etc_path.display());
-                return p;
-            }
-            Err(e) => {
-                eprintln!("[zylaxion] warning: {e}");
-            }
-        }
-    }
+    candidates.push(PathBuf::from("/etc/zylaxion/profiles").join(&toml_name));
 
     // 3. FHS installed data directories
     for data_dir in SYSTEM_DATA_DIRS {
-        let data_path = PathBuf::from(data_dir).join(&toml_name);
-        if data_path.is_file() {
-            match load_profile_from_file(&data_path) {
+        candidates.push(PathBuf::from(data_dir).join(&toml_name));
+    }
+
+    // 4. Relative to CWD: ./profiles/<name>.toml (for development)
+    candidates.push(PathBuf::from("profiles").join(&toml_name));
+
+    // Walk the list. First file that loads successfully wins; parse
+    // failures log a warning and fall through to the next candidate.
+    for candidate in &candidates {
+        if candidate.is_file() {
+            match ProfileWithOverrides::from_file(candidate) {
                 Ok(p) => {
-                    log::info!("loaded profile '{}' from {}", name, data_path.display());
+                    log::info!("loaded profile '{}' from {}", name, candidate.display());
                     return p;
                 }
                 Err(e) => {
                     eprintln!("[zylaxion] warning: {e}");
                 }
-            }
-        }
-    }
-
-    // 4. Relative to CWD: ./profiles/<name>.toml (for development)
-    let cwd_path = PathBuf::from("profiles").join(&toml_name);
-    if cwd_path.is_file() {
-        match load_profile_from_file(&cwd_path) {
-            Ok(p) => {
-                log::info!("loaded profile '{}' from {}", name, cwd_path.display());
-                return p;
-            }
-            Err(e) => {
-                eprintln!("[zylaxion] warning: {e}");
             }
         }
     }
@@ -97,5 +93,8 @@ pub fn resolve_profile(name: &Option<String>) -> KeyProfile {
         "[zylaxion] profile '{}' not found — using default profile",
         name
     );
-    KeyProfile::default()
+    ProfileWithOverrides {
+        default: KeyProfile::default(),
+        overrides: std::collections::HashMap::new(),
+    }
 }

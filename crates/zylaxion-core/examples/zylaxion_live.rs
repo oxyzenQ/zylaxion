@@ -20,6 +20,7 @@ use std::process;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+use arc_swap::ArcSwap;
 use zactrix_profiles::MechanicalClick;
 use zylaxion_core::Orchestrator;
 use zylaxion_input::{InputSource, LibinputSource};
@@ -51,7 +52,10 @@ fn main() {
     };
 
     // ── 3. Run the main loop (blocks until Ctrl+C) ────────────────
-    let model = MechanicalClick::new();
+    // The model is wrapped in Arc<ArcSwap<>> for hot-reload support.
+    // In this example we never swap it, but the API requires the
+    // wrapper for consistency with the daemon mode.
+    let model = Arc::new(ArcSwap::from_pointee(MechanicalClick::new()));
     println!("[zylaxion-live] ready — press any key to hear it!");
     println!("[zylaxion-live] Ctrl+C to quit\n");
 

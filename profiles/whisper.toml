@@ -2,19 +2,63 @@
 # Extremely quiet, short decay, minimal resonance.
 # For libraries, meetings, and shared spaces.
 
-[profile]
+[default]
 
-[profile.click]
-frequency = 5500.0    # Hz — high, tiny click
-resonance = 0.8       # Q factor — minimal ring
-duration_ms = 0.8    # ms — very short
-amplitude = 0.15      # barely audible
+[default.click]
+# Click frequency in Hertz. Controls the pitch of the key click.
+# Range: 500.0 - 8000.0
+frequency = 5500.0
 
-[profile.spring]
-frequency = 2500.0    # Hz
-resonance = 0.5       # Q factor — almost none
-mix = 0.2             # minimal spring
+# Quality factor (Q) of the click bandpass filter. Higher values produce
+# a narrower, more resonant click with longer ring-out.
+# Range: 0.1 - 10.0
+resonance = 0.8
 
-[profile.decay]
-coefficient = 0.9985         # fast decay (~60 ms)
-voice_off_threshold = 0.001   # aggressive cutoff
+# Duration of the noise excitation burst in milliseconds. Shorter values
+# produce a sharper transient; longer values a softer attack.
+# Range: 0.1 - 10.0
+duration_ms = 0.8
+
+# Peak amplitude of the click transient.
+# Range: 0.0 - 1.0
+amplitude = 0.15
+
+[default.spring]
+# Spring/housing resonance frequency in Hertz. Lower values produce a
+# deeper, warmer spring ring; higher values a brighter, tinnier ring.
+# Range: 500.0 - 8000.0
+frequency = 2500.0
+
+# Quality factor (Q) of the spring bandpass filter. Higher values produce
+# longer, more pronounced ringing.
+# Range: 0.1 - 10.0
+resonance = 0.5
+
+# Mix level of the spring component in the final output. 0.0 = click
+# only, 1.0 = spring only.
+# Range: 0.0 - 1.0
+mix = 0.2
+
+[default.decay]
+# Per-sample multiplicative decay factor applied to the envelope.
+# WARNING: MUST be less than 1.0. Values >= 1.0 cause infinite loops
+# (voice never deactivates, consuming a polyphony slot forever).
+# Range: 0.0 - 0.9999
+# Approximate -60 dB decay time at 44100 Hz:
+#   0.9994 ≈ 180 ms, 0.9990 ≈ 110 ms, 0.9985 ≈ 60 ms
+coefficient = 0.9985
+
+# Amplitude threshold below which the voice is deactivated. Smaller
+# values let voices ring longer; larger values cut them off sooner.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.001
+
+# ── Optional per-key overrides ───────────────────────────────────────
+# Add [[keys]] blocks below to give specific scancodes distinct sounds.
+# Each override starts from the [default] profile and replaces only the
+# parameters you specify. Example:
+#
+# [[keys]]
+# scancode = 28  # Enter — deeper thump
+# [keys.click]
+# frequency = 3000.0

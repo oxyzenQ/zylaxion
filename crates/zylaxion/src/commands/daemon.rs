@@ -1,12 +1,13 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Foreground and daemon subcommands: `start`, `daemon`, `stop`.
+//! Foreground and daemon subcommands: `start`, `daemon`, `stop`, `reload`.
 
 use std::process;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+use arc_swap::ArcSwap;
 use zactrix_profiles::MechanicalClick;
 use zylaxion_core::Orchestrator;
 use zylaxion_input::{InputSource, LibinputSource};
@@ -19,6 +20,10 @@ use crate::profile::resolve_profile;
 ///
 /// Mirrors the `zylaxion_live` example: LibinputSource on stack,
 /// Orchestrator::run on main thread.
+///
+/// Note: hot-reload via IPC is only available in `daemon` mode (the
+/// foreground `start` mode has no IPC listener). To reload profiles in
+/// foreground mode, Ctrl+C and restart with the new profile.
 pub fn cmd_start(profile_name: Option<String>) {
     env_logger::init();
 
@@ -30,7 +35,7 @@ pub fn cmd_start(profile_name: Option<String>) {
     // the flock atomically.
     let _lock = instance_lock::acquire_or_exit();
 
-    let profile = resolve_profile(&profile_name);
+    let profiles = resolve_profile(&profile_name);
     log::info!(
         "starting zylaxion in foreground mode (profile: {})",
         profile_name.as_deref().unwrap_or("default")
@@ -58,7 +63,9 @@ pub fn cmd_start(profile_name: Option<String>) {
 
     // 3. Run the main loop on the MAIN thread (blocks until Ctrl+C).
     let stop_flag = Arc::new(AtomicBool::new(false));
-    let model = MechanicalClick::with_profile(profile);
+    let model = Arc::new(ArcSwap::from_pointee(MechanicalClick::with_overrides(
+        profiles,
+    )));
     log::info!("ready — press any key to hear it (Ctrl+C to quit)");
 
     orchestrator.run(&model, &event_rx, stop_flag);
@@ -70,7 +77,9 @@ pub fn cmd_start(profile_name: Option<String>) {
 ///
 /// Forks FIRST (no audio/input before fork), then the child initialises
 /// hardware, writes the PID file, installs signal handlers, and runs the
-/// orchestrator loop.
+/// orchestrator loop. The IPC thread listens for "stop" and "reload"
+/// commands; "reload" swaps the acoustic model behind the `ArcSwap`
+/// without restarting the daemon.
 pub fn cmd_daemon(profile_name: Option<String>) {
     // Acquire the single-instance lock BEFORE forking. The lock is
     // associated with the open file description (kernel struct file),
@@ -83,6 +92,11 @@ pub fn cmd_daemon(profile_name: Option<String>) {
     // other zylaxion process can slip in between the fork and the child
     // calling `acquire()`.
     let _lock = instance_lock::acquire_or_exit();
+
+    // Stash the profile name in an Arc so the IPC thread can re-resolve
+    // it from disk on each "reload" command (without taking ownership
+    // away from the child).
+    let profile_name_arc = Arc::new(profile_name);
 
     // Check if already running (with /proc/<pid>/comm PID recycling check).
     // This is a soft check for nicer error messages — the flock above is
@@ -129,10 +143,10 @@ pub fn cmd_daemon(profile_name: Option<String>) {
     };
     log::info!("IPC socket ready: {}", daemon::ipc::socket_path().display());
 
-    let profile = resolve_profile(&profile_name);
+    let profiles = resolve_profile(&profile_name_arc);
     log::info!(
         "using profile: {}",
-        profile_name.as_deref().unwrap_or("default")
+        profile_name_arc.as_deref().unwrap_or("default")
     );
 
     // Initialise audio (mirror zylaxion_live exactly).
@@ -155,9 +169,20 @@ pub fn cmd_daemon(profile_name: Option<String>) {
         }
     };
 
-    let _ipc_handle = daemon::spawn_ipc_thread(listener, Arc::clone(&stop_flag));
+    // Wrap the acoustic model in an ArcSwap so the IPC thread can swap
+    // it at runtime (hot-reload). The render loop loads a snapshot per
+    // event batch — lock-free, no Mutex.
+    let model: Arc<ArcSwap<MechanicalClick>> = Arc::new(ArcSwap::from_pointee(
+        MechanicalClick::with_overrides(profiles),
+    ));
 
-    let model = MechanicalClick::with_profile(profile);
+    let _ipc_handle = daemon::spawn_ipc_thread(
+        listener,
+        Arc::clone(&stop_flag),
+        Arc::clone(&model),
+        Arc::clone(&profile_name_arc),
+    );
+
     orchestrator.run(&model, &event_rx, stop_flag);
 
     log::info!("shutting down");
@@ -167,4 +192,16 @@ pub fn cmd_daemon(profile_name: Option<String>) {
 /// Send a "stop" command to a running daemon via IPC.
 pub fn cmd_stop() {
     daemon::client_send_and_print("stop");
+}
+
+/// Send a "reload" command to a running daemon via IPC.
+///
+/// The daemon will re-read the current profile TOML from disk (using
+/// the same `--profile <name>` it was started with), construct a new
+/// `MechanicalClick`, and swap it in behind the `ArcSwap`. Active
+/// voices finish naturally with their old profile; new keypresses pick
+/// up the new model immediately.
+pub fn cmd_reload() {
+    println!("Reloading profiles...");
+    daemon::client_send_and_print("reload");
 }

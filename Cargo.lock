@@ -84,6 +84,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "arc-swap"
+version = "1.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a3a1fd6f75306b68087b831f025c712524bcb19aad54e557b1129cfa0a2b207"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1433,15 +1442,16 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "zactrix-engine"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "zactrix-profiles",
 ]
 
 [[package]]
 name = "zactrix-profiles"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
+ "log",
  "serde",
  "toml",
 ]
@@ -1454,8 +1464,9 @@ checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
 
 [[package]]
 name = "zylaxion"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
+ "arc-swap",
  "clap",
  "cpal",
  "crossbeam-channel",
@@ -1473,8 +1484,9 @@ dependencies = [
 
 [[package]]
 name = "zylaxion-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
+ "arc-swap",
  "crossbeam-channel",
  "ringbuf",
  "zactrix-engine",
@@ -1485,7 +1497,7 @@ dependencies = [
 
 [[package]]
 name = "zylaxion-input"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "crossbeam-channel",
  "input",
@@ -1495,7 +1507,7 @@ dependencies = [
 
 [[package]]
 name = "zylaxion-output"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "cpal",
  "ringbuf",
