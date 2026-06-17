@@ -21,7 +21,9 @@ mod cli;
 mod commands;
 mod config;
 mod daemon;
+mod error_format;
 mod instance_lock;
+mod signals;
 
 fn main() {
     // Early-exit flags — intercepted BEFORE `Cli::parse()` to bypass Clap's

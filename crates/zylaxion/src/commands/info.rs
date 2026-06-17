@@ -82,11 +82,11 @@ pub fn cmd_testconf() {
             println!("Config OK: {}", path.display());
         }
         Err((Some(path), err)) => {
-            eprintln!("Config Error in {}: {err}", path.display());
+            crate::error_format::error(format!("in {}: {err}", path.display()));
             process::exit(1);
         }
         Err((None, err)) => {
-            eprintln!("Config Error: {err}");
+            crate::error_format::error(err);
             eprintln!();
             eprintln!("Searched:");
             eprintln!("  1. $HOME/.config/zylaxion/config.toml");
@@ -118,7 +118,7 @@ pub fn cmd_list_presets() {
             println!("  Run: zylaxion start --preset <name>");
         }
         Err(e) => {
-            eprintln!("error: {e}");
+            crate::error_format::error(e);
             process::exit(1);
         }
     }

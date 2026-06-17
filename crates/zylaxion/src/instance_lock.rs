@@ -113,7 +113,7 @@ pub fn acquire_or_exit() -> Flock<File> {
     match acquire() {
         Ok(guard) => guard,
         Err(e) => {
-            eprintln!("error: {e}");
+            crate::error_format::error(e);
             std::process::exit(1);
         }
     }
