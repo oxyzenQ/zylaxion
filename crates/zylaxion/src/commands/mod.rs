@@ -4,7 +4,7 @@
 //! Command modules — each subcommand's handler lives in its own file.
 //!
 //! - `daemon`  — `start`, `daemon`, `stop` (run / background / quit)
-//! - `info`    — `doctor`, `testconf`, `list-backends` (diagnostics)
+//! - `info`    — `doctor`, `testconf`, `list-presets`, `list-backends` (diagnostics)
 
 pub mod daemon;
 pub mod info;

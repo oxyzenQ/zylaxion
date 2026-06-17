@@ -56,6 +56,7 @@ fn main() {
         cli::Commands::Status => daemon::cmd_status(),
         cli::Commands::Doctor => commands::info::cmd_doctor(),
         cli::Commands::Testconf => commands::info::cmd_testconf(),
+        cli::Commands::ListPresets => commands::info::cmd_list_presets(),
         cli::Commands::ListBackends => commands::info::cmd_list_backends(),
     }
 }

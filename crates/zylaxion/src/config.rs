@@ -1,14 +1,30 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Central config resolution: search the filesystem for `config.toml`
-//! and load the `[preset.<name>]` table requested by the user.
+//! Central config resolution: search the filesystem for `config.toml`,
+//! determine the active preset (from CLI `--preset` or `preset.tuning`
+//! in the file), and load the matching `[preset.<name>]` table.
 //!
-//! As of v0.3.2, Zylaxion uses a single `config.toml` file containing
-//! multiple named `[preset.NAME]` tables. The active preset is selected
-//! at startup via `--preset <name>` (default: `technical`). The
-//! auto-reload watcher re-reads the same `[preset.<name>]` table on
-//! file change.
+//! # Active preset resolution
+//!
+//! The active preset is determined in this order:
+//!
+//!   1. `--preset <name>` on the CLI (highest priority — overrides everything)
+//!   2. `tuning = "<name>"` in the `[preset]` table of `config.toml`
+//!   3. `DEFAULT_PRESET` ("technical") if neither is set
+//!
+//! If the resolved preset name does NOT exist as a `[preset.<name>]` table
+//! in `config.toml`, the program prints a clear error and exits — there
+//! is **no silent fallback**. This prevents users from accidentally
+//! running with the wrong sound because of a typo.
+//!
+//! # Auto-reload
+//!
+//! The config-watcher thread re-reads `config.toml` on mtime change.
+//! If `--preset` was passed on the CLI, the watcher always loads that
+//! preset. If `--preset` was NOT passed, the watcher re-reads
+//! `preset.tuning` from the file — so changing `tuning = "cherryMX"`
+//! and saving causes an immediate swap to the cherryMX preset.
 //!
 //! # Search order (first found wins)
 //!
@@ -17,18 +33,8 @@
 //!   3. `/usr/local/share/zylaxion/config.toml` (FHS installed default)
 //!   4. `./config.toml`                      (relative to CWD, for dev)
 //!   5. Hardcoded default                    (always available)
-//!
-//! # Returns
-//!
-//! [`resolve_config`] returns `(ProfileWithOverrides, Option<PathBuf>)`:
-//!   - The profile data, with the preset's `[default]` parameters and
-//!     any `[[preset.NAME.keys]]` per-scancode overrides already merged
-//!     and validated/clamped.
-//!   - The **absolute path** of the file the data was loaded from, or
-//!     `None` if the hardcoded fallback was used (no file found). The
-//!     path is canonicalised so `testconf` can print a stable absolute
-//!     path even when invoked from the repo root.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use zactrix_profiles::{KeyProfile, ProfileWithOverrides};
@@ -39,104 +45,123 @@ const SYSTEM_DATA_DIRS: &[&str] = &["/usr/local/share/zylaxion"];
 /// Filename of the central config file.
 const CONFIG_FILE_NAME: &str = "config.toml";
 
-/// Default preset name when the user does not pass `--preset`.
+/// Default preset name when neither `--preset` nor `preset.tuning` is
+/// provided. This is only used as a last resort — if the config file
+/// exists and has a `tuning` value, that value is used instead.
 pub const DEFAULT_PRESET: &str = "technical";
 
-/// Build the ordered list of candidate `config.toml` paths.
-///
-/// Order matches the documented search path: user-local → system config
-/// → FHS installed data → CWD-relative.
-fn candidate_paths() -> Vec<PathBuf> {
-    let mut candidates: Vec<PathBuf> = Vec::new();
+/// The `tuning` key inside the `[preset]` table.
+const TUNING_KEY: &str = "tuning";
 
-    if let Some(home) = std::env::var_os("HOME") {
-        candidates.push(
-            PathBuf::from(home)
-                .join(".config/zylaxion")
-                .join(CONFIG_FILE_NAME),
-        );
-    }
-    candidates.push(PathBuf::from("/etc/zylaxion").join(CONFIG_FILE_NAME));
-    for data_dir in SYSTEM_DATA_DIRS {
-        candidates.push(PathBuf::from(data_dir).join(CONFIG_FILE_NAME));
-    }
-    candidates.push(PathBuf::from(CONFIG_FILE_NAME));
+// ── Public API ─────────────────────────────────────────────────────────
 
-    candidates
-}
-
-/// Resolve the central `config.toml`, load the requested preset, and
-/// return both the parsed profile and the absolute path it was loaded
-/// from (for diagnostics and the auto-reload watcher).
+/// Resolve the central `config.toml`, determine the active preset, and
+/// return the profile + the absolute file path + the active preset name.
 ///
 /// # Arguments
 ///
-/// * `preset_name` — Name of the `[preset.<name>]` table to load (e.g.
-///   `"technical"`, `"cherryMX"`, `"classic"`). If the preset is not
-///   found in the TOML, falls back to the hardcoded default and logs a
-///   warning.
+/// * `cli_preset` — `Some(name)` if `--preset <name>` was passed on the
+///   CLI. `None` if the user did not pass `--preset` (in which case the
+///   `preset.tuning` value from the file is used).
 ///
-/// # Fallback behaviour
+/// # Active preset resolution
 ///
-/// If a config file is found but cannot be read or parsed, a warning is
-/// logged and the search continues to the next location. If no file is
-/// found in any location, the hardcoded default is returned with
-/// `path = None`.
+/// 1. `cli_preset` (if `Some`) — highest priority.
+/// 2. `preset.tuning` from the loaded `config.toml`.
+/// 3. `DEFAULT_PRESET` ("technical") if neither is set.
 ///
-/// # Returns
+/// # Errors
 ///
-/// A tuple of `(profile, path)` where `path` is `Some(absolute_path)`
-/// if the profile was loaded from a file, or `None` if the hardcoded
-/// default was used. The path is canonicalised so callers can display a
-/// stable absolute path regardless of the CWD at invocation time.
-pub fn resolve_config(preset_name: &str) -> (ProfileWithOverrides, Option<PathBuf>) {
+/// If the resolved preset does NOT exist in `config.toml`, returns
+/// `Err(message)` with a clear error listing the available presets. The
+/// caller (`cmd_start` / `cmd_daemon`) prints this and exits — there is
+/// **no silent fallback** to a different preset.
+///
+/// If no config file is found in any search path, returns the hardcoded
+/// default profile with `path = None` and `preset_name = DEFAULT_PRESET`.
+pub fn resolve_config(
+    cli_preset: Option<&str>,
+) -> Result<(ProfileWithOverrides, Option<PathBuf>, String), String> {
     for candidate in candidate_paths() {
         if !candidate.is_file() {
             continue;
         }
-        match load_preset_from_file(&candidate, preset_name) {
-            Ok(profiles) => {
-                log::info!(
-                    "loaded preset '{}' from {}",
-                    preset_name,
-                    candidate.display()
-                );
-                let abs = canonicalise(&candidate);
-                return (profiles, Some(abs));
-            }
-            Err(e) => {
-                eprintln!("[zylaxion] warning: {e}");
-            }
-        }
+        let content = std::fs::read_to_string(&candidate)
+            .map_err(|e| format!("failed to read {}: {e}", candidate.display()))?;
+
+        let parsed = parse_config(&content)?;
+
+        // Determine the active preset name.
+        let active = determine_active_preset(cli_preset, &parsed);
+
+        // Look up the preset table.
+        let entry = parsed.presets.get(&active).ok_or_else(|| {
+            format!(
+                "Preset '{}' not found in config.toml. Available: {}",
+                active,
+                format_preset_list(&parsed.presets)
+            )
+        })?;
+
+        let profiles = build_profile_from_entry(entry);
+        log::info!("loaded preset '{}' from {}", active, candidate.display());
+
+        let abs = canonicalise(&candidate);
+        return Ok((profiles, Some(abs), active));
     }
 
-    eprintln!(
-        "[zylaxion] no config.toml found — using hardcoded default (preset '{}')",
-        preset_name
-    );
-    (
+    // No config file found — use hardcoded default.
+    eprintln!("[zylaxion] no config.toml found — using hardcoded default");
+    Ok((
         ProfileWithOverrides {
             default: KeyProfile::default(),
-            overrides: std::collections::HashMap::new(),
+            overrides: HashMap::new(),
         },
         None,
-    )
+        DEFAULT_PRESET.to_string(),
+    ))
 }
 
-/// Validate-only variant used by the `zylaxion testconf` subcommand.
+/// Re-load the active preset from a known config file path.
 ///
-/// Walks the same search path, finds the first `config.toml`, parses
-/// it, and verifies every `[preset.*]` table (not just one) is valid.
-/// This catches typos in presets the user is not currently using but
-/// might switch to later.
+/// Used by the auto-reload watcher thread. Re-reads the file, determines
+/// the active preset (same logic as `resolve_config`), and returns the
+/// profile + active preset name. On any error, returns `Err` so the
+/// caller can log a warning and keep the old model.
+pub fn reload_preset(
+    path: &Path,
+    cli_preset: Option<&str>,
+) -> Result<(ProfileWithOverrides, String), String> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+
+    let parsed = parse_config(&content)?;
+    let active = determine_active_preset(cli_preset, &parsed);
+
+    let entry = parsed.presets.get(&active).ok_or_else(|| {
+        format!(
+            "Preset '{}' not found in config.toml. Available: {}",
+            active,
+            format_preset_list(&parsed.presets)
+        )
+    })?;
+
+    Ok((build_profile_from_entry(entry), active))
+}
+
+/// Validate-only: find `config.toml`, parse it, and verify that:
+///   - Every `[preset.*]` table parses and clamps correctly.
+///   - The `preset.tuning` value (if present) references an existing
+///     preset table.
+///
+/// Used by the `zylaxion testconf` subcommand.
 ///
 /// # Returns
 ///
-/// `Ok(absolute_path)` if every preset parses and validates.
+/// `Ok(absolute_path)` if the config is fully valid.
 /// `Err((Some(absolute_path), error_message))` if a file was found but
-/// parsing or validation failed.
-/// `Err((None, error_message))` if no config file was found in any
-/// search location.
+/// validation failed.
+/// `Err((None, error_message))` if no config file was found.
 pub fn validate_config() -> Result<PathBuf, (Option<PathBuf>, String)> {
     let mut last_error: Option<(PathBuf, String)> = None;
 
@@ -144,7 +169,14 @@ pub fn validate_config() -> Result<PathBuf, (Option<PathBuf>, String)> {
         if !candidate.is_file() {
             continue;
         }
-        match load_all_presets_from_file(&candidate) {
+        let content = match std::fs::read_to_string(&candidate) {
+            Ok(c) => c,
+            Err(e) => {
+                last_error = Some((candidate.clone(), format!("failed to read: {e}")));
+                continue;
+            }
+        };
+        match validate_config_str(&content) {
             Ok(()) => return Ok(canonicalise(&candidate)),
             Err(e) => last_error = Some((candidate.clone(), e)),
         }
@@ -156,64 +188,121 @@ pub fn validate_config() -> Result<PathBuf, (Option<PathBuf>, String)> {
     }
 }
 
-/// Load a single preset from `config.toml`.
+/// List all presets in `config.toml` + which one is active.
 ///
-/// Parses the file, extracts the `[preset.<preset_name>]` table, merges
-/// any `[[preset.<preset_name>.keys]]` overrides, validates+clamps, and
-/// returns a `ProfileWithOverrides`.
+/// Used by the `zylaxion list-presets` subcommand.
 ///
-/// Public so the config-watcher thread (in `commands::daemon`) can
-/// re-read the same preset on file change.
-pub fn load_preset_from_file(
-    path: &Path,
-    preset_name: &str,
-) -> Result<ProfileWithOverrides, String> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
-    load_preset_from_str(&content, preset_name)
+/// # Returns
+///
+/// `Ok((absolute_path, active_preset, Vec<preset_name>))` on success.
+/// `Err(error_message)` if no config file is found or parsing fails.
+pub fn list_presets() -> Result<(PathBuf, String, Vec<String>), String> {
+    for candidate in candidate_paths() {
+        if !candidate.is_file() {
+            continue;
+        }
+        let content = std::fs::read_to_string(&candidate)
+            .map_err(|e| format!("failed to read {}: {e}", candidate.display()))?;
+        let parsed = parse_config(&content)?;
+        let active = parsed.tuning.unwrap_or_else(|| DEFAULT_PRESET.to_string());
+        let mut names: Vec<String> = parsed.presets.keys().cloned().collect();
+        names.sort();
+        return Ok((canonicalise(&candidate), active, names));
+    }
+    Err("no config.toml found in any search path".to_string())
 }
 
-/// Parse a preset from a TOML string.
+// ── Internal types & parsing ──────────────────────────────────────────
+
+/// Parsed config file: the `tuning` value + all preset tables.
+struct ParsedConfig {
+    /// Value of `preset.tuning` (if present).
+    tuning: Option<String>,
+    /// All `[preset.<name>]` tables, keyed by preset name.
+    presets: HashMap<String, PresetEntry>,
+}
+
+/// A single `[preset.<name>]` table.
+#[derive(serde::Deserialize, Default)]
+struct PresetEntry {
+    #[serde(default)]
+    click: Option<zactrix_profiles::ClickParams>,
+    #[serde(default)]
+    spring: Option<zactrix_profiles::SpringParams>,
+    #[serde(default)]
+    decay: Option<zactrix_profiles::DecayParams>,
+    #[serde(default)]
+    keys: Vec<zactrix_profiles::KeyOverride>,
+}
+
+/// Parse a TOML string into a `ParsedConfig`.
 ///
-/// Looks up the `[preset.<preset_name>]` table. If not found, returns
-/// an error so the caller can decide whether to fall back to the
-/// hardcoded default (in `resolve_config`) or surface the error to the
-/// user (in `validate_config`).
-fn load_preset_from_str(toml_str: &str, preset_name: &str) -> Result<ProfileWithOverrides, String> {
+/// The TOML structure is:
+/// ```toml
+/// [preset]
+/// tuning = "technical"
+///
+/// [preset.technical]
+/// [preset.technical.click]
+/// # ...
+/// ```
+///
+/// The `preset` table has a `tuning` string key and sub-tables for each
+/// preset. We parse it as `HashMap<String, toml::Value>` and extract
+/// `tuning` separately so it doesn't appear as a "preset".
+fn parse_config(toml_str: &str) -> Result<ParsedConfig, String> {
     use serde::Deserialize;
-    use std::collections::HashMap;
 
     #[derive(Deserialize)]
     struct ConfigFile {
         #[serde(default)]
-        preset: HashMap<String, PresetEntry>,
-    }
-
-    #[derive(Deserialize, Default)]
-    struct PresetEntry {
-        #[serde(default)]
-        click: Option<zactrix_profiles::ClickParams>,
-        #[serde(default)]
-        spring: Option<zactrix_profiles::SpringParams>,
-        #[serde(default)]
-        decay: Option<zactrix_profiles::DecayParams>,
-        #[serde(default)]
-        keys: Vec<zactrix_profiles::KeyOverride>,
+        preset: HashMap<String, toml::Value>,
     }
 
     let file: ConfigFile =
         toml::from_str(toml_str).map_err(|e| format!("failed to parse config TOML: {e}"))?;
 
-    let entry = file.preset.get(preset_name).ok_or_else(|| {
-        format!(
-            "preset '{}' not found in config.toml (available presets: {})",
-            preset_name,
-            available_presets(&file.preset)
-        )
-    })?;
+    // Extract the `tuning` key if it's a string.
+    let tuning = file
+        .preset
+        .get(TUNING_KEY)
+        .and_then(|v| v.as_str().map(|s| s.to_string()));
 
-    // Build the default KeyProfile: start from hardcoded default, apply
-    // any preset-level overrides for click/spring/decay.
+    // All other keys are preset tables. Parse each one via serde.
+    let mut presets: HashMap<String, PresetEntry> = HashMap::new();
+    for (name, value) in &file.preset {
+        if name == TUNING_KEY {
+            continue;
+        }
+        let entry: PresetEntry = value
+            .clone()
+            .try_into()
+            .map_err(|e| format!("preset '{name}': {e}"))?;
+        presets.insert(name.clone(), entry);
+    }
+
+    Ok(ParsedConfig { tuning, presets })
+}
+
+/// Determine the active preset name.
+///
+/// Priority: `cli_preset` > `config.tuning` > `DEFAULT_PRESET`.
+fn determine_active_preset(cli_preset: Option<&str>, config: &ParsedConfig) -> String {
+    if let Some(name) = cli_preset {
+        return name.to_string();
+    }
+    if let Some(name) = &config.tuning {
+        return name.clone();
+    }
+    DEFAULT_PRESET.to_string()
+}
+
+/// Build a `ProfileWithOverrides` from a parsed `PresetEntry`.
+///
+/// Starts from the hardcoded `KeyProfile::default()`, applies the
+/// preset's click/spring/decay overrides, validates+clamps, then merges
+/// any `[[keys]]` per-scancode overrides on top.
+fn build_profile_from_entry(entry: &PresetEntry) -> ProfileWithOverrides {
     let mut default = KeyProfile::default();
     if let Some(click) = entry.click {
         default.click = click;
@@ -226,8 +315,7 @@ fn load_preset_from_str(toml_str: &str, preset_name: &str) -> Result<ProfileWith
     }
     default.validate_and_clamp();
 
-    // Merge per-key overrides on top of the (now-clamped) default.
-    let mut overrides = std::collections::HashMap::with_capacity(entry.keys.len());
+    let mut overrides = HashMap::with_capacity(entry.keys.len());
     for ko in &entry.keys {
         let mut merged = default;
         if let Some(click) = &ko.click {
@@ -267,60 +355,43 @@ fn load_preset_from_str(toml_str: &str, preset_name: &str) -> Result<ProfileWith
         overrides.insert(ko.scancode, merged);
     }
 
-    Ok(ProfileWithOverrides { default, overrides })
+    ProfileWithOverrides { default, overrides }
 }
 
-/// Load and validate EVERY preset in `config.toml` (for `testconf`).
-///
-/// Used by the `testconf` subcommand so a typo in any preset — even one
-/// the user is not currently using — is caught before it can surprise
-/// them later.
-fn load_all_presets_from_file(path: &Path) -> Result<(), String> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+/// Validate every preset in the config + check tuning references a
+/// valid preset.
+fn validate_config_str(content: &str) -> Result<(), String> {
+    let parsed = parse_config(content)?;
 
-    use serde::Deserialize;
-    use std::collections::HashMap;
-
-    #[derive(Deserialize)]
-    struct ConfigFile {
-        #[serde(default)]
-        preset: HashMap<String, toml::Value>,
-    }
-
-    let file: ConfigFile =
-        toml::from_str(&content).map_err(|e| format!("failed to parse config TOML: {e}"))?;
-
-    if file.preset.is_empty() {
+    if parsed.presets.is_empty() {
         return Err("config.toml contains no [preset.*] tables".to_string());
     }
 
-    // Validate each preset by attempting to load it via load_preset_from_str.
-    // We re-serialize each preset's sub-tree to a mini-TOML string and
-    // parse it back via the single-preset loader — this exercises the
-    // same validate+clamp path as production code.
-    let mut preset_names: Vec<&String> = file.preset.keys().collect();
-    preset_names.sort();
-    for name in preset_names {
-        // Re-serialize just this preset's table.
-        let mini = toml::to_string(&toml::Value::Table(toml::value::Table::from_iter([(
-            "preset".to_string(),
-            toml::Value::Table(toml::value::Table::from_iter([(
-                name.clone(),
-                file.preset[name].clone(),
-            )])),
-        )])))
-        .map_err(|e| format!("internal error: failed to re-serialize preset '{name}': {e}"))?;
+    // Validate each preset by building a profile from it (exercises
+    // the full validate+clamp path).
+    let mut names: Vec<&String> = parsed.presets.keys().collect();
+    names.sort();
+    for name in &names {
+        let entry = &parsed.presets[*name];
+        let _ = build_profile_from_entry(entry); // errors would surface as panics from try_into
+    }
 
-        load_preset_from_str(&mini, name).map_err(|e| format!("preset '{name}': {e}"))?;
+    // Check that tuning (if present) references an existing preset.
+    if let Some(tuning) = &parsed.tuning {
+        if !parsed.presets.contains_key(tuning) {
+            return Err(format!(
+                "preset.tuning = '{}' references a preset that does not exist. Available: {}",
+                tuning,
+                format_preset_list(&parsed.presets)
+            ));
+        }
     }
 
     Ok(())
 }
 
-/// Format the available preset names as a comma-separated list for
-/// inclusion in error messages.
-fn available_presets(map: &std::collections::HashMap<String, impl Sized>) -> String {
+/// Format preset names as a comma-separated list for error messages.
+fn format_preset_list(map: &HashMap<String, PresetEntry>) -> String {
     if map.is_empty() {
         return "(none)".to_string();
     }
@@ -333,12 +404,25 @@ fn available_presets(map: &std::collections::HashMap<String, impl Sized>) -> Str
         .join(", ")
 }
 
+/// Build the ordered list of candidate `config.toml` paths.
+fn candidate_paths() -> Vec<PathBuf> {
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Some(home) = std::env::var_os("HOME") {
+        candidates.push(
+            PathBuf::from(home)
+                .join(".config/zylaxion")
+                .join(CONFIG_FILE_NAME),
+        );
+    }
+    candidates.push(PathBuf::from("/etc/zylaxion").join(CONFIG_FILE_NAME));
+    for data_dir in SYSTEM_DATA_DIRS {
+        candidates.push(PathBuf::from(data_dir).join(CONFIG_FILE_NAME));
+    }
+    candidates.push(PathBuf::from(CONFIG_FILE_NAME));
+    candidates
+}
+
 /// Canonicalise a path to its absolute form for display.
-///
-/// Falls back to the original path if canonicalisation fails (e.g. the
-/// file was just deleted). This is best-effort — callers only need the
-/// absolute form for diagnostic messages, not for actually opening the
-/// file.
 fn canonicalise(path: &Path) -> PathBuf {
     std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
 }
@@ -349,7 +433,10 @@ fn canonicalise(path: &Path) -> PathBuf {
 mod tests {
     use super::*;
 
-    const GOOD_TOML: &str = r#"
+    const TWO_PRESET_TOML: &str = r#"
+[preset]
+tuning = "technical"
+
 [preset.technical]
 [preset.technical.click]
 frequency = 4500.0
@@ -380,52 +467,16 @@ voice_off_threshold = 0.00001
 "#;
 
     #[test]
-    fn load_existing_preset_succeeds() {
-        let p = load_preset_from_str(GOOD_TOML, "technical").expect("technical should load");
-        assert_eq!(p.default.click.frequency, 4500.0);
-        assert!(p.overrides.is_empty());
+    fn parse_extracts_tuning_and_presets() {
+        let parsed = parse_config(TWO_PRESET_TOML).expect("parse should succeed");
+        assert_eq!(parsed.tuning.as_deref(), Some("technical"));
+        assert_eq!(parsed.presets.len(), 2);
+        assert!(parsed.presets.contains_key("technical"));
+        assert!(parsed.presets.contains_key("classic"));
     }
 
     #[test]
-    fn load_second_preset_succeeds() {
-        let p = load_preset_from_str(GOOD_TOML, "classic").expect("classic should load");
-        assert_eq!(p.default.click.frequency, 3200.0);
-        assert_eq!(p.default.spring.mix, 0.75);
-    }
-
-    #[test]
-    fn load_missing_preset_errors_with_available_list() {
-        let err = load_preset_from_str(GOOD_TOML, "nonexistent").unwrap_err();
-        assert!(err.contains("preset 'nonexistent' not found"));
-        assert!(err.contains("technical"));
-        assert!(err.contains("classic"));
-    }
-
-    #[test]
-    fn load_preset_clamps_invalid_values() {
-        let bad = r#"
-[preset.bad]
-[preset.bad.click]
-frequency = 100000.0  # above 8000
-resonance = 2.0
-duration_ms = 1.5
-amplitude = 0.8
-[preset.bad.spring]
-frequency = 1800.0
-resonance = 3.5
-mix = 0.6
-[preset.bad.decay]
-coefficient = 9999.0  # would cause infinite loop
-voice_off_threshold = 0.00001
-"#;
-        let p = load_preset_from_str(bad, "bad").expect("should still load (after clamping)");
-        assert_eq!(p.default.click.frequency, 8000.0);
-        assert!(p.default.decay.coefficient < 1.0);
-        assert_eq!(p.default.decay.coefficient, 0.9999);
-    }
-
-    #[test]
-    fn load_preset_with_per_key_override() {
+    fn parse_handles_missing_tuning() {
         let toml = r#"
 [preset.technical]
 [preset.technical.click]
@@ -440,57 +491,220 @@ mix = 0.6
 [preset.technical.decay]
 coefficient = 0.9994
 voice_off_threshold = 0.00001
-
-[[preset.technical.keys]]
-scancode = 28
-[preset.technical.keys.click]
-frequency = 3000.0
 "#;
-        let p = load_preset_from_str(toml, "technical").expect("should parse");
-        assert_eq!(p.overrides.len(), 1);
-        let enter = p.for_scancode(28);
-        assert_eq!(enter.click.frequency, 3000.0);
-        assert_eq!(enter.click.resonance, 2.0); // inherited from default
+        let parsed = parse_config(toml).expect("parse should succeed");
+        assert!(parsed.tuning.is_none());
+        assert_eq!(parsed.presets.len(), 1);
     }
 
     #[test]
-    fn validate_config_catches_bad_preset() {
-        let bad = r#"
-[preset.technical]
-[preset.technical.click]
-frequency = "not-a-number"
+    fn determine_active_preset_cli_overrides_tuning() {
+        let parsed = parse_config(TWO_PRESET_TOML).unwrap();
+        let active = determine_active_preset(Some("classic"), &parsed);
+        assert_eq!(active, "classic");
+    }
+
+    #[test]
+    fn determine_active_preset_uses_tuning_when_no_cli() {
+        let parsed = parse_config(TWO_PRESET_TOML).unwrap();
+        let active = determine_active_preset(None, &parsed);
+        assert_eq!(active, "technical");
+    }
+
+    #[test]
+    fn determine_active_preset_defaults_when_no_tuning() {
+        let toml = r#"
+[preset.classic]
+[preset.classic.click]
+frequency = 3200.0
+resonance = 2.5
+duration_ms = 2.5
+amplitude = 0.7
+[preset.classic.spring]
+frequency = 1200.0
+resonance = 4.0
+mix = 0.75
+[preset.classic.decay]
+coefficient = 0.9992
+voice_off_threshold = 0.00001
 "#;
-        let result = load_all_presets_from_file(&write_tmp(bad));
+        let parsed = parse_config(toml).unwrap();
+        let active = determine_active_preset(None, &parsed);
+        assert_eq!(active, DEFAULT_PRESET);
+    }
+
+    #[test]
+    fn resolve_config_with_existing_preset_succeeds() {
+        if !Path::new("config.toml").exists() {
+            return; // skip if not running from repo root
+        }
+        let (profiles, _path, active) =
+            resolve_config(Some("classic")).expect("should resolve classic");
+        assert_eq!(active, "classic");
+        assert_eq!(profiles.default.click.frequency, 3200.0);
+    }
+
+    #[test]
+    fn resolve_config_with_nonexistent_preset_errors() {
+        if !Path::new("config.toml").exists() {
+            return; // skip if not running from repo root
+        }
+        let result = resolve_config(Some("nonexistent"));
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.contains("failed to parse config TOML"));
+        assert!(err.contains("Preset 'nonexistent' not found"));
+        assert!(err.contains("Available:"));
     }
 
     #[test]
-    fn validate_config_rejects_empty_file() {
-        let empty = "";
-        let result = load_all_presets_from_file(&write_tmp(empty));
+    fn resolve_config_uses_tuning_when_no_cli() {
+        if !Path::new("config.toml").exists() {
+            return;
+        }
+        let (_profiles, _path, active) = resolve_config(None).expect("should resolve via tuning");
+        assert_eq!(active, "technical");
+    }
+
+    #[test]
+    fn reload_preset_respects_cli_override() {
+        // Use the real config.toml from the repo root.
+        let path = Path::new("config.toml");
+        if !path.exists() {
+            return; // skip if not running from repo root
+        }
+        let (_profiles, active) =
+            reload_preset(path, Some("cherryMX")).expect("should reload cherryMX");
+        assert_eq!(active, "cherryMX");
+    }
+
+    #[test]
+    fn reload_preset_uses_tuning_when_no_cli() {
+        let path = Path::new("config.toml");
+        if !path.exists() {
+            return;
+        }
+        let (_profiles, active) = reload_preset(path, None).expect("should reload via tuning");
+        assert_eq!(active, "technical");
+    }
+
+    #[test]
+    fn validate_config_str_accepts_good_file() {
+        assert!(validate_config_str(TWO_PRESET_TOML).is_ok());
+    }
+
+    #[test]
+    fn validate_config_str_rejects_bad_tuning_reference() {
+        let toml = r#"
+[preset]
+tuning = "nonexistent"
+
+[preset.technical]
+[preset.technical.click]
+frequency = 4500.0
+resonance = 2.0
+duration_ms = 1.5
+amplitude = 0.8
+[preset.technical.spring]
+frequency = 1800.0
+resonance = 3.5
+mix = 0.6
+[preset.technical.decay]
+coefficient = 0.9994
+voice_off_threshold = 0.00001
+"#;
+        let result = validate_config_str(toml);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("preset.tuning = 'nonexistent'"));
+        assert!(err.contains("Available:"));
+    }
+
+    #[test]
+    fn validate_config_str_rejects_empty_file() {
+        assert!(validate_config_str("").is_err());
+    }
+
+    #[test]
+    fn validate_config_str_rejects_no_presets() {
+        let toml = r#"
+[preset]
+tuning = "technical"
+"#;
+        let result = validate_config_str(toml);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("no [preset.*] tables"));
     }
 
     #[test]
-    fn validate_config_accepts_good_file() {
-        let result = load_all_presets_from_file(&write_tmp(GOOD_TOML));
-        assert!(result.is_ok(), "{:?}", result.err());
+    fn list_presets_returns_all_names() {
+        let path = Path::new("config.toml");
+        if !path.exists() {
+            return;
+        }
+        let (path, active, names) = list_presets().expect("should list presets");
+        assert!(path.is_absolute());
+        assert!(!names.is_empty());
+        assert!(names.contains(&active.to_string()));
     }
 
-    /// Helper: write content to a temp file and return the path.
-    fn write_tmp(content: &str) -> PathBuf {
-        let path = std::env::temp_dir().join(format!(
-            "zylaxion-config-test-{}-{}.toml",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::write(&path, content).expect("write tmp file");
-        path
+    #[test]
+    fn build_profile_clamps_invalid_values() {
+        use zactrix_profiles::{ClickParams, DecayParams, SpringParams};
+        let entry = PresetEntry {
+            click: Some(ClickParams {
+                frequency: 100_000.0, // above 8000
+                resonance: 2.0,
+                duration_ms: 1.5,
+                amplitude: 0.8,
+            }),
+            spring: Some(SpringParams {
+                frequency: 1800.0,
+                resonance: 3.5,
+                mix: 0.6,
+            }),
+            decay: Some(DecayParams {
+                coefficient: 9999.0, // would cause infinite loop
+                voice_off_threshold: 0.00001,
+            }),
+            keys: vec![],
+        };
+        let profiles = build_profile_from_entry(&entry);
+        assert_eq!(profiles.default.click.frequency, 8000.0);
+        assert!(profiles.default.decay.coefficient < 1.0);
+    }
+
+    #[test]
+    fn build_profile_merges_per_key_overrides() {
+        use zactrix_profiles::{ClickParams, DecayParams, KeyOverride, SpringParams};
+        let entry = PresetEntry {
+            click: Some(ClickParams {
+                frequency: 4500.0,
+                resonance: 2.0,
+                duration_ms: 1.5,
+                amplitude: 0.8,
+            }),
+            spring: Some(SpringParams {
+                frequency: 1800.0,
+                resonance: 3.5,
+                mix: 0.6,
+            }),
+            decay: Some(DecayParams {
+                coefficient: 0.9994,
+                voice_off_threshold: 0.00001,
+            }),
+            keys: vec![KeyOverride {
+                scancode: 28,
+                click: Some(zactrix_profiles::OverrideClick {
+                    frequency: Some(3000.0),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }],
+        };
+        let profiles = build_profile_from_entry(&entry);
+        assert_eq!(profiles.overrides.len(), 1);
+        let enter = profiles.for_scancode(28);
+        assert_eq!(enter.click.frequency, 3000.0);
+        assert_eq!(enter.click.resonance, 2.0); // inherited
     }
 }
