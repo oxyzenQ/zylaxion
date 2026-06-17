@@ -63,14 +63,15 @@ impl VoicePool {
         Self {
             voices: core::array::from_fn(|_| Voice::new()),
             trigger_counter: 0,
-            // 4.0× master gain — chosen so the synthesised "TEK" audibly
-            // dominates over the physical keyboard click on laptop / PC
-            // speakers (which have higher impedance than headphones and
-            // therefore reproduce the synth at a lower per-watt SPL).
-            // The final `.clamp(-1.0, 1.0)` in `process_sample` is the
-            // hard ceiling that turns any overflow into clean compression
-            // instead of digital clipping.
-            master_volume: 4.0,
+            // 5.5× master gain — tuned for laptop / PC speakers whose
+            // higher impedance (vs. headphones) reproduces the synth at
+            // a lower per-watt SPL, allowing the physical key click to
+            // dominate at lower gains. 5.5× makes the synthesised "TEK"
+            // audibly overpower the mechanical click on typical laptop
+            // speakers. The final `.clamp(-1.0, 1.0)` in `process_sample`
+            // is the hard ceiling that turns any overflow into clean
+            // compression instead of digital clipping.
+            master_volume: 5.5,
         }
     }
 

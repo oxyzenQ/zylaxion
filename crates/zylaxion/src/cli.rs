@@ -43,11 +43,11 @@ pub struct Cli {
     /// Check for upstream updates on GitHub.
     ///
     /// This flag is intercepted in `main.rs` BEFORE `Cli::parse()` runs, so it can
-    /// be invoked without a subcommand (`zylaxion --check-updated`). The field is
+    /// be invoked without a subcommand (`zylaxion --check-update`). The field is
     /// retained on the struct purely for `--help` discoverability.
     #[arg(long, global = true)]
     #[allow(dead_code)]
-    pub check_updated: bool,
+    pub check_update: bool,
 
     /// Enable verbose (debug-level) logging.
     ///
