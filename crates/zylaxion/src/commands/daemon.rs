@@ -12,6 +12,7 @@ use zylaxion_core::Orchestrator;
 use zylaxion_input::{InputSource, LibinputSource};
 
 use crate::daemon;
+use crate::instance_lock;
 use crate::profile::resolve_profile;
 
 /// Run zylaxion in the foreground (Ctrl+C to quit).
@@ -20,6 +21,14 @@ use crate::profile::resolve_profile;
 /// Orchestrator::run on main thread.
 pub fn cmd_start(profile_name: Option<String>) {
     env_logger::init();
+
+    // Acquire the single-instance lock BEFORE touching audio or input.
+    // If another zylaxion process (start OR daemon) is already running,
+    // this prints "error: Zylaxion is already running..." and exits 1.
+    // The `_lock` guard is held for the entire process lifetime; when
+    // cmd_start returns (or the process is killed), the kernel releases
+    // the flock atomically.
+    let _lock = instance_lock::acquire_or_exit();
 
     let profile = resolve_profile(&profile_name);
     log::info!(
@@ -63,7 +72,21 @@ pub fn cmd_start(profile_name: Option<String>) {
 /// hardware, writes the PID file, installs signal handlers, and runs the
 /// orchestrator loop.
 pub fn cmd_daemon(profile_name: Option<String>) {
+    // Acquire the single-instance lock BEFORE forking. The lock is
+    // associated with the open file description (kernel struct file),
+    // not the process — so fork() inherits it into the child via the
+    // duplicated file descriptor. When the parent exits via
+    // `daemonize()`, the kernel keeps the lock alive because the child
+    // still holds a reference to the same file description.
+    //
+    // This is the correct order: acquire-then-fork guarantees that no
+    // other zylaxion process can slip in between the fork and the child
+    // calling `acquire()`.
+    let _lock = instance_lock::acquire_or_exit();
+
     // Check if already running (with /proc/<pid>/comm PID recycling check).
+    // This is a soft check for nicer error messages — the flock above is
+    // the authoritative single-instance guard.
     if daemon::is_daemon_running().is_ok() {
         eprintln!("error: zylaxion daemon is already running");
         process::exit(1);

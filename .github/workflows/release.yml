@@ -40,8 +40,36 @@ jobs:
       - name: Build release binary
         run: cargo build --release --locked
 
+      - name: Package release artifacts
+        run: |
+          # Stage the bare binary into a clean directory so the tarball
+          # expands to a single top-level `zylaxion-linux-amd64/`
+          # directory containing just the binary — no `target/` noise.
+          STAGE="zylaxion-linux-amd64"
+          rm -rf "$STAGE" "$STAGE.tar.gz" "$STAGE.tar.gz.sha512"
+          mkdir -p "$STAGE"
+          cp target/release/zylaxion "$STAGE/zylaxion"
+
+          # Tarball preserves the executable bit (tar stores file modes).
+          tar -czf "$STAGE.tar.gz" "$STAGE"
+
+          # SHA-512 checksum file. The format matches `sha512sum(1)`:
+          # `<hash>  <filename>` (two spaces, filename relative). This
+          # lets users verify with `sha512sum -c zylaxion-linux-amd64.tar.gz.sha512`.
+          sha512sum "$STAGE.tar.gz" > "$STAGE.tar.gz.sha512"
+
+          # Surface the artifacts in the CI log for quick inspection.
+          ls -l "$STAGE.tar.gz" "$STAGE.tar.gz.sha512"
+          echo "--- checksum contents ---"
+          cat "$STAGE.tar.gz.sha512"
+
       - name: Upload release artifact
         uses: softprops/action-gh-release@v2
         with:
-          files: target/release/zylaxion
+          # Upload BOTH the tarball and its SHA-512 sidecar. Users can
+          # download the .sha512 file to verify the tarball integrity
+          # before extracting the binary.
+          files: |
+            zylaxion-linux-amd64.tar.gz
+            zylaxion-linux-amd64.tar.gz.sha512
           generate_release_notes: true
