@@ -129,6 +129,21 @@ mix = 0.6
 #   0.9994 ≈ 180 ms, 0.9990 ≈ 110 ms, 0.9997 ≈ 280 ms
 coefficient = 0.9994
 
+[preset.technical.ambient]
+# Master enable for the ambient case-rattle path. When false, no
+# ambient noise is generated (zero CPU cost).
+enabled = true
+
+# Peak amplitude of the ambient noise burst (0.0 = silent, 1.0 = full).
+# Simulates the hollow-case rattle level. Range: 0.0 - 1.0
+noise_level = 0.15
+
+# Per-sample multiplicative decay for the ambient envelope.
+# WARNING: MUST be < 1.0. Lower = faster rattle fade; higher = longer ring.
+# Range: 0.0 - 0.9999
+noise_decay = 0.985
+
+
 # Amplitude threshold below which the voice is deactivated. Smaller
 # values let voices ring longer; larger values cut them off sooner.
 # Range: 1e-7 - 1e-2
@@ -166,6 +181,21 @@ coefficient = 0.9995
 # Range: 1e-7 - 1e-2
 voice_off_threshold = 0.00001
 
+[preset.cherryMX.ambient]
+# Master enable for the ambient case-rattle path. When false, no
+# ambient noise is generated (zero CPU cost).
+enabled = true
+
+# Peak amplitude of the ambient noise burst (0.0 = silent, 1.0 = full).
+# Simulates the hollow-case rattle level. Range: 0.0 - 1.0
+noise_level = 0.12
+
+# Per-sample multiplicative decay for the ambient envelope.
+# WARNING: MUST be < 1.0. Lower = faster rattle fade; higher = longer ring.
+# Range: 0.0 - 0.9999
+noise_decay = 0.988
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Preset: classic
@@ -197,6 +227,21 @@ mix = 0.75
 coefficient = 0.9992
 # Range: 1e-7 - 1e-2
 voice_off_threshold = 0.00001
+
+[preset.classic.ambient]
+# Master enable for the ambient case-rattle path. When false, no
+# ambient noise is generated (zero CPU cost).
+enabled = true
+
+# Peak amplitude of the ambient noise burst (0.0 = silent, 1.0 = full).
+# Simulates the hollow-case rattle level. Range: 0.0 - 1.0
+noise_level = 0.18
+
+# Per-sample multiplicative decay for the ambient envelope.
+# WARNING: MUST be < 1.0. Lower = faster rattle fade; higher = longer ring.
+# Range: 0.0 - 0.9999
+noise_decay = 0.982
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -230,6 +275,21 @@ coefficient = 0.9997
 # Range: 1e-7 - 1e-2
 voice_off_threshold = 0.00001
 
+[preset.studio.ambient]
+# Master enable for the ambient case-rattle path. When false, no
+# ambient noise is generated (zero CPU cost).
+enabled = false
+
+# Peak amplitude of the ambient noise burst (0.0 = silent, 1.0 = full).
+# Simulates the hollow-case rattle level. Range: 0.0 - 1.0
+noise_level = 0.05
+
+# Per-sample multiplicative decay for the ambient envelope.
+# WARNING: MUST be < 1.0. Lower = faster rattle fade; higher = longer ring.
+# Range: 0.0 - 0.9999
+noise_decay = 0.99
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Preset: elegant
@@ -262,6 +322,21 @@ coefficient = 0.9991
 # Range: 1e-7 - 1e-2
 voice_off_threshold = 0.0001
 
+[preset.elegant.ambient]
+# Master enable for the ambient case-rattle path. When false, no
+# ambient noise is generated (zero CPU cost).
+enabled = false
+
+# Peak amplitude of the ambient noise burst (0.0 = silent, 1.0 = full).
+# Simulates the hollow-case rattle level. Range: 0.0 - 1.0
+noise_level = 0.03
+
+# Per-sample multiplicative decay for the ambient envelope.
+# WARNING: MUST be < 1.0. Lower = faster rattle fade; higher = longer ring.
+# Range: 0.0 - 0.9999
+noise_decay = 0.99
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Preset: whisper
@@ -293,3 +368,137 @@ mix = 0.2
 coefficient = 0.9985
 # Range: 1e-7 - 1e-2
 voice_off_threshold = 0.001
+
+
+[preset.whisper.ambient]
+# Master enable for the ambient case-rattle path. When false, no
+# ambient noise is generated (zero CPU cost).
+enabled = false
+
+# Peak amplitude of the ambient noise burst (0.0 = silent, 1.0 = full).
+# Simulates the hollow-case rattle level. Range: 0.0 - 1.0
+noise_level = 0.02
+
+# Per-sample multiplicative decay for the ambient envelope.
+# WARNING: MUST be < 1.0. Lower = faster rattle fade; higher = longer ring.
+# Range: 0.0 - 0.9999
+noise_decay = 0.99
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: linear
+# Smooth attack, no tactile bump. Best for Cherry MX Red / linear switches.
+# Lower resonance, faster initial decay — the "thock" without the "click".
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.linear]
+
+[preset.linear.click]
+# Range: 500.0 - 8000.0
+frequency = 3800.0
+# Range: 0.1 - 10.0
+resonance = 1.0
+# Range: 0.1 - 10.0
+duration_ms = 2.5
+# Range: 0.0 - 1.0
+amplitude = 0.55
+
+[preset.linear.spring]
+# Range: 500.0 - 8000.0
+frequency = 1600.0
+# Range: 0.1 - 10.0
+resonance = 1.8
+# Range: 0.0 - 1.0
+mix = 0.45
+
+[preset.linear.decay]
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9990
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+[preset.linear.ambient]
+# Range: true / false
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.10
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.987
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: tactile
+# Slightly sharper attack with a brief mid-frequency resonance (the tactile
+# bump). Best for Cherry MX Brown / tactile switches.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.tactile]
+
+[preset.tactile.click]
+# Range: 500.0 - 8000.0
+frequency = 4100.0
+# Range: 0.1 - 10.0
+resonance = 1.8
+# Range: 0.1 - 10.0
+duration_ms = 1.8
+# Range: 0.0 - 1.0
+amplitude = 0.65
+
+[preset.tactile.spring]
+# Range: 500.0 - 8000.0
+frequency = 2000.0
+# Range: 0.1 - 10.0
+resonance = 2.5
+# Range: 0.0 - 1.0
+mix = 0.5
+
+[preset.tactile.decay]
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9993
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+[preset.tactile.ambient]
+# Range: true / false
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.12
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.985
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: clicky
+# Very sharp attack, high resonance, long high-frequency ring (the click
+# jacket). Best for Cherry MX Blue / clicky switches.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.clicky]
+
+[preset.clicky.click]
+# Range: 500.0 - 8000.0
+frequency = 5200.0
+# Range: 0.1 - 10.0
+resonance = 3.5
+# Range: 0.1 - 10.0
+duration_ms = 1.2
+# Range: 0.0 - 1.0
+amplitude = 0.85
+
+[preset.clicky.spring]
+# Range: 500.0 - 8000.0
+frequency = 2400.0
+# Range: 0.1 - 10.0
+resonance = 4.5
+# Range: 0.0 - 1.0
+mix = 0.7
+
+[preset.clicky.decay]
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9996
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+[preset.clicky.ambient]
+# Range: true / false
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.16
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.983

@@ -154,6 +154,30 @@ impl AcousticModel for MechanicalClick {
         // Initialize noise generator with a deterministic non-zero seed
         state.noise_state = 0xDEAD_BEEF;
 
+        // ── Ambient rattle path setup ──────────────────────────────
+        // Copied from the profile so the render path doesn't need to
+        // re-read the profile every sample. When enabled is false, the
+        // render path skips all ambient computation (zero cost).
+        state.ambient_enabled = profile.ambient.enabled;
+        state.ambient_level = profile.ambient.noise_level;
+        state.ambient_decay = profile.ambient.noise_decay;
+        // Start the ambient envelope at full level — it decays from
+        // here via ambient_decay each sample.
+        state.ambient_envelope = profile.ambient.noise_level;
+        // Separate seed from the click noise generator so the two
+        // noise streams don't correlate.
+        state.ambient_noise_state = 0xCAFEBABE;
+        // Reset the high-pass filter state.
+        state.ambient_hp_prev_input = 0.0;
+        state.ambient_hp_prev_output = 0.0;
+        // One-pole high-pass filter coefficient for a ~2 kHz cutoff.
+        // Derived from: hp_coeff = (1 - cos(2*pi*fc/fs)) / (1 + cos(2*pi*fc/fs))
+        // Pre-computed at init to avoid transcendentals in the render path.
+        let fc = 2000.0_f32;
+        let omega = 2.0 * std::f32::consts::PI * fc / SAMPLE_RATE;
+        let cos_omega = omega.cos();
+        state.ambient_hp_coeff = (1.0 - cos_omega) / (1.0 + cos_omega);
+
         // Activate voice
         state.active = true;
     }
@@ -222,7 +246,33 @@ impl AcousticModel for MechanicalClick {
         state.spring_ic2eq = 2.0 * _sv2 - state.spring_ic2eq;
 
         // ── Stage 3: Mix components ──────────────────────────────────
-        let mixed = click_out + sv1 * state.spring_mix;
+        let mut mixed = click_out + sv1 * state.spring_mix;
+
+        // ── Stage 3b: Ambient rattle (optional) ─────────────────────
+        // High-pass filtered white noise with its own decay envelope,
+        // simulating case rattle / PCB flex / hollow housing resonance.
+        // Skipped entirely when ambient_enabled is false (zero cost).
+        if state.ambient_enabled && state.ambient_envelope > 1e-6 {
+            // Xorshift32 PRNG (separate state from the click excitation)
+            let mut x = state.ambient_noise_state;
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            state.ambient_noise_state = x;
+            let raw_noise = (x as f32 / u32::MAX as f32) * 2.0 - 1.0;
+
+            // One-pole high-pass filter: y[n] = coeff * (y[n-1] + x[n] - x[n-1])
+            let hp_out = state.ambient_hp_coeff
+                * (state.ambient_hp_prev_output + raw_noise - state.ambient_hp_prev_input);
+            state.ambient_hp_prev_input = raw_noise;
+            state.ambient_hp_prev_output = hp_out;
+
+            // Apply the ambient envelope and add to the mix
+            mixed += hp_out * state.ambient_envelope;
+
+            // Decay the ambient envelope
+            state.ambient_envelope *= state.ambient_decay;
+        }
 
         // ── Stage 4: Apply envelope ──────────────────────────────────
         let sample = mixed * state.envelope_value;
