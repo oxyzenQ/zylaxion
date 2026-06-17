@@ -63,7 +63,14 @@ impl VoicePool {
         Self {
             voices: core::array::from_fn(|_| Voice::new()),
             trigger_counter: 0,
-            master_volume: 2.5,
+            // 4.0× master gain — chosen so the synthesised "TEK" audibly
+            // dominates over the physical keyboard click on laptop / PC
+            // speakers (which have higher impedance than headphones and
+            // therefore reproduce the synth at a lower per-watt SPL).
+            // The final `.clamp(-1.0, 1.0)` in `process_sample` is the
+            // hard ceiling that turns any overflow into clean compression
+            // instead of digital clipping.
+            master_volume: 4.0,
         }
     }
 

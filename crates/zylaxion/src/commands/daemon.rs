@@ -78,8 +78,10 @@ pub fn cmd_daemon(profile_name: Option<String>) {
     // We are now the daemon child.
     daemon::close_std_fds();
 
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Info)
+    // Respect RUST_LOG if the parent process set it (e.g. via `zylaxion -v
+    // daemon`), otherwise default to `info`. The parent's env vars survive
+    // `daemonize()`'s fork, so `--verbose` propagates into the daemon child.
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
 
