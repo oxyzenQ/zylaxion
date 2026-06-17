@@ -87,12 +87,12 @@ pub fn cmd_start(cli_preset: Option<String>) {
         MechanicalClick::with_overrides(profiles),
     ));
 
-    // 4. Spawn the config-watcher thread. If cli_preset is None, the
-    //    watcher re-reads preset.tuning on each file change — so
-    //    changing the tuning value and saving causes an immediate
-    //    swap to the new preset.
+    // 4. Spawn the config-watcher thread. The watcher always reads
+    //    preset.tuning from the file on change — the --preset CLI flag
+    //    is for initial load only. We pass active_preset here just for
+    //    the startup log message.
     let _watcher_handle =
-        spawn_config_watcher(Arc::clone(&model), config_path, Arc::new(cli_preset));
+        spawn_config_watcher(Arc::clone(&model), config_path, active_preset.clone());
 
     // 5. Run the main loop.
     let stop_flag = Arc::new(AtomicBool::new(false));
@@ -210,7 +210,7 @@ pub fn cmd_daemon(cli_preset: Option<String>) {
 
     let _ipc_handle = daemon::spawn_ipc_thread(listener, Arc::clone(&stop_flag));
     let _watcher_handle =
-        spawn_config_watcher(Arc::clone(&model), config_path, Arc::clone(&cli_preset_arc));
+        spawn_config_watcher(Arc::clone(&model), config_path, active_preset.clone());
 
     orchestrator.run(&model, &event_rx, stop_flag);
 
@@ -231,17 +231,24 @@ pub fn cmd_stop() {
 /// - Polls `config_path`'s modification time (mtime) every
 ///   [`CONFIG_WATCH_INTERVAL`] (1 second) via `std::fs::metadata`.
 /// - When the mtime advances, the thread re-reads the file via
-///   [`config::reload_preset`], which determines the active preset:
-///   - If `cli_preset` is `Some(name)`, that preset is always loaded
-///     (CLI override).
-///   - If `cli_preset` is `None`, the `preset.tuning` value from the
-///     freshly-read file is used — so changing `tuning = "cherryMX"`
-///     and saving causes an immediate swap to cherryMX.
+///   [`config::reload_preset`]. **The `--preset` CLI flag is ignored
+///   on reload** — the watcher always reads `preset.tuning` from the
+///   freshly-saved file. This makes `config.toml` the single source of
+///   truth once the daemon is running: edit `tuning = "elegant"`, save,
+///   and the daemon swaps to elegant immediately, even if it was
+///   started with `--preset cherryMX`.
 /// - On any error (parse failure, preset not found), the thread logs
 ///   a `warn!` and keeps the old model. The user can fix the TOML and
 ///   save again to retry.
 /// - If `config_path` is `None` (hardcoded default fallback, no file to
 ///   watch), the thread exits immediately.
+///
+/// # `initial_preset` is for logging only
+///
+/// The `initial_preset` parameter is used solely for the startup log
+/// message ("watching ... initial preset: X"). It is NOT passed to
+/// `reload_preset` — the watcher always defers to `preset.tuning` on
+/// file change.
 ///
 /// # No blocking of the audio callback
 ///
@@ -251,7 +258,7 @@ pub fn cmd_stop() {
 fn spawn_config_watcher(
     model: Arc<ArcSwap<MechanicalClick>>,
     config_path: Option<std::path::PathBuf>,
-    cli_preset: Arc<Option<String>>,
+    initial_preset: String,
 ) -> std::thread::JoinHandle<()> {
     std::thread::Builder::new()
         .name("zylaxion-config-watcher".into())
@@ -264,9 +271,9 @@ fn spawn_config_watcher(
             };
 
             log::info!(
-                "config-watcher: watching {} for changes (cli_preset: {}, poll interval: {:?})",
+                "config-watcher: watching {} for changes (initial preset: {}, poll interval: {:?})",
                 path.display(),
-                cli_preset.as_deref().unwrap_or("<from tuning>"),
+                initial_preset,
                 CONFIG_WATCH_INTERVAL
             );
 
@@ -289,7 +296,10 @@ fn spawn_config_watcher(
                 log::info!("config-watcher: {} changed, reloading", path.display());
                 last_mtime = Some(now_mtime);
 
-                match crate::config::reload_preset(&path, cli_preset.as_deref()) {
+                // reload_preset reads preset.tuning from the file — the
+                // initial --preset CLI flag is intentionally NOT passed
+                // here so that file edits always take precedence.
+                match crate::config::reload_preset(&path, None) {
                     Ok((profiles, active)) => {
                         let new_model = MechanicalClick::with_overrides(profiles);
                         model.store(Arc::new(new_model));
