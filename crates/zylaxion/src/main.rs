@@ -53,7 +53,9 @@ fn main() {
 
     match cli.command {
         cli::Commands::Start { preset } => commands::daemon::cmd_start(preset),
-        cli::Commands::Daemon { preset } => commands::daemon::cmd_daemon(preset),
+        cli::Commands::Daemon { preset, foreground } => {
+            commands::daemon::cmd_daemon(preset, foreground)
+        }
         cli::Commands::Stop => commands::daemon::cmd_stop(),
         cli::Commands::Status => daemon::cmd_status(),
         cli::Commands::Doctor => commands::info::cmd_doctor(),

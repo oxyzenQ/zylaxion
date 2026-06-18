@@ -30,7 +30,16 @@ Wants=pipewire.socket
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/zylaxion daemon
+# `--foreground` skips the internal fork/setsid daemonization and runs
+# the full daemon logic (IPC socket, signal handlers, config watcher,
+# orchestrator loop) inline on the main thread. This is REQUIRED for
+# systemd's Type=simple supervision — without it, the parent process
+# exits immediately and systemd marks the service as inactive.
+ExecStart=/usr/local/bin/zylaxion daemon --foreground
+# Our signal hook in src/signals.rs catches SIGTERM and triggers a
+# graceful shutdown (fade-out, CpalSink drop, PID file cleanup).
+# SIGINT and SIGQUIT are also handled the same way.
+KillSignal=SIGTERM
 Restart=on-failure
 RestartSec=3
 # Soft sandbox — keep it minimal so audio + evdev still work.
