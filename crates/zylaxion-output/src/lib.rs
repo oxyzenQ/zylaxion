@@ -143,23 +143,59 @@ impl CpalSink {
             .default_output_device()
             .ok_or(AudioError::NoDeviceAvailable)?;
 
-        let supported = device
+        let default_config = device
             .default_output_config()
             .map_err(|e| AudioError::DefaultStreamConfigError(e.to_string()))?;
 
-        // Use the device's native sample rate. Clamp to a minimum of
-        // 44100 Hz — below that, the DSP math (filter coefficients,
-        // decay rates) becomes inaccurate and the click sounds wrong.
-        // The device rate is typically 44100, 48000, or 96000 on
-        // modern Linux systems.
-        let sample_rate = supported.sample_rate().0.max(44100);
-        let channels = supported.channels() as usize;
-        let sample_format = supported.sample_format();
+        // ── Sample rate negotiation ────────────────────────────────
+        // cpal's ALSA backend often reports 44100 as the "default"
+        // even when PipeWire is configured system-wide for 48000.
+        // This causes a resampling layer in PipeWire (visible as a
+        // non-power-of-2 quantum in `pw-top`). To avoid that, we
+        // iterate the device's supported configs and prefer 48000 if
+        // available — this matches the most common PipeWire/PulseAudio
+        // default and eliminates the resampler.
+        let preferred_rates = [48000_u32, 96000, 192000];
+        let default_rate = default_config.sample_rate().0;
+
+        let chosen_rate = device
+            .supported_output_configs()
+            .ok()
+            .and_then(|configs| {
+                // Find the first preferred rate that the device supports.
+                // supported_output_configs() returns an iterator of
+                // SupportedStreamConfigRange, each covering a range of
+                // sample rates. We check if our preferred rate falls
+                // within any range.
+                let collected: Vec<_> = configs.collect();
+                preferred_rates
+                    .iter()
+                    .find(|&&preferred| {
+                        collected.iter().any(|c| {
+                            c.min_sample_rate().0 <= preferred && c.max_sample_rate().0 >= preferred
+                        })
+                    })
+                    .copied()
+            })
+            .unwrap_or(default_rate)
+            .max(44100); // Never go below 44100 — DSP math breaks.
+
+        log::info!("negotiated sample rate: {} Hz", chosen_rate);
+
+        // Extract channels and sample format BEFORE consuming
+        // default_config via .into() below.
+        let channels = default_config.channels() as usize;
+        let sample_format = default_config.sample_format();
+
+        // Build a StreamConfig with the chosen sample rate, preserving
+        // the default channels and buffer size from the device.
+        let mut stream_config: cpal::StreamConfig = default_config.into();
+        stream_config.sample_rate = cpal::SampleRate(chosen_rate);
+
+        let sample_rate = chosen_rate;
 
         let rb = HeapRb::<[f32; 2]>::new(RING_BUFFER_FRAMES);
         let (producer, consumer) = rb.split();
-
-        let stream_config: cpal::StreamConfig = supported.into();
 
         // Shared "paused" flag — set to true by the error callback when
         // the audio device disconnects. The audio callback checks this
