@@ -440,7 +440,15 @@ mod tests {
     fn test_process_batch_matches_per_sample() {
         let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
 
-        // Render via process_sample
+        // Render via process_sample. Reset the micro-randomization
+        // counter before triggering so both voices start from the same
+        // seed — without this, the v5.0.0 micro-randomization gives
+        // each voice a unique noise seed + pitch/amplitude drift, and
+        // the two paths would (correctly) produce different output.
+        // The test's intent is to verify that the batch and per-sample
+        // render paths agree FOR THE SAME VOICE STATE, not that two
+        // separately-triggered voices are identical.
+        zactrix_profiles::reset_keystroke_counter_for_tests();
         let mut pool_a = VoicePool::new();
         pool_a.trigger(
             &model,
@@ -455,7 +463,9 @@ mod tests {
             samples_a.push(pool_a.process_sample(&model));
         }
 
-        // Render via process (batch)
+        // Render via process (batch). Reset the counter again so this
+        // trigger gets the SAME seed as pool_a's trigger above.
+        zactrix_profiles::reset_keystroke_counter_for_tests();
         let mut pool_b = VoicePool::new();
         pool_b.trigger(
             &model,

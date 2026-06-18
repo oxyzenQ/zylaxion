@@ -173,7 +173,10 @@ switch-type presets, **10 high-fidelity legendary keyboard profiles**
 (v4.0.0+) tuned to mimic real switches, and **5 sci-fi / futuristic
 presets** (v4.1.0+) that don't mimic anything real. Since v4.2.0,
 **every preset** uses a 3-layer DSP engine (click + spring + housing
-"thock") for realistic acoustic body.
+"thock") for realistic acoustic body. Since v5.0.0, every keypress
+applies **micro-randomization** (±1.5% pitch drift, ±5% amplitude
+drift, unique noise seed) so the same key never sounds identical twice
+— breaking the "uncanny valley" of deterministic synthesis.
 
 #### Character presets (general use)
 
