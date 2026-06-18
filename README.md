@@ -61,7 +61,18 @@ No audio files. No sample libraries. No wavetable playback. Just math.
 ### From source
 
 Requires: Rust toolchain ([rustup.rs](https://rustup.rs/)),
-`pkg-config`, `libasound2-dev`, `libinput-dev`, `libudev-dev`.
+`pkg-config`, `libasound2-dev`, `libinput-dev`, `libudev-dev`,
+`libpipewire-0.3-dev`, `libspa-0.2-dev`, and `libclang-dev`.
+
+> **Since v2.0.0** Zylaxion uses native PipeWire integration via
+> `pipewire-rs` (bindgen). The PipeWire development headers
+> (`libpipewire-0.3-dev`, `libspa-0.2-dev`) and `libclang-dev`
+> (required by `bindgen` at build time) must be installed before
+> building. On Debian/Ubuntu:
+>
+> ```bash
+> sudo apt-get install -y libpipewire-0.3-dev libspa-0.2-dev libclang-dev pkg-config
+> ```
 
 ```bash
 git clone https://github.com/oxyzenQ/zylaxion.git
