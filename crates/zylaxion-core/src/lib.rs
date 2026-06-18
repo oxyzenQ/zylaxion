@@ -37,7 +37,6 @@ use crossbeam_channel::Receiver;
 use zactrix_engine::VoicePool;
 use zactrix_profiles::{AcousticModel, KeyEvent as ProfileKeyEvent};
 use zylaxion_input::KeyEvent as InputKeyEvent;
-use zylaxion_output::AudioSink;
 
 // ── Constants ───────────────────────────────────────────────────────────
 
@@ -168,19 +167,34 @@ impl std::error::Error for OrchestratorError {
 ///
 /// - `M`: The [`AcousticModel`] that defines how keys sound (e.g. [`MechanicalClick`](zactrix_profiles::MechanicalClick)).
 pub struct Orchestrator {
-    sink: zylaxion_output::CpalSink,
+    sink: Box<dyn zylaxion_output::AudioSink>,
     pool: VoicePool,
 }
 
 impl Orchestrator {
     /// Create the orchestrator, initialising the audio output and voice pool.
     ///
+    /// Tries the PipeWire native backend first. If PipeWire is unavailable
+    /// (not running, connection failed), falls back to the cpal/ALSA backend.
+    ///
     /// # Errors
     ///
-    /// Returns [`OrchestratorError::Audio`] if no audio device is available
-    /// or the stream cannot be started.
+    /// Returns [`OrchestratorError::Audio`] if both backends fail.
     pub fn new() -> Result<Self, OrchestratorError> {
-        let sink = zylaxion_output::CpalSink::new().map_err(OrchestratorError::Audio)?;
+        // Try PipeWire native backend first.
+        let sink: Box<dyn zylaxion_output::AudioSink> = match zylaxion_output::PipewireSink::new() {
+            Ok(s) => {
+                eprintln!("[zylaxion-core] Using PipeWire native backend");
+                Box::new(s)
+            }
+            Err(e) => {
+                eprintln!(
+                    "[zylaxion-core] PipeWire backend unavailable ({}), falling back to cpal/ALSA",
+                    e
+                );
+                Box::new(zylaxion_output::CpalSink::new().map_err(OrchestratorError::Audio)?)
+            }
+        };
         let pool = VoicePool::new();
         Ok(Self { sink, pool })
     }
