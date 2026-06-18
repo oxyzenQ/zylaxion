@@ -61,18 +61,12 @@ No audio files. No sample libraries. No wavetable playback. Just math.
 ### From source
 
 Requires: Rust toolchain ([rustup.rs](https://rustup.rs/)),
-`pkg-config`, `libasound2-dev`, `libinput-dev`, `libudev-dev`,
-`libpipewire-0.3-dev`, `libspa-0.2-dev`, and `libclang-dev`.
+`pkg-config`, `libasound2-dev`, `libinput-dev`, `libudev-dev`.
 
-> **Since v2.0.0** Zylaxion uses native PipeWire integration via
-> `pipewire-rs` (bindgen). The PipeWire development headers
-> (`libpipewire-0.3-dev`, `libspa-0.2-dev`) and `libclang-dev`
-> (required by `bindgen` at build time) must be installed before
-> building. On Debian/Ubuntu:
->
-> ```bash
-> sudo apt-get install -y libpipewire-0.3-dev libspa-0.2-dev libclang-dev pkg-config
-> ```
+> Zylaxion plays audio through `cpal`, which talks to PipeWire /
+> PulseAudio / ALSA via the OS's default audio bridge. No PipeWire
+> native development headers are required — only `libasound2-dev`
+> (ALSA backend that cpal links against).
 
 ```bash
 git clone https://github.com/oxyzenQ/zylaxion.git
@@ -94,6 +88,17 @@ PREFIX=/usr sudo ./scripts/install.sh
 The installer copies the binary to `${PREFIX}/bin/zylaxion` and the
 central `config.toml` to `${PREFIX}/share/zylaxion/config.toml`. It
 does **not** run `cargo build` — build first, then install.
+
+Since v3.0.0 the installer also deploys a **systemd user service** to
+`~/.config/systemd/user/zylaxion.service` (when run without root) or
+`/etc/systemd/user/zylaxion.service` (when run as root). To enable
+auto-start on login:
+
+```bash
+systemctl --user enable --now zylaxion
+systemctl --user status  zylaxion
+journalctl --user -u zylaxion -f   # live logs
+```
 
 > **Note:** your user must be in the `input` group for keyboard access:
 > `sudo usermod -aG input $USER && log out/in`

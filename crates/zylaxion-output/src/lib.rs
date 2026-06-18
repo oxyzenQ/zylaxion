@@ -31,9 +31,6 @@ use std::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-mod pipewire_sink;
-pub use pipewire_sink::PipewireSink;
-
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use ringbuf::traits::{Consumer, Observer, Producer, Split};
 use ringbuf::HeapRb;
@@ -102,13 +99,6 @@ pub trait AudioSink {
             self.write_sample(sample);
         }
     }
-
-    /// Return the actual sample rate of the audio device (Hz).
-    fn sample_rate(&self) -> u32;
-
-    /// Number of stereo frames that can be pushed before the ring buffer
-    /// is full and samples start being dropped.
-    fn producer_vacancy(&self) -> usize;
 }
 
 // ── CpalSink ───────────────────────────────────────────────────────────
@@ -360,15 +350,5 @@ impl AudioSink for CpalSink {
         for &sample in samples {
             let _ = self.producer.try_push(sample);
         }
-    }
-
-    #[inline]
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate
-    }
-
-    #[inline]
-    fn producer_vacancy(&self) -> usize {
-        self.producer.vacant_len()
     }
 }

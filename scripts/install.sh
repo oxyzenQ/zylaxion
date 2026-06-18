@@ -19,6 +19,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="${SCRIPT_DIR}/.."
 CONFIG_SRC="${WORKSPACE_ROOT}/config.toml"
+SERVICE_SRC="${WORKSPACE_ROOT}/assets/zylaxion.service"
 
 PREFIX="${PREFIX:-/usr/local}"
 DESTDIR="${DESTDIR:-}"
@@ -44,6 +45,11 @@ if [ ! -f "$CONFIG_SRC" ]; then
     exit 1
 fi
 
+if [ ! -f "$SERVICE_SRC" ]; then
+    echo "Error: systemd unit not found at ${SERVICE_SRC}"
+    exit 1
+fi
+
 # ── Install ─────────────────────────────────────────────────────────
 
 echo "==> Installing binary to ${BIN_DST}"
@@ -51,6 +57,23 @@ install -Dm755 "$BIN_SRC" "$BIN_DST"
 
 echo "==> Installing config.toml to ${CONFIG_DST}"
 install -Dm0644 "$CONFIG_SRC" "$CONFIG_DST"
+
+# ── systemd user unit ───────────────────────────────────────────────
+# When running as root (via sudo), deploy to /etc/systemd/user so it
+# becomes the system-wide default for all users. When running as a
+# normal user, deploy to ~/.config/systemd/user for that user only.
+# DESTDIR is respected for packaging builds.
+
+if [ "$(id -u)" -eq 0 ]; then
+    # Running as root (system-wide install).
+    SERVICE_DST="${DESTDIR}/etc/systemd/user/zylaxion.service"
+else
+    # Running as a normal user (per-user install).
+    SERVICE_DST="${DESTDIR}${HOME}/.config/systemd/user/zylaxion.service"
+fi
+
+echo "==> Installing systemd user unit to ${SERVICE_DST}"
+install -Dm0644 "$SERVICE_SRC" "$SERVICE_DST"
 
 # ── Post-install ─────────────────────────────────────────────────────
 
@@ -77,5 +100,10 @@ echo ""
 echo "    Config: ${PREFIX}/share/zylaxion/config.toml"
 echo "            (copy to ~/.config/zylaxion/config.toml for user overrides)"
 echo "            Edit and save — daemon auto-reloads within 1 second."
+echo ""
+echo "    systemd (auto-start on login):"
+echo "      systemctl --user daemon-reload"
+echo "      systemctl --user enable --now zylaxion"
+echo "      journalctl --user -u zylaxion -f        (live logs)"
 echo ""
 echo "    Uninstall:  sudo ./scripts/uninstall.sh"
