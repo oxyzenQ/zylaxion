@@ -187,12 +187,27 @@ impl CpalSink {
         let channels = default_config.channels() as usize;
         let sample_format = default_config.sample_format();
 
-        // Build a StreamConfig with the chosen sample rate, preserving
-        // the default channels and buffer size from the device.
+        // Build a StreamConfig with the chosen sample rate and a fixed
+        // buffer size of 256 frames for ultra-low latency.
+        //
+        // 256 frames at 48000 Hz = ~5.3 ms — the pro-audio sweet spot
+        // on Linux. Our internal render loop (64 frames per chunk) and
+        // ring buffer (16384 frames) can easily feed this without
+        // underruns. Using BufferSize::Default lets ALSA/PipeWire pick
+        // its own size (often 1200+ frames = 25+ ms), which adds
+        // unnecessary latency.
         let mut stream_config: cpal::StreamConfig = default_config.into();
         stream_config.sample_rate = cpal::SampleRate(chosen_rate);
+        stream_config.buffer_size = cpal::BufferSize::Fixed(256);
 
         let sample_rate = chosen_rate;
+        let buffer_size_frames = 256_u32;
+        let buffer_ms = buffer_size_frames as f64 / sample_rate as f64 * 1000.0;
+        log::info!(
+            "negotiated buffer size: Fixed({}) frames (~{:.1} ms)",
+            buffer_size_frames,
+            buffer_ms
+        );
 
         let rb = HeapRb::<[f32; 2]>::new(RING_BUFFER_FRAMES);
         let (producer, consumer) = rb.split();
