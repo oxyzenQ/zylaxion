@@ -12,3 +12,4 @@ zactrix-engine = { path = "../zactrix-engine" }
 zactrix-profiles = { path = "../zactrix-profiles" }
 cpal = "0.15"
 ringbuf = "0.4"
+log = "0.4"
