@@ -168,6 +168,13 @@ out-of-bounds DSP values before they affect the running daemon.
 
 ### Built-in sound presets
 
+Zylaxion ships with **16 presets** — 6 "character" presets for
+general use cases (v0.x–v3.x), and **10 high-fidelity legendary
+keyboard profiles** (v4.0.0+) tuned to mimic the acoustic signature
+of real switches.
+
+#### Character presets (general use)
+
 | Preset    | Description                                      |
 |-----------|--------------------------------------------------|
 | technical | Crisp, loud, punchy. Cherry MX Blue click style. |
@@ -176,6 +183,37 @@ out-of-bounds DSP values before they affect the running daemon.
 | studio    | Softer attack, longer decay. Office-friendly.     |
 | elegant   | Very soft, muffled. Low-profile keyboards.       |
 | whisper   | Extremely quiet, short decay. Libraries/meetings. |
+
+Plus three switch-type presets: `linear`, `tactile`, `clicky`.
+
+#### Legendary keyboard profiles (v4.0.0+)
+
+Each of the following presets was hand-tuned against reference
+recordings of the actual hardware. The DSP parameters (click
+frequency, resonance Q, decay coefficient, ambient rattle) are
+adjusted to capture the signature character of each switch.
+
+| Preset             | Switch Type         | Character                                              |
+|--------------------|---------------------|--------------------------------------------------------|
+| `ibm_model_m`      | Buckling spring     | Deep, very resonant, long ring. **Default since v4.0.0.** |
+| `topre`            | Electrocapacitive   | Deep "thock", smooth, low resonance. Realforce/HHKB.  |
+| `cherry_mx_black`  | Linear (heavy)      | Smooth thud, faint spring ping. ~80g actuation.       |
+| `cherry_mx_clear`  | Tactile (heavy)     | Pronounced bump, louder than Brown. ~65g actuation.   |
+| `cherry_mx_silver` | Linear (low-pro)    | Fast, snappy bottom-out. Designed for gaming.         |
+| `buckling_spring`  | Buckling spring     | Sharper & brighter than Model M. Think Model F.       |
+| `alps_skcm`        | Tactile (vintage)   | Complicated ALPS — loud, hollow housing ring.         |
+| `gateron_yellow`   | Linear (thocky)     | Lubed linear with PBT caps. Deep, rounded thock.      |
+| `zealios_v2`       | Tactile (sharp)     | Almost clicky-feeling bump. Enthusiast tactile.       |
+| `rotary_encoder`   | Encoder detent      | Not a keyboard — a smooth metallic knob click.        |
+
+Try them all:
+
+```bash
+zylaxion list-presets
+zylaxion start --preset ibm_model_m
+zylaxion start --preset topre
+zylaxion start --preset alps_skcm
+```
 
 ## Security & Privacy
 

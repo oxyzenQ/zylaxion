@@ -76,8 +76,12 @@
 # Override from CLI with: zylaxion start --preset <name>
 # If the named preset does not exist below, the program will error and
 # exit — there is NO silent fallback.
+#
+# Default since v4.0.0: "ibm_model_m" — the iconic buckling-spring
+# sound, chosen to showcase the new high-fidelity legendary preset
+# series. Switch back to "technical" for the classic crisp click.
 [preset]
-tuning = "technical"
+tuning = "ibm_model_m"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Preset: technical (default)
@@ -502,3 +506,542 @@ enabled = true
 noise_level = 0.16
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.983
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# v4.0.0 — Legendary Keyboard Series
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# The following 10 presets are tuned to mimic the acoustic signature
+# of real legendary mechanical keyboard switches. Each was hand-tuned
+# by ear against reference recordings of the actual hardware, then
+# adjusted to fit within the engine's DSP parameter ranges.
+#
+# Switch type taxonomy used below:
+#
+#   buckling-spring   = IBM Model M / F style — metal spring buckles
+#                       against a pivot, producing a sharp metallic
+#                       ping plus deep housing resonance.
+#   electrocapacitive = Topre — rubber dome over a conical spring,
+#                       sensed capacitively. Deep, rounded "thock"
+#                       with almost no click component.
+#   linear            = Cherry MX Black/Red/Silver — smooth travel,
+#                       no tactile bump, no click jacket. The sound
+#                       is dominated by bottom-out "thud" + spring
+#                       ping at the bottom of travel.
+#   tactile           = Cherry MX Brown/Clear, Zealios — has a
+#                       tactile bump mid-travel but no audible click
+#                       jacket. Sound is a soft "thock" with a brief
+#                       mid-frequency transient.
+#   clicky            = Cherry MX Blue — has both a tactile bump AND
+#                       a click jacket that produces a sharp high-
+#                       frequency ping.
+#
+# Decay coefficient reference (at 44100 Hz, voice_off_threshold = 1e-5):
+#   0.9985 ≈  70 ms (very short — encoder detents, whisper presets)
+#   0.9990 ≈ 110 ms (short — linear switches, fast bottom-out)
+#   0.9992 ≈ 150 ms (medium — tactile switches, modern keyboards)
+#   0.9994 ≈ 180 ms (medium-long — clicky switches, classic Cherry MX)
+#   0.9996 ≈ 240 ms (long — sharp buckling springs, ALPS SKCM)
+#   0.9997 ≈ 280 ms (very long — full buckling-spring ring-out)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: ibm_model_m
+# The iconic buckling-spring keyboard. Deep, very resonant, long ring.
+# A sharp metallic ping sits on top of a deep plastic-housing ring.
+# This is the showcase preset for v4.0.0 — the default `tuning` value.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.ibm_model_m]
+
+[preset.ibm_model_m.click]
+# Mid-frequency ping — the buckling spring hitting the pivot plate.
+# Range: 500.0 - 8000.0
+frequency = 2200.0
+# High resonance — Model M's ping is sharply tuned.
+# Range: 0.1 - 10.0
+resonance = 5.5
+# Short attack — the spring buckle is a fast mechanical event.
+# Range: 0.1 - 10.0
+duration_ms = 1.2
+# Strong amplitude — Model M is LOUD.
+# Range: 0.0 - 1.0
+amplitude = 0.85
+
+[preset.ibm_model_m.spring]
+# Very low spring frequency — the deep plastic housing ring.
+# Range: 500.0 - 8000.0
+frequency = 900.0
+# Very high resonance — the housing rings like a bell.
+# Range: 0.1 - 10.0
+resonance = 6.5
+# High mix — the housing ring is the dominant character of a Model M.
+# Range: 0.0 - 1.0
+mix = 0.85
+
+[preset.ibm_model_m.decay]
+# Long decay — the housing ring sustains for ~280 ms.
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9997
+# Very low threshold — let the ring fade naturally.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.000001
+
+[preset.ibm_model_m.ambient]
+# Master enable for the ambient case-rattle path.
+enabled = true
+# Moderate rattle — the case is thick ABS, rattles a bit.
+# Range: 0.0 - 1.0
+noise_level = 0.20
+# Medium-slow decay — the rattle fades over ~150 ms.
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.985
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: topre
+# Electrocapacitive switches (Realforce / HHKB). Deep "thock", smooth,
+# very low resonance — almost no click component. The signature sound
+# of high-end Japanese keyboards.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.topre]
+
+[preset.topre.click]
+# Very low frequency — the "thock" sits in the 700-900 Hz range.
+# Range: 500.0 - 8000.0
+frequency = 700.0
+# Very low resonance — thock is broad, not tuned.
+# Range: 0.1 - 10.0
+resonance = 0.6
+# Long duration — soft, rounded attack (rubber dome compresses slowly).
+# Range: 0.1 - 10.0
+duration_ms = 4.5
+# Moderate amplitude — Topre is quieter than buckling-spring.
+# Range: 0.0 - 1.0
+amplitude = 0.55
+
+[preset.topre.spring]
+# Low-mid frequency — the conical spring ring under the dome.
+# Range: 500.0 - 8000.0
+frequency = 1100.0
+# Low resonance — spring ring is muted by the dome.
+# Range: 0.1 - 10.0
+resonance = 1.5
+# Moderate mix — spring is a supporting character, not the lead.
+# Range: 0.0 - 1.0
+mix = 0.45
+
+[preset.topre.decay]
+# Medium-long decay — thock sustains ~180 ms.
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9993
+# Medium threshold.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+[preset.topre.ambient]
+# Low rattle — Topre housings are well-damped.
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.08
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.99
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: cherry_mx_black
+# Linear, heavy spring (~80g actuation), smooth travel. No tactile
+# bump, no click jacket. The sound is a "thud" on bottom-out with a
+# faint spring ping. The reference for heavy linear switches.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.cherry_mx_black]
+
+[preset.cherry_mx_black.click]
+# Low frequency — bottom-out thud.
+# Range: 500.0 - 8000.0
+frequency = 1800.0
+# Very low resonance — thud is broad and undramatic.
+# Range: 0.1 - 10.0
+resonance = 0.4
+# Long duration — heavy spring = smooth, slow bottom-out.
+# Range: 0.1 - 10.0
+duration_ms = 3.0
+# Moderate amplitude — Black is firm but not loud.
+# Range: 0.0 - 1.0
+amplitude = 0.55
+
+[preset.cherry_mx_black.spring]
+# Low frequency — faint spring ping.
+# Range: 500.0 - 8000.0
+frequency = 1300.0
+# Low resonance — spring ping is minimal in linear switches.
+# Range: 0.1 - 10.0
+resonance = 1.2
+# Low mix — spring is barely audible.
+# Range: 0.0 - 1.0
+mix = 0.35
+
+[preset.cherry_mx_black.decay]
+# Fast-medium decay — thud fades quickly (~100 ms).
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9988
+# Higher threshold — cut off the faint tail.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00005
+
+[preset.cherry_mx_black.ambient]
+# Low rattle — MX housing is fairly tight.
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.06
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.99
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: cherry_mx_clear
+# Tactile, heavier than Brown (~65g actuation). The "Brown Plus" —
+# has a more pronounced tactile bump and a slightly louder housing
+# sound. Popular for typists who want feedback without a click jacket.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.cherry_mx_clear]
+
+[preset.cherry_mx_clear.click]
+# Mid frequency — the tactile bump transient.
+# Range: 500.0 - 8000.0
+frequency = 3500.0
+# Low-mid resonance — bump is noticeable but not sharp.
+# Range: 0.1 - 10.0
+resonance = 1.6
+# Medium duration — bump is brief.
+# Range: 0.1 - 10.0
+duration_ms = 2.2
+# Moderate amplitude.
+# Range: 0.0 - 1.0
+amplitude = 0.65
+
+[preset.cherry_mx_clear.spring]
+# Low-mid frequency.
+# Range: 500.0 - 8000.0
+frequency = 1700.0
+# Mid resonance.
+# Range: 0.1 - 10.0
+resonance = 2.2
+# Moderate mix.
+# Range: 0.0 - 1.0
+mix = 0.5
+
+[preset.cherry_mx_clear.decay]
+# Medium decay (~150 ms).
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9992
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+[preset.cherry_mx_clear.ambient]
+# Moderate rattle — heavier switch = more housing vibration.
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.12
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.985
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: cherry_mx_silver
+# Linear, low profile, fast (40g actuation). Designed for gaming.
+# Snappier bottom-out than Black due to shorter travel distance.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.cherry_mx_silver]
+
+[preset.cherry_mx_silver.click]
+# Mid frequency — slightly higher than Black due to faster travel.
+# Range: 500.0 - 8000.0
+frequency = 2800.0
+# Low resonance — linear, no bump.
+# Range: 0.1 - 10.0
+resonance = 0.7
+# Short duration — faster attack (shorter travel = quicker bottom-out).
+# Range: 0.1 - 10.0
+duration_ms = 1.8
+# Moderate amplitude.
+# Range: 0.0 - 1.0
+amplitude = 0.6
+
+[preset.cherry_mx_silver.spring]
+# Mid frequency — higher than Black due to lower spring mass.
+# Range: 500.0 - 8000.0
+frequency = 1900.0
+# Low resonance.
+# Range: 0.1 - 10.0
+resonance = 1.5
+# Low mix.
+# Range: 0.0 - 1.0
+mix = 0.35
+
+[preset.cherry_mx_silver.decay]
+# Fast decay (~110 ms) — quick bottom-out = quick fade.
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9990
+# Medium threshold.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00002
+
+[preset.cherry_mx_silver.ambient]
+# Low rattle — low-profile housing is tight.
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.05
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.99
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: buckling_spring
+# Generic buckling-spring — sharper and brighter than the Model M.
+# Think IBM Model F or a modern reproduction (e.g. Beam Spring).
+# Less housing resonance, more ping.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.buckling_spring]
+
+[preset.buckling_spring.click]
+# Mid frequency — higher than Model M (less housing, more ping).
+# Range: 500.0 - 8000.0
+frequency = 3000.0
+# Very high resonance — sharp, metallic.
+# Range: 0.1 - 10.0
+resonance = 6.0
+# Very short attack — sharper transient than Model M.
+# Range: 0.1 - 10.0
+duration_ms = 0.8
+# Strong amplitude.
+# Range: 0.0 - 1.0
+amplitude = 0.85
+
+[preset.buckling_spring.spring]
+# Low-mid frequency — lighter housing than Model M.
+# Range: 500.0 - 8000.0
+frequency = 1400.0
+# High resonance.
+# Range: 0.1 - 10.0
+resonance = 5.5
+# High mix — ping is the dominant character.
+# Range: 0.0 - 1.0
+mix = 0.75
+
+[preset.buckling_spring.decay]
+# Long decay (~240 ms).
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9996
+# Low threshold — let the ping ring.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.000005
+
+[preset.buckling_spring.ambient]
+# Moderate rattle.
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.15
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.983
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: alps_skcm
+# Complicated ALPS SKCM (the legendary tactile ALPS). Very tactile,
+# loud, with a distinctive hollow housing sound. Considered by many
+# enthusiasts as the best tactile switch ever made.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.alps_skcm]
+
+[preset.alps_skcm.click]
+# Mid-high frequency — sharp tactile bump.
+# Range: 500.0 - 8000.0
+frequency = 3800.0
+# High resonance — ALPS bump is pronounced.
+# Range: 0.1 - 10.0
+resonance = 3.5
+# Short attack — ALPS bump is fast.
+# Range: 0.1 - 10.0
+duration_ms = 1.2
+# Very loud — ALPS SKCM is famously loud.
+# Range: 0.0 - 1.0
+amplitude = 0.9
+
+[preset.alps_skcm.spring]
+# Mid frequency — ALPS housings ring at a higher pitch than MX.
+# Range: 500.0 - 8000.0
+frequency = 2200.0
+# High resonance — hollow housing rings prominently.
+# Range: 0.1 - 10.0
+resonance = 3.8
+# High mix — housing sound is a big part of the ALPS character.
+# Range: 0.0 - 1.0
+mix = 0.65
+
+[preset.alps_skcm.decay]
+# Medium decay (~180 ms).
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9994
+# Low threshold.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+[preset.alps_skcm.ambient]
+# High rattle — ALPS housings are tall and hollow.
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.22
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.982
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: gateron_yellow
+# Linear, smooth, "thocky" — typically paired with PBT keycaps and
+# lube for a deep, rounded bottom-out. The modern community-favorite
+# budget linear.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.gateron_yellow]
+
+[preset.gateron_yellow.click]
+# Low frequency — the "thock" of lubed linear.
+# Range: 500.0 - 8000.0
+frequency = 2200.0
+# Low resonance — thock is broad.
+# Range: 0.1 - 10.0
+resonance = 0.8
+# Long duration — soft attack (lube smooths the bottom-out).
+# Range: 0.1 - 10.0
+duration_ms = 3.5
+# Moderate amplitude.
+# Range: 0.0 - 1.0
+amplitude = 0.6
+
+[preset.gateron_yellow.spring]
+# Low frequency — long spring = lower ping.
+# Range: 500.0 - 8000.0
+frequency = 1500.0
+# Low resonance — lube damps the spring.
+# Range: 0.1 - 10.0
+resonance = 1.5
+# Low-mid mix.
+# Range: 0.0 - 1.0
+mix = 0.4
+
+[preset.gateron_yellow.decay]
+# Medium decay (~150 ms).
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9992
+# Medium threshold.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+[preset.gateron_yellow.ambient]
+# Moderate rattle — PBT caps add mass to the housing vibration.
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.10
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.985
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: zealios_v2
+# Tactile, very sharp bump — almost clicky-feeling. The modern
+# enthusiast tactile switch. Heavier bump than Cherry MX Clear, with
+# a more distinct mid-travel transient.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.zealios_v2]
+
+[preset.zealios_v2.click]
+# Mid-high frequency — sharp tactile bump.
+# Range: 500.0 - 8000.0
+frequency = 4200.0
+# High resonance — bump is sharper than MX Clear.
+# Range: 0.1 - 10.0
+resonance = 2.8
+# Short attack — bump is fast.
+# Range: 0.1 - 10.0
+duration_ms = 1.3
+# Strong amplitude — Zealios V2 are tactile-heavy.
+# Range: 0.0 - 1.0
+amplitude = 0.75
+
+[preset.zealios_v2.spring]
+# Mid frequency.
+# Range: 500.0 - 8000.0
+frequency = 2000.0
+# Mid resonance.
+# Range: 0.1 - 10.0
+resonance = 2.8
+# Moderate mix.
+# Range: 0.0 - 1.0
+mix = 0.55
+
+[preset.zealios_v2.decay]
+# Medium decay (~170 ms).
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9993
+# Medium threshold.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+[preset.zealios_v2.ambient]
+# Moderate rattle.
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.13
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.985
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: rotary_encoder
+# Not a keyboard switch — a smooth rotating detent click for knobs
+# (volume knobs, scroll wheels, Griffin PowerMate style). Softer,
+# more metallic, lower amplitude, faster decay. Pairs well with a
+# per-scancode override on media-key scancodes.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.rotary_encoder]
+
+[preset.rotary_encoder.click]
+# High frequency — detent clicks are metallic and bright.
+# Range: 500.0 - 8000.0
+frequency = 5500.0
+# Low resonance — detent is brief, not ringing.
+# Range: 0.1 - 10.0
+resonance = 1.2
+# Very short attack — detent is a quick mechanical snap.
+# Range: 0.1 - 10.0
+duration_ms = 0.5
+# Low amplitude — encoder clicks should be subtle.
+# Range: 0.0 - 1.0
+amplitude = 0.4
+
+[preset.rotary_encoder.spring]
+# High frequency — small metallic spring inside the encoder.
+# Range: 500.0 - 8000.0
+frequency = 3000.0
+# Mid resonance.
+# Range: 0.1 - 10.0
+resonance = 2.5
+# Low mix.
+# Range: 0.0 - 1.0
+mix = 0.35
+
+[preset.rotary_encoder.decay]
+# Fast decay (~70 ms) — detents don't ring.
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9985
+# Higher threshold — cut the tail short.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.0005
+
+[preset.rotary_encoder.ambient]
+# Disabled — encoder detents have no housing rattle.
+enabled = false
+# Range: 0.0 - 1.0
+noise_level = 0.0
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.99
