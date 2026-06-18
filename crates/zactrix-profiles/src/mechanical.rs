@@ -127,9 +127,33 @@ impl AcousticModel for MechanicalClick {
         state.spring_g = (std::f32::consts::PI * profile.spring.frequency / sr).tan();
         state.spring_k = 1.0 / profile.spring.resonance;
 
+        // Pre-compute housing filter TPT coefficients (v4.2.0+).
+        // The housing layer is a third TPT SVF bandpass tuned to low
+        // frequencies (100-1000 Hz) to model the keycap-hitting-PCB
+        // "thock" sound. It is driven by the same noise excitation
+        // as the click and spring layers, but with a longer excitation
+        // window — see `housing_excitation_samples` below.
+        state.housing_g = (std::f32::consts::PI * profile.housing.frequency / sr).tan();
+        state.housing_k = 1.0 / profile.housing.resonance;
+        state.housing_mix = profile.housing.mix;
+
         // Pre-compute excitation burst duration in samples
         state.excitation_samples = (profile.click.duration_ms * 0.001 * sr) as u32;
         state.excitation_samples = state.excitation_samples.max(1);
+
+        // Housing excitation window: longer than the click burst so the
+        // low-frequency filter has time to ring up. Four periods of the
+        // housing fundamental is a good balance — enough for the filter
+        // to reach steady-state, short enough to keep the impact
+        // percussive (not a sustained tone). For 250 Hz at 44.1 kHz:
+        // 4 * 44100/250 = 706 samples ≈ 16 ms.
+        let housing_periods = 4.0_f32;
+        let housing_excitation_fundamental =
+            (housing_periods * sr / profile.housing.frequency) as u32;
+        state.housing_excitation_samples = state
+            .excitation_samples
+            .max(housing_excitation_fundamental)
+            .max(1);
 
         // Pre-compute decay and threshold from profile
         state.decay_coeff = profile.decay.coefficient;
@@ -148,6 +172,8 @@ impl AcousticModel for MechanicalClick {
         state.click_ic2eq = 0.0;
         state.spring_ic1eq = 0.0;
         state.spring_ic2eq = 0.0;
+        state.housing_ic1eq = 0.0;
+        state.housing_ic2eq = 0.0;
 
         // Reset envelope and sample counter
         state.envelope_value = profile.click.amplitude;
@@ -212,6 +238,42 @@ impl AcousticModel for MechanicalClick {
             0.0
         };
 
+        // ── Stage 1b: Housing excitation (v4.2.0+) ───────────────────
+        // The housing filter is tuned to low frequencies (100-1000 Hz)
+        // where the natural response time (1/fc) is much longer than
+        // the click burst. We drive it with a SEPARATE, longer
+        // excitation window so the filter has time to ring up to its
+        // steady-state Q gain. The PRNG is shared with the click path
+        // (no separate seed needed — the windows overlap and the noise
+        // stream is the same), but the fade envelope is computed
+        // against the housing's own sample count.
+        let housing_excitation = if state.sample_count < state.housing_excitation_samples {
+            // Reuse the current noise_state without advancing it again
+            // — the click path already advanced it this sample. If we
+            // are past the click burst, advance it ourselves.
+            let noise = if state.sample_count < state.excitation_samples {
+                // Click path already advanced noise_state this sample.
+                // Re-derive the same noise value from the current state.
+                // (Saves a PRNG step and keeps the noise streams
+                // correlated — which is fine, since both filters see
+                // the same physical impact event.)
+                let x = state.noise_state;
+                (x as f32 / u32::MAX as f32) * 2.0 - 1.0
+            } else {
+                // Click burst is over — advance the PRNG ourselves.
+                let mut x = state.noise_state;
+                x ^= x << 13;
+                x ^= x >> 17;
+                x ^= x << 5;
+                state.noise_state = x;
+                (x as f32 / u32::MAX as f32) * 2.0 - 1.0
+            };
+            let progress = state.sample_count as f32 / state.housing_excitation_samples as f32;
+            noise * (1.0 - progress)
+        } else {
+            0.0
+        };
+
         // ── Stage 2a: Click TPT SVF (bandpass emphasis) ─────────────
         // Inlined TPT SVF for zero function-call overhead in the render path
         let g = state.click_g;
@@ -247,8 +309,43 @@ impl AcousticModel for MechanicalClick {
         state.spring_ic1eq = 2.0 * sv1 - state.spring_ic1eq;
         state.spring_ic2eq = 2.0 * _sv2 - state.spring_ic2eq;
 
+        // ── Stage 2c: Housing TPT SVF (deep "thock", v4.2.0+) ────────
+        // Third independent filter driven by the housing-specific
+        // longer excitation window (see Stage 1b above). Tuned to a
+        // low frequency (100-1000 Hz), this produces the deep "buk" /
+        // "thock" of the keycap hitting the switch housing / PCB at
+        // bottom-out. Without this layer, the sound feels thin — the
+        // high-frequency click is present but the body is missing.
+        //
+        // We use the bandpass output (hv1) directly — the housing thock
+        // is a low-frequency body, not a sharp transient, so we don't
+        // mix in the highpass component like we do for the click.
+        let hg = state.housing_g;
+        let hk = state.housing_k;
+        let ha1 = 1.0 / (1.0 + hg * (hg + hk));
+        let ha2 = hg * ha1;
+        let ha3 = hg * hg * ha1;
+
+        let hv3 = housing_excitation - state.housing_ic2eq;
+        let hv1 = ha1 * state.housing_ic1eq + ha2 * hv3;
+        let hv2 = state.housing_ic2eq + ha2 * state.housing_ic1eq + ha3 * hv3;
+
+        state.housing_ic1eq = 2.0 * hv1 - state.housing_ic1eq;
+        state.housing_ic2eq = 2.0 * hv2 - state.housing_ic2eq;
+
         // ── Stage 3: Mix components ──────────────────────────────────
-        let mut mixed = click_out + sv1 * state.spring_mix;
+        // The housing bandpass output is naturally smaller in amplitude
+        // than the click/spring outputs (bandpass gain at low Q is
+        // ~0.1× the input amplitude). Multiply by the housing Q
+        // (`1/k`) to bring it to a comparable level so `housing.mix`
+        // behaves as a true level control rather than being dominated
+        // by the bandpass attenuation.
+        let housing_gain = if state.housing_k > 0.0 {
+            1.0 / state.housing_k
+        } else {
+            1.0
+        };
+        let mut mixed = click_out + sv1 * state.spring_mix + hv1 * state.housing_mix * housing_gain;
 
         // ── Stage 3b: Ambient rattle (optional) ─────────────────────
         // High-pass filtered white noise with its own decay envelope,

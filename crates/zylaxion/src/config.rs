@@ -251,6 +251,8 @@ struct PresetEntry {
     #[serde(default)]
     ambient: Option<zactrix_profiles::AmbientParams>,
     #[serde(default)]
+    housing: Option<zactrix_profiles::HousingParams>,
+    #[serde(default)]
     keys: Vec<zactrix_profiles::KeyOverride>,
 }
 
@@ -319,8 +321,8 @@ fn determine_active_preset(cli_preset: Option<&str>, config: &ParsedConfig) -> S
 /// Build a `ProfileWithOverrides` from a parsed `PresetEntry`.
 ///
 /// Starts from the hardcoded `KeyProfile::default()`, applies the
-/// preset's click/spring/decay overrides, validates+clamps, then merges
-/// any `[[keys]]` per-scancode overrides on top.
+/// preset's click/spring/decay/ambient/housing overrides, validates+clamps,
+/// then merges any `[[keys]]` per-scancode overrides on top.
 fn build_profile_from_entry(entry: &PresetEntry) -> ProfileWithOverrides {
     let mut default = KeyProfile::default();
     if let Some(click) = entry.click {
@@ -334,6 +336,9 @@ fn build_profile_from_entry(entry: &PresetEntry) -> ProfileWithOverrides {
     }
     if let Some(ambient) = entry.ambient {
         default.ambient = ambient;
+    }
+    if let Some(housing) = entry.housing {
+        default.housing = housing;
     }
     default.validate_and_clamp();
 
@@ -382,6 +387,17 @@ fn build_profile_from_entry(entry: &PresetEntry) -> ProfileWithOverrides {
             }
             if let Some(v) = ambient.noise_decay {
                 merged.ambient.noise_decay = v;
+            }
+        }
+        if let Some(housing) = &ko.housing {
+            if let Some(v) = housing.frequency {
+                merged.housing.frequency = v;
+            }
+            if let Some(v) = housing.resonance {
+                merged.housing.resonance = v;
+            }
+            if let Some(v) = housing.mix {
+                merged.housing.mix = v;
             }
         }
         merged.validate_and_clamp();
@@ -789,6 +805,7 @@ tuning = "technical"
                 voice_off_threshold: 0.00001,
             }),
             ambient: None,
+            housing: None,
             keys: vec![],
         };
         let profiles = build_profile_from_entry(&entry);
@@ -816,6 +833,7 @@ tuning = "technical"
                 voice_off_threshold: 0.00001,
             }),
             ambient: None,
+            housing: None,
             keys: vec![KeyOverride {
                 scancode: 28,
                 click: Some(zactrix_profiles::OverrideClick {

@@ -186,6 +186,66 @@ fn default_ambient_noise_decay() -> f32 {
     0.99
 }
 
+/// Parameters controlling the housing "thock" — the deep, low-frequency
+/// impact of the keycap bottoming out against the switch housing / PCB.
+///
+/// Real mechanical keyboards have a distinct low-mid "buk" / "thock"
+/// sound (typically 150–800 Hz) that sits underneath the click transient.
+/// Without this layer, synthesized keyboard sounds feel "thin" — the
+/// high-frequency click is present but the body / weight is missing.
+/// The housing layer fixes this by adding a third TPT SVF bandpass
+/// driven by the same noise excitation, tuned to low frequencies with
+/// fast natural decay (the keycap impact is a brief event, not a
+/// sustained ring).
+///
+/// # Layer separation
+///
+/// The three DSP layers serve distinct acoustic roles:
+/// - [`ClickParams`] — the sharp, high-frequency transient (2–5 kHz).
+///   Models the switch mechanism actuating.
+/// - [`SpringParams`] — the resonant ring of the spring / housing walls
+///   (1–3 kHz). Models the spring vibrating after the click.
+/// - `HousingParams` — the deep, low-mid impact "thock" (150–800 Hz).
+///   Models the keycap hitting the switch housing / PCB at bottom-out.
+///
+/// All three are driven by the same noise excitation burst and share
+/// the main decay envelope — they differ only in their filter
+/// frequency, resonance Q, and output mix level.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct HousingParams {
+    /// Resonant frequency of the housing / PCB impact (Hz).
+    ///
+    /// Real keyboards land in the 150–800 Hz range:
+    /// - Thick aluminum / brass cases: 200–400 Hz (deeper thock).
+    /// - Plastic / FR4 PCB: 400–600 Hz (mid thock).
+    /// - Low-profile switches: 600–800 Hz (tighter, less body).
+    #[serde(default = "default_housing_frequency")]
+    pub frequency: f32,
+    /// Quality factor of the housing bandpass filter. Higher values
+    /// produce a more pronounced, sustained thock; lower values a
+    /// broader, muffled impact.
+    #[serde(default = "default_housing_resonance")]
+    pub resonance: f32,
+    /// Mix level of the housing layer in the final output (0.0–1.0).
+    ///
+    /// - Linear / thocky switches (Topre, Gateron Yellow): 0.7–0.9.
+    /// - Tactile switches (MX Clear, Zealios): 0.4–0.6.
+    /// - Clicky switches (MX Blue, buckling-spring): 0.2–0.3 (the click
+    ///   is the dominant character, thock should not mask it).
+    #[serde(default = "default_housing_mix")]
+    pub mix: f32,
+}
+
+fn default_housing_frequency() -> f32 {
+    400.0
+}
+fn default_housing_resonance() -> f32 {
+    2.0
+}
+fn default_housing_mix() -> f32 {
+    0.4
+}
+
 /// Complete acoustic profile for a single key event.
 ///
 /// This struct aggregates all DSP parameters needed to synthesize one
@@ -206,6 +266,9 @@ pub struct KeyProfile {
     /// Ambient case-rattle parameters.
     #[serde(default)]
     pub ambient: AmbientParams,
+    /// Housing "thock" parameters (v4.2.0+).
+    #[serde(default)]
+    pub housing: HousingParams,
 }
 
 /// Mutable DSP state for a single voice instance.
@@ -237,6 +300,33 @@ pub struct SynthState {
     pub spring_g: f32,
     /// Pre-computed `1 / Q` for the spring filter.
     pub spring_k: f32,
+
+    // --- TPT SVF filter state (housing path, v4.2.0+) ---
+    /// First integrator state for the housing filter.
+    pub housing_ic1eq: f32,
+    /// Second integrator state for the housing filter.
+    pub housing_ic2eq: f32,
+    /// Pre-computed `tan(pi * fc / fs)` for the housing filter.
+    pub housing_g: f32,
+    /// Pre-computed `1 / Q` for the housing filter.
+    pub housing_k: f32,
+    /// Pre-computed housing mix level (from profile).
+    pub housing_mix: f32,
+    /// Pre-computed housing excitation length in samples.
+    ///
+    /// The housing filter is tuned to low frequencies (100-1000 Hz)
+    /// where the filter's natural response time (`1/fc`) is much
+    /// longer than the click excitation burst (1-3 ms). Driving a
+    /// 250 Hz bandpass with a 2 ms noise burst produces almost no
+    /// output — the filter has no time to ring up.
+    ///
+    /// To fix this, the housing layer gets its own longer excitation
+    /// window, sized as `max(click_excitation, sample_rate / fc * 4)`
+    /// — i.e. four periods of the housing fundamental. For a 250 Hz
+    /// housing at 44100 Hz, this is `4 * 44100/250 = 706 samples ≈ 16 ms`,
+    /// long enough for the filter to ring up to its steady-state Q
+    /// gain before the excitation fades.
+    pub housing_excitation_samples: u32,
 
     // --- Excitation noise generator (xorshift32) ---
     /// Internal state of the xorshift32 PRNG used for noise excitation.
@@ -308,6 +398,12 @@ impl Default for SynthState {
             spring_ic2eq: 0.0,
             spring_g: 0.0,
             spring_k: 0.0,
+            housing_ic1eq: 0.0,
+            housing_ic2eq: 0.0,
+            housing_g: 0.0,
+            housing_k: 0.0,
+            housing_mix: 0.4,
+            housing_excitation_samples: 0,
             noise_state: 1,
             envelope_value: 0.0,
             sample_count: 0,
@@ -403,6 +499,16 @@ impl Default for AmbientParams {
             enabled: false,
             noise_level: 0.1,
             noise_decay: 0.99,
+        }
+    }
+}
+
+impl Default for HousingParams {
+    fn default() -> Self {
+        Self {
+            frequency: 400.0,
+            resonance: 2.0,
+            mix: 0.4,
         }
     }
 }
@@ -506,6 +612,16 @@ pub mod ranges {
     /// to prevent infinite rattle.
     pub const AMBIENT_NOISE_DECAY_MIN: f32 = 0.0;
     pub const AMBIENT_NOISE_DECAY_MAX: f32 = 0.9999;
+
+    /// Housing "thock" frequency range (v4.2.0+).
+    ///
+    /// 100 Hz is the lower bound of perceived "body" — below this the
+    /// housing impact blends into sub-bass rumble and loses its
+    /// percussive character. 1000 Hz is the upper bound — above this
+    /// the housing layer starts overlapping with the spring layer's
+    /// frequency range and the two become indistinguishable.
+    pub const HOUSING_FREQ_MIN: f32 = 100.0;
+    pub const HOUSING_FREQ_MAX: f32 = 1000.0;
 }
 
 /// Helper: clamp a value into `[min, max]`, treating NaN and infinities
@@ -705,6 +821,45 @@ impl KeyProfile {
             );
         }
         self.ambient.noise_decay = v;
+
+        // Housing parameters (v4.2.0+)
+        let (v, c) = clamp_finite(
+            self.housing.frequency,
+            ranges::HOUSING_FREQ_MIN,
+            ranges::HOUSING_FREQ_MAX,
+        );
+        if c {
+            log::warn!(
+                "Invalid housing.frequency {}, clamping to {}",
+                self.housing.frequency,
+                v
+            );
+        }
+        self.housing.frequency = v;
+
+        let (v, c) = clamp_finite(
+            self.housing.resonance,
+            ranges::RESONANCE_MIN,
+            ranges::RESONANCE_MAX,
+        );
+        if c {
+            log::warn!(
+                "Invalid housing.resonance {}, clamping to {}",
+                self.housing.resonance,
+                v
+            );
+        }
+        self.housing.resonance = v;
+
+        let (v, c) = clamp_finite(self.housing.mix, ranges::MIX_MIN, ranges::MIX_MAX);
+        if c {
+            log::warn!(
+                "Invalid housing.mix {}, clamping to {}",
+                self.housing.mix,
+                v
+            );
+        }
+        self.housing.mix = v;
     }
 }
 
@@ -737,6 +892,9 @@ pub struct KeyOverride {
     /// Optional ambient parameter overrides.
     #[serde(default)]
     pub ambient: Option<OverrideAmbient>,
+    /// Optional housing parameter overrides (v4.2.0+).
+    #[serde(default)]
+    pub housing: Option<OverrideHousing>,
 }
 
 /// Optional click parameter overrides for a `[[keys]]` block.
@@ -785,6 +943,17 @@ pub struct OverrideAmbient {
     pub noise_level: Option<f32>,
     #[serde(default)]
     pub noise_decay: Option<f32>,
+}
+
+/// Optional housing parameter overrides for a `[[keys]]` block (v4.2.0+).
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct OverrideHousing {
+    #[serde(default)]
+    pub frequency: Option<f32>,
+    #[serde(default)]
+    pub resonance: Option<f32>,
+    #[serde(default)]
+    pub mix: Option<f32>,
 }
 
 /// A loaded acoustic profile with optional per-key overrides.
@@ -888,6 +1057,17 @@ impl ProfileWithOverrides {
                     merged.decay.voice_off_threshold = v;
                 }
             }
+            if let Some(housing) = ko.housing {
+                if let Some(v) = housing.frequency {
+                    merged.housing.frequency = v;
+                }
+                if let Some(v) = housing.resonance {
+                    merged.housing.resonance = v;
+                }
+                if let Some(v) = housing.mix {
+                    merged.housing.mix = v;
+                }
+            }
             // Re-clamp the merged profile to catch override values that
             // are out of bounds.
             merged.validate_and_clamp();
@@ -935,6 +1115,11 @@ mod tests {
                 enabled: false,
                 noise_level: 0.1,
                 noise_decay: 0.99,
+            },
+            housing: HousingParams {
+                frequency: 400.0,
+                resonance: 2.0,
+                mix: 0.4,
             },
         }
     }
