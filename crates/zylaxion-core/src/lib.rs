@@ -35,7 +35,7 @@ use std::time::Duration;
 use arc_swap::ArcSwap;
 use crossbeam_channel::Receiver;
 use zactrix_engine::VoicePool;
-use zactrix_profiles::{AcousticModel, KeyEvent as ProfileKeyEvent, SAMPLE_RATE};
+use zactrix_profiles::{AcousticModel, KeyEvent as ProfileKeyEvent};
 use zylaxion_input::KeyEvent as InputKeyEvent;
 use zylaxion_output::AudioSink;
 
@@ -185,6 +185,15 @@ impl Orchestrator {
         Ok(Self { sink, pool })
     }
 
+    /// Return the actual sample rate of the audio device (Hz).
+    ///
+    /// Used by callers to construct an `AcousticModel` with the correct
+    /// sample rate for DSP coefficient calculations.
+    #[inline]
+    pub fn sample_rate(&self) -> u32 {
+        self.sink.sample_rate()
+    }
+
     /// Run the main input → render → output loop.
     ///
     /// Blocks the calling thread until one of three conditions:
@@ -236,17 +245,18 @@ impl Orchestrator {
 
         // Report device info once — confirm interrupt-driven tuning.
         let device_rate = self.sink.sample_rate();
+        let sr = device_rate as f64;
         eprintln!(
             "[zylaxion-core] Interrupt-driven mode — device rate: {device_rate} Hz, \
              render chunk: {MAX_RENDER_CHUNK} frames (~{:.2} ms)",
-            MAX_RENDER_CHUNK as f64 / SAMPLE_RATE as f64 * 1000.0,
+            MAX_RENDER_CHUNK as f64 / sr * 1000.0,
         );
         eprintln!(
             "[zylaxion-core] Ring buffer: 16384 frames (~{:.1} ms), \
              cpal hw buffer: default (PipeWire/ALSA negotiated), \
              pre-fill: {PREFILL_SILENCE_FRAMES} frames (~{:.1} ms)",
-            16384.0 / SAMPLE_RATE as f64 * 1000.0,
-            PREFILL_SILENCE_FRAMES as f64 / SAMPLE_RATE as f64 * 1000.0,
+            16384.0 / sr * 1000.0,
+            PREFILL_SILENCE_FRAMES as f64 / sr * 1000.0,
         );
 
         // Pre-allocate the largest possible render buffer once —
@@ -446,7 +456,7 @@ mod tests {
 
     #[test]
     fn render_chunk_duration_is_sane() {
-        let duration_ms = MAX_RENDER_CHUNK as f64 / SAMPLE_RATE as f64 * 1000.0;
+        let duration_ms = MAX_RENDER_CHUNK as f64 / 44100.0 * 1000.0;
         assert!(
             duration_ms > 0.5 && duration_ms < 10.0,
             "max render chunk duration should be 0.5–10 ms, got {duration_ms:.2} ms"

@@ -147,7 +147,12 @@ impl CpalSink {
             .default_output_config()
             .map_err(|e| AudioError::DefaultStreamConfigError(e.to_string()))?;
 
-        let sample_rate = supported.sample_rate().0;
+        // Use the device's native sample rate. Clamp to a minimum of
+        // 44100 Hz — below that, the DSP math (filter coefficients,
+        // decay rates) becomes inaccurate and the click sounds wrong.
+        // The device rate is typically 44100, 48000, or 96000 on
+        // modern Linux systems.
+        let sample_rate = supported.sample_rate().0.max(44100);
         let channels = supported.channels() as usize;
         let sample_format = supported.sample_format();
 

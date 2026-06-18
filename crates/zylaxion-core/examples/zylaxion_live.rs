@@ -54,8 +54,11 @@ fn main() {
     // ── 3. Run the main loop (blocks until Ctrl+C) ────────────────
     // The model is wrapped in Arc<ArcSwap<>> for hot-reload support.
     // In this example we never swap it, but the API requires the
-    // wrapper for consistency with the daemon mode.
-    let model = Arc::new(ArcSwap::from_pointee(MechanicalClick::new()));
+    // wrapper for consistency with the daemon mode. The sample rate
+    // comes from the audio device so DSP math is accurate at any rate.
+    let sample_rate = orchestrator.sample_rate();
+    let model = Arc::new(ArcSwap::from_pointee(MechanicalClick::new(sample_rate)));
+    println!("[zylaxion-live] sample rate: {sample_rate} Hz");
     println!("[zylaxion-live] ready — press any key to hear it!");
     println!("[zylaxion-live] Ctrl+C to quit\n");
 

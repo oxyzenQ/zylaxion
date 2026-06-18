@@ -73,16 +73,23 @@ impl Default for TptSvf {
 
 impl TptSvf {
     /// Create a new TPT SVF initialized to silence with default parameters
-    /// (1 kHz cutoff, Q = 1.0).
+    /// (1 kHz cutoff, Q = 1.0) at the given `sample_rate` (Hz).
     #[inline]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(sample_rate: f32) -> Self {
+        let g = (std::f32::consts::PI * 1000.0 / sample_rate).tan();
+        Self {
+            ic1eq: 0.0,
+            ic2eq: 0.0,
+            g,
+            k: 1.0,
+        }
     }
 
-    /// Create a new TPT SVF with the given initial cutoff frequency and Q.
+    /// Create a new TPT SVF with the given initial cutoff frequency, Q,
+    /// and `sample_rate` (Hz).
     #[inline]
-    pub fn with_params(freq: f32, q: f32) -> Self {
-        let g = (std::f32::consts::PI * freq / SAMPLE_RATE).tan();
+    pub fn with_params(freq: f32, q: f32, sample_rate: f32) -> Self {
+        let g = (std::f32::consts::PI * freq / sample_rate).tan();
         Self {
             ic1eq: 0.0,
             ic2eq: 0.0,
@@ -97,8 +104,8 @@ impl TptSvf {
     /// cause output discontinuities — the filter simply continues from its
     /// current state under the new parameters.
     #[inline]
-    pub fn set_params(&mut self, freq: f32, q: f32) {
-        self.g = (std::f32::consts::PI * freq / SAMPLE_RATE).tan();
+    pub fn set_params(&mut self, freq: f32, q: f32, sample_rate: f32) {
+        self.g = (std::f32::consts::PI * freq / sample_rate).tan();
         self.k = 1.0 / q;
     }
 
@@ -155,7 +162,7 @@ mod tests {
 
     #[test]
     fn test_svf_stability_sine_sweep() {
-        let mut svf = TptSvf::new();
+        let mut svf = TptSvf::new(crate::SAMPLE_RATE);
         let mut max_val: f32 = 0.0;
 
         // Sweep frequency from 100 Hz to 10 kHz over 1 second.
@@ -163,7 +170,7 @@ mod tests {
         for i in 0..44_100usize {
             let t = i as f32 / 44_100.0;
             let freq = 100.0 * (100.0_f32).powf(t);
-            svf.set_params(freq, 2.0);
+            svf.set_params(freq, 2.0, crate::SAMPLE_RATE);
 
             let input = (2.0 * std::f32::consts::PI * 440.0 * t).sin();
             let (lp, hp, bp) = svf.process(input);
@@ -179,7 +186,7 @@ mod tests {
 
     #[test]
     fn test_svf_impulse_response_decays() {
-        let mut svf = TptSvf::with_params(1000.0, 5.0);
+        let mut svf = TptSvf::with_params(1000.0, 5.0, crate::SAMPLE_RATE);
         let mut sum: f32 = 0.0;
 
         for i in 0..44_100usize {
@@ -195,12 +202,12 @@ mod tests {
 
     #[test]
     fn test_svf_rapid_param_changes() {
-        let mut svf = TptSvf::new();
+        let mut svf = TptSvf::new(crate::SAMPLE_RATE);
 
         // Alternate between two extreme frequencies every 100 samples.
         for i in 0..44_100usize {
             let freq = if (i / 100) % 2 == 0 { 200.0 } else { 8000.0 };
-            svf.set_params(freq, 0.5);
+            svf.set_params(freq, 0.5, crate::SAMPLE_RATE);
             let input = (2.0 * std::f32::consts::PI * 440.0 * i as f32 / 44_100.0).sin();
             let _ = svf.process(input);
         }
@@ -213,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_svf_high_q_does_not_blow_up() {
-        let mut svf = TptSvf::with_params(500.0, 50.0);
+        let mut svf = TptSvf::with_params(500.0, 50.0, crate::SAMPLE_RATE);
 
         for _ in 0..44_100 {
             let (lp, hp, bp) = svf.process(0.5);

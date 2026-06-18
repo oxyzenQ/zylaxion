@@ -33,7 +33,7 @@ use crate::Voice;
 /// use zactrix_engine::VoicePool;
 /// use zactrix_profiles::{MechanicalClick, KeyEvent};
 ///
-/// let model = MechanicalClick::new();
+/// let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
 /// let mut pool = VoicePool::new();
 ///
 /// pool.trigger(&model, &KeyEvent {
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn test_single_trigger_activates_one_voice() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
         let mut pool = VoicePool::new();
 
         pool.trigger(
@@ -283,7 +283,7 @@ mod tests {
 
     #[test]
     fn test_release_deactivates_voice() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
         let mut pool = VoicePool::new();
 
         pool.trigger(
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn test_release_nonexistent_scancode_is_noop() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
         let mut pool = VoicePool::new();
 
         pool.trigger(
@@ -323,7 +323,7 @@ mod tests {
 
     #[test]
     fn test_voice_stealing_replaces_oldest() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
         let mut pool = VoicePool::new();
 
         // Fill all 16 voice slots
@@ -359,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_voice_stealing_priority() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
         let mut pool = VoicePool::new();
 
         // Fill all voices
@@ -405,7 +405,7 @@ mod tests {
 
     #[test]
     fn test_process_sample_produces_output() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
         let mut pool = VoicePool::new();
 
         pool.trigger(
@@ -438,7 +438,7 @@ mod tests {
 
     #[test]
     fn test_process_batch_matches_per_sample() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
 
         // Render via process_sample
         let mut pool_a = VoicePool::new();
@@ -479,7 +479,7 @@ mod tests {
 
     #[test]
     fn test_multiple_voices_mix_correctly() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
         let mut pool = VoicePool::new();
 
         // Trigger two keys at opposite stereo positions
@@ -515,7 +515,7 @@ mod tests {
 
     #[test]
     fn test_reset_clears_all_voices() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
         let mut pool = VoicePool::new();
 
         for i in 0..5u32 {
@@ -538,7 +538,7 @@ mod tests {
     fn test_render_one_second_and_write_wav() {
         use std::io::Write;
 
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
         let mut pool = VoicePool::new();
 
         // Trigger 3 keys at different stereo positions for a spatial spread
@@ -604,7 +604,7 @@ mod tests {
 
     #[test]
     fn test_all_voices_naturally_decay() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
         let mut pool = VoicePool::new();
 
         // Trigger all 16 voices
@@ -695,7 +695,7 @@ mod tests {
     #[test]
     fn test_normal_output_not_affected_by_nan_guard() {
         // Verify the NaN guard doesn't affect normal (finite) output.
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
         let mut pool = VoicePool::new();
 
         pool.trigger(

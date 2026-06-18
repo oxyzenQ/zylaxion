@@ -31,7 +31,7 @@ fn main() {
     println!("[realtime_click] device sample rate: {device_rate} Hz");
     println!("[realtime_click] playing 3 seconds of key clicks...\n");
 
-    let model = MechanicalClick::new();
+    let model = MechanicalClick::new(44100);
     let mut pool = VoicePool::new();
 
     /// Render batch size (frames). Small enough to keep latency low,

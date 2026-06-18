@@ -82,17 +82,26 @@ pub fn cmd_start(cli_preset: Option<String>) {
         }
     };
 
+    // Get the device's actual sample rate for DSP coefficient calculation.
+    let sample_rate = orchestrator.sample_rate();
+    log::info!("audio device sample rate: {sample_rate} Hz");
+
     // 3. Wrap the model in Arc<ArcSwap<>> for hot-reload.
     let model: Arc<ArcSwap<MechanicalClick>> = Arc::new(ArcSwap::from_pointee(
-        MechanicalClick::with_overrides(profiles),
+        MechanicalClick::with_overrides(profiles, sample_rate),
     ));
 
     // 4. Spawn the config-watcher thread. The watcher always reads
     //    preset.tuning from the file on change — the --preset CLI flag
     //    is for initial load only. We pass active_preset here just for
-    //    the startup log message.
-    let _watcher_handle =
-        spawn_config_watcher(Arc::clone(&model), config_path, active_preset.clone());
+    //    the startup log message. sample_rate is shared so the watcher
+    //    can construct new MechanicalClick instances on reload.
+    let _watcher_handle = spawn_config_watcher(
+        Arc::clone(&model),
+        config_path,
+        active_preset.clone(),
+        sample_rate,
+    );
 
     // 5. Run the main loop.
     let stop_flag = Arc::new(AtomicBool::new(false));
@@ -204,13 +213,20 @@ pub fn cmd_daemon(cli_preset: Option<String>) {
         }
     };
 
+    let sample_rate = orchestrator.sample_rate();
+    log::info!("audio device sample rate: {sample_rate} Hz");
+
     let model: Arc<ArcSwap<MechanicalClick>> = Arc::new(ArcSwap::from_pointee(
-        MechanicalClick::with_overrides(profiles),
+        MechanicalClick::with_overrides(profiles, sample_rate),
     ));
 
     let _ipc_handle = daemon::spawn_ipc_thread(listener, Arc::clone(&stop_flag));
-    let _watcher_handle =
-        spawn_config_watcher(Arc::clone(&model), config_path, active_preset.clone());
+    let _watcher_handle = spawn_config_watcher(
+        Arc::clone(&model),
+        config_path,
+        active_preset.clone(),
+        sample_rate,
+    );
 
     orchestrator.run(&model, &event_rx, stop_flag);
 
@@ -259,6 +275,7 @@ fn spawn_config_watcher(
     model: Arc<ArcSwap<MechanicalClick>>,
     config_path: Option<std::path::PathBuf>,
     initial_preset: String,
+    sample_rate: u32,
 ) -> std::thread::JoinHandle<()> {
     std::thread::Builder::new()
         .name("zylaxion-config-watcher".into())
@@ -301,7 +318,8 @@ fn spawn_config_watcher(
                 // here so that file edits always take precedence.
                 match crate::config::reload_preset(&path, None) {
                     Ok((profiles, active)) => {
-                        let new_model = MechanicalClick::with_overrides(profiles);
+                        let new_model =
+                            MechanicalClick::with_overrides(profiles, sample_rate);
                         model.store(Arc::new(new_model));
                         log::info!("config-watcher: reloaded preset '{active}' successfully");
                     }
