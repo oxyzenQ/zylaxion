@@ -152,6 +152,18 @@ noise_decay = 0.985
 # values let voices ring longer; larger values cut them off sooner.
 # Range: 1e-7 - 1e-2
 voice_off_threshold = 0.00001
+[preset.technical.housing]
+# Mid housing freq, low mix — click is the lead, thock supports.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 500.0
+# Range: 0.1 - 10.0
+resonance = 2.0
+# Range: 0.0 - 1.0
+mix = 0.3
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -198,6 +210,18 @@ noise_level = 0.12
 # WARNING: MUST be < 1.0. Lower = faster rattle fade; higher = longer ring.
 # Range: 0.0 - 0.9999
 noise_decay = 0.988
+[preset.cherryMX.housing]
+# Mid housing freq, low-mid mix — balanced click + thock.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 450.0
+# Range: 0.1 - 10.0
+resonance = 2.2
+# Range: 0.0 - 1.0
+mix = 0.35
+
+
 
 
 
@@ -245,6 +269,18 @@ noise_level = 0.18
 # WARNING: MUST be < 1.0. Lower = faster rattle fade; higher = longer ring.
 # Range: 0.0 - 0.9999
 noise_decay = 0.982
+[preset.classic.housing]
+# Lower freq for deeper classic feel, mid mix.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 350.0
+# Range: 0.1 - 10.0
+resonance = 2.8
+# Range: 0.0 - 1.0
+mix = 0.5
+
+
 
 
 
@@ -292,6 +328,18 @@ noise_level = 0.05
 # WARNING: MUST be < 1.0. Lower = faster rattle fade; higher = longer ring.
 # Range: 0.0 - 0.9999
 noise_decay = 0.99
+[preset.studio.housing]
+# Mid freq, mid mix — studio monitor feel.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 400.0
+# Range: 0.1 - 10.0
+resonance = 1.8
+# Range: 0.0 - 1.0
+mix = 0.45
+
+
 
 
 
@@ -339,6 +387,18 @@ noise_level = 0.03
 # WARNING: MUST be < 1.0. Lower = faster rattle fade; higher = longer ring.
 # Range: 0.0 - 0.9999
 noise_decay = 0.99
+[preset.elegant.housing]
+# Soft low-mid housing for the muffled elegant feel.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 380.0
+# Range: 0.1 - 10.0
+resonance = 1.5
+# Range: 0.0 - 1.0
+mix = 0.4
+
+
 
 
 
@@ -387,6 +447,18 @@ noise_level = 0.02
 # WARNING: MUST be < 1.0. Lower = faster rattle fade; higher = longer ring.
 # Range: 0.0 - 0.9999
 noise_decay = 0.99
+[preset.whisper.housing]
+# Mid freq, very low mix — keep whisper minimal.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 500.0
+# Range: 0.1 - 10.0
+resonance = 1.0
+# Range: 0.0 - 1.0
+mix = 0.2
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Preset: linear
@@ -426,6 +498,18 @@ enabled = true
 noise_level = 0.10
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.987
+[preset.linear.housing]
+# Low freq, HIGH mix — linear switches rely on thock.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 350.0
+# Range: 0.1 - 10.0
+resonance = 1.8
+# Range: 0.0 - 1.0
+mix = 0.7
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -466,6 +550,18 @@ enabled = true
 noise_level = 0.12
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.985
+[preset.tactile.housing]
+# Mid freq, mid mix — tactile bump + thock coexist.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 420.0
+# Range: 0.1 - 10.0
+resonance = 2.0
+# Range: 0.0 - 1.0
+mix = 0.5
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -506,6 +602,18 @@ enabled = true
 noise_level = 0.16
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.983
+[preset.clicky.housing]
+# Higher freq, LOW mix — don't mask the click jacket.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 600.0
+# Range: 0.1 - 10.0
+resonance = 2.5
+# Range: 0.0 - 1.0
+mix = 0.2
+
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -601,6 +709,18 @@ noise_level = 0.20
 # (real Model M cases have audible rattle for ~150-180 ms).
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.983
+[preset.ibm_model_m.housing]
+# Mid housing freq for the Model M's case resonance.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 400.0
+# Range: 0.1 - 10.0
+resonance = 3.0
+# Range: 0.0 - 1.0
+mix = 0.4
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -661,6 +781,18 @@ enabled = true
 noise_level = 0.08
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.99
+[preset.topre.housing]
+# DEEP housing freq (200 Hz), HIGH mix — Topre thock IS the character.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 200.0
+# Range: 0.1 - 10.0
+resonance = 2.5
+# Range: 0.0 - 1.0
+mix = 0.8
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -711,6 +843,18 @@ enabled = true
 noise_level = 0.06
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.99
+[preset.cherry_mx_black.housing]
+# Low freq, HIGH mix — heavy linear is all thock.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 350.0
+# Range: 0.1 - 10.0
+resonance = 1.5
+# Range: 0.0 - 1.0
+mix = 0.75
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -760,6 +904,18 @@ enabled = true
 noise_level = 0.12
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.985
+[preset.cherry_mx_clear.housing]
+# Mid freq, mid-high mix — tactile bump + thock.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 400.0
+# Range: 0.1 - 10.0
+resonance = 2.0
+# Range: 0.0 - 1.0
+mix = 0.55
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -809,6 +965,18 @@ enabled = true
 noise_level = 0.05
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.99
+[preset.cherry_mx_silver.housing]
+# Higher freq, high mix — low-profile fast bottom-out.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 550.0
+# Range: 0.1 - 10.0
+resonance = 1.8
+# Range: 0.0 - 1.0
+mix = 0.65
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -859,6 +1027,18 @@ enabled = true
 noise_level = 0.15
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.983
+[preset.buckling_spring.housing]
+# Mid freq, LOW mix — buckling-spring ping is the lead, thock supports.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 380.0
+# Range: 0.1 - 10.0
+resonance = 3.5
+# Range: 0.0 - 1.0
+mix = 0.3
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -917,6 +1097,18 @@ enabled = true
 noise_level = 0.22
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.982
+[preset.alps_skcm.housing]
+# Lower freq for the deep ALPS housing, mid-high mix.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 300.0
+# Range: 0.1 - 10.0
+resonance = 3.0
+# Range: 0.0 - 1.0
+mix = 0.55
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -967,6 +1159,18 @@ enabled = true
 noise_level = 0.10
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.985
+[preset.gateron_yellow.housing]
+# Deep housing freq, HIGH mix — lubed linear is all thock.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 250.0
+# Range: 0.1 - 10.0
+resonance = 2.0
+# Range: 0.0 - 1.0
+mix = 0.8
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1017,6 +1221,18 @@ enabled = true
 noise_level = 0.13
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.985
+[preset.zealios_v2.housing]
+# Mid freq, mid mix — sharp bump + thock.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 380.0
+# Range: 0.1 - 10.0
+resonance = 2.5
+# Range: 0.0 - 1.0
+mix = 0.5
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1068,6 +1284,18 @@ enabled = false
 noise_level = 0.0
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.99
+[preset.rotary_encoder.housing]
+# High freq, very low mix — encoder detents have minimal housing body.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 700.0
+# Range: 0.1 - 10.0
+resonance = 1.0
+# Range: 0.0 - 1.0
+mix = 0.1
+
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1135,6 +1363,18 @@ enabled = false
 noise_level = 0.0
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.99
+[preset.cyber_deck.housing]
+# High freq, very low mix — terminals have no body, just click.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 650.0
+# Range: 0.1 - 10.0
+resonance = 1.5
+# Range: 0.0 - 1.0
+mix = 0.15
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1185,6 +1425,18 @@ noise_level = 0.18
 # Very slow decay — water ripples last a long time.
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.99
+[preset.oceanic.housing]
+# MIN freq (100 Hz), HIGH mix — underwater rumble is the character.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 100.0
+# Range: 0.1 - 10.0
+resonance = 1.0
+# Range: 0.0 - 1.0
+mix = 0.85
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1234,6 +1486,18 @@ enabled = false
 noise_level = 0.0
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.99
+[preset.glass_tactile.housing]
+# Very high freq, near-zero mix — glass has no housing thock, only ring.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 800.0
+# Range: 0.1 - 10.0
+resonance = 1.2
+# Range: 0.0 - 1.0
+mix = 0.05
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1287,6 +1551,18 @@ noise_level = 0.20
 # Medium-slow decay.
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.985
+[preset.retro_typewriter.housing]
+# Low-mid freq, high resonance, mid mix — cast-iron frame impact.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 280.0
+# Range: 0.1 - 10.0
+resonance = 4.0
+# Range: 0.0 - 1.0
+mix = 0.5
+
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1341,3 +1617,15 @@ noise_level = 0.35
 # Medium decay — the texture sustains alongside the click.
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.987
+[preset.neon_pulse.housing]
+# Mid freq, mid-high resonance, mid mix — synthesized UI body.
+# v4.2.0: 3rd DSP layer — the deep "thock" of the keycap
+# hitting the switch housing / PCB at bottom-out.
+# Range: 100.0 - 1000.0
+frequency = 450.0
+# Range: 0.1 - 10.0
+resonance = 2.5
+# Range: 0.0 - 1.0
+mix = 0.4
+
+

@@ -171,7 +171,9 @@ out-of-bounds DSP values before they affect the running daemon.
 Zylaxion ships with **24 presets** — 6 "character" presets, 3
 switch-type presets, **10 high-fidelity legendary keyboard profiles**
 (v4.0.0+) tuned to mimic real switches, and **5 sci-fi / futuristic
-presets** (v4.1.0+) that don't mimic anything real.
+presets** (v4.1.0+) that don't mimic anything real. Since v4.2.0,
+**every preset** uses a 3-layer DSP engine (click + spring + housing
+"thock") for realistic acoustic body.
 
 #### Character presets (general use)
 
