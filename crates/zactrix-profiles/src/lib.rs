@@ -20,8 +20,6 @@ use serde::{Deserialize, Serialize};
 mod mechanical;
 mod tpt;
 
-#[doc(hidden)]
-pub use mechanical::reset_keystroke_counter_for_tests;
 pub use mechanical::MechanicalClick;
 pub use tpt::TptSvf;
 

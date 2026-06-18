@@ -39,6 +39,10 @@ case "$MODE" in
         echo "==> [4/4] cargo audit (supply-chain CVE scan)"
         if command -v cargo-audit >/dev/null 2>&1; then
             # Run cargo-audit against the workspace's Cargo.lock.
+            # `cargo audit` does NOT accept --manifest-path — it scans
+            # the Cargo.lock in the current directory. So we cd into
+            # the workspace root first.
+            #
             # `--ignore RUSTSEC-xxxx-xxxx` can be added here for
             # acknowledged-but-unfixable advisories (none currently).
             #
@@ -47,7 +51,7 @@ case "$MODE" in
             #
             # Exit code 0 = no vulnerabilities. Non-zero = at least
             # one vulnerability found; the build fails.
-            cargo audit --manifest-path "$MANIFEST"
+            (cd "$WORKSPACE_ROOT" && cargo audit)
             echo "    OK  no vulnerabilities found."
         else
             echo "    WARNING  cargo-audit not installed, skipping security scan."

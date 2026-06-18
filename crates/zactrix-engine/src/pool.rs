@@ -448,7 +448,13 @@ mod tests {
         // The test's intent is to verify that the batch and per-sample
         // render paths agree FOR THE SAME VOICE STATE, not that two
         // separately-triggered voices are identical.
-        zactrix_profiles::reset_keystroke_counter_for_tests();
+        //
+        // v5.0.1: the counter is now per-instance (not global), so
+        // resetting it here only affects THIS `model` instance —
+        // other tests running in parallel with their own
+        // MechanicalClick instances are unaffected. This eliminates
+        // the flaky-test race that v5.0.0's global counter caused.
+        model.reset_keystroke_counter_for_tests();
         let mut pool_a = VoicePool::new();
         pool_a.trigger(
             &model,
@@ -465,7 +471,7 @@ mod tests {
 
         // Render via process (batch). Reset the counter again so this
         // trigger gets the SAME seed as pool_a's trigger above.
-        zactrix_profiles::reset_keystroke_counter_for_tests();
+        model.reset_keystroke_counter_for_tests();
         let mut pool_b = VoicePool::new();
         pool_b.trigger(
             &model,
