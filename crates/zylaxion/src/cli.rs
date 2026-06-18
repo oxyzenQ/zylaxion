@@ -60,6 +60,26 @@ pub enum Commands {
         /// `preset.tuning` value is used.
         #[arg(long)]
         preset: Option<String>,
+
+        /// Skip the fork/setsid daemonization and run the daemon logic
+        /// in the foreground (block the main thread).
+        ///
+        /// This is intended for process supervisors like systemd, which
+        /// expect the launched process to stay in the foreground and be
+        /// supervised by the manager. The `zylaxion.service` unit uses
+        /// `Type=simple` + `zylaxion daemon --foreground` so systemd
+        /// can track the live PID directly. Without this flag, the
+        /// `daemon` subcommand forks to the background and the parent
+        /// exits — which makes systemd think the service died.
+        ///
+        /// When `--foreground` is set:
+        /// - `daemonize()` (fork + setsid) is skipped.
+        /// - `close_std_fds()` is skipped so logs still reach journald
+        ///   via the standard streams systemd wires up.
+        /// - PID file, IPC socket, signal handlers, config-watcher, and
+        ///   the orchestrator loop all run inline on the main thread.
+        #[arg(long, default_value_t = false)]
+        foreground: bool,
     },
 
     /// Stop a running daemon

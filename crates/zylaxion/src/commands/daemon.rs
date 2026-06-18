@@ -128,7 +128,21 @@ pub fn cmd_start(cli_preset: Option<String>) {
 ///
 /// If the resolved preset does not exist in config.toml, prints a clear
 /// error and exits — there is NO silent fallback.
-pub fn cmd_daemon(cli_preset: Option<String>) {
+///
+/// # `foreground` mode (for process supervisors like systemd)
+///
+/// When `foreground` is `true`, the function skips `daemonize()` and
+/// `close_std_fds()` and runs the full daemon logic inline on the
+/// calling thread. This is the correct mode for systemd's `Type=simple`
+/// supervision: the launched process must stay alive in the foreground
+/// so systemd can track its PID. The `zylaxion.service` unit uses this
+/// via `ExecStart=/usr/local/bin/zylaxion daemon --foreground`.
+///
+/// Without `--foreground`, the function forks to the background (the
+/// parent prints the child PID and exits 0). This is the right
+/// behaviour for manual CLI usage but causes systemd to think the
+/// service died immediately (parent exit → service inactive).
+pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
     let _lock = instance_lock::acquire_or_exit();
 
     // Stash the CLI preset in an Arc so the config-watcher thread can
@@ -141,13 +155,26 @@ pub fn cmd_daemon(cli_preset: Option<String>) {
         process::exit(1);
     }
 
-    if let Err(e) = daemon::daemonize() {
-        crate::error_format::error(format!("daemonize failed: {e}"));
-        process::exit(1);
-    }
+    if foreground {
+        // ── Foreground mode: skip fork, keep std streams for journald.
+        // systemd wires stdout/stderr to journald automatically when
+        // the unit has `StandardOutput=journal` (the default). Logging
+        // via `eprintln!` / `log::info!` therefore lands in
+        // `journalctl --user -u zylaxion` without any extra config.
+        eprintln!(
+            "[zylaxion] starting in foreground mode for process supervisor (PID: {})",
+            nix::unistd::getpid().as_raw()
+        );
+    } else {
+        // ── Background mode: classic POSIX double-fork daemonization.
+        if let Err(e) = daemon::daemonize() {
+            crate::error_format::error(format!("daemonize failed: {e}"));
+            process::exit(1);
+        }
 
-    // We are now the daemon child.
-    daemon::close_std_fds();
+        // We are now the daemon child.
+        daemon::close_std_fds();
+    }
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
@@ -163,7 +190,7 @@ pub fn cmd_daemon(cli_preset: Option<String>) {
         };
 
     log::info!(
-        "daemon started (PID: {}, preset: {active_preset})",
+        "daemon started (PID: {}, preset: {active_preset}, foreground: {foreground})",
         nix::unistd::getpid().as_raw()
     );
 
@@ -171,7 +198,13 @@ pub fn cmd_daemon(cli_preset: Option<String>) {
         process::exit(1);
     }
 
-    daemon::ignore_hup_pipe();
+    // In foreground mode we keep the controlling terminal's HUP/PIPE
+    // defaults (systemd does not send HUP unless the user session ends,
+    // and our signal hook handles SIGTERM cleanly). In background mode
+    // we explicitly ignore HUP/PIPE so the daemon survives logout.
+    if !foreground {
+        daemon::ignore_hup_pipe();
+    }
 
     let stop_flag = Arc::new(AtomicBool::new(false));
 
