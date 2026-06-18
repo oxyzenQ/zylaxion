@@ -25,3 +25,6 @@ serde_json = "1"
 arc-swap = "1.7"
 toml = "0.8"
 signal-hook = "0.3"
+# libc is used for `umask(2)` in `daemon::ipc::create_listener` to
+# guarantee the IPC socket file is created with mode 0o600.
+libc = "0.2"

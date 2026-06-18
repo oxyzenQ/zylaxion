@@ -177,6 +177,67 @@ out-of-bounds DSP values before they affect the running daemon.
 | elegant   | Very soft, muffled. Low-profile keyboards.       |
 | whisper   | Extremely quiet, short decay. Libraries/meetings. |
 
+## Security & Privacy
+
+Zylaxion is designed with a **zero-leakage** posture. The short
+version: **your keystrokes never leave the process.**
+
+### What Zylaxion reads
+
+- **Hardware scancodes** — the physical key location on the keyboard
+  (e.g. scancode `30` is the home row key under QWERTY's left hand).
+  This is *not* an ASCII character. Zylaxion does not translate
+  scancodes into letters, symbols, or text. It feeds them straight
+  into the DSP engine to choose a stereo pan position and trigger a
+  click sound.
+- The kernel's `evdev` interface via `libinput` — same data any
+  keyboard-aware Linux program can read.
+
+### What Zylaxion does NOT do
+
+- **Does not log scancodes** — not at `info`, not at `debug`, not at
+  `trace`. The `KeyEvent` struct exists to drive the DSP engine, not
+  for human inspection. Audit the codebase: `grep -r 'scancode'
+  crates/ | grep -E 'log::|println!|eprintln!'` returns zero hits
+  in production paths.
+- **Does not store keystrokes** — there is no on-disk log, no
+  history file, no analytics. The only thing Zylaxion writes to disk
+  is its PID file (`$XDG_RUNTIME_DIR/zylaxion.pid`) and the daemon's
+  Unix socket (`$XDG_RUNTIME_DIR/zylaxion.sock`).
+- **Does not transmit keystrokes** — no telemetry, no analytics, no
+  crash reports. The only outbound network call is the explicit
+  `zylaxion --check-update` subcommand, which fetches the latest
+  GitHub release tag and exits. No background phone-home.
+- **Does not accept inbound network connections** — there is no TCP
+  listener, no HTTP server. The only IPC channel is a Unix domain
+  socket bound to `$XDG_RUNTIME_DIR/zylaxion.sock` with file mode
+  `0o600` (owner-only read/write). Other users on the system cannot
+  send `stop` / `status` commands to your daemon.
+
+### Why this matters
+
+A naive "acoustic keyboard" implementation that logged scancodes for
+debugging would be a side-channel leak: malware with read access to
+`journalctl --user -u zylaxion` could reconstruct typed passwords by
+mapping scancodes back through the user's keyboard layout (QWERTY,
+Dvorak, etc.). Zylaxion's zero-trust logging policy eliminates this
+attack surface — there is nothing in the logs to reconstruct.
+
+### Verifying the policy yourself
+
+```bash
+# Should print zero matches in production paths (excluding examples/
+# which carry an explicit --dump-scancodes opt-in for hardware
+# debugging):
+grep -rn 'scancode' crates/ --include='*.rs' | \
+    grep -E 'log::|println!|eprintln!' | \
+    grep -v 'examples/'
+
+# Verify the IPC socket has mode 0o600 after starting the daemon:
+ls -l "$XDG_RUNTIME_DIR/zylaxion.sock"
+# Expected: srw------- 1 user user 0 ... zylaxion.sock
+```
+
 ## Building
 
 ```bash
