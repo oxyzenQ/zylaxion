@@ -28,6 +28,8 @@
 //! between the two threads — no Mutex, no blocking.
 
 use std::fmt;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use ringbuf::traits::{Consumer, Observer, Producer, Split};
@@ -118,6 +120,13 @@ pub struct CpalSink {
     /// callback from being dropped (which would silence output).
     _stream: cpal::Stream,
     sample_rate: u32,
+    /// Set to `true` by the cpal error callback when the audio device
+    /// disconnects or the stream encounters an unrecoverable error.
+    /// When `true`, the audio callback outputs silence instead of
+    /// reading from the ring buffer — preventing a crash and keeping
+    /// the daemon alive. The daemon remains running so the user can
+    /// `zylaxion stop` gracefully or re-plug the device.
+    _paused: Arc<AtomicBool>,
 }
 
 impl CpalSink {
@@ -146,27 +155,55 @@ impl CpalSink {
         let (producer, consumer) = rb.split();
 
         let stream_config: cpal::StreamConfig = supported.into();
-        // Let cpal / PipeWire / ALSA negotiate the optimal hardware
-        // fragment size.  Forcing a small Fixed buffer causes frequent
-        // xruns on non-RT kernels; the Default lets the audio server
-        // pick its preferred period size (typically 1024–4096 frames).
-        let err_fn = |err: cpal::StreamError| eprintln!("[zylaxion-output] stream error: {err}");
+
+        // Shared "paused" flag — set to true by the error callback when
+        // the audio device disconnects. The audio callback checks this
+        // flag and outputs silence when true, preventing a crash.
+        let paused = Arc::new(AtomicBool::new(false));
+        let paused_for_err = Arc::clone(&paused);
+        let err_fn = move |err: cpal::StreamError| {
+            eprintln!("zylaxion: warning: Audio stream error: {err}");
+            eprintln!("zylaxion: warning: Audio device disconnected. Pausing output.");
+            paused_for_err.store(true, Ordering::Relaxed);
+        };
 
         let stream = match sample_format {
             cpal::SampleFormat::F32 => {
                 let mut cons = consumer;
+                let paused_cb = Arc::clone(&paused);
                 device
                     .build_output_stream(
                         &stream_config,
                         move |data: &mut [f32], _info: &cpal::OutputCallbackInfo| {
+                            // If the device disconnected, output silence
+                            // and skip ring-buffer reads. This keeps the
+                            // callback alive without crashing.
+                            if paused_cb.load(Ordering::Relaxed) {
+                                for s in data.iter_mut() {
+                                    *s = 0.0;
+                                }
+                                return;
+                            }
                             for frame in data.chunks_exact_mut(channels) {
                                 match cons.try_pop() {
                                     Some([l, r]) => {
-                                        // Final safety net: hard-clamp to
-                                        // [-1.0, 1.0] before handing to ALSA.
-                                        frame[0] = l.clamp(-1.0, 1.0);
+                                        // Defense-in-depth: replace
+                                        // NaN/Infinity with 0.0 before
+                                        // handing to ALSA. The
+                                        // VoicePool already guards
+                                        // against this, but a second
+                                        // check here is cheap insurance.
+                                        frame[0] = if l.is_finite() {
+                                            l.clamp(-1.0, 1.0)
+                                        } else {
+                                            0.0
+                                        };
                                         if channels > 1 {
-                                            frame[1] = r.clamp(-1.0, 1.0);
+                                            frame[1] = if r.is_finite() {
+                                                r.clamp(-1.0, 1.0)
+                                            } else {
+                                                0.0
+                                            };
                                         }
                                     }
                                     None => {
@@ -184,17 +221,31 @@ impl CpalSink {
             }
             cpal::SampleFormat::I16 => {
                 let mut cons = consumer;
+                let paused_cb = Arc::clone(&paused);
                 device
                     .build_output_stream(
                         &stream_config,
                         move |data: &mut [i16], _info: &cpal::OutputCallbackInfo| {
+                            if paused_cb.load(Ordering::Relaxed) {
+                                for s in data.iter_mut() {
+                                    *s = 0;
+                                }
+                                return;
+                            }
                             for frame in data.chunks_exact_mut(channels) {
                                 match cons.try_pop() {
                                     Some([l, r]) => {
-                                        frame[0] = (l.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
+                                        frame[0] = if l.is_finite() {
+                                            (l.clamp(-1.0, 1.0) * i16::MAX as f32) as i16
+                                        } else {
+                                            0
+                                        };
                                         if channels > 1 {
-                                            frame[1] =
-                                                (r.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
+                                            frame[1] = if r.is_finite() {
+                                                (r.clamp(-1.0, 1.0) * i16::MAX as f32) as i16
+                                            } else {
+                                                0
+                                            };
                                         }
                                     }
                                     None => {
@@ -221,6 +272,7 @@ impl CpalSink {
             producer,
             _stream: stream,
             sample_rate,
+            _paused: paused,
         })
     }
 

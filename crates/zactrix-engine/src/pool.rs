@@ -122,6 +122,16 @@ impl VoicePool {
     ///
     /// This is the primary zero-allocation render path for real-time audio callbacks.
     /// Each call advances all active voices by exactly one sample.
+    ///
+    /// # Crash-proofing (v1.0.0)
+    ///
+    /// After applying master volume, the output is checked for `NaN` and
+    /// `Infinity`. If either channel is non-finite (which would crash
+    /// PipeWire or produce ear-splitting clicks), it is replaced with
+    /// `0.0` (silence). This is the **final safety net** — if the DSP
+    /// somehow blows up despite the TPT SVF's stability guarantees and
+    /// the `validate_and_clamp()` parameter guardrails, the worst the
+    /// user hears is a brief moment of silence, not a crash.
     #[inline]
     pub fn process_sample<M: AcousticModel>(&mut self, model: &M) -> [f32; 2] {
         let mut out = [0.0f32; 2];
@@ -132,13 +142,24 @@ impl VoicePool {
                 out[1] += right;
             }
         }
-        // Apply master volume and hard-clamp to prevent clipping.
-        // Even with 10+ simultaneous voices the output stays within
-        // [-1.0, 1.0], producing clean compression instead of
-        // horrible crackling distortion.
+        // Apply master volume.
+        let l = out[0] * self.master_volume;
+        let r = out[1] * self.master_volume;
+
+        // Hard-clamp to [-1.0, 1.0], replacing NaN/Infinity with 0.0.
+        // NaN.clamp() returns NaN (NaN comparisons are always false), so
+        // we must check is_finite() FIRST.
         [
-            (out[0] * self.master_volume).clamp(-1.0, 1.0),
-            (out[1] * self.master_volume).clamp(-1.0, 1.0),
+            if l.is_finite() {
+                l.clamp(-1.0, 1.0)
+            } else {
+                0.0
+            },
+            if r.is_finite() {
+                r.clamp(-1.0, 1.0)
+            } else {
+                0.0
+            },
         ]
     }
 
@@ -611,5 +632,88 @@ mod tests {
             "All voices should eventually decay to zero"
         );
         assert!(max_iter > 0, "Voices should decay within a reasonable time");
+    }
+
+    #[test]
+    fn test_nan_output_replaced_with_silence() {
+        // The v1.0.0 crash-proofing guard: if the DSP somehow produces
+        // NaN or Infinity, process_sample must return 0.0 (silence)
+        // instead of passing the non-finite value to cpal/PipeWire
+        // (which would crash the audio server).
+        //
+        // We can't easily make MechanicalClick produce NaN directly
+        // (the TPT SVF is stable), but we CAN test the guard by
+        // constructing a custom AcousticModel that returns NaN.
+        use zactrix_profiles::{AcousticModel, KeyEvent, KeyProfile, SynthState};
+
+        struct NanModel;
+        impl AcousticModel for NanModel {
+            fn get_profile(&self, _event: &KeyEvent) -> KeyProfile {
+                KeyProfile::default()
+            }
+            fn init_state(
+                &self,
+                _profile: &KeyProfile,
+                state: &mut SynthState,
+                _stereo_position: f32,
+            ) {
+                state.active = true;
+            }
+            fn render_sample(&self, _state: &mut SynthState) -> [f32; 2] {
+                [f32::NAN, f32::INFINITY]
+            }
+        }
+
+        let model = NanModel;
+        let mut pool = VoicePool::new();
+
+        // Trigger a voice so process_sample has something to render.
+        pool.trigger(
+            &model,
+            &KeyEvent {
+                scancode: 42,
+                pressed: true,
+                stereo_position: 0.0,
+            },
+        );
+
+        // The model returns NaN/Infinity, but process_sample MUST
+        // return 0.0 for both channels (the guard catches it).
+        let [l, r] = pool.process_sample(&model);
+        assert!(
+            l.is_finite(),
+            "Left channel must be finite (got {l}), NaN guard failed"
+        );
+        assert!(
+            r.is_finite(),
+            "Right channel must be finite (got {r}), NaN guard failed"
+        );
+        assert_eq!(l, 0.0, "NaN input should produce 0.0 silence");
+        assert_eq!(r, 0.0, "Infinity input should produce 0.0 silence");
+    }
+
+    #[test]
+    fn test_normal_output_not_affected_by_nan_guard() {
+        // Verify the NaN guard doesn't affect normal (finite) output.
+        let model = MechanicalClick::new();
+        let mut pool = VoicePool::new();
+
+        pool.trigger(
+            &model,
+            &KeyEvent {
+                scancode: 30,
+                pressed: true,
+                stereo_position: 0.0,
+            },
+        );
+
+        let [l, r] = pool.process_sample(&model);
+        assert!(l.is_finite(), "Normal output must be finite");
+        assert!(r.is_finite(), "Normal output must be finite");
+        // The click transient should produce non-zero output.
+        assert!(
+            l.abs() > 0.0 || r.abs() > 0.0,
+            "Normal voice should produce audio"
+        );
     }
 }
