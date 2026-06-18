@@ -1,0 +1,41 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# systemd USER service unit for zylaxion.
+#
+# Install to:
+#   ~/.config/systemd/user/zylaxion.service   (single user)
+#   /etc/systemd/user/zylaxion.service        (system-wide default)
+#
+# Enable + start:
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now zylaxion
+#
+# Logs:
+#   journalctl --user -u zylaxion -f
+#
+# Why a *user* unit (not a system unit)?
+#   Zylaxion plays audio through the user's PipeWire/PulseAudio session,
+#   which is only reachable via the user's XDG_RUNTIME_DIR and the
+#   user's audio cookie. A system service would not see the audio
+#   server and would fail at startup.
+
+[Unit]
+Description=Zylaxion Keyboard Acoustic Engine
+After=pipewire.service sound.target
+# Weak dependency so a PipeWire restart does NOT force us to restart
+# (cpal will simply re-establish the stream on the next callback).
+After=pipewire.socket
+Wants=pipewire.socket
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/zylaxion daemon
+Restart=on-failure
+RestartSec=3
+# Soft sandbox — keep it minimal so audio + evdev still work.
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

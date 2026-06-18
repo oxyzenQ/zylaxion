@@ -38,19 +38,41 @@ upstream GitHub release.
 
 ## Build Prerequisites
 
-Since v2.0.0 (PipeWire native integration via `pipewire-rs` / `bindgen`),
-the following system packages MUST be installed before `cargo build` /
-`cargo clippy` will succeed. CI installs them in
-`.github/workflows/ci.yml` via `apt-get install`:
+Zylaxion plays audio through `cpal`, which talks to the OS audio server
+(PipeWire / PulseAudio / ALSA) via the ALSA backend. Only the ALSA
+development headers are required at build time; no PipeWire native
+headers are needed.
 
-- `pkg-config` — needed to locate `libpipewire-0.3.pc` and `libspa-0.2.pc`.
-- `libpipewire-0.3-dev` — PipeWire C headers (consumed by `pipewire-rs` bindgen).
-- `libspa-0.2-dev` — SPA (Simple Plugin API) headers (consumed by `libspa-rs` bindgen).
-- `libclang-dev` — required at build time by `bindgen` to parse the C headers.
-- `libasound2-dev`, `libinput-dev`, `libudev-dev` — pre-v2.0 dependencies, still required.
+CI installs them in `.github/workflows/ci.yml` via `apt-get install`:
+
+- `pkg-config` — needed to locate `alsa.pc`, `libudev.pc`, `libinput.pc`.
+- `libasound2-dev` — ALSA C headers (consumed by `cpal`'s ALSA backend).
+- `libinput-dev`, `libudev-dev` — required by `zylaxion-input` for evdev.
 
 A CI runner missing any of these will fail at `cargo clippy` with
-`pkg-config` exiting non-zero or `bindgen` unable to find `clang`.
+`pkg-config` exiting non-zero.
+
+> **History note:** v2.0.0 briefly introduced native PipeWire integration
+> via `pipewire-rs` (which pulled in `bindgen`, `libclang-dev`,
+> `libpipewire-0.3-dev`, `libspa-0.2-dev`). This was reverted in v3.0.0
+> because the `pipewire-rs` crate is unmaintained and breaks on PipeWire
+> 1.0+ systems. The ALSA bridge used since v1.0.x has near-zero overhead
+> and is rock-solid.
+
+## systemd User Service (v3.0.0+)
+
+- `assets/zylaxion.service` is a systemd **user** unit (not system —
+  Zylaxion runs per-user so it inherits the user's PulseAudio/PipeWire
+  cookie and `XDG_RUNTIME_DIR`).
+- `scripts/install.sh` deploys the unit to:
+  - `~/.config/systemd/user/zylaxion.service` when run as a normal user.
+  - `/etc/systemd/user/zylaxion.service` when run as root (system-wide
+    default for all users).
+- `scripts/uninstall.sh` removes the unit and prints a reminder to run
+  `systemctl --user disable zylaxion` first.
+- The unit uses `Type=simple`, `Restart=on-failure`, `RestartSec=3`,
+  and `After=pipewire.service sound.target` so it always starts after
+  the audio stack is ready.
 
 ## CI/CD (GitHub Actions)
 
