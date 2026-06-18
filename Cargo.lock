@@ -1769,14 +1769,14 @@ dependencies = [
 
 [[package]]
 name = "zactrix-engine"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "zactrix-profiles",
 ]
 
 [[package]]
 name = "zactrix-profiles"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "log",
  "serde",
@@ -1791,7 +1791,7 @@ checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
 
 [[package]]
 name = "zylaxion"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "arc-swap",
  "clap",
@@ -1813,7 +1813,7 @@ dependencies = [
 
 [[package]]
 name = "zylaxion-core"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "arc-swap",
  "crossbeam-channel",
@@ -1826,7 +1826,7 @@ dependencies = [
 
 [[package]]
 name = "zylaxion-input"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "crossbeam-channel",
  "input",
@@ -1836,7 +1836,7 @@ dependencies = [
 
 [[package]]
 name = "zylaxion-output"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "cpal",
  "libspa",

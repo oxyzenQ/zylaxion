@@ -36,6 +36,22 @@ upstream GitHub release.
 - **`scripts/version-to vMAJOR.MINOR.PATCH`:** Single-source-of-truth version bumper.
   Patches all `Cargo.toml` files. Zero tolerance for manual version edits.
 
+## Build Prerequisites
+
+Since v2.0.0 (PipeWire native integration via `pipewire-rs` / `bindgen`),
+the following system packages MUST be installed before `cargo build` /
+`cargo clippy` will succeed. CI installs them in
+`.github/workflows/ci.yml` via `apt-get install`:
+
+- `pkg-config` — needed to locate `libpipewire-0.3.pc` and `libspa-0.2.pc`.
+- `libpipewire-0.3-dev` — PipeWire C headers (consumed by `pipewire-rs` bindgen).
+- `libspa-0.2-dev` — SPA (Simple Plugin API) headers (consumed by `libspa-rs` bindgen).
+- `libclang-dev` — required at build time by `bindgen` to parse the C headers.
+- `libasound2-dev`, `libinput-dev`, `libudev-dev` — pre-v2.0 dependencies, still required.
+
+A CI runner missing any of these will fail at `cargo clippy` with
+`pkg-config` exiting non-zero or `bindgen` unable to find `clang`.
+
 ## CI/CD (GitHub Actions)
 
 - **CI paths filter:** Ignore `*.md`, `*.txt`, `docs/` on push/PR.
