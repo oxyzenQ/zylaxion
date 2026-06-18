@@ -42,33 +42,28 @@
 //! the real-time audio callback):
 //!
 //! - **Noise seed variation**: the xorshift32 PRNG seed is derived from
-//!   a global monotonic counter, so the noise burst is never identical.
+//!   a per-instance monotonic counter, so the noise burst is never
+//!   identical.
 //! - **Pitch drift** (±1.5%): tiny random offsets applied to click /
 //!   spring / housing frequencies. Matches real switch tolerance.
 //! - **Amplitude drift** (±5%): tiny random offset applied to the
 //!   excitation envelope. Matches human force variation.
 //!
-//! All randomness uses a single [`AtomicU64`] counter — no system RNG
-//! calls, no allocations, ~5ns overhead per keypress.
+//! # Why per-instance, not global? (v5.0.1+)
+//!
+//! v5.0.0 used a global `static AtomicU64` counter. This caused flaky
+//! test failures when multiple tests ran in parallel: test A would
+//! reset the counter, then test B's `init_state` call would increment
+//! it before test A's trigger, giving test A's voice an unexpected
+//! seed. v5.0.1 moves the counter to a per-instance field on
+//! `MechanicalClick`. In production there is only one instance (held
+//! behind an `ArcSwap` in the orchestrator), so behavior is identical.
+//! In tests, each instance has its own counter, so they don't interfere.
 
 use std::f32::consts::FRAC_PI_2;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::{AcousticModel, KeyEvent, KeyProfile, ProfileWithOverrides, SynthState};
-
-/// Global monotonic counter used to seed the per-keypress micro-randomization.
-///
-/// Each `init_state` call increments this and uses the new value to derive
-/// a unique noise seed + pitch/amplitude drift offsets. This breaks the
-/// "uncanny valley" of deterministic synthesis — pressing the same key 10
-/// times produces 10 slightly different waveforms, just like a real
-/// physical keyboard.
-///
-/// Uses `Relaxed` ordering because we only need uniqueness, not
-/// synchronization with other memory operations. The counter is u64 so
-/// it will not wrap in any realistic runtime (~584 years at 1 billion
-/// keypresses per second).
-static KEYSTROKE_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 /// Maximum pitch drift applied to click/spring/housing frequency, as a
 /// fraction of the profile value. ±1.5% matches the natural variation
@@ -97,35 +92,6 @@ fn xorshift32(x: &mut u32) {
 #[inline]
 fn u32_to_signed_f32(x: u32) -> f32 {
     (x as f32 / u32::MAX as f32) * 2.0 - 1.0
-}
-
-/// Reset the global keystroke counter used for micro-randomization.
-///
-/// This is a **test-only** helper exposed so tests that need
-/// deterministic, repeatable voice output can reset the counter before
-/// each trigger. In production code, the counter should monotonically
-/// increase forever — calling this from a real audio path would make
-/// consecutive keypresses produce identical waveforms, defeating the
-/// entire purpose of v5.0.0's micro-randomization.
-///
-/// # Safety / correctness
-///
-/// This function is safe to call from any thread at any time. It uses
-/// `Relaxed` ordering because we only need atomicity, not
-/// synchronization with other memory operations.
-///
-/// # Why not `#[cfg(test)]`?
-///
-/// Because the calling test lives in a *different* crate
-/// (`zactrix-engine`'s test suite) than this crate
-/// (`zactrix-profiles`), a `#[cfg(test)]` gate here would not export
-/// the symbol and the cross-crate test would fail to link. Marking it
-/// `#[doc(hidden)]` instead keeps it out of the public API surface
-/// while still being callable from downstream test crates.
-#[doc(hidden)]
-#[allow(dead_code)]
-pub fn reset_keystroke_counter_for_tests() {
-    KEYSTROKE_COUNTER.store(1, Ordering::Relaxed);
 }
 
 /// Default acoustic model for mechanical keyboard switches.
@@ -157,6 +123,33 @@ pub struct MechanicalClick {
     /// excitation burst durations so the DSP math is accurate at any
     /// sample rate — no resampling overhead.
     sample_rate: f32,
+    /// Per-instance monotonic counter used to seed the per-keypress
+    /// micro-randomization (v5.0.1+).
+    ///
+    /// Each `init_state` call increments this and uses the new value to
+    /// derive a unique noise seed + pitch/amplitude drift offsets. This
+    /// breaks the "uncanny valley" of deterministic synthesis — pressing
+    /// the same key 10 times produces 10 slightly different waveforms,
+    /// just like a real physical keyboard.
+    ///
+    /// # Why per-instance, not global? (v5.0.1)
+    ///
+    /// v5.0.0 used a global `static AtomicU64` counter. This caused
+    /// flaky test failures when multiple tests ran in parallel: test A
+    /// would reset the counter, then test B's `init_state` call would
+    /// increment it before test A's trigger, giving test A's voice an
+    /// unexpected seed. Moving the counter to a per-instance field
+    /// eliminates the race — each `MechanicalClick` instance has its
+    /// own counter, so tests creating separate instances don't
+    /// interfere. In production there is only one instance (held
+    /// behind an `ArcSwap` in the orchestrator), so behavior is
+    /// identical to the global-counter approach.
+    ///
+    /// Uses `Relaxed` ordering because we only need uniqueness, not
+    /// synchronization with other memory operations. The counter is u64
+    /// so it will not wrap in any realistic runtime (~584 years at 1
+    /// billion keypresses per second).
+    keystroke_counter: AtomicU64,
 }
 
 impl MechanicalClick {
@@ -171,6 +164,7 @@ impl MechanicalClick {
                 overrides: std::collections::HashMap::new(),
             },
             sample_rate: sample_rate as f32,
+            keystroke_counter: AtomicU64::new(1),
         }
     }
 
@@ -184,6 +178,7 @@ impl MechanicalClick {
                 overrides: std::collections::HashMap::new(),
             },
             sample_rate: sample_rate as f32,
+            keystroke_counter: AtomicU64::new(1),
         }
     }
 
@@ -194,7 +189,27 @@ impl MechanicalClick {
         Self {
             profiles,
             sample_rate: sample_rate as f32,
+            keystroke_counter: AtomicU64::new(1),
         }
+    }
+
+    /// Reset this instance's keystroke counter to 1.
+    ///
+    /// This is a **test-only** helper. In production code, the counter
+    /// should monotonically increase forever — calling this from a real
+    /// audio path would make consecutive keypresses produce identical
+    /// waveforms, defeating the entire purpose of v5.0.0's
+    /// micro-randomization.
+    ///
+    /// # Why per-instance? (v5.0.1)
+    ///
+    /// Because the counter is now per-instance (not global), resetting
+    /// it only affects THIS `MechanicalClick` instance — other instances
+    /// (e.g. in parallel tests) are unaffected. This eliminates the
+    /// flaky-test race that v5.0.0's global counter caused.
+    #[doc(hidden)]
+    pub fn reset_keystroke_counter_for_tests(&self) {
+        self.keystroke_counter.store(1, Ordering::Relaxed);
     }
 }
 
@@ -222,12 +237,10 @@ impl AcousticModel for MechanicalClick {
         // randomness is resolved here in init_state (called once per
         // keypress from the main thread, NOT from the audio callback).
         //
-        // The seed is derived from a global AtomicU64 counter so it is
-        // unique per keypress even when multiple voices trigger
-        // simultaneously from different threads (the orchestrator drains
-        // co-arriving events in a batch, but each init_state call still
-        // gets a distinct counter value).
-        let keystroke_id = KEYSTROKE_COUNTER.fetch_add(1, Ordering::Relaxed);
+        // The seed is derived from this instance's monotonic counter so
+        // it is unique per keypress. v5.0.1: moved from a global static
+        // to a per-instance field to eliminate parallel-test flakiness.
+        let keystroke_id = self.keystroke_counter.fetch_add(1, Ordering::Relaxed);
 
         // Fold the 64-bit counter into a 32-bit PRNG seed. xor + shift
         // gives good bit-mixing; we don't need cryptographic quality,
