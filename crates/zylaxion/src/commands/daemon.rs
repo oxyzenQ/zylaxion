@@ -277,20 +277,26 @@ pub fn cmd_stop() {
 ///
 /// # Behaviour
 ///
-/// - Polls `config_path`'s modification time (mtime) every
-///   [`CONFIG_WATCH_INTERVAL`] (1 second) via `std::fs::metadata`.
-/// - When the mtime advances, the thread re-reads the file via
-///   [`config::reload_preset`]. **The `--preset` CLI flag is ignored
-///   on reload** — the watcher always reads `preset.tuning` from the
-///   freshly-saved file. This makes `config.toml` the single source of
-///   truth once the daemon is running: edit `tuning = "elegant"`, save,
-///   and the daemon swaps to elegant immediately, even if it was
-///   started with `--preset cherryMX`.
+/// - Polls every [`CONFIG_WATCH_INTERVAL`] (1 second).
+/// - On every poll, re-runs the search-path resolution via
+///   [`crate::config::find_config_path`]. This catches the case where
+///   a higher-priority config file appears while the daemon is
+///   running (e.g. user creates `~/.config/zylaxion/config.toml`
+///   while the daemon was watching `/usr/local/share/zylaxion/...`).
+///   When the resolved path changes, the watcher logs the switch and
+///   loads the new file immediately.
+/// - For the currently watched path, polls its modification time
+///   (mtime) via `std::fs::metadata`. When the mtime advances, the
+///   thread re-reads the file via [`config::reload_preset`].
+///   **The `--preset` CLI flag is ignored on reload** — the watcher
+///   always reads `preset.tuning` from the freshly-saved file.
 /// - On any error (parse failure, preset not found), the thread logs
 ///   a `warn!` and keeps the old model. The user can fix the TOML and
 ///   save again to retry.
-/// - If `config_path` is `None` (hardcoded default fallback, no file to
-///   watch), the thread exits immediately.
+/// - If `config_path` is `None` at startup (hardcoded default, no
+///   file found anywhere), the thread does NOT exit — it keeps
+///   polling so it picks up a config file the moment one appears in
+///   any search path.
 ///
 /// # `initial_preset` is for logging only
 ///
@@ -313,32 +319,85 @@ fn spawn_config_watcher(
     std::thread::Builder::new()
         .name("zylaxion-config-watcher".into())
         .spawn(move || {
-            let Some(path) = config_path else {
-                log::info!(
-                    "config-watcher: no config.toml on disk — using hardcoded default, nothing to watch"
-                );
-                return;
-            };
+            // `current_path` is the file the watcher is currently
+            // watching. It can change mid-run if a higher-priority
+            // file appears in the search path (see `find_config_path`
+            // for the resolution order).
+            let mut current_path: Option<std::path::PathBuf> = config_path.clone();
+
+            // `last_mtime` is the mtime of `current_path` as observed
+            // on the previous poll. Used to detect in-place edits to
+            // the currently watched file. Reset to `None` whenever
+            // `current_path` changes so the new file is loaded on the
+            // next iteration regardless of its mtime.
+            let mut last_mtime: Option<SystemTime> = current_mtime_of(&current_path);
 
             log::info!(
-                "config-watcher: watching {} for changes (initial preset: {}, poll interval: {:?})",
-                path.display(),
+                "config-watcher: initial path = {} (initial preset: {}, poll interval: {:?})",
+                path_display(&current_path),
                 initial_preset,
                 CONFIG_WATCH_INTERVAL
             );
 
-            let mut last_mtime: Option<SystemTime> = current_mtime(&path);
-
             loop {
                 std::thread::sleep(CONFIG_WATCH_INTERVAL);
 
-                let now_mtime = match current_mtime(&path) {
+                // ── 1. Re-evaluate the search path ────────────────────
+                // This is the v4.1.0 addition: detect when a higher-
+                // priority config file appears while the daemon is
+                // already running. Without this, the watcher would be
+                // locked to whatever path was resolved at startup.
+                let resolved = crate::config::find_config_path();
+
+                if resolved != current_path {
+                    log::info!(
+                        "config-watcher: config path changed: switching from {} to {}",
+                        path_display(&current_path),
+                        path_display(&resolved)
+                    );
+                    current_path = resolved;
+                    // Force a reload on the next step by clearing the
+                    // mtime baseline. The new file might have any
+                    // mtime, so we cannot rely on the previous value.
+                    last_mtime = None;
+
+                    // If the new path is None (all config files
+                    // vanished), keep the old model and continue
+                    // polling — the user might be in the middle of
+                    // moving files around.
+                    if current_path.is_none() {
+                        log::warn!(
+                            "config-watcher: no config.toml found in any search path — \
+                             keeping previous model, will retry next poll"
+                        );
+                        continue;
+                    }
+                }
+
+                // ── 2. Check the currently-watched file's mtime ──────
+                let Some(path) = current_path.as_ref() else {
+                    // No file to watch yet (initial hardcoded-default
+                    // case). The search-path re-evaluation above will
+                    // pick up a file the moment one appears.
+                    continue;
+                };
+
+                let now_mtime = match current_mtime(path) {
                     Some(t) => t,
-                    None => continue,
+                    None => {
+                        // The file disappeared between the search-path
+                        // check and now (race). The next poll's
+                        // search-path re-evaluation will handle the
+                        // fallback. Just reset the baseline so we don't
+                        // miss a recreation.
+                        last_mtime = None;
+                        continue;
+                    }
                 };
 
                 if let Some(prev) = last_mtime {
                     if now_mtime <= prev {
+                        // mtime hasn't advanced — nothing to do.
                         continue;
                     }
                 }
@@ -349,7 +408,7 @@ fn spawn_config_watcher(
                 // reload_preset reads preset.tuning from the file — the
                 // initial --preset CLI flag is intentionally NOT passed
                 // here so that file edits always take precedence.
-                match crate::config::reload_preset(&path, None) {
+                match crate::config::reload_preset(path, None) {
                     Ok((profiles, active)) => {
                         let new_model =
                             MechanicalClick::with_overrides(profiles, sample_rate);
@@ -367,6 +426,26 @@ fn spawn_config_watcher(
             }
         })
         .expect("failed to spawn config-watcher thread")
+}
+
+/// Get the modification time of a path (wrapped in `Option`) as a
+/// `SystemTime`. Returns `None` if the path is `None` (no file
+/// configured) or if the metadata cannot be read.
+fn current_mtime_of(path: &Option<std::path::PathBuf>) -> Option<SystemTime> {
+    path.as_ref()
+        .and_then(|p| std::fs::metadata(p).ok())
+        .and_then(|m| m.modified().ok())
+}
+
+/// Format an `Option<PathBuf>` for display in log messages.
+/// `None` becomes `"<hardcoded default>"` so the log line is
+/// unambiguous: it means no config file was found anywhere and the
+/// daemon is running with the built-in `KeyProfile::default()`.
+fn path_display(path: &Option<std::path::PathBuf>) -> String {
+    match path {
+        Some(p) => p.display().to_string(),
+        None => "<hardcoded default>".to_string(),
+    }
 }
 
 /// Get the modification time of a path as a `SystemTime`, or `None` if

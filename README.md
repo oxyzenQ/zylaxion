@@ -168,10 +168,10 @@ out-of-bounds DSP values before they affect the running daemon.
 
 ### Built-in sound presets
 
-Zylaxion ships with **16 presets** — 6 "character" presets for
-general use cases (v0.x–v3.x), and **10 high-fidelity legendary
-keyboard profiles** (v4.0.0+) tuned to mimic the acoustic signature
-of real switches.
+Zylaxion ships with **24 presets** — 6 "character" presets, 3
+switch-type presets, **10 high-fidelity legendary keyboard profiles**
+(v4.0.0+) tuned to mimic real switches, and **5 sci-fi / futuristic
+presets** (v4.1.0+) that don't mimic anything real.
 
 #### Character presets (general use)
 
@@ -191,7 +191,10 @@ Plus three switch-type presets: `linear`, `tactile`, `clicky`.
 Each of the following presets was hand-tuned against reference
 recordings of the actual hardware. The DSP parameters (click
 frequency, resonance Q, decay coefficient, ambient rattle) are
-adjusted to capture the signature character of each switch.
+adjusted to capture the signature character of each switch. Three
+presets (`ibm_model_m`, `topre`, `alps_skcm`) received a
+realism tuning pass in v4.1.0 — softer Topre attack, longer IBM
+Model M ring, deeper ALPS housing.
 
 | Preset             | Switch Type         | Character                                              |
 |--------------------|---------------------|--------------------------------------------------------|
@@ -206,6 +209,23 @@ adjusted to capture the signature character of each switch.
 | `zealios_v2`       | Tactile (sharp)     | Almost clicky-feeling bump. Enthusiast tactile.       |
 | `rotary_encoder`   | Encoder detent      | Not a keyboard — a smooth metallic knob click.        |
 
+#### Sci-Fi / Futuristic presets (v4.1.0+)
+
+These five presets are completely original acoustic signatures —
+they don't mimic real keyboards. Each pushes the DSP parameter
+ranges to extremes for cyberpunk aesthetic, gaming immersion, or
+just fun. Perfect for streaming setups with a sci-fi theme, game
+developers wanting UI key sounds, or anyone who wants a unique
+typing experience no human has heard before.
+
+| Preset             | Character                                                  |
+|--------------------|------------------------------------------------------------|
+| `cyber_deck`       | High-pitched metallic pings. Hollywood "future terminal".  |
+| `oceanic`          | Deep underwater rumble, long bass sustain, muffled thud.   |
+| `glass_tactile`    | Tapping a crystal wine glass — pure ringing tone.          |
+| `retro_typewriter` | Sharp typebar strike + cast-iron frame ring (no bell).     |
+| `neon_pulse`       | Cyberpunk UI button — heavy granular texture on a click.   |
+
 Try them all:
 
 ```bash
@@ -213,6 +233,8 @@ zylaxion list-presets
 zylaxion start --preset ibm_model_m
 zylaxion start --preset topre
 zylaxion start --preset alps_skcm
+zylaxion start --preset glass_tactile
+zylaxion start --preset neon_pulse
 ```
 
 ## Security & Privacy

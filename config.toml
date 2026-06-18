@@ -571,18 +571,21 @@ amplitude = 0.85
 [preset.ibm_model_m.spring]
 # Very low spring frequency — the deep plastic housing ring.
 # Range: 500.0 - 8000.0
-frequency = 900.0
-# Very high resonance — the housing rings like a bell.
+frequency = 850.0
+# Very high resonance — the housing rings like a bell. v4.1.0: bumped
+# from 6.5 to 7.5 to better match the sustained metallic ping of a
+# real Model M.
 # Range: 0.1 - 10.0
-resonance = 6.5
+resonance = 7.5
 # High mix — the housing ring is the dominant character of a Model M.
 # Range: 0.0 - 1.0
 mix = 0.85
 
 [preset.ibm_model_m.decay]
-# Long decay — the housing ring sustains for ~280 ms.
+# Long decay — the housing ring sustains for ~300 ms. v4.1.0: bumped
+# from 0.9997 to 0.99975 to let the ping ring out another ~20 ms.
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
-coefficient = 0.9997
+coefficient = 0.99975
 # Very low threshold — let the ring fade naturally.
 # Range: 1e-7 - 1e-2
 voice_off_threshold = 0.000001
@@ -593,9 +596,11 @@ enabled = true
 # Moderate rattle — the case is thick ABS, rattles a bit.
 # Range: 0.0 - 1.0
 noise_level = 0.20
-# Medium-slow decay — the rattle fades over ~150 ms.
+# Medium-slow decay — the rattle fades over ~170 ms. v4.1.0: lowered
+# from 0.985 to 0.983 so the case rattle rings out a touch longer
+# (real Model M cases have audible rattle for ~150-180 ms).
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
-noise_decay = 0.985
+noise_decay = 0.983
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -607,18 +612,26 @@ noise_decay = 0.985
 [preset.topre]
 
 [preset.topre.click]
-# Very low frequency — the "thock" sits in the 700-900 Hz range.
+# Very low frequency — the "thock" sits in the 600-800 Hz range.
+# v4.1.0: lowered from 700 to 650 to better match the deep, rounded
+# thock of a Realforce/HHKB. Real Topre thock fundamentals are
+# typically 500-700 Hz (the rubber dome's natural resonance).
 # Range: 500.0 - 8000.0
-frequency = 700.0
+frequency = 650.0
 # Very low resonance — thock is broad, not tuned.
 # Range: 0.1 - 10.0
 resonance = 0.6
 # Long duration — soft, rounded attack (rubber dome compresses slowly).
+# v4.1.0: bumped from 4.5 to 5.5 for an even softer attack. Real
+# Topre domes compress over ~5-7 ms because the conical spring
+# absorbs some of the actuation force before the dome collapses.
 # Range: 0.1 - 10.0
-duration_ms = 4.5
+duration_ms = 5.5
 # Moderate amplitude — Topre is quieter than buckling-spring.
+# v4.1.0: lowered from 0.55 to 0.50 — Topre is genuinely one of the
+# quieter "premium" switches.
 # Range: 0.0 - 1.0
-amplitude = 0.55
+amplitude = 0.50
 
 [preset.topre.spring]
 # Low-mid frequency — the conical spring ring under the dome.
@@ -632,9 +645,11 @@ resonance = 1.5
 mix = 0.45
 
 [preset.topre.decay]
-# Medium-long decay — thock sustains ~180 ms.
+# Medium-long decay — thock sustains ~200 ms. v4.1.0: bumped from
+# 0.9993 to 0.9994 to let the thock ring out a touch longer (real
+# Topre thock has audible sustain for ~180-220 ms).
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
-coefficient = 0.9993
+coefficient = 0.9994
 # Medium threshold.
 # Range: 1e-7 - 1e-2
 voice_off_threshold = 0.00001
@@ -855,9 +870,12 @@ noise_decay = 0.983
 [preset.alps_skcm]
 
 [preset.alps_skcm.click]
-# Mid-high frequency — sharp tactile bump.
+# Mid-high frequency — sharp tactile bump. v4.1.0: lowered from 3800
+# to 3500 to better match the slightly deeper, fuller bump of real
+# ALPS SKCM (the SKCM bump has more mid-frequency body than MX click
+# jackets, which are pure high-frequency transients).
 # Range: 500.0 - 8000.0
-frequency = 3800.0
+frequency = 3500.0
 # High resonance — ALPS bump is pronounced.
 # Range: 0.1 - 10.0
 resonance = 3.5
@@ -870,8 +888,11 @@ amplitude = 0.9
 
 [preset.alps_skcm.spring]
 # Mid frequency — ALPS housings ring at a higher pitch than MX.
+# v4.1.0: lowered from 2200 to 2000 — the tall ALPS housing has a
+# slightly deeper ring than MX housings, not higher as previously
+# tuned. The housing's tall side-walls add ~200 Hz of fundamental.
 # Range: 500.0 - 8000.0
-frequency = 2200.0
+frequency = 2000.0
 # High resonance — hollow housing rings prominently.
 # Range: 0.1 - 10.0
 resonance = 3.8
@@ -880,9 +901,11 @@ resonance = 3.8
 mix = 0.65
 
 [preset.alps_skcm.decay]
-# Medium decay (~180 ms).
+# Medium decay (~200 ms). v4.1.0: bumped from 0.9994 to 0.9995 to let
+# the hollow ALPS housing ring out another ~30 ms — real SKCM
+# housings audibly ring for 200-250 ms after the bump.
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
-coefficient = 0.9994
+coefficient = 0.9995
 # Low threshold.
 # Range: 1e-7 - 1e-2
 voice_off_threshold = 0.00001
@@ -1045,3 +1068,276 @@ enabled = false
 noise_level = 0.0
 # Range: 0.0 - 0.9999 (MUST be < 1.0)
 noise_decay = 0.99
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# v4.1.0 — Sci-Fi / Futuristic Series
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# The following 5 presets do NOT mimic real keyboards. They are
+# completely original acoustic signatures designed for cyberpunk
+# aesthetic, gaming immersion, or just fun. Each pushes the DSP
+# parameter ranges to extremes that real keyboards cannot reach.
+#
+# These presets are perfect for:
+#   - Streaming setups with a sci-fi theme
+#   - Game developers wanting UI/key sound effects
+#   - ASMR-style "type along" videos with a unique character
+#   - Just messing around with sounds no human has heard from a
+#     keyboard before
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: cyber_deck
+# High-pitched, metallic, rapid decay. Like typing on a futuristic
+# terminal in a cyberpunk movie — short bright pings with no body.
+# Inspired by the Hollywood "computer typing" sound effect.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.cyber_deck]
+
+[preset.cyber_deck.click]
+# Very high frequency — the bright "tink" of a future terminal.
+# Range: 500.0 - 8000.0
+frequency = 6500.0
+# High resonance — sharply tuned, almost a pure tone.
+# Range: 0.1 - 10.0
+resonance = 5.0
+# Very short attack — instantaneous digital transient.
+# Range: 0.1 - 10.0
+duration_ms = 0.6
+# Moderate amplitude — audible but not harsh.
+# Range: 0.0 - 1.0
+amplitude = 0.7
+
+[preset.cyber_deck.spring]
+# High frequency — a small metallic resonator inside the "deck".
+# Range: 500.0 - 8000.0
+frequency = 3500.0
+# Mid-high resonance.
+# Range: 0.1 - 10.0
+resonance = 4.0
+# Moderate mix — spring adds the "metallic" character.
+# Range: 0.0 - 1.0
+mix = 0.55
+
+[preset.cyber_deck.decay]
+# Fast decay (~80 ms) — terminals don't ring; they click and stop.
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9987
+# Higher threshold — cut the tail short.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.0001
+
+[preset.cyber_deck.ambient]
+# Disabled — terminals are silent between clicks.
+enabled = false
+# Range: 0.0 - 1.0
+noise_level = 0.0
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.99
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: oceanic
+# Very deep, slow decay, low-frequency rumble. Like typing
+# underwater — muffled, weighty, with a long bass sustain.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.oceanic]
+
+[preset.oceanic.click]
+# Very low frequency — the deep "thud" of an underwater strike.
+# Range: 500.0 - 8000.0
+frequency = 500.0
+# Very low resonance — broad, undefined low-end.
+# Range: 0.1 - 10.0
+resonance = 0.3
+# Long duration — water slows everything down.
+# Range: 0.1 - 10.0
+duration_ms = 8.0
+# Moderate amplitude.
+# Range: 0.0 - 1.0
+amplitude = 0.65
+
+[preset.oceanic.spring]
+# Very low frequency — the underwater bass rumble.
+# Range: 500.0 - 8000.0
+frequency = 600.0
+# Low resonance — broad, sustained rumble.
+# Range: 0.1 - 10.0
+resonance = 2.0
+# High mix — the rumble is the dominant character.
+# Range: 0.0 - 1.0
+mix = 0.8
+
+[preset.oceanic.decay]
+# Very long decay (~350 ms) — water sustains low frequencies.
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9998
+# Very low threshold — let the rumble fade naturally.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.000001
+
+[preset.oceanic.ambient]
+# High rattle — simulates water turbulence around the strike.
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.18
+# Very slow decay — water ripples last a long time.
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.99
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: glass_tactile
+# Very sharp, high resonance, pure tone. Like tapping a crystal
+# wine glass with a fingernail — ringing, almost musical.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.glass_tactile]
+
+[preset.glass_tactile.click]
+# High frequency — the natural resonance of a small glass.
+# Range: 500.0 - 8000.0
+frequency = 5200.0
+# Very high resonance — pure, sustained tone (glass rings for ages).
+# Range: 0.1 - 10.0
+resonance = 9.0
+# Very short attack — fingernail tap is instantaneous.
+# Range: 0.1 - 10.0
+duration_ms = 0.5
+# Moderate amplitude.
+# Range: 0.0 - 1.0
+amplitude = 0.6
+
+[preset.glass_tactile.spring]
+# High frequency — the secondary harmonic of the glass.
+# Range: 500.0 - 8000.0
+frequency = 4200.0
+# Very high resonance.
+# Range: 0.1 - 10.0
+resonance = 8.0
+# High mix — the harmonic is essential to the glass character.
+# Range: 0.0 - 1.0
+mix = 0.7
+
+[preset.glass_tactile.decay]
+# Very long decay (~400 ms) — glass rings and rings and rings.
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.99985
+# Very low threshold — let the ring fade to silence naturally.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.0000005
+
+[preset.glass_tactile.ambient]
+# Disabled — glass doesn't have a "housing rattle".
+enabled = false
+# Range: 0.0 - 1.0
+noise_level = 0.0
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.99
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: retro_typewriter
+# Sharp strike, long mid-frequency ring, no spring. Like an old
+# mechanical typewriter without the bell — the typebar hitting
+# the platen plus the cast-iron frame resonance.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.retro_typewriter]
+
+[preset.retro_typewriter.click]
+# Mid frequency — the typebar strike against the platen.
+# Range: 500.0 - 8000.0
+frequency = 2500.0
+# Mid-high resonance — the typebar rings briefly.
+# Range: 0.1 - 10.0
+resonance = 4.0
+# Short attack — typebar strike is fast.
+# Range: 0.1 - 10.0
+duration_ms = 1.0
+# Strong amplitude — typewriters are LOUD.
+# Range: 0.0 - 1.0
+amplitude = 0.85
+
+[preset.retro_typewriter.spring]
+# Mid frequency — the cast-iron frame resonance (NOT a spring —
+# typewriters don't have springs in the audio path, but we use the
+# spring DSP block to model the frame ring).
+# Range: 500.0 - 8000.0
+frequency = 1500.0
+# High resonance — cast iron rings for a long time.
+# Range: 0.1 - 10.0
+resonance = 5.5
+# High mix — the frame ring is half the typewriter character.
+# Range: 0.0 - 1.0
+mix = 0.7
+
+[preset.retro_typewriter.decay]
+# Long decay (~250 ms) — cast iron frame rings out.
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9996
+# Low threshold — let the ring fade naturally.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.000005
+
+[preset.retro_typewriter.ambient]
+# High rattle — typewriters have lots of moving parts that rattle.
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.20
+# Medium-slow decay.
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.985
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Preset: neon_pulse
+# Mid-frequency, heavy ambient rattle, synthesized feel. Cyberpunk
+# vibe — like a holographic UI button press with synthesized
+# feedback. Heavily textured, almost granular.
+# ─────────────────────────────────────────────────────────────────────────────
+[preset.neon_pulse]
+
+[preset.neon_pulse.click]
+# Mid frequency — the synthesized "pulse" tone.
+# Range: 500.0 - 8000.0
+frequency = 3300.0
+# Mid-high resonance — tuned, but not as pure as glass.
+# Range: 0.1 - 10.0
+resonance = 3.5
+# Short attack — UI feedback is immediate.
+# Range: 0.1 - 10.0
+duration_ms = 1.4
+# Moderate amplitude.
+# Range: 0.0 - 1.0
+amplitude = 0.7
+
+[preset.neon_pulse.spring]
+# Mid frequency — the synthesized harmonic.
+# Range: 500.0 - 8000.0
+frequency = 2700.0
+# Mid resonance.
+# Range: 0.1 - 10.0
+resonance = 3.0
+# Moderate mix.
+# Range: 0.0 - 1.0
+mix = 0.55
+
+[preset.neon_pulse.decay]
+# Medium decay (~200 ms).
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+coefficient = 0.9994
+# Low threshold.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
+[preset.neon_pulse.ambient]
+# VERY high rattle — the "synthesized" character comes from heavy
+# granular texture on top of the click. This is what gives neon_pulse
+# its cyberpunk feel — without the heavy ambient, it just sounds
+# like a generic click.
+enabled = true
+# Range: 0.0 - 1.0
+noise_level = 0.35
+# Medium decay — the texture sustains alongside the click.
+# Range: 0.0 - 0.9999 (MUST be < 1.0)
+noise_decay = 0.987
