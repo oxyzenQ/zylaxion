@@ -10,11 +10,15 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "1.0.4"
+version = "2.0.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 authors = ["rezky_nightky"]
 repository = "https://github.com/oxyzenQ/zylaxion"
+
+[workspace.dependencies]
+pipewire = "0.8"
+libspa = "0.8"
 
 [profile.release]
 lto = true
