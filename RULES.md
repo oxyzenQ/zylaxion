@@ -31,8 +31,15 @@ upstream GitHub release.
 
 ## Local Tooling
 
-- **`scripts/build.sh --check-all`:** Local CI gatekeeper. Runs `cargo fmt --check`,
-  `cargo clippy -- -D warnings`, `cargo test` sequentially. Exit on first failure.
+- **`scripts/build.sh --check-all`:** Local CI gatekeeper. Runs four
+  checks sequentially, exiting on first failure:
+  1. `cargo fmt --check` — formatting must be clean.
+  2. `cargo clippy -- -D warnings` — zero warnings allowed.
+  3. `cargo test` — all unit + doc tests must pass.
+  4. `cargo audit` (v5.0.0+) — supply-chain CVE scan. Optional: if
+     `cargo-audit` is not installed, the script prints a warning and
+     continues instead of failing. Install with `cargo install
+     cargo-audit` to enable the audit gate.
 - **`scripts/version-to vMAJOR.MINOR.PATCH`:** Single-source-of-truth version bumper.
   Patches all `Cargo.toml` files. Zero tolerance for manual version edits.
 

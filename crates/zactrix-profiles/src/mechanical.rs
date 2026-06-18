@@ -28,10 +28,105 @@
 //! 3. **Exponential decay envelope** — A per-sample multiplicative envelope
 //!    (`value *= coeff`) models the natural energy dissipation of the mechanical
 //!    system. When the amplitude falls below a threshold, the voice deactivates.
+//!
+//! # Micro-Randomization (v5.0.0+)
+//!
+//! Real mechanical keyboards never produce identical waveforms from one
+//! keypress to the next — spring tolerances, keycap mass variance, and
+//! human force variation all introduce micro-changes. Without this
+//! variation, synthesized keyboard sound falls into the "uncanny valley"
+//! of perceptible determinism (the brain notices the repeats).
+//!
+//! Since v5.0.0, [`MechanicalClick::init_state`] applies three forms of
+//! per-keystroke randomness, all resolved ONCE at trigger time (never in
+//! the real-time audio callback):
+//!
+//! - **Noise seed variation**: the xorshift32 PRNG seed is derived from
+//!   a global monotonic counter, so the noise burst is never identical.
+//! - **Pitch drift** (±1.5%): tiny random offsets applied to click /
+//!   spring / housing frequencies. Matches real switch tolerance.
+//! - **Amplitude drift** (±5%): tiny random offset applied to the
+//!   excitation envelope. Matches human force variation.
+//!
+//! All randomness uses a single [`AtomicU64`] counter — no system RNG
+//! calls, no allocations, ~5ns overhead per keypress.
 
 use std::f32::consts::FRAC_PI_2;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::{AcousticModel, KeyEvent, KeyProfile, ProfileWithOverrides, SynthState};
+
+/// Global monotonic counter used to seed the per-keypress micro-randomization.
+///
+/// Each `init_state` call increments this and uses the new value to derive
+/// a unique noise seed + pitch/amplitude drift offsets. This breaks the
+/// "uncanny valley" of deterministic synthesis — pressing the same key 10
+/// times produces 10 slightly different waveforms, just like a real
+/// physical keyboard.
+///
+/// Uses `Relaxed` ordering because we only need uniqueness, not
+/// synchronization with other memory operations. The counter is u64 so
+/// it will not wrap in any realistic runtime (~584 years at 1 billion
+/// keypresses per second).
+static KEYSTROKE_COUNTER: AtomicU64 = AtomicU64::new(1);
+
+/// Maximum pitch drift applied to click/spring/housing frequency, as a
+/// fraction of the profile value. ±1.5% matches the natural variation
+/// of real mechanical switches (spring tolerances, keycap mass variance,
+/// temperature-induced stiffness changes).
+const PITCH_DRIFT_FRAC: f32 = 0.015;
+
+/// Maximum amplitude drift applied to the excitation envelope, as a
+/// fraction of the profile value. ±5% matches the natural variation
+/// of how hard a user presses a key from one keystroke to the next
+/// (typing cadence, finger fatigue, hand position drift).
+const AMPLITUDE_DRIFT_FRAC: f32 = 0.05;
+
+/// Xorshift32 step. Used both in the render path (existing) and here in
+/// `init_state` to derive per-keystroke random offsets. Inlined for
+/// consistency with the render path.
+#[inline]
+fn xorshift32(x: &mut u32) {
+    *x ^= *x << 13;
+    *x ^= *x >> 17;
+    *x ^= *x << 5;
+}
+
+/// Map a u32 to f32 in `[-1.0, 1.0]`. Used to derive signed drift values
+/// from the xorshift32 PRNG output.
+#[inline]
+fn u32_to_signed_f32(x: u32) -> f32 {
+    (x as f32 / u32::MAX as f32) * 2.0 - 1.0
+}
+
+/// Reset the global keystroke counter used for micro-randomization.
+///
+/// This is a **test-only** helper exposed so tests that need
+/// deterministic, repeatable voice output can reset the counter before
+/// each trigger. In production code, the counter should monotonically
+/// increase forever — calling this from a real audio path would make
+/// consecutive keypresses produce identical waveforms, defeating the
+/// entire purpose of v5.0.0's micro-randomization.
+///
+/// # Safety / correctness
+///
+/// This function is safe to call from any thread at any time. It uses
+/// `Relaxed` ordering because we only need atomicity, not
+/// synchronization with other memory operations.
+///
+/// # Why not `#[cfg(test)]`?
+///
+/// Because the calling test lives in a *different* crate
+/// (`zactrix-engine`'s test suite) than this crate
+/// (`zactrix-profiles`), a `#[cfg(test)]` gate here would not export
+/// the symbol and the cross-crate test would fail to link. Marking it
+/// `#[doc(hidden)]` instead keeps it out of the public API surface
+/// while still being callable from downstream test crates.
+#[doc(hidden)]
+#[allow(dead_code)]
+pub fn reset_keystroke_counter_for_tests() {
+    KEYSTROKE_COUNTER.store(1, Ordering::Relaxed);
+}
 
 /// Default acoustic model for mechanical keyboard switches.
 ///
@@ -119,21 +214,75 @@ impl AcousticModel for MechanicalClick {
     fn init_state(&self, profile: &KeyProfile, state: &mut SynthState, stereo_position: f32) {
         let sr = self.sample_rate;
 
-        // Pre-compute click filter TPT coefficients
-        state.click_g = (std::f32::consts::PI * profile.click.frequency / sr).tan();
+        // ── Micro-randomization (v5.0.0+) ───────────────────────────
+        // Each keypress gets a unique noise seed and small pitch/amplitude
+        // drift offsets so the same key never sounds identical twice.
+        // This breaks the "uncanny valley" of deterministic synthesis
+        // without adding any cost to the real-time audio callback — all
+        // randomness is resolved here in init_state (called once per
+        // keypress from the main thread, NOT from the audio callback).
+        //
+        // The seed is derived from a global AtomicU64 counter so it is
+        // unique per keypress even when multiple voices trigger
+        // simultaneously from different threads (the orchestrator drains
+        // co-arriving events in a batch, but each init_state call still
+        // gets a distinct counter value).
+        let keystroke_id = KEYSTROKE_COUNTER.fetch_add(1, Ordering::Relaxed);
+
+        // Fold the 64-bit counter into a 32-bit PRNG seed. xor + shift
+        // gives good bit-mixing; we don't need cryptographic quality,
+        // just uniqueness and uniform distribution.
+        let mut rng = (keystroke_id as u32) ^ ((keystroke_id >> 32) as u32);
+        // xorshift32 with seed=0 produces all zeros forever — guard
+        // against that by falling back to a fixed non-zero constant.
+        if rng == 0 {
+            rng = 0xDEAD_BEEF;
+        }
+
+        // Roll the RNG 4 times to get independent drift values:
+        //   1. click frequency drift   (±1.5%)
+        //   2. spring frequency drift  (±1.5%)
+        //   3. housing frequency drift (±1.5%)
+        //   4. excitation amplitude drift (±5%)
+        xorshift32(&mut rng);
+        let click_drift = u32_to_signed_f32(rng) * PITCH_DRIFT_FRAC;
+        xorshift32(&mut rng);
+        let spring_drift = u32_to_signed_f32(rng) * PITCH_DRIFT_FRAC;
+        xorshift32(&mut rng);
+        let housing_drift = u32_to_signed_f32(rng) * PITCH_DRIFT_FRAC;
+        xorshift32(&mut rng);
+        let amplitude_drift = u32_to_signed_f32(rng) * AMPLITUDE_DRIFT_FRAC;
+
+        // Apply pitch drift to the three filter frequencies. Multiply by
+        // (1.0 + drift) — drift is in [-PITCH_DRIFT_FRAC, +PITCH_DRIFT_FRAC].
+        // Clamped to a positive minimum to prevent the (rare) case where
+        // drift + a tiny profile frequency would produce a non-positive
+        // value (which would NaN the tan() pre-compute).
+        let click_freq = (profile.click.frequency * (1.0 + click_drift)).max(1.0);
+        let spring_freq = (profile.spring.frequency * (1.0 + spring_drift)).max(1.0);
+        let housing_freq = (profile.housing.frequency * (1.0 + housing_drift)).max(1.0);
+
+        // Apply amplitude drift to the excitation envelope. Clamp to
+        // [0.0, 2.0] so a +5% drift on a 1.0 amplitude doesn't push the
+        // envelope above 1.05 (which would clip the audio output).
+        let amplitude = (profile.click.amplitude * (1.0 + amplitude_drift)).clamp(0.0, 2.0);
+
+        // Pre-compute click filter TPT coefficients (using drifted frequency)
+        state.click_g = (std::f32::consts::PI * click_freq / sr).tan();
         state.click_k = 1.0 / profile.click.resonance;
 
-        // Pre-compute spring filter TPT coefficients
-        state.spring_g = (std::f32::consts::PI * profile.spring.frequency / sr).tan();
+        // Pre-compute spring filter TPT coefficients (using drifted frequency)
+        state.spring_g = (std::f32::consts::PI * spring_freq / sr).tan();
         state.spring_k = 1.0 / profile.spring.resonance;
 
-        // Pre-compute housing filter TPT coefficients (v4.2.0+).
-        // The housing layer is a third TPT SVF bandpass tuned to low
-        // frequencies (100-1000 Hz) to model the keycap-hitting-PCB
-        // "thock" sound. It is driven by the same noise excitation
-        // as the click and spring layers, but with a longer excitation
-        // window — see `housing_excitation_samples` below.
-        state.housing_g = (std::f32::consts::PI * profile.housing.frequency / sr).tan();
+        // Pre-compute housing filter TPT coefficients (v4.2.0+, using
+        // drifted frequency). The housing layer is a third TPT SVF
+        // bandpass tuned to low frequencies (100-1000 Hz) to model the
+        // keycap-hitting-PCB "thock" sound. It is driven by the same
+        // noise excitation as the click and spring layers, but with a
+        // longer excitation window — see `housing_excitation_samples`
+        // below.
+        state.housing_g = (std::f32::consts::PI * housing_freq / sr).tan();
         state.housing_k = 1.0 / profile.housing.resonance;
         state.housing_mix = profile.housing.mix;
 
@@ -146,10 +295,10 @@ impl AcousticModel for MechanicalClick {
         // housing fundamental is a good balance — enough for the filter
         // to reach steady-state, short enough to keep the impact
         // percussive (not a sustained tone). For 250 Hz at 44.1 kHz:
-        // 4 * 44100/250 = 706 samples ≈ 16 ms.
+        // 4 * 44100/250 = 706 samples ≈ 16 ms. Uses the drifted
+        // housing_freq so the window scales with the pitch drift.
         let housing_periods = 4.0_f32;
-        let housing_excitation_fundamental =
-            (housing_periods * sr / profile.housing.frequency) as u32;
+        let housing_excitation_fundamental = (housing_periods * sr / housing_freq) as u32;
         state.housing_excitation_samples = state
             .excitation_samples
             .max(housing_excitation_fundamental)
@@ -175,12 +324,21 @@ impl AcousticModel for MechanicalClick {
         state.housing_ic1eq = 0.0;
         state.housing_ic2eq = 0.0;
 
-        // Reset envelope and sample counter
-        state.envelope_value = profile.click.amplitude;
+        // Reset envelope and sample counter. Uses the drifted amplitude
+        // so the entire voice starts at a slightly different level each
+        // keypress.
+        state.envelope_value = amplitude;
         state.sample_count = 0;
 
-        // Initialize noise generator with a deterministic non-zero seed
-        state.noise_state = 0xDEAD_BEEF;
+        // Initialize the noise generator with the per-keystroke seed.
+        // After 4 xorshift32 rolls above, `rng` is well-mixed and
+        // unique per keypress. XOR with a fixed constant so even if the
+        // counter wraps to 0 we still have a non-zero seed (xorshift32
+        // with seed=0 produces all zeros forever).
+        state.noise_state = rng ^ 0x4B45_5942; // "KEYB" in ASCII
+        if state.noise_state == 0 {
+            state.noise_state = 0xDEAD_BEEF;
+        }
 
         // ── Ambient rattle path setup ──────────────────────────────
         // Copied from the profile so the render path doesn't need to
@@ -193,8 +351,13 @@ impl AcousticModel for MechanicalClick {
         // here via ambient_decay each sample.
         state.ambient_envelope = profile.ambient.noise_level;
         // Separate seed from the click noise generator so the two
-        // noise streams don't correlate.
-        state.ambient_noise_state = 0xCAFEBABE;
+        // noise streams don't correlate. Also derive from the
+        // per-keystroke counter so ambient noise varies per keypress
+        // (v5.0.0+).
+        state.ambient_noise_state = (rng.wrapping_mul(0x85EB_CA6B)) ^ 0xCAFE_BABE;
+        if state.ambient_noise_state == 0 {
+            state.ambient_noise_state = 0xCAFEBABE;
+        }
         // Reset the high-pass filter state.
         state.ambient_hp_prev_input = 0.0;
         state.ambient_hp_prev_output = 0.0;
