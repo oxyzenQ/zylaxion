@@ -455,6 +455,33 @@ fn candidate_paths() -> Vec<PathBuf> {
     candidates
 }
 
+/// Re-resolve the current best config file path by walking the search
+/// order and returning the first candidate that exists as a regular file.
+///
+/// Returns `Some(absolute_path)` if a config file is found in any of
+/// the search paths, or `None` if no config file is present anywhere
+/// (the daemon will then run with the hardcoded default).
+///
+/// Used by the auto-reload watcher thread in
+/// `commands::daemon::spawn_config_watcher` to detect when a
+/// higher-priority config file appears (e.g. the user creates
+/// `~/.config/zylaxion/config.toml` while the daemon was already
+/// running against `/usr/local/share/zylaxion/config.toml`). Without
+/// this re-evaluation, the watcher would be locked to the path it
+/// resolved at startup and never notice the new higher-priority file.
+///
+/// This function performs NO caching — it stats every candidate on
+/// every call. It is intended to be called once per poll iteration
+/// (1 Hz by default), so the cost is negligible.
+pub fn find_config_path() -> Option<PathBuf> {
+    for candidate in candidate_paths() {
+        if candidate.is_file() {
+            return Some(canonicalise(&candidate));
+        }
+    }
+    None
+}
+
 /// Canonicalise a path to its absolute form for display.
 fn canonicalise(path: &Path) -> PathBuf {
     std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
