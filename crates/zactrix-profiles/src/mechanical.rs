@@ -31,7 +31,7 @@
 
 use std::f32::consts::FRAC_PI_2;
 
-use crate::{AcousticModel, KeyEvent, KeyProfile, ProfileWithOverrides, SynthState, SAMPLE_RATE};
+use crate::{AcousticModel, KeyEvent, KeyProfile, ProfileWithOverrides, SynthState};
 
 /// Default acoustic model for mechanical keyboard switches.
 ///
@@ -57,55 +57,55 @@ use crate::{AcousticModel, KeyEvent, KeyProfile, ProfileWithOverrides, SynthStat
 /// time), while new keypresses pick up the new model automatically.
 pub struct MechanicalClick {
     profiles: ProfileWithOverrides,
+    /// The actual sample rate of the audio device (e.g. 44100, 48000,
+    /// 96000). Used in `init_state` to compute filter coefficients and
+    /// excitation burst durations so the DSP math is accurate at any
+    /// sample rate — no resampling overhead.
+    sample_rate: f32,
 }
 
 impl MechanicalClick {
     /// Create a new `MechanicalClick` model with default parameters and
-    /// no per-key overrides.
+    /// no per-key overrides, using the given `sample_rate` (Hz) for all
+    /// DSP coefficient calculations.
     #[inline]
-    pub fn new() -> Self {
+    pub fn new(sample_rate: u32) -> Self {
         Self {
             profiles: ProfileWithOverrides {
                 default: KeyProfile::default(),
                 overrides: std::collections::HashMap::new(),
             },
+            sample_rate: sample_rate as f32,
         }
     }
 
     /// Create a `MechanicalClick` model with a custom default
     /// [`KeyProfile`] and no per-key overrides.
-    ///
-    /// The caller is responsible for ensuring `profile` is already
-    /// validated/clamped — this constructor does NOT re-validate. It is
-    /// intended for use with the hardcoded default profile (which is
-    /// known safe) or with profiles already loaded via
-    /// [`crate::load_profile_from_file`] (which validates on load).
     #[inline]
-    pub fn with_profile(profile: KeyProfile) -> Self {
+    pub fn with_profile(profile: KeyProfile, sample_rate: u32) -> Self {
         Self {
             profiles: ProfileWithOverrides {
                 default: profile,
                 overrides: std::collections::HashMap::new(),
             },
+            sample_rate: sample_rate as f32,
         }
     }
 
     /// Create a `MechanicalClick` model from a loaded
     /// [`ProfileWithOverrides`] (default + per-key overrides).
-    ///
-    /// The caller is responsible for ensuring `profiles` was loaded via
-    /// [`ProfileWithOverrides::from_file`] or
-    /// [`ProfileWithOverrides::from_str`], both of which validate and
-    /// clamp on parse.
     #[inline]
-    pub fn with_overrides(profiles: ProfileWithOverrides) -> Self {
-        Self { profiles }
+    pub fn with_overrides(profiles: ProfileWithOverrides, sample_rate: u32) -> Self {
+        Self {
+            profiles,
+            sample_rate: sample_rate as f32,
+        }
     }
 }
 
 impl Default for MechanicalClick {
     fn default() -> Self {
-        Self::new()
+        Self::new(crate::SAMPLE_RATE as u32)
     }
 }
 
@@ -117,16 +117,18 @@ impl AcousticModel for MechanicalClick {
     }
 
     fn init_state(&self, profile: &KeyProfile, state: &mut SynthState, stereo_position: f32) {
+        let sr = self.sample_rate;
+
         // Pre-compute click filter TPT coefficients
-        state.click_g = (std::f32::consts::PI * profile.click.frequency / SAMPLE_RATE).tan();
+        state.click_g = (std::f32::consts::PI * profile.click.frequency / sr).tan();
         state.click_k = 1.0 / profile.click.resonance;
 
         // Pre-compute spring filter TPT coefficients
-        state.spring_g = (std::f32::consts::PI * profile.spring.frequency / SAMPLE_RATE).tan();
+        state.spring_g = (std::f32::consts::PI * profile.spring.frequency / sr).tan();
         state.spring_k = 1.0 / profile.spring.resonance;
 
         // Pre-compute excitation burst duration in samples
-        state.excitation_samples = (profile.click.duration_ms * 0.001 * SAMPLE_RATE) as u32;
+        state.excitation_samples = (profile.click.duration_ms * 0.001 * sr) as u32;
         state.excitation_samples = state.excitation_samples.max(1);
 
         // Pre-compute decay and threshold from profile
@@ -174,7 +176,7 @@ impl AcousticModel for MechanicalClick {
         // Derived from: hp_coeff = (1 - cos(2*pi*fc/fs)) / (1 + cos(2*pi*fc/fs))
         // Pre-computed at init to avoid transcendentals in the render path.
         let fc = 2000.0_f32;
-        let omega = 2.0 * std::f32::consts::PI * fc / SAMPLE_RATE;
+        let omega = 2.0 * std::f32::consts::PI * fc / sr;
         let cos_omega = omega.cos();
         state.ambient_hp_coeff = (1.0 - cos_omega) / (1.0 + cos_omega);
 
@@ -299,7 +301,7 @@ mod tests {
 
     #[test]
     fn test_profile_returns_sane_defaults() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
         let event = KeyEvent {
             scancode: 42,
             pressed: true,
@@ -317,7 +319,7 @@ mod tests {
 
     #[test]
     fn test_center_pan_is_equal_lr() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
         let event = KeyEvent {
             scancode: 42,
             pressed: true,
@@ -334,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_full_left_pan_is_louder_on_left() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
         let event = KeyEvent {
             scancode: 42,
             pressed: true,
@@ -354,7 +356,7 @@ mod tests {
 
     #[test]
     fn test_full_right_pan_is_louder_on_right() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
         let event = KeyEvent {
             scancode: 42,
             pressed: true,
@@ -374,7 +376,7 @@ mod tests {
 
     #[test]
     fn test_voice_decays_and_deactivates() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
         let event = KeyEvent {
             scancode: 42,
             pressed: true,
@@ -406,7 +408,7 @@ mod tests {
 
     #[test]
     fn test_silence_after_deactivation() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
         let event = KeyEvent {
             scancode: 42,
             pressed: true,
@@ -436,7 +438,7 @@ mod tests {
 
     #[test]
     fn test_excitation_is_limited_duration() {
-        let model = MechanicalClick::new();
+        let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
         let event = KeyEvent {
             scancode: 42,
             pressed: true,
