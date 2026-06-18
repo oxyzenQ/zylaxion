@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  Pure procedural synthesis. Zero audio samples. Ultra-low latency.
+  Pure procedural synthesis. Zero audio samples. Low-latency.
 </p>
 
 <p align="center">
