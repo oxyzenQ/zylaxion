@@ -174,6 +174,15 @@ impl LibinputInterface for UdevInterface {
 /// Reads directly from `/dev/input/event*` via the `udev` backend,
 /// completely bypassing display servers (X11 / Wayland).
 ///
+/// # Privacy note
+///
+/// The `KeyEvent` returned by this source carries a raw hardware
+/// scancode (the physical key location, not an ASCII character). For
+/// privacy reasons, **never log the scancode field** in production
+/// code — a `journalctl` reader could reconstruct typed passwords by
+/// mapping scancodes back through the QWERTY layout. The struct exists
+/// to drive the DSP engine, not for human inspection.
+///
 /// # Example
 ///
 /// ```no_run
@@ -183,7 +192,9 @@ impl LibinputInterface for UdevInterface {
 /// let rx = source.listen().unwrap();
 ///
 /// for event in rx.iter() {
-///     println!("scancode: {}, pressed: {}", event.scancode, event.pressed);
+///     // Do NOT log `event.scancode` in production code — see the
+///     // privacy note above. Feed it to the DSP engine instead.
+///     let _ = event; // suppress unused-variable warning
 /// }
 /// ```
 pub struct LibinputSource {

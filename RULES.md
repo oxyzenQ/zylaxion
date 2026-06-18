@@ -74,6 +74,46 @@ A CI runner missing any of these will fail at `cargo clippy` with
   and `After=pipewire.service sound.target` so it always starts after
   the audio stack is ready.
 
+## Security & Privacy (v3.1.0+)
+
+Zylaxion has a **zero-leakage** posture. Hard rules:
+
+- **Never log scancodes.** The `KeyEvent` struct (in `zylaxion-input`)
+  carries a raw hardware scancode that can be mapped back to typed
+  text via the user's keyboard layout. Logging it — even at `debug`
+  or `trace` level — would create a side-channel leak exploitable by
+  anyone with read access to `journalctl --user -u zylaxion`.
+  - **Forbidden**: `log::debug!("scancode: {}", event.scancode)`,
+    `println!("key: {:?}", event)`, `eprintln!("got {}", event.scancode)`.
+  - **Allowed**: `log::debug!("input event received")` (generic,
+    no scancode, no key identity).
+  - The only place scancodes may be printed is `examples/` binaries
+    that gate output behind an explicit `--dump-scancodes` CLI flag
+    (see `crates/zylaxion-input/examples/listen_keys.rs`).
+- **IPC socket MUST be `0o600`.** `daemon::ipc::create_listener`
+  sets the umask to `0o077` during `bind()` AND `chmod`s the file to
+  `0o600` afterward. This blocks other users on the system from
+  sending `stop` / `status` commands to the daemon.
+- **No inbound network.** Zylaxion opens no TCP listener, no HTTP
+  server, no gRPC port. The only IPC channel is the Unix domain
+  socket described above.
+- **No outbound telemetry.** The only network call is the explicit
+  `zylaxion --check-update` subcommand, which fetches one GitHub
+  release tag and exits. There is no background phone-home, no
+  analytics, no crash-reporter.
+- **No on-disk keystroke storage.** Zylaxion writes only two files:
+  `$XDG_RUNTIME_DIR/zylaxion.pid` and `$XDG_RUNTIME_DIR/zylaxion.sock`.
+  No history file, no debug log file, no profile dump.
+
+Audit verification (run before every release):
+
+```bash
+# Should print zero matches in production paths:
+grep -rn 'scancode' crates/ --include='*.rs' | \
+    grep -E 'log::|println!|eprintln!' | \
+    grep -v 'examples/'
+```
+
 ## CI/CD (GitHub Actions)
 
 - **CI paths filter:** Ignore `*.md`, `*.txt`, `docs/` on push/PR.

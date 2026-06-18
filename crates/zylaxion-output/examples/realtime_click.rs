@@ -54,7 +54,7 @@ fn main() {
                 },
             );
             next_trigger += Duration::from_millis(500);
-            println!("[realtime_click]   tek!  (scancode 30)");
+            println!("[realtime_click]   tek!");
         }
 
         // Render a small batch from the VoicePool.
