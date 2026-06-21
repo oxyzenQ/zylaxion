@@ -13,12 +13,15 @@ resolver = "2"
 version = "5.0.1"
 edition = "2021"
 license = "GPL-3.0-or-later"
-authors = ["rezky_nightky"]
+authors = ["rezky_nightky (oxyzenQ)"]
 repository = "https://github.com/oxyzenQ/zylaxion"
 
 [profile.release]
-lto = true
-codegen-units = 1
 opt-level = 3
+debug = false
 strip = true
-panic = "abort"
+lto = "thin"
+codegen-units = 1
+panic = "unwind"
+overflow-checks = false
+incremental = false

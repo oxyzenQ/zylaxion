@@ -2,31 +2,28 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Zylaxion uninstaller — removes the installed binary, config.toml, and
+# zylaxion uninstaller - removes the installed binary, config.toml, and
 # systemd user unit.
 #
-# Usage: sudo ./scripts/uninstall.sh
+# Usage: ./scripts/uninstall.sh
 #
 # Environment variables:
-#   PREFIX   Installation prefix (default: /usr/local)
+#   PREFIX   Installation prefix (default: ~/.local)
 #   DESTDIR  Staging root (must match the value used during install)
 
 set -euo pipefail
 
-PREFIX="${PREFIX:-/usr/local}"
+PREFIX="${PREFIX:-${HOME}/.local}"
 DESTDIR="${DESTDIR:-}"
 
 BIN_DST="${DESTDIR}${PREFIX}/bin/zylaxion"
 SHARE_DST="${DESTDIR}${PREFIX}/share/zylaxion"
-TARGET_USER="${SUDO_USER:-$USER}"
+TARGET_USER="${USER}"
 
 echo "==> Uninstalling Zylaxion..."
 
 # ── Disable systemd user unit first (best-effort) ──────────────────
-# This is best-effort because the uninstaller is typically run as root
-# via sudo, but the user unit was enabled from the user's session.
-# Print a clear reminder for the user to run the disable command
-# themselves.
+# This is best-effort because the user service may not be active.
 
 if [ -n "${TARGET_USER}" ] && [ "$(id -u)" -ne 0 ]; then
     # Running as the target user — attempt disable.
@@ -56,10 +53,9 @@ fi
 # Check both locations: system-wide (/etc/systemd/user) and per-user
 # (~/.config/systemd/user). DESTDIR is respected for packaging builds.
 
-SYSTEM_UNIT="${DESTDIR}/etc/systemd/user/zylaxion.service"
 USER_UNIT="${DESTDIR}${HOME}/.config/systemd/user/zylaxion.service"
 
-for unit in "$SYSTEM_UNIT" "$USER_UNIT"; do
+for unit in "$USER_UNIT"; do
     if [ -f "$unit" ]; then
         rm -f "$unit"
         echo "    removed ${unit}"

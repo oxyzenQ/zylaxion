@@ -75,14 +75,14 @@ cd zylaxion
 # Build the release binary
 cargo build --release --locked
 
-# Install (binary + config.toml go to /usr/local by default)
-sudo ./scripts/install.sh
+# Install (binary + config.toml go to ~/.local by default)
+./scripts/install.sh
 ```
 
 To install to a custom prefix:
 
 ```bash
-PREFIX=/usr sudo ./scripts/install.sh
+PREFIX="$HOME/.local" ./scripts/install.sh
 ```
 
 The installer copies the binary to `${PREFIX}/bin/zylaxion` and the
@@ -90,9 +90,7 @@ central `config.toml` to `${PREFIX}/share/zylaxion/config.toml`. It
 does **not** run `cargo build` — build first, then install.
 
 Since v3.0.0 the installer also deploys a **systemd user service** to
-`~/.config/systemd/user/zylaxion.service` (when run without root) or
-`/etc/systemd/user/zylaxion.service` (when run as root). To enable
-auto-start on login:
+`~/.config/systemd/user/zylaxion.service`. To enable auto-start on login:
 
 ```bash
 systemctl --user enable --now zylaxion
@@ -111,7 +109,7 @@ Download, make executable, and copy to a directory on your PATH:
 ```bash
 wget https://github.com/oxyzenQ/zylaxion/releases/latest/download/zylaxion
 chmod +x zylaxion
-sudo install -Dm755 zylaxion /usr/local/bin/zylaxion
+install -Dm755 zylaxion "$HOME/.local/bin/zylaxion"
 ```
 
 ## Usage
@@ -313,13 +311,13 @@ ls -l "$XDG_RUNTIME_DIR/zylaxion.sock"
 cargo build --release --locked
 
 # Bump workspace version
-./scripts/version-to v0.2.0
+./scripts/version-to.sh v0.2.0
 ```
 
 ## Uninstall
 
 ```bash
-sudo ./scripts/uninstall.sh
+./scripts/uninstall.sh
 ```
 
 ## Architecture

@@ -1,11 +1,12 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+---
 name: Maintenance deps weekly
 
-on:
+"on":
   schedule:
-    - cron: "0 7 * * 1" # Monday 07:00 UTC
+    - cron: "0 0 * * 1"  # Monday 07:00 WIB
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -41,5 +42,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet || git commit -m "chore: weekly dependency update"
+          git diff --cached --quiet || \
+            git commit -m "chore: weekly dependency update"
           git push

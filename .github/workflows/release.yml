@@ -1,9 +1,10 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+---
 name: Release
 
-on:
+"on":
   push:
     tags:
       - "v*"
@@ -46,7 +47,7 @@ jobs:
           # expands to a single top-level `zylaxion-linux-amd64/`
           # directory containing just the binary — no `target/` noise.
           STAGE="zylaxion-linux-amd64"
-          rm -rf "$STAGE" "$STAGE.tar.gz" "$STAGE.tar.gz.sha512"
+          rm -rf "$STAGE" "$STAGE.tar.gz" "$STAGE.tar.gz.sha512sum"
           mkdir -p "$STAGE"
           cp target/release/zylaxion "$STAGE/zylaxion"
 
@@ -55,21 +56,21 @@ jobs:
 
           # SHA-512 checksum file. The format matches `sha512sum(1)`:
           # `<hash>  <filename>` (two spaces, filename relative). This
-          # lets users verify with `sha512sum -c zylaxion-linux-amd64.tar.gz.sha512`.
-          sha512sum "$STAGE.tar.gz" > "$STAGE.tar.gz.sha512"
+          # Users can verify it with `sha512sum -c`.
+          sha512sum "$STAGE.tar.gz" > "$STAGE.tar.gz.sha512sum"
 
           # Surface the artifacts in the CI log for quick inspection.
-          ls -l "$STAGE.tar.gz" "$STAGE.tar.gz.sha512"
+          ls -l "$STAGE.tar.gz" "$STAGE.tar.gz.sha512sum"
           echo "--- checksum contents ---"
-          cat "$STAGE.tar.gz.sha512"
+          cat "$STAGE.tar.gz.sha512sum"
 
       - name: Upload release artifact
         uses: softprops/action-gh-release@v2
         with:
           # Upload BOTH the tarball and its SHA-512 sidecar. Users can
-          # download the .sha512 file to verify the tarball integrity
+          # download the .sha512sum file to verify the tarball integrity
           # before extracting the binary.
           files: |
             zylaxion-linux-amd64.tar.gz
-            zylaxion-linux-amd64.tar.gz.sha512
+            zylaxion-linux-amd64.tar.gz.sha512sum
           generate_release_notes: true
