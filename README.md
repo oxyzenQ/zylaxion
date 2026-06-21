@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/zylaxion-logo-master.png" alt="Zylaxion logo" width="260">
+  <img src="assets/zylaxion-logo-master.png" alt="zylaxion logo" width="260">
 </p>
 
 <h1 align="center">zylaxion</h1>
@@ -311,7 +311,7 @@ ls -l "$XDG_RUNTIME_DIR/zylaxion.sock"
 cargo build --release --locked
 
 # Bump workspace version
-./scripts/version-to.sh v0.2.0
+./scripts/version-to.sh v5.0.1
 ```
 
 ## Uninstall
