@@ -2,7 +2,7 @@
 
 ## v0.2.0 - Stabilization & Packaging
 - Single-instance lock (anti-resource bloat)
-- CI artifact naming standard (.tar.gz + .sha512)
+- CI artifact naming standard (.tar.gz + .sha512sum)
 - Per-key volume mapping
 
 ## v0.3.0 - Advanced DSP & Hot-Reload

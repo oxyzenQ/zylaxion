@@ -471,7 +471,7 @@ impl AcousticModel for MechanicalClick {
         // ── Stage 2b: Spring TPT SVF (resonant ring) ─────────────────
         // Independent filter driven directly by the excitation. After the
         // burst ends, the filter rings at its natural frequency — this is
-        // the "pring" sound characteristic of mechanical switches.
+        // the "spring" sound characteristic of mechanical switches.
         let sg = state.spring_g;
         let sk = state.spring_k;
         let sa1 = 1.0 / (1.0 + sg * (sg + sk));

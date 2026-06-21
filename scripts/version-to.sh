@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Single-source-of-truth version bumper for the Zylaxion workspace.
-# Usage: ./scripts/version-to v1.0.0
+# Usage: ./scripts/version-to.sh v1.0.0
 
 set -euo pipefail
 
-VERSION="${1:?Usage: ./scripts/version-to <version>  (e.g. v1.0.0)}"
+VERSION="${1:?Usage: ./scripts/version-to.sh <version>  (e.g. v1.0.0)}"
 
 if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "Error: version must match vMAJOR.MINOR.PATCH (e.g. v1.0.0)" >&2

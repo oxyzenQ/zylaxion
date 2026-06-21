@@ -428,7 +428,7 @@ impl Default for SynthState {
 
 /// Trait for defining how a keyboard key sounds.
 ///
-/// Implementors provide the DSP logic that transforms key events into audio
+/// Implementers provide the DSP logic that transforms key events into audio
 /// samples. The trait is designed for zero-allocation render paths: all
 /// mutable state lives in [`SynthState`], which is allocated once per voice
 /// and reused across sample ticks.
@@ -449,7 +449,7 @@ pub trait AcousticModel: Send + Sync {
     /// Initialize the synthesis state from a profile.
     ///
     /// Called once before the first [`render_sample`](Self::render_sample) call.
-    /// Implementors should pre-compute all filter coefficients, pan gains, and
+    /// Implementers should pre-compute all filter coefficients, pan gains, and
     /// timing values here so that `render_sample` is free of division and
     /// transcendentals.
     fn init_state(&self, profile: &KeyProfile, state: &mut SynthState, stereo_position: f32);

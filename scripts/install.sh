@@ -2,16 +2,16 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Zylaxion installer — installs a pre-built release binary and the
-# central config.toml to the system.  Does NOT build the project; run
+# zylaxion installer - installs a pre-built release binary and the
+# central config.toml for the current user. Does NOT build the project; run
 # `cargo build --release --locked` first.
 #
-# Follows FHS: binary to $PREFIX/bin, config to $PREFIX/share.
+# Binary goes to $PREFIX/bin, config to $PREFIX/share.
 #
-# Usage: sudo ./scripts/install.sh
+# Usage: ./scripts/install.sh
 #
 # Environment variables:
-#   PREFIX   Installation prefix (default: /usr/local)
+#   PREFIX   Installation prefix (default: ~/.local)
 #   DESTDIR  Staging root for packaging (default: unset)
 
 set -euo pipefail
@@ -21,14 +21,14 @@ WORKSPACE_ROOT="${SCRIPT_DIR}/.."
 CONFIG_SRC="${WORKSPACE_ROOT}/config.toml"
 SERVICE_SRC="${WORKSPACE_ROOT}/assets/zylaxion.service"
 
-PREFIX="${PREFIX:-/usr/local}"
+PREFIX="${PREFIX:-${HOME}/.local}"
 DESTDIR="${DESTDIR:-}"
 
 BIN_SRC="${WORKSPACE_ROOT}/target/release/zylaxion"
 BIN_DST="${DESTDIR}${PREFIX}/bin/zylaxion"
 CONFIG_DST="${DESTDIR}${PREFIX}/share/zylaxion/config.toml"
 
-TARGET_USER="${SUDO_USER:-$USER}"
+TARGET_USER="${USER}"
 
 # ── Pre-flight ─────────────────────────────────────────────────────
 
@@ -59,18 +59,7 @@ echo "==> Installing config.toml to ${CONFIG_DST}"
 install -Dm0644 "$CONFIG_SRC" "$CONFIG_DST"
 
 # ── systemd user unit ───────────────────────────────────────────────
-# When running as root (via sudo), deploy to /etc/systemd/user so it
-# becomes the system-wide default for all users. When running as a
-# normal user, deploy to ~/.config/systemd/user for that user only.
-# DESTDIR is respected for packaging builds.
-
-if [ "$(id -u)" -eq 0 ]; then
-    # Running as root (system-wide install).
-    SERVICE_DST="${DESTDIR}/etc/systemd/user/zylaxion.service"
-else
-    # Running as a normal user (per-user install).
-    SERVICE_DST="${DESTDIR}${HOME}/.config/systemd/user/zylaxion.service"
-fi
+SERVICE_DST="${DESTDIR}${HOME}/.config/systemd/user/zylaxion.service"
 
 echo "==> Installing systemd user unit to ${SERVICE_DST}"
 install -Dm0644 "$SERVICE_SRC" "$SERVICE_DST"
@@ -86,8 +75,7 @@ if id -nG "$TARGET_USER" 2>/dev/null | tr ' ' '\n' | grep -qx "input"; then
 else
     echo "    WARNING  User '${TARGET_USER}' is NOT in the 'input' group."
     echo "    Zylaxion needs raw keyboard access via evdev."
-    echo "    Run:  sudo usermod -aG input ${TARGET_USER}"
-    echo "    Then log out and back in."
+    echo "    Add '${TARGET_USER}' to the 'input' group, then log out and back in."
 fi
 
 echo ""
@@ -106,4 +94,4 @@ echo "      systemctl --user daemon-reload"
 echo "      systemctl --user enable --now zylaxion"
 echo "      journalctl --user -u zylaxion -f        (live logs)"
 echo ""
-echo "    Uninstall:  sudo ./scripts/uninstall.sh"
+echo "    Uninstall:  ./scripts/uninstall.sh"

@@ -40,7 +40,7 @@ upstream GitHub release.
      `cargo-audit` is not installed, the script prints a warning and
      continues instead of failing. Install with `cargo install
      cargo-audit` to enable the audit gate.
-- **`scripts/version-to vMAJOR.MINOR.PATCH`:** Single-source-of-truth version bumper.
+- **`scripts/version-to.sh vMAJOR.MINOR.PATCH`:** Single-source-of-truth version bumper.
   Patches all `Cargo.toml` files. Zero tolerance for manual version edits.
 
 ## Build Prerequisites
