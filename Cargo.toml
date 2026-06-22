@@ -10,7 +10,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "5.0.3"
+version = "6.0.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 authors = ["rezky_nightky (oxyzenQ)"]
@@ -20,8 +20,8 @@ repository = "https://github.com/oxyzenQ/zylaxion"
 opt-level = 3
 debug = false
 strip = true
-lto = "thin"
+lto = true
 codegen-units = 1
-panic = "unwind"
+panic = "abort"
 overflow-checks = false
 incremental = false
