@@ -1,0 +1,4 @@
+[codespell]
+skip = .git,target,Cargo.lock,./assets
+quiet-level = 3
+ignore-words-list = rezky,nightky,oxyzenq,zylaxion,zactrix,procfs,symlink,symlinks,rustfmt,clippy,uptodate,nd
