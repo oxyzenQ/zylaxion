@@ -66,10 +66,106 @@ fn main() {
 }
 
 /// GitHub API endpoint for the latest published release of `oxyzenQ/zylaxion`.
-const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/oxyzenQ/zylaxion/releases/latest";
+const GITHUB_API_URL: &str = "https://api.github.com/repos/oxyzenQ/zylaxion/releases/latest";
+
+/// Human-readable releases URL (printed as the `Source:` line in output).
+const RELEASES_URL: &str = "https://github.com/oxyzenQ/zylaxion/releases/latest";
 
 /// Maximum seconds to wait for the GitHub API to respond.
-const CHECK_UPDATE_TIMEOUT_SECS: u32 = 5;
+const CHECK_UPDATE_TIMEOUT_SECS: u32 = 15;
+
+/// Compile-time current package version, used to avoid hardcoding version
+/// strings in the output (consistent with the version-anti-pattern rule).
+const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Result of comparing the running version against the latest upstream tag.
+#[derive(Debug, PartialEq, Eq)]
+enum UpdateStatus {
+    UpToDate,
+    UpdateAvailable,
+    CurrentIsNewer,
+}
+
+/// Minimal SemVer (major.minor.patch) for version comparison.
+/// Pre-release suffixes are stripped before comparison.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct SemVer {
+    major: u64,
+    minor: u64,
+    patch: u64,
+}
+
+impl SemVer {
+    fn parse(version: &str) -> Option<Self> {
+        let version = version.trim();
+        let version = version.strip_prefix('v').unwrap_or(version);
+        let version = version
+            .split_once('-')
+            .map_or(version, |(stable, _)| stable);
+        let mut parts = version.split('.');
+        let major = parts.next()?.parse().ok()?;
+        let minor = parts.next()?.parse().ok()?;
+        let patch = parts.next()?.parse().ok()?;
+        if parts.next().is_some() {
+            return None;
+        }
+        Some(Self {
+            major,
+            minor,
+            patch,
+        })
+    }
+}
+
+/// Ensure a version string has exactly one leading `v`.
+fn normalize_version(version: &str) -> String {
+    let version = version.trim();
+    if version.starts_with('v') {
+        version.to_string()
+    } else {
+        format!("v{version}")
+    }
+}
+
+/// Compare two version strings, returning the update status.
+fn compare_versions(current: &str, latest: &str) -> UpdateStatus {
+    match (SemVer::parse(current), SemVer::parse(latest)) {
+        (Some(current), Some(latest)) if current == latest => UpdateStatus::UpToDate,
+        (Some(current), Some(latest)) if current > latest => UpdateStatus::CurrentIsNewer,
+        _ => UpdateStatus::UpdateAvailable,
+    }
+}
+
+/// Extract the `"tag_name"` value from a GitHub releases JSON payload using
+/// plain string matching — no JSON parser dependency required.
+fn extract_tag_name(json: &str) -> Option<String> {
+    const KEY: &str = "\"tag_name\"";
+    let rest = json.get(json.find(KEY)? + KEY.len()..)?;
+    let rest = rest.trim_start().strip_prefix(':')?.trim_start();
+    let rest = rest.strip_prefix('"')?;
+    let end = rest.find('"')?;
+    Some(rest[..end].to_string())
+}
+
+/// Map curl's exit code to a human-readable message.
+fn interpret_curl_exit(code: i32) -> &'static str {
+    match code {
+        6 => "DNS resolution failed",
+        7 => "connection refused",
+        28 => "network request timed out",
+        35 => "SSL/TLS handshake failed",
+        _ => "network request failed",
+    }
+}
+
+/// Map HTTP status code from the GitHub API to a human-readable message.
+fn interpret_http_status(code: u16) -> &'static str {
+    match code {
+        403 => "GitHub API request was rate-limited or forbidden",
+        404 => "no latest GitHub release found for oxyzenQ/zylaxion",
+        _ => "GitHub API returned an unexpected error",
+    }
+}
 
 /// Implements `zylaxion --check-update`.
 ///
@@ -79,115 +175,97 @@ const CHECK_UPDATE_TIMEOUT_SECS: u32 = 5;
 /// no `webpki`. This keeps the dependency tree lean and eliminates the supply
 /// chain surface area of pulling in a TLS stack just to read one URL.
 ///
-/// The fetched `tag_name` is compared against the current crate version
-/// (prefixed with `v` to match GitHub's `vX.Y.Z` release-tag convention).
+/// Output format (matches the oxyzenQ ecosystem standard):
 ///
-/// Output format:
-///   - On latest:  `You are running the latest version (vX.Y.Z).`
-///   - Behind:     `Update available: <tag_name>. Please check https://github.com/oxyzenQ/zylaxion/releases.`
-///   - On error:   `Failed to check for updates: curl is not installed or network error.`
+/// ```text
+/// zylaxion update check
+/// Current: vX.Y.Z
+/// Latest:  vX.Y.Z
+/// Status:  up to date
+/// Source:  https://github.com/oxyzenQ/zylaxion/releases/latest
+/// ```
 ///
 /// Network errors, curl-not-installed, non-200 responses, and malformed JSON
 /// are all reported gracefully — the command never panics, only prints a
 /// human message and exits 0 (this is an informational flag, not a critical op).
 fn run_check_update() {
-    let current = format!("v{}", env!("CARGO_PKG_VERSION"));
-
-    println!("Checking for updates...");
-
-    let body = match fetch_latest_release_body() {
-        Ok(b) => b,
-        Err(err) => {
-            println!("Failed to check for updates: {err}");
-            return;
-        }
-    };
-
-    let tag = match extract_tag_name(&body) {
-        Some(t) => t,
-        None => {
-            println!("Failed to check for updates: malformed GitHub response.");
-            return;
-        }
-    };
-
-    if tag == current {
-        println!("You are running the latest version ({current}).");
-    } else {
-        println!(
-            "Update available: {tag}. Please check https://github.com/oxyzenQ/zylaxion/releases."
-        );
-    }
-}
-
-/// Runs `curl -s --max-time <N> -H <UA> -H <Accept> <URL>` and returns the
-/// response body as a string.
-///
-/// Returns a single human-readable error string covering all failure modes:
-///   - `curl` binary not found (most common — fresh minimal containers).
-///   - curl exited non-zero (network error, 404, 403 rate-limit, etc.).
-///   - curl produced non-UTF-8 bytes (shouldn't happen for JSON, but be safe).
-fn fetch_latest_release_body() -> Result<String, String> {
-    let user_agent = format!("zylaxion/{}", env!("CARGO_PKG_VERSION"));
-
     let output = Command::new("curl")
-        // -sS: silent (no progress bar) but still show errors on stderr.
-        // Plain -s would swallow curl's own diagnostic lines, leaving us
-        // unable to tell "curl binary missing" from "HTTP 403 rate-limit".
-        .arg("-sS")
-        // Fail fast on HTTP 4xx/5xx so the user sees the real status code
-        // (e.g. 403 rate-limit, 404 no-releases-yet) instead of a generic
-        // "malformed response" message. curl exits 22 on HTTP errors and
-        // writes a human-readable line to stderr, which we surface verbatim.
-        .arg("-f")
-        .arg("--max-time")
-        .arg(CHECK_UPDATE_TIMEOUT_SECS.to_string())
-        .arg("-H")
-        .arg(user_agent)
-        .arg("-H")
-        .arg("Accept: application/vnd.github+json")
-        .arg(LATEST_RELEASE_URL)
-        .output()
-        .map_err(|e| {
+        .args([
+            "--silent",
+            "--max-time",
+            &CHECK_UPDATE_TIMEOUT_SECS.to_string(),
+            "--header",
+            "Accept: application/vnd.github+json",
+            "--header",
+            &format!("User-Agent: zylaxion/{}", CURRENT_VERSION),
+            "--write-out",
+            "\n%{http_code}",
+            GITHUB_API_URL,
+        ])
+        .output();
+
+    let output = match output {
+        Ok(o) => o,
+        Err(e) => {
             if e.kind() == std::io::ErrorKind::NotFound {
-                "curl is not installed or network error.".to_string()
+                eprintln!("zylaxion update check failed: curl is not available on PATH");
             } else {
-                format!("failed to invoke curl: {e}")
+                eprintln!("zylaxion update check failed: {e}");
             }
-        })?;
+            return;
+        }
+    };
 
     if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stderr_trim = stderr.trim();
-        if stderr_trim.is_empty() {
-            return Err("curl is not installed or network error.".to_string());
-        }
-        return Err(format!("curl failed: {stderr_trim}"));
+        let code = output.status.code().unwrap_or(-1);
+        eprintln!(
+            "zylaxion update check failed: {}",
+            interpret_curl_exit(code)
+        );
+        return;
     }
 
-    String::from_utf8(output.stdout).map_err(|e| format!("curl returned non-UTF-8 body: {e}"))
-}
+    let raw = match String::from_utf8(output.stdout) {
+        Ok(s) => s,
+        Err(_) => {
+            eprintln!("zylaxion update check failed: response was not valid UTF-8");
+            return;
+        }
+    };
 
-/// Extracts the `"tag_name"` value from a GitHub releases JSON payload using
-/// plain string matching — no JSON parser dependency required.
-///
-/// Handles both compact (`"tag_name":"v0.1.0"`) and pretty-printed
-/// (`"tag_name": "v0.1.0"`) JSON. Tag values are simple identifiers like
-/// `v0.1.0` and never contain escape sequences, so naive quote-pair matching
-/// is sufficient.
-///
-/// Returns `None` if the key isn't found or the value isn't a quoted string.
-fn extract_tag_name(body: &str) -> Option<String> {
-    const KEY: &str = "\"tag_name\"";
+    let (body, status_str) = match raw.rsplit_once('\n') {
+        Some(pair) => pair,
+        None => {
+            eprintln!("zylaxion update check failed: GitHub API response was malformed");
+            return;
+        }
+    };
+    let status: u16 = status_str.trim().parse().unwrap_or(0);
+    if status != 200 {
+        eprintln!(
+            "zylaxion update check failed: {}",
+            interpret_http_status(status)
+        );
+        return;
+    }
 
-    let key_pos = body.find(KEY)?;
-    let after_key = &body[key_pos + KEY.len()..];
+    let latest_tag = match extract_tag_name(body) {
+        Some(t) => t,
+        None => {
+            eprintln!("zylaxion update check failed: could not parse latest release tag from GitHub response");
+            return;
+        }
+    };
 
-    // Skip optional whitespace, expect a colon, skip optional whitespace.
-    let after_colon = after_key.trim_start().strip_prefix(':')?;
-    let after_quote = after_colon.trim_start().strip_prefix('"')?;
+    let status_text = match compare_versions(CURRENT_VERSION, &latest_tag) {
+        UpdateStatus::UpToDate => "up to date",
+        UpdateStatus::UpdateAvailable => "update available",
+        UpdateStatus::CurrentIsNewer => "current is newer than latest release",
+    };
 
-    // Find the closing quote — tag names like `v0.1.0` have no escapes.
-    let end = after_quote.find('"')?;
-    Some(after_quote[..end].to_string())
+    println!("zylaxion update check");
+    println!("Current: {}", normalize_version(CURRENT_VERSION));
+    println!("Latest:  {}", normalize_version(&latest_tag));
+    println!("Status:  {status_text}");
+    println!("Source:  {RELEASES_URL}");
 }
