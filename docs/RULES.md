@@ -11,8 +11,8 @@ Absolute source of truth for maintaining consistency, efficiency, and quality.
   Bootstrap and wiring only. Logic goes into specific modules. Current: 474 LOC —
   needs refactoring into `commands/` or `cli.rs`.
 - **File Bloat:** No single `.rs` file may exceed 800 LOC.
-- **Release Profile:** `[profile.release]` uses `lto = true`, `codegen-units = 1`,
-  `opt-level = 3`, `strip = true`, `panic = "abort"`. Do not change.
+- **Release Profile:** `[profile.release]` uses `lto = "thin"`, `codegen-units = 1`,
+  `opt-level = 3`, `strip = true`, `panic = "unwind"`.
 
 ## Version & Update Command
 
