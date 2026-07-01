@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: GPL-3.0-only
 #
 # Single-source-of-truth version bumper for the Zylaxion workspace.
 # Usage: ./scripts/version-to.sh v1.0.0

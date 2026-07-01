@@ -22,7 +22,7 @@ All `-V` / `--version` output MUST follow this exact format:
 Version: v0.1.0
 Build: linux-x86_64 (11114e7)
 Copyright: (c) 2026 rezky_nightky (oxyzenQ)
-License: GPL-3.0-or-later
+License: GPL-3.0-only
 Source: https://github.com/oxyzenQ/zylaxion
 ```
 
@@ -140,12 +140,12 @@ grep -rn 'scancode' crates/ --include='*.rs' | \
 - **Contact:** `with dot rezky at gmail dot com`.
 - **Project name:** `zylaxion` (lowercase). Never `Zylaxion`.
 - **Badges:** ONLY Ko-fi (`ko-fi/rezky`).
-- **License:** GPL-3.0-or-later.
+- **License:** GPL-3.0-only.
 - **Trademark:** See `docs/trademark.md`.
 - **File headers:** All `.rs`, `.sh`, `.yml` files MUST carry:
   ```
   Copyright (C) 2026 rezky_nightky
-  SPDX-License-Identifier: GPL-3.0-or-later
+  SPDX-License-Identifier: GPL-3.0-only
   ```
 
 ## Git & Repo Hygiene

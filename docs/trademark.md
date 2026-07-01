@@ -3,7 +3,7 @@
 **Project:** zylaxion
 **Author:** rezky_nightky (oxyzenQ)
 **Repository:** github.com/oxyzenQ/zylaxion
-**License:** GPL-3.0-or-later
+**License:** GPL-3.0-only
 **Contact:** with dot rezky at gmail dot com
 
 The name "zylaxion" and its associated logos, branding, and documentation
@@ -24,13 +24,13 @@ mathematical works authored by rezky_nightky (oxyzenQ). These encompass:
 - All DSP parameter validation, clamping, and safe-range guardrails.
 
 Unauthorized commercial redistribution of the code or algorithms without
-adhering to the GPL-3.0-or-later license is strictly prohibited. This
+adhering to the GPL-3.0-only license is strictly prohibited. This
 includes but is not limited to:
 
 - Re-packaging the DSP engine into a closed-source product.
 - Extracting the TPT filter or acoustic model algorithms into a
   proprietary codebase without releasing the derivative work under
-  GPL-3.0-or-later.
+  GPL-3.0-only.
 - Selling the software or its algorithms under a different license
   without explicit written permission from the author.
 

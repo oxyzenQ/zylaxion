@@ -20,7 +20,7 @@ All `-V` / `--version` output MUST follow this exact format:
 Version: vX.Y.Z
 Build: linux-x86_64 (git-hash)
 Copyright: (c) 2026 rezky_nightky (oxyzenQ)
-License: GPL-3.0-or-later
+License: GPL-3.0-only
 Source: https://github.com/oxyzenQ/zylaxion
 ```
 
@@ -48,9 +48,9 @@ A `--check-update` subcommand MUST be implemented.
 - **Contact:** `with dot rezky at gmail dot com`.
 - **Project name:** `zylaxion` (lowercase). Never `Zylaxion`.
 - **Badges:** ONLY Ko-fi (`ko-fi/rezky`).
-- **License:** GPL-3.0-or-later.
+- **License:** GPL-3.0-only.
 - **File headers:** All `.rs`, `.sh`, `.yml` files MUST carry:
-  `Copyright (C) 2026 rezky_nightky` / `SPDX-License-Identifier: GPL-3.0-or-later`
+  `Copyright (C) 2026 rezky_nightky` / `SPDX-License-Identifier: GPL-3.0-only`
 
 ## Git & Repo Hygiene
 
