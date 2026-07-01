@@ -1,37 +1,66 @@
-# Zylaxion Roadmap to v5.0.0
+# Zylaxion Future Roadmap
 
-## v0.2.0 - Stabilization & Packaging
-- Single-instance lock (anti-resource bloat)
-- CI artifact naming standard (.tar.gz + .sha512sum)
-- Per-key volume mapping
+> **Status:** v10.0.0 released. This document is for future development.
+> **Last updated:** 2026-07-01
+> **Maintainer:** rezky_nightky (oxyzenQ)
 
-## v0.3.0 - Advanced DSP & Hot-Reload
-- Hot-reload profile TOML without restarting daemon
-- Per-key acoustic model (different resonance per key)
+---
 
-## v0.4.0 - Acoustic Realism
-- Multiple switch types (Tactile, Linear, Clicky)
-- Ambient noise simulation (mechanical rattle/hollow case)
+## Locked Principles
 
-## v1.0.0 - The Stable Release
-- Engine precision & optimization
-- 100% crash-proof
-- Basic sound tuning
+| Principle | Detail |
+|-----------|--------|
+| **Linux first** | amd64 Linux (gnu binary; musl deferred — needs system lib musl ports) |
+| **Low latency** | Real-time audio synthesis — must stay under 10ms |
+| **Workspace architecture** | 6 crates, clean separation |
+| **No bloat** | Keep dependency count reasonable |
 
-## v2.0.0 - PipeWire Native
-- Bypass ALSA, direct custom PipeWire node
-- Advanced routing (EQ, spatial audio)
+---
 
-## v3.0.0 - Linux Ecosystem Integration
-- systemd user-service integration
-- Policy/rules integration
-- Linux-specific real-time kernel optimization
+## Completed
 
-## v4.0.0 - Acoustic Masterclass
-- Add 10+ high-precision sound profiles (not just 'tek', but realistic mechanical keyboard simulation: IBM Model M, Cherry MX, Topre, etc.)
-- CLI profiling tools
+| Version | Focus | Highlights |
+|---------|-------|-----------|
+| v10.0.0 | Architecture Alignment | License consistency, release.yml fix, roadmap |
 
-## v5.0.0 - The Tightened Core
-- Dependency tightening (tighten security & audit without extreme zero-dep)
-- Final engine optimization
-- Absolute stabilization
+---
+
+## Future Phases
+
+### Phase 1: v10.1.0 — Polish
+
+| Feature | Complexity |
+|---------|-----------|
+| Shell completions (bash/zsh/fish) | Medium |
+| Man page | Medium |
+| Config file validation (--testconf) | Low |
+| Color output with NO_COLOR support | Low |
+| Static musl binary (needs musl ports of libasound/libinput/libudev) | High |
+
+### Phase 2: v10.2.0 — Performance
+
+| Feature | Complexity |
+|---------|-----------|
+| Audio buffer pool optimization | Medium |
+| Profile hot-reload (switch profiles without restart) | Medium |
+| CPU affinity pinning (real-time audio thread) | Low |
+| Adaptive sample rate based on output device | Medium |
+
+### Phase 3: v11.0.0 — Ecosystem
+
+| Feature | Complexity |
+|---------|-----------|
+| Custom profile import/export | Medium |
+| Community profile repository | Medium |
+| Prometheus metrics (latency, buffer underruns) | Low |
+| D-Bus interface for desktop integration | High |
+
+---
+
+## Explicitly Rejected
+
+| Feature | Why |
+|---------|-----|
+| ~~GUI~~ | CLI + daemon, not a GUI app |
+| ~~Windows/macOS~~ | Linux input subsystem specific |
+| ~~Cloud features~~ | Local audio synthesis |

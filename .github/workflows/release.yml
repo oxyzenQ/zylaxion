@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: GPL-3.0-only
 
 ---
 name: Release
@@ -67,13 +67,10 @@ jobs:
       - name: Upload release artifact
         uses: softprops/action-gh-release@v2
         with:
-          # Upload BOTH the tarball and its SHA-512 sidecar. Users can
-          # download the .sha512sum file to verify the tarball integrity
-          # before extracting the binary.
           files: |
             zylaxion-linux-amd64.tar.gz
             zylaxion-linux-amd64.tar.gz.sha512sum
-body: |
+          body: |
             ## zylaxion ${{ github.ref_name }}
 
             Real-time mechanical keyboard acoustic synthesizer for Linux.
