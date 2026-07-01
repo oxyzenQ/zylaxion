@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Central config resolution: search the filesystem for `config.toml`,
 //! determine the active preset (from CLI `--preset` or `preset.tuning`

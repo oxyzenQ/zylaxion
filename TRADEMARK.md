@@ -34,20 +34,20 @@ implementations, and procedural acoustic models are proprietary
 mathematical works authored by rezky_nightky (oxyzenQ).
 
 Unauthorized commercial redistribution of the code or algorithms without
-adhering to the GPL-3.0-or-later license is strictly prohibited.
+adhering to the GPL-3.0-only license is strictly prohibited.
 
 ## License
 
-Source code is provided under **GPL-3.0-or-later**. This grants the freedom to
+Source code is provided under **GPL-3.0-only**. This grants the freedom to
 use, study, modify, and redistribute the software under the terms of the GPL.
 It does not transfer ownership of the project, its name, its branding, or its
 intellectual property.
 
 ## Permitted
 
-- Using the software as provided under GPL-3.0-or-later
+- Using the software as provided under GPL-3.0-only
 - Contributing improvements via pull requests
-- Forking under GPL-3.0-or-later terms with **visible attribution** and distinct branding
+- Forking under GPL-3.0-only terms with **visible attribution** and distinct branding
 - Referencing zylaxion in articles, talks, or research with appropriate credit
 
 ## Prohibited
@@ -63,7 +63,7 @@ intellectual property.
 
 Violations of intellectual property rights will be pursued to the fullest extent
 permitted by law. The author reserves all rights not explicitly granted by the
-GPL-3.0-or-later license.
+GPL-3.0-only license.
 
 ---
 

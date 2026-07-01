@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Sanity test for the v5.0.0 micro-randomization: render two voices
 //! with the SAME profile and verify their waveforms differ. Before

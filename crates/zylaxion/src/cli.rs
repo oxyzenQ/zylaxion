@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! CLI definitions: argument parsing, version output, flag wiring.
 
@@ -18,7 +18,7 @@ const LONG_VERSION: &str = concat!(
     env!("GIT_HASH"),
     ")\n",
     "Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n",
-    "License: GPL-3.0-or-later\n",
+    "License: GPL-3.0-only\n",
     "Source: https://github.com/oxyzenQ/zylaxion"
 );
 
@@ -28,7 +28,7 @@ const LONG_VERSION: &str = concat!(
     name = "zylaxion",
     version = LONG_VERSION,
     about = "Real-time mechanical keyboard acoustic synthesizer for Linux",
-    after_help = "License: GPL-3.0-or-later | https://github.com/oxyzenQ/zylaxion"
+    after_help = "License: GPL-3.0-only | https://github.com/oxyzenQ/zylaxion"
 )]
 pub struct Cli {
     /// Check for upstream updates on GitHub.

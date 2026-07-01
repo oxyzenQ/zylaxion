@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Build script — captures the current git commit hash at compile time and
 //! exposes it to the crate via the `GIT_HASH` environment variable.
