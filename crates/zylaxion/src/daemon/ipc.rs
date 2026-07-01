@@ -121,7 +121,7 @@ pub fn send_command(cmd: &str) -> Result<IpcResponse, String> {
     let request = IpcRequest {
         cmd: cmd.to_string(),
     };
-    let mut json = serde_json::to_string(&request).unwrap();
+    let mut json = serde_json::to_string(&request).unwrap_or_default();
     json.push('\n');
 
     writer
@@ -165,40 +165,36 @@ pub fn handle_one_connection(listener: &UnixListener) -> Option<String> {
                 ok: false,
                 message: format!("invalid JSON: {e}"),
             };
-            let _ = writeln!(writer, "{}\n", serde_json::to_string(&resp).unwrap());
+            let _ = writeln!(
+                writer,
+                "{}\n",
+                serde_json::to_string(&resp).unwrap_or_default()
+            );
             return None;
         }
     };
 
-    let (response, should_stop) = match request.cmd.as_str() {
-        "stop" => (
-            IpcResponse {
-                ok: true,
-                message: "shutting down".into(),
-            },
-            true,
-        ),
-        "status" => (
-            IpcResponse {
-                ok: true,
-                message: "running".into(),
-            },
-            false,
-        ),
-        other => (
-            IpcResponse {
-                ok: false,
-                message: format!("unknown command: {other}"),
-            },
-            false,
-        ),
+    let response = match request.cmd.as_str() {
+        "stop" => IpcResponse {
+            ok: true,
+            message: "shutting down".into(),
+        },
+        "status" => IpcResponse {
+            ok: true,
+            message: "running".into(),
+        },
+        other => IpcResponse {
+            ok: false,
+            message: format!("unknown command: {other}"),
+        },
     };
 
-    let _ = writeln!(writer, "{}\n", serde_json::to_string(&response).unwrap());
-    // Always return the command string so the IPC thread can dispatch
-    // on it (stop, reload, etc.). The `should_stop` flag only affects
-    // the response message — the actual lifecycle decision is made by
-    // the IPC thread, not by this per-connection handler.
-    let _ = should_stop;
+    let _ = writeln!(
+        writer,
+        "{}\n",
+        serde_json::to_string(&response).unwrap_or_default()
+    );
+    // Return the command string so the IPC thread can dispatch on it
+    // (stop, reload, etc.).
     Some(request.cmd)
 }
