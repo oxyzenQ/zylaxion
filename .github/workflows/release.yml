@@ -81,8 +81,11 @@ jobs:
 
             ### Install
             ```bash
-            tar xzf zylaxion-${{ github.ref_name }}-linux-amd64.tar.gz
-            sudo install -Dm755 zylaxion-${{ github.ref_name }}-linux-amd64/zylaxion /usr/local/bin/zylaxion
+            archive="zylaxion-${{ github.ref_name }}-linux-amd64.tar.gz"
+            tar xzf "$archive"
+            sudo install -Dm755 \
+              "${archive%.tar.gz}/zylaxion" \
+              /usr/local/bin/zylaxion
             zylaxion --version
             ```
 
@@ -92,7 +95,8 @@ jobs:
 
             ### Verify
             ```bash
-            sha512sum -c zylaxion-${{ github.ref_name }}-linux-amd64.tar.gz.sha512sum
+            sha512sum -c \
+              zylaxion-${{ github.ref_name }}-linux-amd64.tar.gz.sha512sum
             ```
 
             ---
