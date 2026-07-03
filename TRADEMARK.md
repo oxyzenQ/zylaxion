@@ -1,70 +1,59 @@
-# zylaxion™ — Trademark & Intellectual Property
+# zylaxion Trademark & Intellectual Property
 
-**Project:** zylaxion
-**Author:** rezky_nightky (oxyzenQ)
+**Owner:** rezky_nightky (oxyzenQ)
 **Repository:** https://github.com/oxyzenQ/zylaxion
+**License:** GPL-3.0-only (source code)
 
----
+## 1. Copyright & Ownership
 
-## Ownership
+zylaxion — including its source code, logo, name, and all associated
+branding materials (collectively, the "Marks") — is the exclusive intellectual
+property of **rezky_nightky (oxyzenQ)**. The source code is licensed under the
+GNU General Public License v3 only (GPL-3.0-only). The Marks are NOT covered
+by the GPL and are reserved by the owner.
 
-zylaxion is the exclusive intellectual property of **rezky_nightky (oxyzenQ)**.
+This project is NOT for sale. Source-code theft, rebranding, or
+re-distribution under a different license without the express written
+consent of rezky_nightky (oxyzenQ) is strictly prohibited.
 
-All source code, architecture, design, branding, documentation, DSP algorithms,
-and associated materials are protected under international copyright law and
-the GNU General Public License v3.0 or later.
+## 2. Permitted Uses
 
-## Brand & Trademark
+- Running zylaxion from the official repository for personal or
+  internal use.
+- Forking the source code under the terms of GPL-3.0-only, provided the
+  fork is clearly renamed and does NOT use the zylaxion Marks.
+- Redistributing unmodified official releases with attribution to
+  rezky_nightky (oxyzenQ).
 
-The name **zylaxion**, the zylaxion logo, and the project's visual identity are
-protected trademarks of rezky_nightky (oxyzenQ). These marks may not be used
-without permission in ways that:
+## 3. Uses Requiring Written Permission
 
-- Imply endorsement of a fork or derivative work
-- Suggest official affiliation with a modified distribution
-- Misrepresent the origin or authorship of the software
+- Using the zylaxion name, logo, or branding in derivative or
+  competing products.
+- Commercial redistribution of zylaxion under the zylaxion brand.
+- Any use of the Marks that implies endorsement by, affiliation with, or
+  sponsorship by rezky_nightky (oxyzenQ) without prior written consent.
 
-Forks and GPL-compliant derivatives must adopt distinct branding (name, logo,
-and identity) to avoid confusion with the official project.
+## 4. Forks & Derivatives
 
-## DSP Architecture & Algorithms
+Forks of zylaxion MUST:
 
-The Zylaxion DSP architecture, TPT (Topology-Preserving Transform) filter
-implementations, and procedural acoustic models are proprietary
-mathematical works authored by rezky_nightky (oxyzenQ).
+- Use a different project name.
+- Use different branding (logo, color scheme, etc.).
+- Preserve the GPL-3.0-only license and copyright notice.
+- Clearly state that the fork is derived from zylaxion but is NOT
+  zylaxion and is NOT endorsed by rezky_nightky (oxyzenQ).
 
-Unauthorized commercial redistribution of the code or algorithms without
-adhering to the GPL-3.0-only license is strictly prohibited.
+## 5. Enforcement
 
-## License
+Unauthorized use of the zylaxion Marks may result in takedown requests
+and legal action to protect the intellectual property.
 
-Source code is provided under **GPL-3.0-only**. This grants the freedom to
-use, study, modify, and redistribute the software under the terms of the GPL.
-It does not transfer ownership of the project, its name, its branding, or its
-intellectual property.
+## 6. Contact
 
-## Permitted
-
-- Using the software as provided under GPL-3.0-only
-- Contributing improvements via pull requests
-- Forking under GPL-3.0-only terms with **visible attribution** and distinct branding
-- Referencing zylaxion in articles, talks, or research with appropriate credit
-
-## Prohibited
-
-- Selling this software or derivatives as a commercial product
-- Rebranding and redistributing without replacing name, logo, and identity
-- Removing or obscuring author attribution, copyright notices, or license headers
-- Claiming authorship or ownership of the core engine, architecture, or DSP design
-- Incorporating zylaxion source code into proprietary, closed-source software
-- Using the zylaxion name, logo, or branding on derivative works without permission
-
-## Enforcement
-
-Violations of intellectual property rights will be pursued to the fullest extent
-permitted by law. The author reserves all rights not explicitly granted by the
-GPL-3.0-only license.
+For trademark licensing inquiries or written permission requests, contact:
+**rezky_nightky (oxyzenQ)** — https://github.com/oxyzenQ
 
 ---
 
 © 2026 rezky_nightky (oxyzenQ). All rights reserved.
+zylaxion and the zylaxion logo are trademarks of rezky_nightky (oxyzenQ).
