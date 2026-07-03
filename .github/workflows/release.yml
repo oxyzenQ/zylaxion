@@ -74,4 +74,3 @@ jobs:
           files: |
             zylaxion-${{ env.TAG }}-linux-amd64.tar.gz
             zylaxion-${{ env.TAG }}-linux-amd64.tar.gz.sha512sum
-          generate_release_notes: true
