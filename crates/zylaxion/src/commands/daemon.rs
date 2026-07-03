@@ -136,7 +136,7 @@ pub fn cmd_start(cli_preset: Option<String>) {
 /// calling thread. This is the correct mode for systemd's `Type=simple`
 /// supervision: the launched process must stay alive in the foreground
 /// so systemd can track its PID. The `zylaxion.service` unit uses this
-/// via `ExecStart=/usr/local/bin/zylaxion daemon --foreground`.
+/// via `ExecStart=/usr/bin/zylaxion daemon --foreground`.
 ///
 /// Without `--foreground`, the function forks to the background (the
 /// parent prints the child PID and exits 0). This is the right

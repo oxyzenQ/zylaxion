@@ -14,7 +14,7 @@ const LONG_VERSION: &str = concat!(
     "Version: v",
     env!("CARGO_PKG_VERSION"),
     "\n",
-    "Build: linux-x86_64 (",
+    "Build: linux-amd64 (",
     env!("GIT_HASH"),
     ")\n",
     "Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n",

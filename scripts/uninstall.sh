@@ -4,8 +4,8 @@
 #
 # Uninstall zylaxion: binary + config.toml + systemd user service.
 # Auto-detects and removes from all known locations:
-#   binary:  /usr/bin/, /usr/local/bin/, ~/.local/bin/
-#   config:  /etc/zylaxion/, /usr/local/share/zylaxion/, ~/.config/zylaxion/
+#   binary:  /usr/bin/, ~/.local/bin/
+#   config:  /etc/zylaxion/, ~/.config/zylaxion/
 #   service: /etc/systemd/user/, ~/.config/systemd/user/
 # User config (~/.config/zylaxion/) is PRESERVED — pass --purge to remove.
 # Sudo is used ONLY for system paths. Run WITHOUT sudo.
@@ -20,9 +20,8 @@ Usage: $0 [--system|--user|--all] [--purge]
 
   (default)  Auto-detect: scan all known locations and remove every
              ${PROJECT_NAME} artifact found. Sudo only for system paths.
-  --system   Remove only system paths (/usr/bin, /usr/local/bin,
-             /etc/${PROJECT_NAME}, /usr/local/share/${PROJECT_NAME},
-             /etc/systemd/user).
+  --system   Remove only system paths (/usr/bin,
+             /etc/${PROJECT_NAME}, /etc/systemd/user).
   --user     Remove only user paths (~/.local/bin,
              ~/.config/systemd/user). No sudo.
   --all      Same as default.
@@ -75,9 +74,7 @@ echo ">> Uninstalling ${PROJECT_NAME}"
 case "${MODE}" in
     --system)
         remove_at "/usr/bin/${PROJECT_NAME}" yes
-        remove_at "/usr/local/bin/${PROJECT_NAME}" yes
         remove_at "/etc/${PROJECT_NAME}" yes
-        remove_at "/usr/local/share/${PROJECT_NAME}" yes
         remove_at "/etc/systemd/user/${PROJECT_NAME}.service" yes
         ;;
     --user)
@@ -93,11 +90,9 @@ case "${MODE}" in
     --all)
         # Binary
         remove_at "/usr/bin/${PROJECT_NAME}" yes
-        remove_at "/usr/local/bin/${PROJECT_NAME}" yes
         remove_at "${HOME}/.local/bin/${PROJECT_NAME}" no
         # Config (system paths removed; user config preserved unless --purge)
         remove_at "/etc/${PROJECT_NAME}" yes
-        remove_at "/usr/local/share/${PROJECT_NAME}" yes
         if [[ ${PURGE} -eq 1 ]]; then
             remove_at "${HOME}/.config/${PROJECT_NAME}" no
         elif [[ -f "${HOME}/.config/${PROJECT_NAME}/config.toml" ]]; then
