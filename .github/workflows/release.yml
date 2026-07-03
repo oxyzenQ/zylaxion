@@ -74,30 +74,4 @@ jobs:
           files: |
             zylaxion-${{ env.TAG }}-linux-amd64.tar.gz
             zylaxion-${{ env.TAG }}-linux-amd64.tar.gz.sha512sum
-          body: |
-            ## zylaxion ${{ github.ref_name }}
-
-            Real-time mechanical keyboard acoustic synthesizer for Linux.
-
-            ### Install
-            ```bash
-            archive="zylaxion-${{ github.ref_name }}-linux-amd64.tar.gz"
-            tar xzf "$archive"
-            sudo install -Dm755 \
-              "${archive%.tar.gz}/zylaxion" \
-              /usr/bin/zylaxion
-            zylaxion --version
-            ```
-
-            ### What's new
-            See
-            [CHANGELOG.md](https://github.com/oxyzenQ/zylaxion/blob/main/CHANGELOG.md)
-
-            ### Verify
-            ```bash
-            sha512sum -c \
-              zylaxion-${{ github.ref_name }}-linux-amd64.tar.gz.sha512sum
-            ```
-
-            ---
-            (c) 2026 rezky_nightky (oxyzenQ) - GPL-3.0-only
+          generate_release_notes: true
