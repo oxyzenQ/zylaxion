@@ -19,13 +19,17 @@ Usage: $0 [--system|--user]
 
   --system   Install system-wide:
                binary  → /usr/bin/${PROJECT_NAME}
-               config  → /usr/local/share/${PROJECT_NAME}/config.toml (FHS default)
+               config  → /etc/${PROJECT_NAME}/config.toml (FHS default)
                service → /etc/systemd/user/${PROJECT_NAME}.service
              (script invokes sudo for the install steps)
   --user     Install to user-local (default, no sudo):
                binary  → ~/.local/bin/${PROJECT_NAME}
                config  → ~/.config/${PROJECT_NAME}/config.toml (only if not present)
                service → ~/.config/systemd/user/${PROJECT_NAME}.service
+
+The system config file is NEVER overwritten. If it already exists, a
+timestamped backup is created as config.bak.<epoch> and the new template
+is installed as config.new for manual review.
 
 The build step (cargo build --release --locked) ALWAYS runs as the current user.
 EOF
@@ -82,10 +86,20 @@ echo ">> [3/4] Installing config.toml (${MODE})"
 case "${MODE}" in
     --system)
         # FHS default location — in zylaxion's config search path.
-        sudo install -Dm644 "${CONFIG_SRC}" \
-            "/usr/local/share/${PROJECT_NAME}/config.toml"
-        echo "   installed: /usr/local/share/${PROJECT_NAME}/config.toml"
-        echo "   (system-wide default; users can override at ~/.config/${PROJECT_NAME}/config.toml)"
+        sudo mkdir -p "/etc/${PROJECT_NAME}"
+        config_path="/etc/${PROJECT_NAME}/config.toml"
+        if sudo test -f "${config_path}"; then
+            backup="${config_path}.bak.$(date +%s)"
+            sudo cp -p "${config_path}" "${backup}"
+            sudo install -m 644 "${CONFIG_SRC}" "${config_path}.new"
+            echo "   existing config preserved: ${config_path}"
+            echo "   backup created at:            ${backup}"
+            echo "   new template installed at:    ${config_path}.new (review and merge manually)"
+        else
+            sudo install -Dm644 "${CONFIG_SRC}" "${config_path}"
+            echo "   installed: ${config_path}"
+            echo "   (system-wide default; users can override at ~/.config/${PROJECT_NAME}/config.toml)"
+        fi
         ;;
     --user)
         user_cfg_dir="${HOME}/.config/${PROJECT_NAME}"

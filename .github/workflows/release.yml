@@ -85,7 +85,7 @@ jobs:
             tar xzf "$archive"
             sudo install -Dm755 \
               "${archive%.tar.gz}/zylaxion" \
-              /usr/local/bin/zylaxion
+              /usr/bin/zylaxion
             zylaxion --version
             ```
 
