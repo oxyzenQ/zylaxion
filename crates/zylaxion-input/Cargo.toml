@@ -9,6 +9,5 @@ description = "Linux kernel keyboard input capture via libinput for the Zylaxion
 
 [dependencies]
 input = { version = "0.9", features = ["udev"] }
-udev = "0.8"
 nix = { version = "0.29", features = ["time"] }
 crossbeam-channel = "0.5"

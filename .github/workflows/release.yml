@@ -42,11 +42,13 @@ jobs:
         run: cargo build --release --locked
 
       - name: Package release artifacts
+        env:
+          TAG: ${{ github.ref_name }}
         run: |
           # Stage the bare binary into a clean directory so the tarball
-          # expands to a single top-level `zylaxion-linux-amd64/`
+          # expands to a single top-level `zylaxion-<tag>-linux-amd64/`
           # directory containing just the binary — no `target/` noise.
-          STAGE="zylaxion-linux-amd64"
+          STAGE="zylaxion-${TAG}-linux-amd64"
           rm -rf "$STAGE" "$STAGE.tar.gz" "$STAGE.tar.gz.sha512sum"
           mkdir -p "$STAGE"
           cp target/release/zylaxion "$STAGE/zylaxion"
@@ -66,10 +68,12 @@ jobs:
 
       - name: Upload release artifact
         uses: softprops/action-gh-release@v2
+        env:
+          TAG: ${{ github.ref_name }}
         with:
           files: |
-            zylaxion-linux-amd64.tar.gz
-            zylaxion-linux-amd64.tar.gz.sha512sum
+            zylaxion-${{ env.TAG }}-linux-amd64.tar.gz
+            zylaxion-${{ env.TAG }}-linux-amd64.tar.gz.sha512sum
           body: |
             ## zylaxion ${{ github.ref_name }}
 
@@ -77,8 +81,8 @@ jobs:
 
             ### Install
             ```bash
-            tar xzf zylaxion-linux-amd64.tar.gz
-            sudo install -Dm755 zylaxion /usr/local/bin/zylaxion
+            tar xzf zylaxion-${{ github.ref_name }}-linux-amd64.tar.gz
+            sudo install -Dm755 zylaxion-${{ github.ref_name }}-linux-amd64/zylaxion /usr/local/bin/zylaxion
             zylaxion --version
             ```
 
@@ -88,7 +92,7 @@ jobs:
 
             ### Verify
             ```bash
-            sha512sum -c zylaxion-linux-amd64.tar.gz.sha512sum
+            sha512sum -c zylaxion-${{ github.ref_name }}-linux-amd64.tar.gz.sha512sum
             ```
 
             ---

@@ -340,21 +340,21 @@ LibinputSource ──►      recv_timeout()
                                           ringbuf ──►  cpal callback
 ```
 
-## License & Trademark
+## Intellectual Property & Trademark
 
-Copyright (c) 2026 rezky_nightky (oxyzenQ)
+**zylaxion** is the exclusive intellectual property of
+**rezky_nightky (oxyzenQ)**.
 
-Licensed under the GNU General Public License v3.0 only (GPL-3.0-only).
-See [LICENSE](LICENSE) for the full text.
+- Source code: licensed under **GPL-3.0-only** (see [LICENSE](LICENSE)).
+- Name, logo, and branding ("the Marks"): governed by
+  [TRADEMARK.md](TRADEMARK.md). The Marks are NOT covered by the GPL and
+  are reserved by the owner.
+- This project is **NOT for sale**. Unauthorized rebranding, relicensing,
+  or source-code theft is strictly prohibited.
 
-### Intellectual Property
+For trademark licensing or written permission, contact
+**rezky_nightky (oxyzenQ)** — https://github.com/oxyzenQ.
 
-The Zylaxion DSP architecture, TPT (Topology-Preserving Transform)
-filter implementations, procedural acoustic models, and all
-mathematical algorithms in the `zactrix-engine` and `zactrix-profiles`
-crates are the intellectual property of `rezky_nightky (oxyzenQ)`.
+---
 
-Unauthorized commercial redistribution of the code or algorithms
-without adhering to the GPL-3.0-only license is strictly
-prohibited. See [docs/trademark.md](docs/trademark.md) for full
-details.
+© 2026 rezky_nightky (oxyzenQ). All rights reserved.
