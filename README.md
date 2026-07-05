@@ -112,6 +112,24 @@ chmod +x zylaxion
 install -Dm755 zylaxion "$HOME/.local/bin/zylaxion"
 ```
 
+### Release Verification
+
+Each release ships **three** checksums: classical SHA-512 + quantum-resistant
+BLAKE2b-512 + SHAKE256. Full instructions in
+[docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md).
+
+```bash
+# Classical (universal)
+sha512sum -c zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz.sha512sum
+
+# Quantum-resistant — BLAKE2b (fastest, in coreutils)
+b2sum -c zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz.b2sum
+
+# Quantum-resistant — SHAKE256 (NIST PQ standard, via openssl)
+openssl dgst -shake256 zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz
+# Compare hash with: cat zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz.shake256
+```
+
 ## Usage
 
 ```
