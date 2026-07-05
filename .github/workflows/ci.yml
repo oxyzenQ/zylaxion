@@ -7,20 +7,43 @@ name: CI
 "on":
   push:
     branches: [main]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
   pull_request:
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
+    branches: [main]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      core: ${{ steps.detect.outputs.core }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect core file changes
+        id: detect
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE=$(git rev-parse HEAD~1 2>/dev/null || git rev-list --max-parents=0 HEAD)
+            HEAD="${{ github.sha }}"
+          fi
+          FILES=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null || git ls-files)
+          if echo "$FILES" | grep -qE '\.(rs|toml)$|Cargo\.lock$|^build\.rs$|^rust-toolchain|^scripts/|^\.cargo/'; then
+            echo "core=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "core=false" >> "$GITHUB_OUTPUT"
+          fi
+
   check:
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
