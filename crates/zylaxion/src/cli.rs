@@ -4,29 +4,79 @@
 //! CLI definitions: argument parsing, version output, flag wiring.
 
 use clap::{Parser, Subcommand};
+use std::sync::OnceLock;
+
+/// Dynamic build target: detects arch + libc env at compile time.
+/// Returns e.g. "linux-amd64-gnu" (glibc, dynamic) or "linux-amd64-musl"
+/// (static) for x86_64 Linux builds.
+const BUILD_TARGET: &str = {
+    #[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "musl"))]
+    {
+        "linux-amd64-musl"
+    }
+    #[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "gnu"))]
+    {
+        "linux-amd64-gnu"
+    }
+    #[cfg(all(
+        target_os = "linux",
+        target_arch = "x86_64",
+        not(any(target_env = "musl", target_env = "gnu"))
+    ))]
+    {
+        "linux-amd64"
+    }
+    #[cfg(all(target_os = "linux", target_arch = "aarch64", target_env = "musl"))]
+    {
+        "linux-aarch64-musl"
+    }
+    #[cfg(all(target_os = "linux", target_arch = "aarch64", target_env = "gnu"))]
+    {
+        "linux-aarch64-gnu"
+    }
+    #[cfg(all(
+        target_os = "linux",
+        target_arch = "aarch64",
+        not(any(target_env = "musl", target_env = "gnu"))
+    ))]
+    {
+        "linux-aarch64"
+    }
+    #[cfg(not(any(
+        all(target_os = "linux", target_arch = "x86_64"),
+        all(target_os = "linux", target_arch = "aarch64"),
+    )))]
+    {
+        "unknown"
+    }
+};
 
 /// Multi-line version string emitted by `-V` / `--version`.
 ///
 /// `GIT_HASH` is injected at compile time by `build.rs` via
 /// `git rev-parse --short HEAD`. Falls back to `"unknown"` if git is
 /// unavailable or the crate is built outside a git work tree.
-const LONG_VERSION: &str = concat!(
-    "Version: v",
-    env!("CARGO_PKG_VERSION"),
-    "\n",
-    "Build: linux-amd64 (",
-    env!("GIT_HASH"),
-    ")\n",
-    "Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n",
-    "License: GPL-3.0-only\n",
-    "Source: https://github.com/oxyzenQ/zylaxion"
-);
+///
+/// Built lazily at first access because `BUILD_TARGET` is selected via
+/// `cfg!` at compile time but the full string needs runtime `format!`.
+static LONG_VERSION_CELL: OnceLock<String> = OnceLock::new();
+
+fn long_version() -> &'static str {
+    LONG_VERSION_CELL.get_or_init(|| {
+        format!(
+            "Version: v{}\nBuild: {} ({})\nCopyright: (c) 2026 rezky_nightky (oxyzenQ)\nLicense: GPL-3.0-only\nSource: https://github.com/oxyzenQ/zylaxion",
+            env!("CARGO_PKG_VERSION"),
+            BUILD_TARGET,
+            option_env!("GIT_HASH").unwrap_or("unknown")
+        )
+    }).as_str()
+}
 
 /// Zylaxion — real-time mechanical keyboard acoustic synthesizer for Linux.
 #[derive(Parser)]
 #[command(
     name = "zylaxion",
-    version = LONG_VERSION,
+    version = long_version(),
     about = "Real-time mechanical keyboard acoustic synthesizer for Linux",
     after_help = "License: GPL-3.0-only | https://github.com/oxyzenQ/zylaxion"
 )]
