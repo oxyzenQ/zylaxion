@@ -19,16 +19,20 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    # NOTE: zylaxion ships only the gnu (glibc) target — no musl static build.
+    # The cpal audio crate depends on alsa-sys, which requires pkg-config with
+    # cross-compilation support. ALSA has no musl static variant on Ubuntu
+    # runners (libasound2-dev is glibc-only), so musl cross-compile fails with
+    # "pkg-config has not been configured to support cross-compilation".
+    # A "musl" binary that still links libasound dynamically wouldn't be truly
+    # static anyway — defeating the purpose. Audio apps fundamentally need the
+    # host's ALSA library at runtime regardless of libc choice.
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
             archive_suffix: linux-amd64-gnu
-            install_musl: false
-          - target: x86_64-unknown-linux-musl
-            archive_suffix: linux-amd64-musl
-            install_musl: true
 
     steps:
       - name: Checkout
@@ -45,19 +49,13 @@ jobs:
           sudo apt-get install -y -qq \
             libasound2-dev libinput-dev libudev-dev pkg-config
 
-      - name: Install musl tools (musl build only)
-        if: ${{ matrix.install_musl }}
-        run: sudo apt-get install -y -qq musl-tools
-
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Verify static linking (musl only)
-        if: ${{ matrix.install_musl }}
+      - name: Verify binary
         run: |
           file target/${{ matrix.target }}/release/zylaxion
-          ldd target/${{ matrix.target }}/release/zylaxion \
-            || echo "Static binary (no dynamic deps)"
+          ldd target/${{ matrix.target }}/release/zylaxion || true
 
       - name: Package release artifacts
         env:
@@ -87,7 +85,6 @@ jobs:
           cat "$STAGE.tar.gz.shake256"
 
       - name: Generate release body
-        if: matrix.archive_suffix == 'linux-amd64-gnu'
         run: |
           PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
           {
@@ -105,24 +102,10 @@ jobs:
 
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2
-        if: matrix.archive_suffix == 'linux-amd64-gnu'
         env:
           TAG: ${{ github.ref_name }}
         with:
           body_path: release-body.md
-          prerelease: ${{ contains(github.ref_name, '-') }}
-          files: |
-            zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz
-            zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz.sha512sum
-            zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz.b2sum
-            zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz.shake256
-
-      - name: Upload release artifacts (musl)
-        uses: softprops/action-gh-release@v2
-        if: matrix.archive_suffix == 'linux-amd64-musl'
-        env:
-          TAG: ${{ github.ref_name }}
-        with:
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz
