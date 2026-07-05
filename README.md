@@ -126,8 +126,10 @@ sha512sum -c zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz.sha512sum
 b2sum -c zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz.b2sum
 
 # Quantum-resistant — SHAKE256 (NIST PQ standard, via openssl)
-openssl dgst -shake256 zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz
-# Compare hash with: cat zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz.shake256
+# openssl has no -c flag, so we wrap it for auto-verify:
+COMPUTED=$(openssl dgst -shake256 zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz | awk '{print $NF}')
+EXPECTED=$(awk '{print $1}' zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz.shake256)
+[ "$COMPUTED" = "$EXPECTED" ] && echo "OK" || echo "FAILED"
 ```
 
 ## Usage
