@@ -73,7 +73,12 @@ jobs:
           sha512sum "$STAGE.tar.gz" > "$STAGE.tar.gz.sha512sum"
           b2sum "$STAGE.tar.gz" > "$STAGE.tar.gz.b2sum"
           # SHAKE256 via Python (cross-platform, consistent 64-byte output)
-          python3 -c "import hashlib; h=hashlib.shake_256(open('$STAGE.tar.gz','rb').read()).hexdigest(64); print(f'{h}  $STAGE.tar.gz')" > "$STAGE.tar.gz.shake256"
+          python3 -c "
+            import hashlib
+            data = open('$STAGE.tar.gz', 'rb').read()
+            h = hashlib.shake_256(data).hexdigest(64)
+            print(f'{h}  $STAGE.tar.gz')
+          " > "$STAGE.tar.gz.shake256"
 
           ls -l "$STAGE.tar.gz" "$STAGE.tar.gz.sha512sum" "$STAGE.tar.gz.b2sum" "$STAGE.tar.gz.shake256"
           echo "--- checksum contents ---"
