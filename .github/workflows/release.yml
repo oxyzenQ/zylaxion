@@ -72,8 +72,8 @@ jobs:
           # Checksums: SHA-512 (classical) + BLAKE2b-512 + SHAKE256 (quantum-resistant)
           sha512sum "$STAGE.tar.gz" > "$STAGE.tar.gz.sha512sum"
           b2sum "$STAGE.tar.gz" > "$STAGE.tar.gz.b2sum"
-          HASH=$(openssl dgst -shake256 "$STAGE.tar.gz" | awk -F'= ' '{print $2}')
-          echo "${HASH}  $STAGE.tar.gz" > "$STAGE.tar.gz.shake256"
+          # SHAKE256 via Python (cross-platform, consistent 64-byte output)
+          python3 -c "import hashlib; h=hashlib.shake_256(open('$STAGE.tar.gz','rb').read()).hexdigest(64); print(f'{h}  $STAGE.tar.gz')" > "$STAGE.tar.gz.shake256"
 
           ls -l "$STAGE.tar.gz" "$STAGE.tar.gz.sha512sum" "$STAGE.tar.gz.b2sum" "$STAGE.tar.gz.shake256"
           echo "--- checksum contents ---"
