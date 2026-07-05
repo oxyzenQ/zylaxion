@@ -33,6 +33,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         run: rustup default stable && rustup target add ${{ matrix.target }}
@@ -79,12 +81,43 @@ jobs:
           cat "$STAGE.tar.gz.b2sum"
           cat "$STAGE.tar.gz.shake256"
 
+      - name: Generate release body
+        if: matrix.archive_suffix == 'linux-amd64-gnu'
+        run: |
+          PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
+          {
+            if [ -n "$PREV_TAG" ]; then
+              echo "## What's Changed"
+              echo ""
+              git log --no-merges --pretty=format:'- %s (%h)' "${PREV_TAG}..${GITHUB_REF_NAME}"
+              echo ""
+            else
+              echo "Initial release."
+            fi
+          } > release-body.md
+          echo "=== Release body ==="
+          cat release-body.md
+
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2
+        if: matrix.archive_suffix == 'linux-amd64-gnu'
         env:
           TAG: ${{ github.ref_name }}
         with:
-          generate_release_notes: true
+          body_path: release-body.md
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz
+            zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz.sha512sum
+            zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz.b2sum
+            zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz.shake256
+
+      - name: Upload release artifacts (musl)
+        uses: softprops/action-gh-release@v2
+        if: matrix.archive_suffix == 'linux-amd64-musl'
+        env:
+          TAG: ${{ github.ref_name }}
+        with:
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz
