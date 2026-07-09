@@ -49,13 +49,12 @@ const LOCK_FILE_NAME: &str = "zylaxion.lock";
 
 /// Resolve the lock file path.
 ///
-/// Prefers `$XDG_RUNTIME_DIR` (the canonical per-user runtime dir on
-/// Linux, typically `/run/user/<uid>` and mounted as tmpfs). Falls back
-/// to `/tmp` if `XDG_RUNTIME_DIR` is unset (matches the IPC socket
-/// fallback in `daemon::ipc`).
+/// Uses `pathguard::resolve_runtime_dir()` to validate `$XDG_RUNTIME_DIR`
+/// — falls back to `/tmp` if the env var points to a dangerous system
+/// path (e.g. `/etc`, `/usr`, `~/.ssh`). This prevents the lock file
+/// from being written into protected directories.
 pub fn lock_path() -> PathBuf {
-    let runtime = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into());
-    PathBuf::from(runtime).join(LOCK_FILE_NAME)
+    crate::pathguard::resolve_runtime_dir().join(LOCK_FILE_NAME)
 }
 
 /// Acquire an exclusive, non-blocking flock on the single-instance lock

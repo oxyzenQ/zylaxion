@@ -37,15 +37,19 @@ pub struct IpcResponse {
 }
 
 /// Return the path to the daemon socket.
+///
+/// Uses `pathguard::resolve_runtime_dir()` to validate `$XDG_RUNTIME_DIR`
+/// — falls back to `/tmp` if the env var points to a dangerous system
+/// path (e.g. `/etc`, `/usr`, `~/.ssh`).
 pub fn socket_path() -> PathBuf {
-    let runtime = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into());
-    PathBuf::from(runtime).join("zylaxion.sock")
+    crate::pathguard::resolve_runtime_dir().join("zylaxion.sock")
 }
 
 /// Return the path to the daemon PID file.
+///
+/// Same pathguard validation as `socket_path()`.
 pub fn pid_path() -> PathBuf {
-    let runtime = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into());
-    PathBuf::from(runtime).join("zylaxion.pid")
+    crate::pathguard::resolve_runtime_dir().join("zylaxion.pid")
 }
 
 /// Strict permission applied to the IPC socket file: `0o600`
