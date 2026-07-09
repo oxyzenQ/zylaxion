@@ -2,6 +2,42 @@
 
 All notable changes to zylaxion.
 
+## [v10.1.0] — 2026-07-09
+
+### Security — Pathguard for Runtime State I/O
+
+### Added — `crates/zylaxion/src/pathguard.rs`
+- New module validates `$XDG_RUNTIME_DIR` before use for lock/socket/PID
+  files. Falls back to `/tmp` when the env var points to a dangerous
+  system path (e.g. `/etc`, `/usr`, `/var`, `~/.ssh`, `~/.gnupg`).
+- `is_dangerous()` rejects system path prefixes (`/etc`, `/usr`, `/var`,
+  `/bin`, `/sbin`, `/lib`, `/lib64`, `/boot`, `/root`, `/proc`, `/sys`,
+  `/dev`) and user credential paths (`~/.ssh`, `~/.gnupg`, `~/.kwallet`,
+  `~/.local/share/keyrings`) — matches exact path OR path + `/` + anything.
+- `resolve_runtime_dir()` returns the validated dir, falling back to
+  `/tmp` when dangerous. Path traversal (`/tmp/../etc`) defeated via
+  lexical normalization.
+- Wired into `daemon/ipc.rs::socket_path()`, `daemon/ipc.rs::pid_path()`,
+  and `instance_lock.rs::lock_path()`.
+- Config reads from `/etc/zylaxion/` and `/usr/local/share/zylaxion/`
+  are BY DESIGN (system-wide config, read-only) — NOT gated here.
+- 8 unit tests (CI green).
+
+### Verified — Real Machine Test
+- `XDG_RUNTIME_DIR=/etc zylaxion daemon` → PID and socket files landed
+  in `/tmp`, NOT `/etc`. Pathguard redirected successfully.
+- `XDG_RUNTIME_DIR=~/.ssh` → blocked, redirected to `/tmp`.
+- `XDG_RUNTIME_DIR=/tmp/../etc` (path traversal) → blocked, redirected
+  to `/tmp`.
+
+### Cleanup — Remove Future Roadmap
+- Deleted `docs/ROADMAP.md` (72 lines of unreleased future plans:
+  Phase 1-3 covering v10.1.0 polish, v10.2.0 performance, v11.0.0
+  ecosystem including Prometheus metrics, D-Bus interface, community
+  profile repository, SIMD optimization, etc.)
+- `docs/audit-v6.0.0.md` roadmap section left intact (historical record
+  of what WAS done for v6.0.0, not future plans).
+
 ## [v10.0.0] — 2026-07-01
 
 ### Architecture Alignment + Full GPL-3.0-only
