@@ -23,6 +23,7 @@ mod config;
 mod daemon;
 mod error_format;
 mod instance_lock;
+mod pathguard;
 mod signals;
 
 fn main() {
