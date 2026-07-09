@@ -75,22 +75,24 @@ fn is_dangerous(canonical: &Path) -> bool {
     // its runtime state must live in /run/user/$UID or /tmp, NOT in /etc,
     // /usr, /var, etc.
     let deny_prefixes: &[&str] = &[
-        "/etc/", "/usr/", "/var/", "/bin/", "/sbin/", "/lib/", "/lib64/", "/boot/", "/root/",
-        "/proc/", "/sys/", "/dev/",
+        "/etc", "/usr", "/var", "/bin", "/sbin", "/lib", "/lib64", "/boot", "/root", "/proc",
+        "/sys", "/dev",
     ];
 
     for prefix in deny_prefixes {
-        if s.starts_with(prefix) {
+        // Match exact path OR path with trailing slash OR path starting
+        // with prefix + "/" (e.g. "/etc" matches, "/etc/" matches, "/etc/zylaxion.sock" matches)
+        if s == *prefix || s.starts_with(&format!("{prefix}/")) {
             return true;
         }
     }
 
     // User credential stores — never valid for runtime state
-    let user_deny_subdirs: &[&str] = &[".ssh/", ".gnupg/", ".kwallet/", ".local/share/keyrings/"];
+    let user_deny_subdirs: &[&str] = &[".ssh", ".gnupg", ".kwallet", ".local/share/keyrings"];
     if !home.is_empty() {
         for sub in user_deny_subdirs {
             let full = format!("{home}/{sub}");
-            if s.starts_with(&full) {
+            if s == full || s.starts_with(&format!("{full}/")) {
                 return true;
             }
         }
@@ -132,7 +134,8 @@ mod tests {
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn with_test_env<F: FnOnce()>(home: &str, xdg_runtime: Option<&str>, f: F) {
-        let _guard = ENV_LOCK.lock().unwrap();
+        // Recover from poison if a previous test panicked while holding the lock.
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let old_home = std::env::var_os("HOME");
         let old_xdg = std::env::var_os("XDG_RUNTIME_DIR");
 
