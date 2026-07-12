@@ -173,7 +173,8 @@ pub struct Orchestrator {
 }
 
 impl Orchestrator {
-    /// Create the orchestrator, initialising the audio output and voice pool.
+    /// Create the orchestrator, initialising the audio output and voice pool
+    /// with the default master volume (5.5× — laptop-speaker tuned).
     ///
     /// # Errors
     ///
@@ -183,6 +184,38 @@ impl Orchestrator {
         let sink = zylaxion_output::CpalSink::new().map_err(OrchestratorError::Audio)?;
         let pool = VoicePool::new();
         Ok(Self { sink, pool })
+    }
+
+    /// Create the orchestrator with a custom master volume (v10.2.0+ —
+    /// dragonzen audit P1).
+    ///
+    /// `master_volume` is a linear gain multiplier. See
+    /// [`VoicePool::with_volume`] for recommended values per output
+    /// device type.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OrchestratorError::Audio`] if no audio device is available
+    /// or the stream cannot be started.
+    pub fn with_master_volume(master_volume: f32) -> Result<Self, OrchestratorError> {
+        let sink = zylaxion_output::CpalSink::new().map_err(OrchestratorError::Audio)?;
+        let pool = VoicePool::with_volume(master_volume);
+        Ok(Self { sink, pool })
+    }
+
+    /// Update the master volume at runtime (v10.2.0+ — dragonzen audit
+    /// P1). Useful for hot-reload when the user edits `[master]` in
+    /// `config.toml`. The value is clamped to a sane range — see
+    /// [`VoicePool::set_master_volume`].
+    #[inline]
+    pub fn set_master_volume(&mut self, volume: f32) {
+        self.pool.set_master_volume(volume);
+    }
+
+    /// Return the current master volume (linear gain multiplier).
+    #[inline]
+    pub fn master_volume(&self) -> f32 {
+        self.pool.master_volume()
     }
 
     /// Return the actual sample rate of the audio device (Hz).
@@ -390,11 +423,54 @@ impl Orchestrator {
     /// Called from both exit paths of [`run`](Self::run): the `stop_flag`
     /// path (IPC `stop` command / SIGTERM) and the input-channel
     /// `Disconnected` path (input source thread died).
+    ///
+    /// # Pacing (v10.2.0+ — dragonzen audit B5)
+    ///
+    /// Previously this method called `write_sample` in a tight loop
+    /// `FADEOUT_SILENCE_FRAMES` times. If the ring buffer was mostly
+    /// full when stop was requested (e.g. the user mashed a key during
+    /// shutdown), the silence writes were silently dropped by
+    /// `producer.try_push` — the cpal callback continued playing the
+    /// queued decay tail, then the sink was dropped mid-tail, and the
+    /// next audio client heard the residual DC offset. The fade-out
+    /// failed silently.
+    ///
+    /// The fix paces the silence writes against `producer_vacancy()`:
+    /// when the buffer is mostly full, we sleep briefly to let the
+    /// cpal callback drain some frames, then retry. We also sleep
+    /// for the duration of the silence pad at the end so the cpal
+    /// callback has time to actually drain it before `CpalSink::drop`
+    /// tears down the stream.
     fn fade_out_before_drop(&mut self) {
         let silence = [0.0f32; 2];
-        for _ in 0..FADEOUT_SILENCE_FRAMES {
-            self.sink.write_sample(silence);
+        let mut written = 0usize;
+        while written < FADEOUT_SILENCE_FRAMES {
+            let vacancy = self.sink.producer_vacancy();
+            if vacancy == 0 {
+                // Buffer is full — wait for the cpal callback to drain
+                // some frames. 2 ms is ~88 frames at 44.1 kHz, enough
+                // to make progress without busy-spinning.
+                std::thread::sleep(Duration::from_millis(2));
+                continue;
+            }
+            let n = vacancy.min(FADEOUT_SILENCE_FRAMES - written);
+            for _ in 0..n {
+                self.sink.write_sample(silence);
+            }
+            written += n;
         }
+
+        // Give the cpal callback time to actually drain the silence pad
+        // before `CpalSink::drop` tears down the stream. The sleep
+        // duration is the silence-pad duration plus a small margin for
+        // scheduler jitter. Without this, dropping the sink immediately
+        // after writing the silence can leave it half-consumed in the
+        // ring buffer, and PipeWire's drain behavior on stream teardown
+        // is implementation-defined.
+        let drain_ms = (FADEOUT_SILENCE_FRAMES as f64 / self.sink.sample_rate() as f64 * 1000.0)
+            .ceil() as u64
+            + 5; // 5 ms jitter margin
+        std::thread::sleep(Duration::from_millis(drain_ms));
     }
 }
 

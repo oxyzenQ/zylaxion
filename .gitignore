@@ -25,6 +25,9 @@ agent-ctx/
 .supermaven/
 .vale/
 
+# Local-only cargo config (developer-specific toolchain overrides)
+/.cargo/
+
 # Test output (raw/wav audio from integration tests)
 *.raw
 *.wav

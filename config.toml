@@ -84,6 +84,28 @@
 tuning = "ibm_model_m"
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Master output volume (v10.2.0+ — dragonzen audit P1)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Linear gain multiplier applied to the final stereo output, BEFORE the
+# hard clamp that prevents digital clipping. Values > 1.0 produce
+# loudness compression (the clamp turns overflow into clean compression
+# rather than distortion), so high values are safe for the speakers —
+# they just make the synth louder up to the clamp ceiling.
+#
+# Recommended values per output device:
+#   5.5  = laptop / PC speakers (default — physical key click dominates)
+#   3.0  = external monitor speakers or quiet laptop speakers
+#   1.5  = headphones (especially IEMs at 16-32 Ω)
+#   0.5  = subtle background effect
+#
+# NOTE: hot-reload of this value is not yet wired — restart the daemon
+# for changes to take effect (`systemctl --user restart zylaxion` or
+# `zylaxion stop && zylaxion daemon --foreground`).
+[master]
+volume = 5.5
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Preset: technical (default)
 # Crisp, loud, punchy — best for Cherry MX Blue / clicky switches.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -133,6 +155,11 @@ mix = 0.6
 #   0.9994 ≈ 180 ms, 0.9990 ≈ 110 ms, 0.9997 ≈ 280 ms
 coefficient = 0.9994
 
+# Amplitude threshold below which the voice is deactivated. Smaller
+# values let voices ring longer; larger values cut them off sooner.
+# Range: 1e-7 - 1e-2
+voice_off_threshold = 0.00001
+
 [preset.technical.ambient]
 # Master enable for the ambient case-rattle path. When false, no
 # ambient noise is generated (zero CPU cost).
@@ -147,11 +174,6 @@ noise_level = 0.15
 # Range: 0.0 - 0.9999
 noise_decay = 0.985
 
-
-# Amplitude threshold below which the voice is deactivated. Smaller
-# values let voices ring longer; larger values cut them off sooner.
-# Range: 1e-7 - 1e-2
-voice_off_threshold = 0.00001
 [preset.technical.housing]
 # Mid housing freq, low mix — click is the lead, thock supports.
 # v4.2.0: 3rd DSP layer — the deep "thock" of the keycap

@@ -52,15 +52,16 @@ pub fn cmd_start(cli_preset: Option<String>) {
 
     let _lock = instance_lock::acquire_or_exit();
 
-    let (profiles, config_path, active_preset) = match config::resolve_config(cli_preset.as_deref())
-    {
-        Ok(tuple) => tuple,
-        Err(e) => {
-            crate::error_format::error(e);
-            process::exit(1);
-        }
-    };
+    let (profiles, config_path, active_preset, master_params) =
+        match config::resolve_config(cli_preset.as_deref()) {
+            Ok(tuple) => tuple,
+            Err(e) => {
+                crate::error_format::error(e);
+                process::exit(1);
+            }
+        };
     log::info!("starting zylaxion in foreground mode (preset: {active_preset})");
+    log::info!("master volume: {}×", master_params.volume);
 
     // 1. Start input capture (background thread).
     let mut input_source = LibinputSource::new();
@@ -72,8 +73,10 @@ pub fn cmd_start(cli_preset: Option<String>) {
         }
     };
 
-    // 2. Create the orchestrator (audio + engine).
-    let mut orchestrator = match Orchestrator::new() {
+    // 2. Create the orchestrator (audio + engine). v10.2.0 (P1): pass
+    //    the configured master volume instead of using the hardcoded
+    //    default.
+    let mut orchestrator = match Orchestrator::with_master_volume(master_params.volume) {
         Ok(o) => o,
         Err(e) => {
             crate::error_format::error(format!("audio error: {e}"));
@@ -91,18 +94,6 @@ pub fn cmd_start(cli_preset: Option<String>) {
         MechanicalClick::with_overrides(profiles, sample_rate),
     ));
 
-    // 4. Spawn the config-watcher thread. The watcher always reads
-    //    preset.tuning from the file on change — the --preset CLI flag
-    //    is for initial load only. We pass active_preset here just for
-    //    the startup log message. sample_rate is shared so the watcher
-    //    can construct new MechanicalClick instances on reload.
-    let _watcher_handle = spawn_config_watcher(
-        Arc::clone(&model),
-        config_path,
-        active_preset.clone(),
-        sample_rate,
-    );
-
     // 5. Run the main loop.
     let stop_flag = Arc::new(AtomicBool::new(false));
 
@@ -113,6 +104,23 @@ pub fn cmd_start(cli_preset: Option<String>) {
     if let Err(e) = crate::signals::install_graceful_shutdown_handlers(Arc::clone(&stop_flag)) {
         log::warn!("failed to install signal handlers: {e}");
     }
+
+    // 4. Spawn the config-watcher thread. The watcher always reads
+    //    preset.tuning from the file on change — the --preset CLI flag
+    //    is for initial load only. We pass active_preset here just for
+    //    the startup log message. sample_rate is shared so the watcher
+    //    can construct new MechanicalClick instances on reload.
+    //
+    //    v10.2.0 (S1): the watcher now takes a clone of stop_flag so
+    //    it can exit cleanly when the orchestrator is shutting down.
+    //    Must be spawned AFTER stop_flag is created.
+    let _watcher_handle = spawn_config_watcher(
+        Arc::clone(&model),
+        config_path,
+        active_preset.clone(),
+        sample_rate,
+        Arc::clone(&stop_flag),
+    );
 
     log::info!("ready — press any key to hear it (Ctrl+C to quit)");
     orchestrator.run(&model, &event_rx, stop_flag);
@@ -155,7 +163,13 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
         process::exit(1);
     }
 
-    if foreground {
+    // v10.2.0 (dragonzen audit B9): in background mode, daemonize()
+    // now returns a `DaemonChildSync` handle. We hold it through all
+    // init steps and call `signal_success`/`signal_failure` at the
+    // appropriate point so the parent doesn't report success before
+    // the child has actually initialized. In foreground mode there's
+    // no parent to sync with — `child_sync` stays `None`.
+    let mut child_sync: Option<daemon::DaemonChildSync> = if foreground {
         // ── Foreground mode: skip fork, keep std streams for journald.
         // systemd wires stdout/stderr to journald automatically when
         // the unit has `StandardOutput=journal` (the default). Logging
@@ -165,27 +179,52 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
             "[zylaxion] starting in foreground mode for process supervisor (PID: {})",
             nix::unistd::getpid().as_raw()
         );
+        None
     } else {
         // ── Background mode: classic POSIX double-fork daemonization.
-        if let Err(e) = daemon::daemonize() {
-            crate::error_format::error(format!("daemonize failed: {e}"));
-            process::exit(1);
+        // daemonize() blocks the parent (which exits with the child's
+        // status). On the child side it returns Ok(DaemonChildSync).
+        match daemon::daemonize() {
+            Ok(sync) => {
+                // We are now the daemon child.
+                daemon::close_std_fds();
+                Some(sync)
+            }
+            Err(e) => {
+                // daemonize() failed (fork or setsid). The error was
+                // already written to the pipe if we got far enough;
+                // the parent will print it. We still need to exit.
+                // If daemonize() failed before fork, there's no parent
+                // to sync with — print to stderr directly.
+                crate::error_format::error(format!("daemonize failed: {e}"));
+                process::exit(1);
+            }
         }
+    };
 
-        // We are now the daemon child.
-        daemon::close_std_fds();
+    // Helper macro: in background mode, signal failure to the parent
+    // before exiting. In foreground mode, just exit (error already
+    // logged via `log::error!` or `error_format::error`).
+    macro_rules! fail_init {
+        ($sync:expr, $msg:expr) => {{
+            let msg = $msg;
+            if let Some(sync) = $sync.take() {
+                sync.signal_failure(&msg);
+            }
+            daemon::cleanup();
+            process::exit(1);
+        }};
     }
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
 
-    let (profiles, config_path, active_preset) =
+    let (profiles, config_path, active_preset, master_params) =
         match config::resolve_config(cli_preset_arc.as_deref()) {
             Ok(tuple) => tuple,
             Err(e) => {
-                crate::error_format::error(e);
-                process::exit(1);
+                fail_init!(child_sync, e);
             }
         };
 
@@ -193,9 +232,10 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
         "daemon started (PID: {}, preset: {active_preset}, foreground: {foreground})",
         nix::unistd::getpid().as_raw()
     );
+    log::info!("master volume: {}×", master_params.volume);
 
-    if let Err(_e) = daemon::write_pid_file() {
-        process::exit(1);
+    if let Err(e) = daemon::write_pid_file() {
+        fail_init!(child_sync, format!("write_pid_file failed: {e}"));
     }
 
     // In foreground mode we keep the controlling terminal's HUP/PIPE
@@ -220,9 +260,7 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
     let listener = match daemon::ipc::create_listener() {
         Ok(fd) => fd,
         Err(e) => {
-            log::error!("IPC setup failed: {e}");
-            daemon::cleanup();
-            process::exit(1);
+            fail_init!(child_sync, format!("IPC setup failed: {e}"));
         }
     };
     log::info!("IPC socket ready: {}", daemon::ipc::socket_path().display());
@@ -231,18 +269,16 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
     let event_rx = match input_source.listen() {
         Ok(rx) => rx,
         Err(e) => {
-            log::error!("input error: {e}");
-            daemon::cleanup();
-            process::exit(1);
+            fail_init!(child_sync, format!("input error: {e}"));
         }
     };
 
-    let mut orchestrator = match Orchestrator::new() {
+    // v10.2.0 (P1): pass the configured master volume instead of using
+    // the hardcoded default.
+    let mut orchestrator = match Orchestrator::with_master_volume(master_params.volume) {
         Ok(o) => o,
         Err(e) => {
-            log::error!("audio error: {e}");
-            daemon::cleanup();
-            process::exit(1);
+            fail_init!(child_sync, format!("audio error: {e}"));
         }
     };
 
@@ -253,13 +289,39 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
         MechanicalClick::with_overrides(profiles, sample_rate),
     ));
 
-    let _ipc_handle = daemon::spawn_ipc_thread(listener, Arc::clone(&stop_flag));
+    // v10.2.0 (dragonzen audit B6): spawn_ipc_thread now returns Result.
+    // A failure here is non-fatal — the daemon can still run without
+    // IPC (the user just can't `zylaxion stop` via socket; they must
+    // use SIGTERM/SIGINT instead). Log the error and continue.
+    let _ipc_handle = match daemon::spawn_ipc_thread(listener, Arc::clone(&stop_flag)) {
+        Ok(handle) => Some(handle),
+        Err(e) => {
+            log::warn!("IPC thread spawn failed — daemon will run without IPC. Error: {e}");
+            None
+        }
+    };
+    // v10.2.0 (dragonzen audit S1): pass stop_flag to the config-watcher
+    // so it can exit cleanly when the orchestrator is shutting down.
+    // Previously the watcher thread leaked at shutdown — it kept polling
+    // every 1 s until process exit, holding a clone of the ArcSwap and
+    // preventing clean Drop of the model.
     let _watcher_handle = spawn_config_watcher(
         Arc::clone(&model),
         config_path,
         active_preset.clone(),
         sample_rate,
+        Arc::clone(&stop_flag),
     );
+
+    // v10.2.0 (dragonzen audit B9): all init is complete. Signal
+    // success to the parent (if any) so the parent can print the PID
+    // and exit 0. In foreground mode this is a no-op (child_sync is
+    // None). After this point, the daemon is fully running — any
+    // further errors are runtime errors, not init errors, and are
+    // handled by the orchestrator's graceful shutdown path.
+    if let Some(sync) = child_sync.take() {
+        sync.signal_success();
+    }
 
     orchestrator.run(&model, &event_rx, stop_flag);
 
@@ -310,11 +372,21 @@ pub fn cmd_stop() {
 /// `ArcSwap::store()` is a single atomic pointer swap. The cpal audio
 /// callback never touches the ArcSwap — it only reads the cached
 /// `KeyProfile` snapshot that each voice captured at trigger time.
+///
+/// # Graceful shutdown (v10.2.0+ — dragonzen audit S1)
+///
+/// The watcher accepts a clone of the orchestrator's `stop_flag`. It
+/// checks the flag at the top of every poll iteration and exits
+/// cleanly when the flag is set. Previously the watcher had no
+/// shutdown signal — it leaked at process exit, holding a clone of
+/// the `Arc<ArcSwap<MechanicalClick>>` and preventing clean Drop of
+/// the model.
 fn spawn_config_watcher(
     model: Arc<ArcSwap<MechanicalClick>>,
     config_path: Option<std::path::PathBuf>,
     initial_preset: String,
     sample_rate: u32,
+    stop_flag: Arc<AtomicBool>,
 ) -> std::thread::JoinHandle<()> {
     std::thread::Builder::new()
         .name("zylaxion-config-watcher".into())
@@ -340,6 +412,14 @@ fn spawn_config_watcher(
             );
 
             loop {
+                // v10.2.0 (S1): check stop_flag at the top of every
+                // iteration so the watcher exits cleanly when the
+                // orchestrator is shutting down.
+                if stop_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                    log::info!("config-watcher exiting (stop flag set)");
+                    return;
+                }
+
                 std::thread::sleep(CONFIG_WATCH_INTERVAL);
 
                 // ── 1. Re-evaluate the search path ────────────────────
@@ -409,11 +489,21 @@ fn spawn_config_watcher(
                 // initial --preset CLI flag is intentionally NOT passed
                 // here so that file edits always take precedence.
                 match crate::config::reload_preset(path, None) {
-                    Ok((profiles, active)) => {
+                    Ok((profiles, active, master)) => {
                         let new_model =
                             MechanicalClick::with_overrides(profiles, sample_rate);
                         model.store(Arc::new(new_model));
                         log::info!("config-watcher: reloaded preset '{active}' successfully");
+                        // v10.2.0 (P1): master volume is part of the
+                        // config but lives in the VoicePool, not the
+                        // AcousticModel. Hot-reload of master volume is
+                        // not yet wired — the user must restart the
+                        // daemon for [master].volume changes to take
+                        // effect. Log the loaded value for visibility.
+                        log::debug!(
+                            "config-watcher: master volume from reload = {}× (hot-reload not yet supported — restart to apply)",
+                            master.volume
+                        );
                     }
                     Err(e) => {
                         log::warn!(

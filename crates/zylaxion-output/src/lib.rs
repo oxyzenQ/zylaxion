@@ -284,14 +284,28 @@ impl CpalSink {
                             for frame in data.chunks_exact_mut(channels) {
                                 match cons.try_pop() {
                                     Some([l, r]) => {
+                                        // v10.2.0 (dragonzen audit B8): use
+                                        // 32767.0 (not i16::MAX as f32) for
+                                        // symmetric rounding. The previous
+                                        // code used `* i16::MAX as f32`
+                                        // which is 32767.0 — correct — but
+                                        // did `(value * 32767.0) as i16`
+                                        // which truncates toward zero,
+                                        // introducing a small positive DC
+                                        // offset for sustained negative
+                                        // swing. `.round()` before the cast
+                                        // gives correct nearest-integer
+                                        // rounding, eliminating the offset.
+                                        // Range stays symmetric: -1.0 →
+                                        // -32767, +1.0 → +32767.
                                         frame[0] = if l.is_finite() {
-                                            (l.clamp(-1.0, 1.0) * i16::MAX as f32) as i16
+                                            (l.clamp(-1.0, 1.0) * 32767.0).round() as i16
                                         } else {
                                             0
                                         };
                                         if channels > 1 {
                                             frame[1] = if r.is_finite() {
-                                                (r.clamp(-1.0, 1.0) * i16::MAX as f32) as i16
+                                                (r.clamp(-1.0, 1.0) * 32767.0).round() as i16
                                             } else {
                                                 0
                                             };

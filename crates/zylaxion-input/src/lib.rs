@@ -44,7 +44,7 @@
 
 use std::fmt;
 use std::fs::OpenOptions;
-use std::os::fd::OwnedFd;
+use std::os::fd::{AsFd, OwnedFd};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -55,6 +55,7 @@ use std::time::Duration;
 use crossbeam_channel::{Receiver, Sender};
 use input::event::keyboard::KeyboardEventTrait;
 use input::LibinputInterface;
+use nix::poll::{poll, PollFd, PollFlags, PollTimeout};
 use nix::time::{clock_gettime, ClockId};
 
 // ── Constants ───────────────────────────────────────────────────────────
@@ -65,10 +66,29 @@ const LINUX_EACCES: i32 = 13;
 /// `EIO` errno on Linux (all architectures — asm-generic/errno.h).
 const LINUX_EIO: i32 = 5;
 
-/// Poll interval when no libinput events are queued. 1 ms keeps CPU
-/// usage negligible while maintaining sub-millisecond responsiveness
-/// for keystroke capture.
-const DISPATCH_POLL_INTERVAL_MS: u64 = 1;
+/// Poll timeout when waiting for libinput events (v10.2.0+ — dragonzen
+/// audit B3/E1).
+///
+/// The previous implementation called `thread::sleep(1 ms)` after every
+/// dispatch+drain cycle, even when events had just been processed. This
+/// caused two problems:
+/// 1. **Latency floor**: events arriving during the sleep window had to
+///    wait up to 1 ms before being delivered.
+/// 2. **Battery drain**: 1000 wakes/sec on an otherwise-idle system
+///    prevented CPU deep C-states (~0.5–1 W on modern mobile chips).
+///
+/// The fix uses `poll(2)` on libinput's file descriptor. `poll` blocks
+/// the thread until the kernel signals data is available — zero CPU
+/// while idle, instant wake on event arrival. The 100 ms timeout is a
+/// safety net so the loop can periodically check the channel for
+/// receiver-drop (which terminates the thread cleanly). With a working
+/// `poll` wake, the timeout is hit only when no keys are pressed for
+/// 100 ms — a negligible cost.
+///
+/// 100 ms is chosen as a balance: short enough that receiver-drop is
+/// detected within 100 ms (invisible to the user), long enough that
+/// idle wake frequency is 10 Hz (100× reduction from the previous 1 kHz).
+const DISPATCH_POLL_TIMEOUT_MS: u16 = 100;
 
 /// Sleep duration after a libinput dispatch error before retrying.
 /// Errors are transient (device hot-unplug, brief fd unavailability)
@@ -302,8 +322,55 @@ fn monotonic_us() -> u64 {
 /// This function does **not** panic. All errors from `libinput.dispatch()`
 /// are logged to stderr and the loop continues, making it resilient to
 /// transient device disconnects (EPERM / EACCES / ENODEV).
+///
+/// # I/O model (v10.2.0+ — dragonzen audit B3/E1)
+///
+/// The loop uses `poll(2)` on libinput's file descriptor to wait for
+/// kernel-signalled data availability. This is a strict improvement
+/// over the previous `thread::sleep(1 ms)` busy-yield:
+///
+/// - **Zero idle CPU**: `poll` blocks the thread in the kernel until
+///   data arrives. The previous code woke 1000 times/sec regardless
+///   of activity, preventing CPU deep C-states and draining ~0.5–1 W
+///   on battery-powered laptops.
+/// - **Instant wake on event**: `poll` returns the moment the kernel
+///   signals data on the fd. The previous code added up to 1 ms of
+///   artificial latency to every keystroke.
+/// - **100 ms safety timeout**: ensures the loop periodically checks
+///   whether the channel receiver has been dropped (which signals
+///   shutdown). 100 ms is invisible to the user.
 fn event_loop(mut libinput: input::Libinput, tx: Sender<KeyEvent>) {
     loop {
+        // Block on poll() until libinput's fd is readable or the
+        // timeout expires. This is the key change vs the previous
+        // implementation — no CPU is consumed while idle.
+        //
+        // The `PollFd` borrows `libinput` immutably via `as_fd()`.
+        // We scope it inside a block so the immutable borrow ends
+        // before the mutable `libinput.dispatch()` / `libinput.by_ref()`
+        // calls below — otherwise the borrow checker complains.
+        {
+            let libinput_fd = libinput.as_fd();
+            let mut fds = [PollFd::new(libinput_fd, PollFlags::POLLIN)];
+            match poll(&mut fds, PollTimeout::from(DISPATCH_POLL_TIMEOUT_MS)) {
+                Ok(_) => {
+                    // Either data is available, or we hit the timeout.
+                    // Both cases call dispatch() — it's non-blocking and
+                    // returns immediately if no data is queued.
+                }
+                Err(nix::errno::Errno::EINTR) => {
+                    // Signal interruption — retry the poll. Common during
+                    // debugger attach/detach; not an error.
+                    continue;
+                }
+                Err(e) => {
+                    eprintln!("[zylaxion-input] poll() error on libinput fd: {e:?}");
+                    thread::sleep(Duration::from_millis(DISPATCH_ERROR_BACKOFF_MS));
+                    continue;
+                }
+            }
+        }
+
         // `dispatch` reads from the libinput fd and queues internal
         // events.  It is non-blocking — it returns immediately whether
         // or not events were available.
@@ -330,9 +397,8 @@ fn event_loop(mut libinput: input::Libinput, tx: Sender<KeyEvent>) {
             }
         }
 
-        // Brief yield to avoid busy-spinning when no events are
-        // queued.  1 ms is well below human perception latency.
-        thread::sleep(Duration::from_millis(DISPATCH_POLL_INTERVAL_MS));
+        // No sleep here — poll() at the top of the loop will block
+        // until the next event arrives (or the timeout fires).
     }
 }
 
