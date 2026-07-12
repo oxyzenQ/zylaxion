@@ -1544,6 +1544,7 @@ version = "10.1.0"
 dependencies = [
  "arc-swap",
  "crossbeam-channel",
+ "log",
  "ringbuf",
  "zactrix-engine",
  "zactrix-profiles",

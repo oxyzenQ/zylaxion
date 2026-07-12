@@ -15,3 +15,6 @@ zylaxion-input = { path = "../zylaxion-input" }
 crossbeam-channel = "0.5"
 ringbuf = "0.4"
 arc-swap = "1.7"
+# v10.2.0 (dragonzen audit S4): used by the orchestrator heartbeat
+# log (debug! at 60s, warn! at 5min of input inactivity).
+log = "0.4"

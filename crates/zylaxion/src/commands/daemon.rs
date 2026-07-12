@@ -403,6 +403,14 @@ fn spawn_config_watcher(
             // `current_path` changes so the new file is loaded on the
             // next iteration regardless of its mtime.
             let mut last_mtime: Option<SystemTime> = current_mtime_of(&current_path);
+            // v10.2.0 (dragonzen audit P3): track file size alongside
+            // mtime to suppress spurious reloads triggered by chmod/
+            // chown/utime. Previously `chmod` advanced the mtime
+            // without changing content, and the watcher re-read +
+            // re-built the model unnecessarily. Now we require BOTH
+            // mtime advance AND size change (or size unknown on the
+            // previous poll) before reloading.
+            let mut last_size: Option<u64> = current_size_of(&current_path);
 
             log::info!(
                 "config-watcher: initial path = {} (initial preset: {}, poll interval: {:?})",
@@ -437,9 +445,11 @@ fn spawn_config_watcher(
                     );
                     current_path = resolved;
                     // Force a reload on the next step by clearing the
-                    // mtime baseline. The new file might have any
-                    // mtime, so we cannot rely on the previous value.
+                    // mtime AND size baselines. The new file might
+                    // have any mtime/size, so we cannot rely on the
+                    // previous values (v10.2.0 — P3: also reset size).
                     last_mtime = None;
+                    last_size = None;
 
                     // If the new path is None (all config files
                     // vanished), keep the old model and continue
@@ -468,9 +478,11 @@ fn spawn_config_watcher(
                         // The file disappeared between the search-path
                         // check and now (race). The next poll's
                         // search-path re-evaluation will handle the
-                        // fallback. Just reset the baseline so we don't
-                        // miss a recreation.
+                        // fallback. Just reset the baselines so we
+                        // don't miss a recreation (v10.2.0 — P3: also
+                        // reset size).
                         last_mtime = None;
+                        last_size = None;
                         continue;
                     }
                 };
@@ -482,8 +494,33 @@ fn spawn_config_watcher(
                     }
                 }
 
+                // v10.2.0 (dragonzen audit P3): also require a size
+                // change (or unknown previous size) before reloading.
+                // `chmod`, `chown`, and `utime` advance the mtime
+                // without changing content — a backup tool that
+                // touches file mtimes (e.g. `rsync --archive`) would
+                // trigger spurious reloads without this guard.
+                let now_size = current_size(path);
+                let size_changed = match (last_size, now_size) {
+                    (Some(prev), Some(now)) => prev != now,
+                    _ => true, // Unknown previous or current size — be safe.
+                };
+                if !size_changed {
+                    // mtime advanced but size is identical — likely a
+                    // chmod/utime. Skip the reload but update the
+                    // baseline so we don't keep checking.
+                    last_mtime = Some(now_mtime);
+                    last_size = now_size;
+                    log::debug!(
+                        "config-watcher: {} mtime advanced but size unchanged — skipping reload (likely chmod/utime)",
+                        path.display()
+                    );
+                    continue;
+                }
+
                 log::info!("config-watcher: {} changed, reloading", path.display());
                 last_mtime = Some(now_mtime);
+                last_size = now_size;
 
                 // reload_preset reads preset.tuning from the file — the
                 // initial --preset CLI flag is intentionally NOT passed
@@ -542,4 +579,20 @@ fn path_display(path: &Option<std::path::PathBuf>) -> String {
 /// the file does not exist or its mtime cannot be read.
 fn current_mtime(path: &std::path::Path) -> Option<SystemTime> {
     std::fs::metadata(path).ok().and_then(|m| m.modified().ok())
+}
+
+/// Get the file size of an optional path, or `None` if the path is
+/// `None` or the metadata cannot be read (v10.2.0+ — dragonzen audit
+/// P3). Used alongside `current_mtime_of` to detect chmod-triggered
+/// spurious mtime advances.
+fn current_size_of(path: &Option<std::path::PathBuf>) -> Option<u64> {
+    path.as_ref()
+        .and_then(|p| std::fs::metadata(p).ok())
+        .map(|m| m.len())
+}
+
+/// Get the file size of a path, or `None` if the file does not exist
+/// or its metadata cannot be read (v10.2.0+ — dragonzen audit P3).
+fn current_size(path: &std::path::Path) -> Option<u64> {
+    std::fs::metadata(path).ok().map(|m| m.len())
 }

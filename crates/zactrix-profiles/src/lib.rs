@@ -713,27 +713,59 @@ impl Default for HousingParams {
 }
 
 // ── Profile loading ──────────────────────────────────────────────────
+//
+// The two functions in this section (`load_profile_from_file` and
+// `load_profile_from_str`) are the LEGACY `[profile]`-table format
+// used pre-v0.3.0. The daemon and CLI use the newer
+// `ProfileWithOverrides::parse` (which expects `[default]` + optional
+// `[[keys]]` blocks) and the `zylaxion::config` resolver (which
+// expects `[preset.X]` tables).
+//
+// v10.2.0 (dragonzen audit I7): these are kept for backwards
+// compatibility with external callers that may still use the legacy
+// format, but marked `#[deprecated]`. Plan to remove in v11.0.0.
+// If you're writing new code, use `ProfileWithOverrides::parse`
+// instead — it supports per-key overrides and is the format the
+// shipping `config.toml` uses.
 
-/// Load a [`KeyProfile`] from a TOML file.
+/// Load a [`KeyProfile`] from a TOML file (legacy `[profile]` format).
 ///
-/// The file must contain a `[profile]` table with `click`, `spring`, and
-/// `decay` sub-tables matching the DSP parameter structure.
+/// # Deprecated
+///
+/// Use [`ProfileWithOverrides::parse`] instead — it supports the
+/// `[default]` + `[[keys]]` format used by the shipping `config.toml`,
+/// including per-key overrides. This legacy loader only handles the
+/// pre-v0.3.0 `[profile]` table format and will be removed in v11.0.0.
 ///
 /// # Errors
 ///
 /// Returns a human-readable error string if the file cannot be read or
 /// parsed.  This function is intentionally fallible — callers should
 /// fall back to a hardcoded default on failure.
+#[deprecated(
+    since = "10.2.0",
+    note = "use `ProfileWithOverrides::parse` instead — this legacy `[profile]`-table loader will be removed in v11.0.0"
+)]
+#[allow(deprecated)]
 pub fn load_profile_from_file(path: &std::path::Path) -> Result<KeyProfile, String> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
     load_profile_from_str(&content)
 }
 
-/// Parse a [`KeyProfile`] from a TOML string.
+/// Parse a [`KeyProfile`] from a TOML string (legacy `[profile]` format).
+///
+/// # Deprecated
+///
+/// Use [`ProfileWithOverrides::parse`] instead. See the deprecation
+/// note on [`load_profile_from_file`] for details.
 ///
 /// Expects the standard `[profile]` top-level table. The parsed profile
 /// is validated and clamped to safe DSP ranges before being returned.
+#[deprecated(
+    since = "10.2.0",
+    note = "use `ProfileWithOverrides::parse` instead — this legacy `[profile]`-table loader will be removed in v11.0.0"
+)]
 pub fn load_profile_from_str(toml: &str) -> Result<KeyProfile, String> {
     #[derive(Deserialize)]
     struct ProfileFile {
@@ -1645,9 +1677,11 @@ noise_decay = 0.97
     }
 
     #[test]
+    #[allow(deprecated)]
     fn load_profile_from_str_clamps_legacy_format() {
         // The legacy [profile] format (used pre-v0.3.0) should still
-        // parse and be validated.
+        // parse and be validated. Test uses the deprecated function
+        // deliberately — `#[allow(deprecated)]` silences the warning.
         let toml = r#"
 [profile]
 [profile.click]

@@ -80,6 +80,12 @@
 # Default since v4.0.0: "ibm_model_m" — the iconic buckling-spring
 # sound, chosen to showcase the new high-fidelity legendary preset
 # series. Switch back to "technical" for the classic crisp click.
+#
+# Note: if you remove this `tuning` key entirely, the daemon falls
+# back to the hardcoded DEFAULT_PRESET = "technical" (see
+# `crates/zylaxion/src/config.rs`). The fallback is intentionally
+# "technical" — a known-good universally-available preset — rather
+# than "ibm_model_m" which may not exist in stripped configs.
 [preset]
 tuning = "ibm_model_m"
 

@@ -5,11 +5,16 @@ Absolute source of truth for maintaining consistency, efficiency, and quality.
 ## Architecture & Code Quality
 
 - **LOC Limit:** The core engine (`zactrix-engine` + `zactrix-profiles`) MUST
-  remain under 1,000 lines of code. Current: ~1,600 LOC across both crates.
-  Excludes `*.md`, `*.txt`, `*.toml`, `examples/`.
+  remain under 2,000 lines of code. Current: ~2,100 LOC across both crates
+  (excluding `*.md`, `*.txt`, `*.toml`, `examples/`). The 1,000-LOC target
+  from v0.x was arbitrary for DSP-heavy crates and was relaxed to 2,000 in
+  v10.2.0 to reflect the natural growth from housing layer (v4.2.0),
+  micro-randomization (v5.0.0), and the v10.2.0 dragonzen audit (N2 release
+  ramp, N5 timing variation, N6 pan jitter, N7 two-stage decay).
 - **Modular `main.rs`:** `crates/zylaxion/src/main.rs` MUST stay within 100–300 LOC.
-  Bootstrap and wiring only. Logic goes into specific modules. Current: 474 LOC —
-  needs refactoring into `commands/` or `cli.rs`.
+  Bootstrap and wiring only. Logic goes into specific modules. Current: ~273 LOC —
+  within the limit. The `run_check_update` function (~80 LOC) is a candidate
+  for extraction to `commands/update.rs` if main.rs grows further.
 - **File Bloat:** No single `.rs` file may exceed 800 LOC.
 - **Release Profile:** `[profile.release]` uses `lto = "thin"`, `codegen-units = 1`,
   `opt-level = 3`, `strip = true`, `panic = "unwind"`.
@@ -124,7 +129,7 @@ grep -rn 'scancode' crates/ --include='*.rs' | \
 ## CI/CD (GitHub Actions)
 
 - **CI paths filter:** Ignore `*.md`, `*.txt`, `docs/` on push/PR.
-- **Node.js:** `FORCE_JAVERCRIPT_ACTIONS_TO_NODE24=true` in all workflow env.
+- **Node.js:** `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` in all workflow env.
 - **Dependabot:** REMOVED. Do not use Dependabot.
 - **Dependency updates:** Custom `maintenance.yml` workflow auto-updates deps
   and commits directly to `main`. NO PRs. NO branch spam.

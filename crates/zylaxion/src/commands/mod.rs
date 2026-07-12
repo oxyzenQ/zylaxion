@@ -5,6 +5,8 @@
 //!
 //! - `daemon`  — `start`, `daemon`, `stop` (run / background / quit)
 //! - `info`    — `doctor`, `testconf`, `list-presets`, `list-backends` (diagnostics)
+//! - `update`  — `--check-update` (GitHub release check, v10.2.0+ — I9)
 
 pub mod daemon;
 pub mod info;
+pub mod update;

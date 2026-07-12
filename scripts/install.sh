@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 rezky_nightky (oxyzenQ)
+# Copyright (C) 2026 rezky_nightky
 #
 # Install zylaxion: binary + config.toml + systemd user service.
 # Supports --system (system-wide) and --user (default, ~/.local).
@@ -45,16 +45,31 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Refuse to run as root — cargo build must run as the current user.
-# If run with sudo, cargo build would create root-owned files in target/,
-# breaking future `cargo clean` / `cargo build` for the normal user.
-# The script uses sudo internally only for the install step in --system mode.
-if [[ $EUID -eq 0 ]]; then
-    echo "error: do not run this script with sudo." >&2
-    echo "  cargo build would run as root, corrupting target/ ownership." >&2
-    echo "  Run: $0 --system" >&2
-    echo "  The script will use sudo internally only for the install step." >&2
+# Refuse to run as root in --user mode — cargo build must run as the
+# current user. If run with sudo, cargo build would create root-owned
+# files in target/, breaking future `cargo clean` / `cargo build` for
+# the normal user.
+#
+# v10.2.0 (dragonzen audit P5): allow root ONLY for --system installs
+# (Docker containers, rootless environments, CI). In --system mode as
+# root, the script skips the `sudo` prefix for install steps (since
+# we're already root). In --user mode as root, refuse — root's $HOME
+# is /root and the install would land in the wrong place.
+if [[ $EUID -eq 0 ]] && [[ "${MODE}" != "--system" ]]; then
+    echo "error: do not run this script with sudo in --user mode." >&2
+    echo "  --user mode installs to \$HOME/.local/bin — root's \$HOME is /root." >&2
+    echo "  Run: $0 --system  (uses sudo internally for the install step)" >&2
+    echo "  Or:  $0 --user    (run as the target user, not sudo)" >&2
     exit 1
+fi
+
+# v10.2.0 (P5): set SUDO="" when already root so the install steps
+# don't try to escalate (sudo inside a container without sudo installed
+# would fail).
+if [[ $EUID -eq 0 ]]; then
+    SUDO=""
+else
+    SUDO="sudo"
 fi
 
 cd "${REPO_ROOT}"
@@ -83,7 +98,7 @@ fi
 echo ">> [2/4] Installing binary (${MODE})"
 case "${MODE}" in
     --system)
-        sudo install -Dm755 "${BINARY}" "/usr/bin/${PROJECT_NAME}"
+        "${SUDO}" install -Dm755 "${BINARY}" "/usr/bin/${PROJECT_NAME}"
         echo "   installed: /usr/bin/${PROJECT_NAME}"
         ;;
     --user)
@@ -98,17 +113,17 @@ echo ">> [3/4] Installing config.toml (${MODE})"
 case "${MODE}" in
     --system)
         # FHS default location — in zylaxion's config search path.
-        sudo mkdir -p "/etc/${PROJECT_NAME}"
+        "${SUDO}" mkdir -p "/etc/${PROJECT_NAME}"
         config_path="/etc/${PROJECT_NAME}/config.toml"
-        if sudo test -f "${config_path}"; then
+        if "${SUDO}" test -f "${config_path}"; then
             backup="${config_path}.bak.$(date +%s)"
-            sudo cp -p "${config_path}" "${backup}"
-            sudo install -m 644 "${CONFIG_SRC}" "${config_path}.new"
+            "${SUDO}" cp -p "${config_path}" "${backup}"
+            "${SUDO}" install -m 644 "${CONFIG_SRC}" "${config_path}.new"
             echo "   existing config preserved: ${config_path}"
             echo "   backup created at:            ${backup}"
             echo "   new template installed at:    ${config_path}.new (review and merge manually)"
         else
-            sudo install -Dm644 "${CONFIG_SRC}" "${config_path}"
+            "${SUDO}" install -Dm644 "${CONFIG_SRC}" "${config_path}"
             echo "   installed: ${config_path}"
             echo "   (system-wide default; users can override at ~/.config/${PROJECT_NAME}/config.toml)"
         fi
@@ -133,10 +148,10 @@ echo ">> [4/4] Installing systemd user unit (${MODE})"
 case "${MODE}" in
     --system)
         # System-wide user unit. Modify ExecStart to point to /usr/bin.
-        sudo mkdir -p "/etc/systemd/user"
+        "${SUDO}" mkdir -p "/etc/systemd/user"
         sed 's|%h/.local/bin/'"${PROJECT_NAME}"'|/usr/bin/'"${PROJECT_NAME}"'|g' \
-            "${SERVICE_SRC}" | sudo tee "/etc/systemd/user/${PROJECT_NAME}.service" >/dev/null
-        sudo chmod 644 "/etc/systemd/user/${PROJECT_NAME}.service"
+            "${SERVICE_SRC}" | "${SUDO}" tee "/etc/systemd/user/${PROJECT_NAME}.service" >/dev/null
+        "${SUDO}" chmod 644 "/etc/systemd/user/${PROJECT_NAME}.service"
         echo "   installed: /etc/systemd/user/${PROJECT_NAME}.service"
         ;;
     --user)

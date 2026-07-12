@@ -45,9 +45,22 @@ const SYSTEM_DATA_DIRS: &[&str] = &["/usr/local/share/zylaxion"];
 /// Filename of the central config file.
 const CONFIG_FILE_NAME: &str = "config.toml";
 
-/// Default preset name when neither `--preset` nor `preset.tuning` is
-/// provided. This is only used as a last resort — if the config file
-/// exists and has a `tuning` value, that value is used instead.
+/// Hardcoded fallback preset name used when:
+/// (a) no `--preset` CLI flag was passed, AND
+/// (b) the resolved config file has no `preset.tuning` value, OR
+/// (c) no config file was found in any search path.
+///
+/// This is the **last-resort** default — the shipping `config.toml`
+/// sets `preset.tuning = "ibm_model_m"`, so in a normal install this
+/// constant is never reached. It exists only as a safety net for
+/// stripped-down installs that ship a config without a `tuning` key.
+///
+/// v10.2.0 (dragonzen audit I3): the value remains "technical" (the
+/// classic crisp click) rather than "ibm_model_m" because the
+/// fallback should be a known-good universally-available preset, not
+/// the showcase preset that may not exist in stripped configs. If
+/// you change this, also update the comment in `config.toml`'s
+/// `[preset]` block to keep them in sync.
 pub const DEFAULT_PRESET: &str = "technical";
 
 /// The `tuning` key inside the `[preset]` table.
@@ -447,13 +460,26 @@ fn validate_config_str(content: &str) -> Result<(), String> {
         return Err("config.toml contains no [preset.*] tables".to_string());
     }
 
-    // Validate each preset by building a profile from it (exercises
-    // the full validate+clamp path).
+    // Validate each preset by building a profile from it. This
+    // exercises the full parse + validate + clamp path — if any
+    // preset's sub-tables have malformed types (e.g. `frequency =
+    // "not a number"`), the error surfaces here as a parse error
+    // rather than later at runtime.
+    //
+    // v10.2.0 (dragonzen audit P6): the previous `let _ = ...` was
+    // misleading — `build_profile_from_entry` doesn't return Result,
+    // so "errors would surface as panics from try_into" was wrong.
+    // The try_into happens inside `parse_config` (already done above),
+    // so by the time we get here the preset is structurally valid.
+    // The build call here exercises validate_and_clamp for range
+    // checking. We discard the result because we only care that it
+    // doesn't panic — clamping is non-fatal and emits log::warn!
+    // internally.
     let mut names: Vec<&String> = parsed.presets.keys().collect();
     names.sort();
     for name in &names {
         let entry = &parsed.presets[*name];
-        let _ = build_profile_from_entry(entry); // errors would surface as panics from try_into
+        let _profile = build_profile_from_entry(entry);
     }
 
     // Check that tuning (if present) references an existing preset.
@@ -485,14 +511,34 @@ fn format_preset_list(map: &HashMap<String, PresetEntry>) -> String {
 }
 
 /// Build the ordered list of candidate `config.toml` paths.
+///
+/// v10.2.0 (dragonzen audit P2): honor `$XDG_CONFIG_HOME` per the XDG
+/// Base Directory Specification. Previously this hardcoded `~/.config/
+/// zylaxion/` — if a user set `XDG_CONFIG_HOME=~/.myconfig`, the daemon
+/// ignored it and looked in `~/.config/zylaxion/` instead. The fix
+/// resolves the config home as:
+///
+/// 1. `$XDG_CONFIG_HOME` if set and non-empty (and not a relative
+///    path — the spec requires absolute).
+/// 2. `$HOME/.config` otherwise.
+///
+/// Falls back to no user-config candidate if neither is set.
 fn candidate_paths() -> Vec<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
-    if let Some(home) = std::env::var_os("HOME") {
-        candidates.push(
-            PathBuf::from(home)
-                .join(".config/zylaxion")
-                .join(CONFIG_FILE_NAME),
-        );
+
+    // Resolve the XDG config home directory.
+    let config_home: Option<PathBuf> = std::env::var_os("XDG_CONFIG_HOME")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute()) // XDG spec: must be absolute
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .filter(|v| !v.is_empty())
+                .map(|h| PathBuf::from(h).join(".config"))
+        });
+
+    if let Some(ch) = config_home {
+        candidates.push(ch.join("zylaxion").join(CONFIG_FILE_NAME));
     }
     candidates.push(PathBuf::from("/etc/zylaxion").join(CONFIG_FILE_NAME));
     for data_dir in SYSTEM_DATA_DIRS {

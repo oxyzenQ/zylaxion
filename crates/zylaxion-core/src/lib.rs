@@ -114,8 +114,22 @@ fn scancode_to_pan(scancode: u32) -> f32 {
         42..=53 => (scancode - 42) as f32 / 11.0,
         // Row 6: bottom row (Shift=42.., Ctrl=29/97, Alt=56/100, Space=57)
         57 => 0.5, // Space — center
-        // Right-side modifier / arrow / nav cluster
-        86..=100 => 0.7,
+        // v10.2.0 (dragonzen audit B16): navigation cluster
+        // (PrintScreen, ScrollLock, Pause, Insert, Home, PgUp, Delete,
+        // End, PgDn, arrows) — scancodes 70–89. These physically sit
+        // right-of-center on standard layouts, so pan them center-
+        // right (0.6). Previously fell to the default 0.5 (center),
+        // which made arrow keys sound like they're coming from the
+        // middle of the keyboard — wrong.
+        //
+        // Note: scancodes 86 (Numpad-), 87 (F11), 88 (F12), 89 (Numpad=)
+        // overlap with the numpad/F-key cluster below — they get the
+        // nav-cluster pan (0.6) which is fine since they're also
+        // right-of-center.
+        70..=89 => 0.6,
+        // Right-side numpad cluster — scancodes 90-100. The numpad
+        // physically sits at the far right of standard layouts.
+        90..=100 => 0.7,
         // Everything else: center
         _ => 0.5,
     };
@@ -297,6 +311,20 @@ impl Orchestrator {
         // actual chunk size each iteration.
         let mut batch = [[0.0f32; 2]; MAX_RENDER_CHUNK];
 
+        // v10.2.0 (dragonzen audit S4): heartbeat tracking. Log a
+        // debug message after 60 s of input inactivity, upgrade to
+        // warn! after 5 min. Without this, if `libinput.dispatch()`
+        // returns Ok(()) forever but never produces events (device fd
+        // stuck, kernel bug), the daemon appears alive (PID file
+        // present, IPC socket listening) but produces no audio. The
+        // user has no feedback. The heartbeat makes the failure mode
+        // visible in `journalctl --user -u zylaxion`.
+        let mut last_event_monotonic = std::time::Instant::now();
+        let heartbeat_debug = Duration::from_secs(60);
+        let heartbeat_warn = Duration::from_secs(5 * 60);
+        let mut heartbeat_debug_emitted = false;
+        let mut heartbeat_warn_emitted = false;
+
         // ── Interrupt-driven loop ────────────────────────────────
         loop {
             // 0. Check stop flag — IPC "stop" command or SIGTERM
@@ -308,6 +336,26 @@ impl Orchestrator {
                 return;
             }
 
+            // v10.2.0 (S4): heartbeat check. Cheap — one Instant::
+            // elapsed() per loop iteration (microseconds).
+            let idle = last_event_monotonic.elapsed();
+            if !heartbeat_debug_emitted && idle >= heartbeat_debug {
+                log::debug!(
+                    "no key events in {:.0}s — input thread may be stuck (this is normal during idle periods)",
+                    idle.as_secs()
+                );
+                heartbeat_debug_emitted = true;
+            }
+            if !heartbeat_warn_emitted && idle >= heartbeat_warn {
+                log::warn!(
+                    "no key events in {:.0}s — input thread may be stuck. \
+                     If the daemon appears alive but produces no audio, \
+                     restart it (`systemctl --user restart zylaxion`).",
+                    idle.as_secs()
+                );
+                heartbeat_warn_emitted = true;
+            }
+
             // 1. Block until a key event arrives (wakes immediately)
             //    or the 1 ms timeout expires.  This is the primary
             //    idle mechanism — no CPU spin when no keys are pressed.
@@ -317,6 +365,13 @@ impl Orchestrator {
             //    drain loop below with zero extra latency.
             match event_rx.recv_timeout(EVENT_POLL_TIMEOUT) {
                 Ok(event) => {
+                    // v10.2.0 (S4): reset the heartbeat on any event.
+                    // The input thread is alive and producing events —
+                    // the daemon is healthy.
+                    last_event_monotonic = std::time::Instant::now();
+                    heartbeat_debug_emitted = false;
+                    heartbeat_warn_emitted = false;
+
                     // Snapshot the current model ONCE per event batch.
                     // ArcSwap::load() is a single atomic load — no
                     // blocking, no allocation. The Guard keeps the
@@ -354,8 +409,21 @@ impl Orchestrator {
 
             if vacancy < SLEEP_THRESHOLD {
                 // Buffer is mostly full — the audio callback hasn't
-                // drained enough yet.  Loop back to recv_timeout
-                // which blocks efficiently instead of spinning.
+                // drained enough yet. Sleep briefly to let the cpal
+                // callback consume some frames instead of busy-looping
+                // back to recv_timeout (v10.2.0 — dragonzen audit E3).
+                //
+                // The previous `continue` fell through to
+                // recv_timeout(1ms) which is fine for keyboard-event
+                // responsiveness, but during sustained audio (long
+                // decay tail of a chord) it caused ~1000 iterations/
+                // sec of atomic-load + comparison + branch — preventing
+                // CPU deep C-states on battery-powered laptops.
+                //
+                // Sleep for ~500 µs (≈22 frames at 44.1 kHz) which is
+                // short enough to keep the buffer fed without drops,
+                // long enough to let the CPU enter C1 or deeper.
+                std::thread::sleep(Duration::from_micros(500));
                 continue;
             }
 

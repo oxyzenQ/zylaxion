@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (C) 2026 rezky_nightky (oxyzenQ)
+# Copyright (C) 2026 rezky_nightky
 #
 # Uninstall zylaxion: binary + config.toml + systemd user service.
 # Auto-detects and removes from all known locations:
