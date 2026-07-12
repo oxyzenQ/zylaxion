@@ -178,6 +178,16 @@ impl VoicePool {
         for voice in &mut self.voices {
             if voice.is_active() && voice.scancode == scancode {
                 voice.state.releasing = true;
+                // v10.2.0 (dragonzen audit P4): zero the scancode now
+                // so it doesn't persist in memory after the voice
+                // deactivates. The scancode is a hardware evdev code
+                // that can be mapped back to typed text via the user's
+                // keyboard layout — leaving it in the slot until the
+                // next trigger is a (small) privacy leak vector if
+                // the daemon crashes and dumps core. Zeroing on
+                // release ensures the slot holds no scancode between
+                // keypress events.
+                voice.scancode = 0;
             }
         }
     }

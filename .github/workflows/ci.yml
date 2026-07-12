@@ -104,3 +104,25 @@ jobs:
           else
             codespell --skip './.git,./target,./assets,./dist,./node_modules' .
           fi
+
+  # v10.2.0 (dragonzen audit I5): supply-chain CVE scan via cargo-audit.
+  # Runs weekly (Mon 07:00 UTC) AND on every push/PR that touches Cargo.lock
+  # or any Cargo.toml. The local gatekeeper skips cargo-audit per policy —
+  # this job is the canonical source for vulnerability scanning.
+  audit:
+    name: Supply-chain CVE scan
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: rustup default stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Run cargo audit
+        run: cargo audit --deny warnings

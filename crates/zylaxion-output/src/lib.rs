@@ -139,9 +139,31 @@ impl CpalSink {
     /// be queried, or the stream cannot be built/started.
     pub fn new() -> Result<Self, AudioError> {
         let host = cpal::default_host();
-        let device = host
-            .default_output_device()
-            .ok_or(AudioError::NoDeviceAvailable)?;
+        // v10.2.0 (dragonzen audit B12): fall back to enumerating
+        // output devices if `default_output_device()` returns None.
+        // PipeWire/PulseAudio's "default device" can be unset (e.g.
+        // after `pactl unset-default-sink`) — without this fallback,
+        // the daemon would exit with a generic "no device" error even
+        // when audio devices are present and available. We log the
+        // fallback so the user knows the default wasn't picked.
+        let device = match host.default_output_device() {
+            Some(d) => d,
+            None => {
+                log::warn!(
+                    "no default audio output device — falling back to first available device"
+                );
+                // `output_devices()` returns Result in cpal 0.15; flatten
+                // the error case into NoDeviceAvailable since either way we
+                // can't enumerate.
+                host.output_devices()
+                    .map_err(|e| {
+                        log::warn!("failed to enumerate output devices: {e}");
+                        AudioError::NoDeviceAvailable
+                    })?
+                    .next()
+                    .ok_or(AudioError::NoDeviceAvailable)?
+            }
+        };
 
         let default_config = device
             .default_output_config()
@@ -186,6 +208,20 @@ impl CpalSink {
         // default_config via .into() below.
         let channels = default_config.channels() as usize;
         let sample_format = default_config.sample_format();
+
+        // v10.2.0 (dragonzen audit B15): warn if the device reports
+        // more than 2 channels. Zylaxion is stereo-only — the cpal
+        // callback writes frame[0] (L) and frame[1] (R), leaving the
+        // remaining channels silent. For a 5.1/7.1 user this means
+        // stereo + N silent channels with no warning. The log line
+        // explains the silence and suggests workarounds.
+        if channels > 2 {
+            log::warn!(
+                "audio device reports {channels} channels — zylaxion outputs stereo (L+R) only. \
+                 Extra channels will be silent. To fix: configure the device to stereo mode \
+                 via pavucontrol or your desktop's sound settings."
+            );
+        }
 
         // Build a StreamConfig with the chosen sample rate. Buffer size
         // is left at Default so ALSA/PipeWire negotiates a safe, stable
