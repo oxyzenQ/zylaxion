@@ -395,6 +395,12 @@ impl Orchestrator {
         event: &InputKeyEvent,
     ) {
         if event.pressed {
+            // v10.2.0 (dragonzen audit N5): record the keypress timestamp
+            // BEFORE init_state so the model can compute the inter-
+            // keystroke interval and attenuate fast repeats by up to -5%.
+            // The default trait impl is a no-op; only models that care
+            // about timing (e.g. MechanicalClick) override it.
+            let _ = model.record_trigger_timestamp(event.timestamp);
             let pan = scancode_to_pan(event.scancode);
             pool.trigger(
                 model,

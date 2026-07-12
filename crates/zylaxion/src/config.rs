@@ -401,6 +401,13 @@ fn build_profile_from_entry(entry: &PresetEntry) -> ProfileWithOverrides {
             if let Some(v) = decay.voice_off_threshold {
                 merged.decay.voice_off_threshold = v;
             }
+            // v10.2.0+ (N7): two-stage decay per-key overrides.
+            if let Some(v) = decay.coefficient_fast {
+                merged.decay.coefficient_fast = v;
+            }
+            if let Some(v) = decay.fast_samples_ms {
+                merged.decay.fast_samples_ms = v;
+            }
         }
         if let Some(ambient) = &ko.ambient {
             if let Some(v) = ambient.enabled {
@@ -829,6 +836,8 @@ tuning = "technical"
             decay: Some(DecayParams {
                 coefficient: 9999.0, // would cause infinite loop
                 voice_off_threshold: 0.00001,
+                coefficient_fast: 0.0,
+                fast_samples_ms: 0.0,
             }),
             ambient: None,
             housing: None,
@@ -857,6 +866,8 @@ tuning = "technical"
             decay: Some(DecayParams {
                 coefficient: 0.9994,
                 voice_off_threshold: 0.00001,
+                coefficient_fast: 0.0,
+                fast_samples_ms: 0.0,
             }),
             ambient: None,
             housing: None,
