@@ -140,6 +140,8 @@ EXPECTED=$(awk '{print $1}' zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz.shake256)
 ## Usage
 
 ```
+zylaxion                         # Quick status overview (daemon, preset, audio)
+zylaxion --live                  # Live overview (refreshes every 2s, like watch)
 zylaxion start                    # Foreground mode (Ctrl+C to quit)
 zylaxion start --preset cherryMX  # Override active preset from CLI
 zylaxion daemon                   # Background daemon mode
@@ -147,7 +149,8 @@ zylaxion daemon --foreground      # Foreground daemon (for systemd)
 zylaxion stop                     # Stop a running daemon
 zylaxion status                   # Check if daemon is running
 zylaxion doctor                   # System health diagnostic
-zylaxion testconf                 # Validate config.toml syntax + ranges
+zylaxion testconf                 # Validate config.toml (search path)
+zylaxion testconf -f ./my.toml    # Validate a specific config file
 zylaxion list-presets             # List available presets + active one
 zylaxion list-backends            # Show available audio backends
 zylaxion --check-update           # Check for latest GitHub release
