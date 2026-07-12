@@ -431,7 +431,7 @@ pub struct SynthState {
     /// Internal state of the xorshift32 PRNG used for the housing "thock"
     /// excitation (v10.2.0+ — dragonzen audit N3).
     ///
-    /// Previously the housing layer re-used `noise_state`, which meant the
+    /// Previously the housing layer reused `noise_state`, which meant the
     /// click bandpass and the housing bandpass saw **identical** noise
     /// during the burst-overlap window. Constructive interference made the
     /// two layers merge into a single "honk" instead of a layered click +
