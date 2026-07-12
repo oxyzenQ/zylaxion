@@ -299,39 +299,50 @@ pub fn cmd_overview() {
 pub fn cmd_live_overview() {
     use std::io::{self, Write};
 
-    // Install a simple SIGINT handler so Ctrl+C exits cleanly
-    // instead of panicking.
+    // Install SIGINT + SIGTERM handler so Ctrl+C exits cleanly.
     let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let stop_clone = Arc::clone(&stop);
-    let _ = signal_hook::flag::register(signal_hook::consts::SIGINT, stop_clone);
+    let _ = signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&stop_clone));
+    let _ = signal_hook::flag::register(signal_hook::consts::SIGTERM, stop_clone);
+
+    // Enter alternate screen — like vim/less. On exit we restore the
+    // original screen, so the terminal looks clean (no scrollback
+    // pollution from repeated overwrites).
+    // ESC[?1049h = save cursor + switch to alternate screen
+    // ESC[?1049l = restore cursor + switch back to main screen
+    print!("\x1b[?1049h");
+    // Hide cursor while in live mode.
+    print!("\x1b[?25l");
+    let _ = io::stdout().flush();
 
     loop {
         if stop.load(std::sync::atomic::Ordering::Relaxed) {
             break;
         }
 
-        // Clear screen + move cursor to top-left.
-        print!("\x1b[2J\x1b[H");
+        // Move cursor to top-left + clear from cursor down.
+        // (Don't clear the whole screen — that causes flicker.)
+        print!("\x1b[H\x1b[J");
         let _ = io::stdout().flush();
 
         // Print the overview.
         cmd_overview();
 
-        // Print a footer with refresh hint.
+        // Footer with refresh hint.
         println!("  (refreshing every 2s — Ctrl+C to exit)");
         let _ = io::stdout().flush();
 
-        // Sleep 2s, but check stop flag every 200ms for responsive exit.
-        for _ in 0..10 {
+        // Sleep 2s, checking stop flag every 100ms for fast exit.
+        for _ in 0..20 {
             if stop.load(std::sync::atomic::Ordering::Relaxed) {
                 break;
             }
-            std::thread::sleep(std::time::Duration::from_millis(200));
+            std::thread::sleep(std::time::Duration::from_millis(100));
         }
     }
 
-    // Clear screen on exit for clean terminal.
-    print!("\x1b[2J\x1b[H");
+    // Restore: show cursor + leave alternate screen.
+    print!("\x1b[?25h\x1b[?1049l");
     let _ = io::stdout().flush();
 }
 
