@@ -108,17 +108,24 @@ pub fn cmd_start(cli_preset: Option<String>) {
     // 4. Spawn the config-watcher thread. The watcher always reads
     //    preset.tuning from the file on change — the --preset CLI flag
     //    is for initial load only. We pass active_preset here just for
-    //    the startup log message. sample_rate is shared so the watcher
-    //    can construct new MechanicalClick instances on reload.
+    //    the startup log message.
     //
     //    v10.2.0 (S1): the watcher now takes a clone of stop_flag so
     //    it can exit cleanly when the orchestrator is shutting down.
     //    Must be spawned AFTER stop_flag is created.
+    //
+    //    v10.2.0 (B13): sample_rate is now an Arc<AtomicU32> shared
+    //    between the orchestrator and the watcher. The watcher reads
+    //    the current value before each reload instead of using a stale
+    //    captured value. If the audio device's rate ever changes
+    //    mid-run (future feature: device hot-swap), the watcher would
+    //    pick up the new rate automatically.
+    let shared_sample_rate = Arc::new(std::sync::atomic::AtomicU32::new(sample_rate));
     let _watcher_handle = spawn_config_watcher(
         Arc::clone(&model),
         config_path,
         active_preset.clone(),
-        sample_rate,
+        Arc::clone(&shared_sample_rate),
         Arc::clone(&stop_flag),
     );
 
@@ -305,11 +312,16 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
     // Previously the watcher thread leaked at shutdown — it kept polling
     // every 1 s until process exit, holding a clone of the ArcSwap and
     // preventing clean Drop of the model.
+    //
+    // v10.2.0 (B13): sample_rate is now Arc<AtomicU32> so the watcher
+    // reads the current value before each reload instead of using a
+    // stale captured value.
+    let shared_sample_rate = Arc::new(std::sync::atomic::AtomicU32::new(sample_rate));
     let _watcher_handle = spawn_config_watcher(
         Arc::clone(&model),
         config_path,
         active_preset.clone(),
-        sample_rate,
+        Arc::clone(&shared_sample_rate),
         Arc::clone(&stop_flag),
     );
 
@@ -385,7 +397,7 @@ fn spawn_config_watcher(
     model: Arc<ArcSwap<MechanicalClick>>,
     config_path: Option<std::path::PathBuf>,
     initial_preset: String,
-    sample_rate: u32,
+    sample_rate: Arc<std::sync::atomic::AtomicU32>,
     stop_flag: Arc<AtomicBool>,
 ) -> std::thread::JoinHandle<()> {
     std::thread::Builder::new()
@@ -527,10 +539,16 @@ fn spawn_config_watcher(
                 // here so that file edits always take precedence.
                 match crate::config::reload_preset(path, None) {
                     Ok((profiles, active, master)) => {
+                        // v10.2.0 (B13): read the current sample_rate
+                        // from the shared atomic instead of using the
+                        // stale captured value. If the audio device's
+                        // rate ever changes mid-run, the watcher picks
+                        // up the new rate automatically.
+                        let sr = sample_rate.load(std::sync::atomic::Ordering::Relaxed);
                         let new_model =
-                            MechanicalClick::with_overrides(profiles, sample_rate);
+                            MechanicalClick::with_overrides(profiles, sr);
                         model.store(Arc::new(new_model));
-                        log::info!("config-watcher: reloaded preset '{active}' successfully");
+                        log::info!("config-watcher: reloaded preset '{active}' successfully (sample_rate={sr})");
                         // v10.2.0 (P1): master volume is part of the
                         // config but lives in the VoicePool, not the
                         // AcousticModel. Hot-reload of master volume is

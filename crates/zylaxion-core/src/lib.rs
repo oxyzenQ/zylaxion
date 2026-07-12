@@ -35,7 +35,7 @@ use std::time::Duration;
 use arc_swap::ArcSwap;
 use crossbeam_channel::Receiver;
 use zactrix_engine::VoicePool;
-use zactrix_profiles::{AcousticModel, KeyEvent as ProfileKeyEvent};
+use zactrix_profiles::{AcousticModel, KeyTrigger};
 use zylaxion_input::KeyEvent as InputKeyEvent;
 use zylaxion_output::AudioSink;
 
@@ -502,7 +502,7 @@ impl<S: AudioSink> Orchestrator<S> {
             let pan = scancode_to_pan(event.scancode);
             pool.trigger(
                 model,
-                &ProfileKeyEvent {
+                &KeyTrigger {
                     scancode: event.scancode,
                     pressed: true,
                     stereo_position: pan,

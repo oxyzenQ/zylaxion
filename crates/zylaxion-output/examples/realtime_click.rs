@@ -12,7 +12,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use zactrix_engine::VoicePool;
-use zactrix_profiles::{KeyEvent, MechanicalClick};
+use zactrix_profiles::{KeyTrigger, MechanicalClick};
 use zylaxion_output::{AudioSink, CpalSink};
 
 fn main() {
@@ -47,7 +47,7 @@ fn main() {
         if Instant::now() >= next_trigger {
             pool.trigger(
                 &model,
-                &KeyEvent {
+                &KeyTrigger {
                     scancode: 30,
                     pressed: true,
                     stereo_position: 0.0,

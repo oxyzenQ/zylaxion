@@ -29,14 +29,15 @@ pub const SAMPLE_RATE: f32 = 44_100.0;
 /// Maximum simultaneous voices the engine can produce.
 pub const MAX_POLYPHONY: usize = 16;
 
-/// Represents a keyboard key event from the input layer.
-///
-/// This struct is the bridge between the input handler (e.g., `libinput`)
-/// and the DSP engine. It carries the hardware scancode, the pressed/released
-/// state, and the pre-computed stereo position based on the key's physical
-/// location on the keyboard.
+/// A trigger event sent to the acoustic model to start a voice (v10.2.0+ —
+/// dragonzen audit I4: renamed from `KeyEvent` to avoid collision with
+/// `zylaxion_input::KeyEvent` which represents a raw kernel input event
+/// with a timestamp. `KeyTrigger` is the DSP-side concept: it carries the
+/// scancode, press/release state, and pre-computed stereo position. The
+/// orchestrator translates `zylaxion_input::KeyEvent` → `KeyTrigger` by
+/// computing the stereo position from the scancode.
 #[derive(Debug, Clone, Copy)]
-pub struct KeyEvent {
+pub struct KeyTrigger {
     /// Hardware evdev scancode of the key.
     pub scancode: u32,
     /// `true` for key press, `false` for key release.
@@ -609,7 +610,7 @@ pub trait AcousticModel: Send + Sync {
     ///
     /// Called once when a voice is triggered. The returned [`KeyProfile`] is
     /// cached by the voice pool and used to initialize the voice state.
-    fn get_profile(&self, event: &KeyEvent) -> KeyProfile;
+    fn get_profile(&self, event: &KeyTrigger) -> KeyProfile;
 
     /// Initialize the synthesis state from a profile.
     ///
