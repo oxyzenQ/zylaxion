@@ -2,13 +2,26 @@
 
 All notable changes to zylaxion.
 
-## [v10.2.0] — 2026-07-12
+## [v10.2.0] — 2026-07-13
 
-### Dragonzen Depth Audit — 49 items fixed, 3 won't-fix, 20 new tests
+### Dragonzen Depth Audit + Real-Machine Testing Feedback
 
 Comprehensive depth audit covering naturalness, stability, bugs,
 inconsistencies, resource efficiency, and test coverage. All changes
-backward-compatible unless explicitly noted.
+backward-compatible unless explicitly noted. 49 audit items fixed,
+3 won't-fix (documented), 20 new tests, 3 user-feedback fixes.
+
+#### CLI Enhancements (from real-machine testing)
+- **Overview mode**: `zylaxion` with no subcommand shows a one-screen
+  summary (daemon status, preset, audio device, input group, hints).
+- **--live flag**: `zylaxion --live` refreshes the overview every 2s
+  using the alternate screen buffer (clean exit, no scrollback).
+- **testconf -f flag**: `zylaxion testconf -f <path>` validates a
+  specific file. Restricted to .toml extension + allowed config dirs.
+- **install.sh cross-mode cleanup**: `--system` mode now removes
+  stale user-local binary + service. Config preserved if customized.
+- **install.sh no backup bloat**: overwrites config unconditionally
+  (no .new/.bak files).
 
 #### Critical (3)
 - **B1**: `voice_off_threshold` in `technical` preset was assigned to
