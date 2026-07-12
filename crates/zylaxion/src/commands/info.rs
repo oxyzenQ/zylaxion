@@ -71,30 +71,52 @@ pub fn cmd_doctor() {
 /// Validate the central `config.toml`: find it via the search path,
 /// parse, and run all DSP parameter clamping checks.
 ///
+/// If `file` is `Some(path)`, validates that specific file instead of
+/// searching the standard config paths.
+///
 /// Exits 0 with "Config OK: <path>" if everything parses and validates.
 /// Exits 1 with "Config Error in <path>: <error>" otherwise.
 ///
 /// Equivalent in spirit to `nginx -t` or `sshd -t` — lets users catch
 /// TOML typos and out-of-bounds DSP values before restarting the daemon.
-pub fn cmd_testconf() {
-    match config::validate_config() {
-        Ok(path) => {
-            println!("Config OK: {}", path.display());
-        }
-        Err((Some(path), err)) => {
-            crate::error_format::error(format!("in {}: {err}", path.display()));
+pub fn cmd_testconf(file: Option<&str>) {
+    if let Some(path_str) = file {
+        // Validate a specific file.
+        let path = std::path::Path::new(path_str);
+        if !path.is_file() {
+            crate::error_format::error(format!("file not found: {path_str}"));
             process::exit(1);
         }
-        Err((None, err)) => {
-            crate::error_format::error(err);
-            eprintln!();
-            eprintln!("Searched:");
-            eprintln!("  1. $XDG_CONFIG_HOME/zylaxion/config.toml");
-            eprintln!("     (or ~/.config/zylaxion/config.toml if unset)");
-            eprintln!("  2. /etc/zylaxion/config.toml");
-            eprintln!("  3. /usr/local/share/zylaxion/config.toml");
-            eprintln!("  4. ./config.toml (current directory)");
-            process::exit(1);
+        match config::validate_config_file(path) {
+            Ok(()) => {
+                println!("Config OK: {}", path.display());
+            }
+            Err(err) => {
+                crate::error_format::error(format!("in {}: {err}", path.display()));
+                process::exit(1);
+            }
+        }
+    } else {
+        // Search the standard paths.
+        match config::validate_config() {
+            Ok(path) => {
+                println!("Config OK: {}", path.display());
+            }
+            Err((Some(path), err)) => {
+                crate::error_format::error(format!("in {}: {err}", path.display()));
+                process::exit(1);
+            }
+            Err((None, err)) => {
+                crate::error_format::error(err);
+                eprintln!();
+                eprintln!("Searched:");
+                eprintln!("  1. $XDG_CONFIG_HOME/zylaxion/config.toml");
+                eprintln!("     (or ~/.config/zylaxion/config.toml if unset)");
+                eprintln!("  2. /etc/zylaxion/config.toml");
+                eprintln!("  3. /usr/local/share/zylaxion/config.toml");
+                eprintln!("  4. ./config.toml (current directory)");
+                process::exit(1);
+            }
         }
     }
 }

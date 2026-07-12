@@ -496,6 +496,17 @@ fn validate_config_str(content: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Validate a specific config file (v10.2.0+ — user feedback).
+///
+/// Reads + parses + validates the given file. Does NOT search the
+/// standard paths — the caller specifies the exact file to check.
+/// Used by `zylaxion testconf -f <path>`.
+pub fn validate_config_file(path: &std::path::Path) -> Result<(), String> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
+    validate_config_str(&content)
+}
+
 /// Format preset names as a comma-separated list for error messages.
 fn format_preset_list(map: &HashMap<String, PresetEntry>) -> String {
     if map.is_empty() {

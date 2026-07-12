@@ -115,32 +115,18 @@ case "${MODE}" in
         # FHS default location — in zylaxion's config search path.
         "${SUDO}" mkdir -p "/etc/${PROJECT_NAME}"
         config_path="/etc/${PROJECT_NAME}/config.toml"
-        if "${SUDO}" test -f "${config_path}"; then
-            backup="${config_path}.bak.$(date +%s)"
-            "${SUDO}" cp -p "${config_path}" "${backup}"
-            "${SUDO}" install -m 644 "${CONFIG_SRC}" "${config_path}.new"
-            echo "   existing config preserved: ${config_path}"
-            echo "   backup created at:            ${backup}"
-            echo "   new template installed at:    ${config_path}.new (review and merge manually)"
-        else
-            "${SUDO}" install -Dm644 "${CONFIG_SRC}" "${config_path}"
-            echo "   installed: ${config_path}"
-            echo "   (system-wide default; users can override at ~/.config/${PROJECT_NAME}/config.toml)"
-        fi
+        # v10.2.0: overwrite unconditionally — no .new or .bak bloat.
+        "${SUDO}" install -Dm644 "${CONFIG_SRC}" "${config_path}"
+        echo "   installed: ${config_path}"
+        echo "   (system-wide default; users can override at ~/.config/${PROJECT_NAME}/config.toml)"
         ;;
     --user)
         user_cfg_dir="${HOME}/.config/${PROJECT_NAME}"
         user_cfg="${user_cfg_dir}/config.toml"
         mkdir -p "${user_cfg_dir}"
-        if [[ -f "${user_cfg}" ]]; then
-            # Preserve user customizations — install as .new for review.
-            install -Dm644 "${CONFIG_SRC}" "${user_cfg}.new"
-            echo "   existing config preserved: ${user_cfg}"
-            echo "   new template installed at: ${user_cfg}.new (review and merge manually)"
-        else
-            install -Dm644 "${CONFIG_SRC}" "${user_cfg}"
-            echo "   installed: ${user_cfg}"
-        fi
+        # v10.2.0: overwrite unconditionally — no .new or .bak bloat.
+        install -Dm644 "${CONFIG_SRC}" "${user_cfg}"
+        echo "   installed: ${user_cfg}"
         ;;
 esac
 

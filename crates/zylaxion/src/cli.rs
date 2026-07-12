@@ -141,8 +141,17 @@ pub enum Commands {
     /// Print system health diagnostic
     Doctor,
 
-    /// Validate config.toml syntax and parameter ranges
-    Testconf,
+    /// Validate config.toml syntax and parameter ranges.
+    ///
+    /// Without an argument: validates the config found via the search
+    /// path (~/.config → /etc → /usr/local/share → ./).
+    /// With a path argument: validates that specific file instead.
+    Testconf {
+        /// Optional path to a config.toml file to validate.
+        /// If omitted, searches the standard config paths.
+        #[arg(long = "file", short = 'f')]
+        file: Option<String>,
+    },
 
     /// List available acoustic presets from config.toml
     ListPresets,
