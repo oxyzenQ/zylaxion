@@ -105,17 +105,17 @@ case "${MODE}" in
         user_cfg="${HOME}/.config/${PROJECT_NAME}/config.toml"
         user_svc="${HOME}/.config/systemd/user/${PROJECT_NAME}.service"
         if [[ -f "${user_bin}" ]] || [[ -f "${user_cfg}" ]] || [[ -f "${user_svc}" ]]; then
-            echo "   cleaning existing user-local install..."
+            echo "   cleaning existing user-local binary + service..."
             rm -f "${user_bin}" "${user_svc}"
-            # v11.0.0: also remove the user-local config so the system
-            # config at /etc/zylaxion/ takes priority. A stale user-local
-            # config from a previous --user install would shadow the new
-            # system config and cause confusion (old presets, old tuning).
-            if [[ -f "${user_cfg}" ]]; then
-                rm -f "${user_cfg}"
-                echo "   removed: ${user_cfg} (system config takes priority)"
-            fi
             echo "   cleaned: ${user_bin} + ${user_svc}"
+        fi
+        # v11.0.0: overwrite user-local config if it exists so both
+        # /etc/ and ~/.config/ have the fresh config. Don't delete —
+        # overwrite in place. This ensures stale presets/tuning from
+        # a previous version are replaced with the new template.
+        if [[ -f "${user_cfg}" ]]; then
+            install -Dm644 "${CONFIG_SRC}" "${user_cfg}"
+            echo "   overwritten: ${user_cfg} (fresh template)"
         fi
         "${SUDO}" install -Dm755 "${BINARY}" "/usr/bin/${PROJECT_NAME}"
         echo "   installed: /usr/bin/${PROJECT_NAME}"
