@@ -144,18 +144,24 @@ pub fn send_command(cmd: &str) -> Result<IpcResponse, String> {
         .map_err(|e| format!("invalid response from daemon: {e}"))
 }
 
-/// Accept one connection, read a command, dispatch it.
+/// Handle a single already-accepted IPC connection.
 ///
-/// Returns `Some("stop")` if the daemon should shut down, `None` otherwise.
-pub fn handle_one_connection(listener: &UnixListener) -> Option<String> {
-    let (stream, _) = match listener.accept() {
-        Ok(s) => s,
-        Err(_) => return None,
-    };
-
+/// Reads one JSON request line, dispatches the command, writes one JSON
+/// response line, and returns the command string so the caller (the IPC
+/// thread) can act on it (e.g. set `stop_flag` for `"stop"`).
+///
+/// The `listener` parameter is accepted for future use (e.g. inspecting
+/// the listener's local address) but currently unused. The IPC thread
+/// (see `daemon::spawn_ipc_thread`) performs `accept()` itself with a
+/// non-blocking listener and a `stop_flag` poll, then passes the
+/// accepted stream here.
+pub fn handle_one_connection_on(
+    _listener: &UnixListener,
+    stream: &std::os::unix::net::UnixStream,
+) -> Option<String> {
     stream.set_nonblocking(false).ok();
-    let mut reader = std::io::BufReader::new(&stream);
-    let mut writer = std::io::BufWriter::new(&stream);
+    let mut reader = std::io::BufReader::new(stream);
+    let mut writer = std::io::BufWriter::new(stream);
 
     let mut line = String::new();
     if reader.read_line(&mut line).is_err() {

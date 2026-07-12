@@ -81,7 +81,15 @@ const TUNING_KEY: &str = "tuning";
 /// default profile with `path = None` and `preset_name = DEFAULT_PRESET`.
 pub fn resolve_config(
     cli_preset: Option<&str>,
-) -> Result<(ProfileWithOverrides, Option<PathBuf>, String), String> {
+) -> Result<
+    (
+        ProfileWithOverrides,
+        Option<PathBuf>,
+        String,
+        zactrix_profiles::MasterParams,
+    ),
+    String,
+> {
     for candidate in candidate_paths() {
         if !candidate.is_file() {
             continue;
@@ -107,7 +115,9 @@ pub fn resolve_config(
         log::info!("loaded preset '{}' from {}", active, candidate.display());
 
         let abs = canonicalise(&candidate);
-        return Ok((profiles, Some(abs), active));
+        // v10.2.0 (P1): return the master params so the caller can
+        // construct the VoicePool with the configured volume.
+        return Ok((profiles, Some(abs), active, parsed.master));
     }
 
     // No config file found — use hardcoded default.
@@ -119,6 +129,7 @@ pub fn resolve_config(
         },
         None,
         DEFAULT_PRESET.to_string(),
+        zactrix_profiles::MasterParams::default(),
     ))
 }
 
@@ -146,7 +157,7 @@ pub fn resolve_config(
 pub fn reload_preset(
     path: &Path,
     _cli_preset: Option<&str>,
-) -> Result<(ProfileWithOverrides, String), String> {
+) -> Result<(ProfileWithOverrides, String, zactrix_profiles::MasterParams), String> {
     let content = std::fs::read_to_string(path)
         .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
 
@@ -163,7 +174,9 @@ pub fn reload_preset(
         )
     })?;
 
-    Ok((build_profile_from_entry(entry), active))
+    // v10.2.0 (P1): return the master params so the watcher can
+    // update the VoicePool's volume on hot-reload.
+    Ok((build_profile_from_entry(entry), active, parsed.master))
 }
 
 /// Validate-only: find `config.toml`, parse it, and verify that:
@@ -231,12 +244,15 @@ pub fn list_presets() -> Result<(PathBuf, String, Vec<String>), String> {
 
 // ── Internal types & parsing ──────────────────────────────────────────
 
-/// Parsed config file: the `tuning` value + all preset tables.
+/// Parsed config file: the `tuning` value + all preset tables + master.
 struct ParsedConfig {
     /// Value of `preset.tuning` (if present).
     tuning: Option<String>,
     /// All `[preset.<name>]` tables, keyed by preset name.
     presets: HashMap<String, PresetEntry>,
+    /// Top-level `[master]` table (v10.2.0+ — dragonzen audit P1).
+    /// Defaults to `MasterParams::default()` if absent.
+    master: zactrix_profiles::MasterParams,
 }
 
 /// A single `[preset.<name>]` table.
@@ -278,6 +294,10 @@ fn parse_config(toml_str: &str) -> Result<ParsedConfig, String> {
     struct ConfigFile {
         #[serde(default)]
         preset: HashMap<String, toml::Value>,
+        // v10.2.0+ (dragonzen audit P1): top-level [master] table.
+        // Defaults to MasterParams::default() if absent.
+        #[serde(default)]
+        master: zactrix_profiles::MasterParams,
     }
 
     let file: ConfigFile =
@@ -302,7 +322,11 @@ fn parse_config(toml_str: &str) -> Result<ParsedConfig, String> {
         presets.insert(name.clone(), entry);
     }
 
-    Ok(ParsedConfig { tuning, presets })
+    Ok(ParsedConfig {
+        tuning,
+        presets,
+        master: file.master,
+    })
 }
 
 /// Determine the active preset name.
@@ -614,7 +638,7 @@ voice_off_threshold = 0.00001
         if !Path::new("config.toml").exists() {
             return; // skip if not running from repo root
         }
-        let (profiles, _path, active) =
+        let (profiles, _path, active, _master) =
             resolve_config(Some("classic")).expect("should resolve classic");
         assert_eq!(active, "classic");
         assert_eq!(profiles.default.click.frequency, 3200.0);
@@ -637,7 +661,8 @@ voice_off_threshold = 0.00001
         if !Path::new("config.toml").exists() {
             return;
         }
-        let (_profiles, _path, active) = resolve_config(None).expect("should resolve via tuning");
+        let (_profiles, _path, active, _master) =
+            resolve_config(None).expect("should resolve via tuning");
         assert_eq!(active, "technical");
     }
 
@@ -651,7 +676,7 @@ voice_off_threshold = 0.00001
         if !path.exists() {
             return; // skip if not running from repo root
         }
-        let (_profiles, active) = reload_preset(path, Some("cherryMX"))
+        let (_profiles, active, _master) = reload_preset(path, Some("cherryMX"))
             .expect("should reload from tuning, ignoring cli_preset");
         // The file's tuning is "technical", so reload must return
         // "technical" — NOT "cherryMX" from the cli_preset arg.
@@ -664,7 +689,8 @@ voice_off_threshold = 0.00001
         if !path.exists() {
             return;
         }
-        let (_profiles, active) = reload_preset(path, None).expect("should reload via tuning");
+        let (_profiles, active, _master) =
+            reload_preset(path, None).expect("should reload via tuning");
         assert_eq!(active, "technical");
     }
 
@@ -717,7 +743,7 @@ voice_off_threshold = 0.00001
 
         // Pass Some("technical") as cli_preset — reload MUST ignore it
         // and use the file's tuning = "classic".
-        let (profiles, active) =
+        let (profiles, active, _master) =
             reload_preset(&path, Some("technical")).expect("should reload classic");
         assert_eq!(active, "classic");
         assert_eq!(profiles.default.click.frequency, 3200.0);

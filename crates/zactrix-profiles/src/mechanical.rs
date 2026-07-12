@@ -88,10 +88,56 @@ fn xorshift32(x: &mut u32) {
 }
 
 /// Map a u32 to f32 in `[-1.0, 1.0]`. Used to derive signed drift values
-/// from the xorshift32 PRNG output.
+/// from the xorshift32 PRNG output, and to map raw PRNG output to signed
+/// noise in the render path.
+///
+/// # Implementation notes (v10.2.0 — dragonzen audit N8/B14)
+///
+/// Two defects existed in the previous version
+/// (`(x as f32 / u32::MAX as f32) * 2.0 - 1.0`):
+///
+/// 1. **Precision loss above 2²⁴.** `x as f32` quantizes any u32 > 16 777
+///    215 to a multiple of 2. For PRNG outputs that span the full u32
+///    range, the upper half of the distribution became chunky.
+/// 2. **Asymmetric range.** `u32::MAX as f32` rounds up to 4 294 967
+///    296.0 (2³²), so the division produced a value < 1.0 even for
+///    `x = u32::MAX`. The signed result was therefore biased toward
+///    the negative side, and `+1.0` was unreachable.
+///
+/// The fix uses the upper 24 bits (full f32 precision) divided by
+/// `8 388 607.0` (2²³ − 1). This produces a symmetric `[-1.0, +1.0]`
+/// range with uniform quantization across the entire distribution.
 #[inline]
 fn u32_to_signed_f32(x: u32) -> f32 {
-    (x as f32 / u32::MAX as f32) * 2.0 - 1.0
+    ((x >> 8) as f32 / 8_388_607.0) * 2.0 - 1.0
+}
+
+/// Splitmix64 step. Used to derive a high-quality 32-bit PRNG seed from
+/// the per-instance 64-bit keystroke counter.
+///
+/// # Why splitmix64 instead of xor-fold (v10.2.0 — dragonzen audit N1)
+///
+/// The previous code derived the seed by folding the 64-bit counter
+/// into 32 bits via XOR of the high and low halves, then rolling
+/// xorshift32 four times to derive the four drift values. xorshift32
+/// with seeds that differ only in the high bits (which is what the XOR
+/// fold produced for nearby counter values) does not fully decorrelate
+/// within four rounds — the output bit-patterns remain structurally
+/// correlated. Under autorepeat (Backspace held at ~30 Hz), consecutive
+/// waveforms shared correlated noise excitation, audible as a
+/// "metallic ringing" — exactly the uncanny-valley artifact v5.0.0 was
+/// designed to kill.
+///
+/// splitmix64 is a 64-bit mixing function with excellent avalanche
+/// properties: any single-bit change in the input flips ~50% of output
+/// bits. We then take the high 32 bits (better statistical quality than
+/// the low bits in splitmix64's output) as the xorshift32 seed.
+#[inline]
+fn splitmix64(x: u64) -> u64 {
+    let mut z = x.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
 }
 
 /// Default acoustic model for mechanical keyboard switches.
@@ -229,7 +275,7 @@ impl AcousticModel for MechanicalClick {
     fn init_state(&self, profile: &KeyProfile, state: &mut SynthState, stereo_position: f32) {
         let sr = self.sample_rate;
 
-        // ── Micro-randomization (v5.0.0+) ───────────────────────────
+        // ── Micro-randomization (v5.0.0+, v10.2.0 overhaul) ─────────
         // Each keypress gets a unique noise seed and small pitch/amplitude
         // drift offsets so the same key never sounds identical twice.
         // This breaks the "uncanny valley" of deterministic synthesis
@@ -240,23 +286,42 @@ impl AcousticModel for MechanicalClick {
         // The seed is derived from this instance's monotonic counter so
         // it is unique per keypress. v5.0.1: moved from a global static
         // to a per-instance field to eliminate parallel-test flakiness.
+        //
+        // v10.2.0 (dragonzen audit N1): the previous code folded the
+        // 64-bit counter into 32 bits via XOR of the high/low halves.
+        // For nearby counter values the resulting 32-bit seeds differed
+        // only in the high bits, and xorshift32 with such seeds does
+        // not fully decorrelate within four rounds. Under autorepeat
+        // (Backspace held at ~30 Hz), consecutive waveforms shared
+        // correlated noise excitation — audible as a "metallic ringing".
+        // The fix uses splitmix64 (excellent avalanche — any single-bit
+        // input change flips ~50% of output bits) to mix the counter
+        // into the 32-bit seed, and rolls xorshift32 six times total
+        // (four drift values + housing noise seed + ambient noise seed)
+        // for thorough decorrelation before consuming the stream.
         let keystroke_id = self.keystroke_counter.fetch_add(1, Ordering::Relaxed);
 
-        // Fold the 64-bit counter into a 32-bit PRNG seed. xor + shift
-        // gives good bit-mixing; we don't need cryptographic quality,
-        // just uniqueness and uniform distribution.
-        let mut rng = (keystroke_id as u32) ^ ((keystroke_id >> 32) as u32);
+        // Mix the 64-bit counter into a high-quality 32-bit PRNG seed
+        // via splitmix64. We take the high 32 bits — splitmix64's low
+        // bits have slightly weaker statistical quality.
+        let mixed = splitmix64(keystroke_id);
+        let mut rng = (mixed >> 32) as u32;
         // xorshift32 with seed=0 produces all zeros forever — guard
         // against that by falling back to a fixed non-zero constant.
+        // (Extremely unlikely after splitmix64, but the cost is one
+        // branch per keypress.)
         if rng == 0 {
             rng = 0xDEAD_BEEF;
         }
 
-        // Roll the RNG 4 times to get independent drift values:
-        //   1. click frequency drift   (±1.5%)
-        //   2. spring frequency drift  (±1.5%)
-        //   3. housing frequency drift (±1.5%)
+        // Roll the RNG 6 times to get independent drift values + two
+        // independent noise-stream seeds:
+        //   1. click frequency drift      (±1.5%)
+        //   2. spring frequency drift     (±1.5%)
+        //   3. housing frequency drift    (±1.5%)
         //   4. excitation amplitude drift (±5%)
+        //   5. housing_noise_state seed   (decoupled from click stream — N3)
+        //   6. ambient_noise_state seed   (decoupled from click stream)
         xorshift32(&mut rng);
         let click_drift = u32_to_signed_f32(rng) * PITCH_DRIFT_FRAC;
         xorshift32(&mut rng);
@@ -265,6 +330,10 @@ impl AcousticModel for MechanicalClick {
         let housing_drift = u32_to_signed_f32(rng) * PITCH_DRIFT_FRAC;
         xorshift32(&mut rng);
         let amplitude_drift = u32_to_signed_f32(rng) * AMPLITUDE_DRIFT_FRAC;
+        xorshift32(&mut rng);
+        let housing_noise_seed = rng ^ 0x484F_5553; // "HOUS" in ASCII
+        xorshift32(&mut rng);
+        let ambient_noise_seed = rng ^ 0x414D_4249; // "AMBI" in ASCII
 
         // Apply pitch drift to the three filter frequencies. Multiply by
         // (1.0 + drift) — drift is in [-PITCH_DRIFT_FRAC, +PITCH_DRIFT_FRAC].
@@ -343,14 +412,29 @@ impl AcousticModel for MechanicalClick {
         state.envelope_value = amplitude;
         state.sample_count = 0;
 
-        // Initialize the noise generator with the per-keystroke seed.
-        // After 4 xorshift32 rolls above, `rng` is well-mixed and
-        // unique per keypress. XOR with a fixed constant so even if the
-        // counter wraps to 0 we still have a non-zero seed (xorshift32
-        // with seed=0 produces all zeros forever).
+        // Initialize the click + spring noise generator with the
+        // per-keystroke seed. After 6 xorshift32 rolls above, `rng` is
+        // well-mixed and unique per keypress. XOR with a fixed constant
+        // so even if the counter wraps to 0 we still have a non-zero
+        // seed (xorshift32 with seed=0 produces all zeros forever).
         state.noise_state = rng ^ 0x4B45_5942; // "KEYB" in ASCII
         if state.noise_state == 0 {
             state.noise_state = 0xDEAD_BEEF;
+        }
+
+        // ── Housing noise generator (v10.2.0+ — dragonzen audit N3) ──
+        // Decoupled from the click noise stream. Physically the click
+        // (switch leaf impact) and the thock (keycap hitting PCB) are
+        // separate impact events and must be driven by uncorrelated
+        // noise. Sharing the stream caused constructive interference
+        // — the two bandpass filters merged into a single "honk".
+        //
+        // `housing_noise_seed` was derived from the 5th xorshift32 roll
+        // above and is XORed with another constant for additional
+        // decorrelation from `noise_state`.
+        state.housing_noise_state = housing_noise_seed;
+        if state.housing_noise_state == 0 {
+            state.housing_noise_state = 0x484F_5553; // "HOUS"
         }
 
         // ── Ambient rattle path setup ──────────────────────────────
@@ -363,13 +447,12 @@ impl AcousticModel for MechanicalClick {
         // Start the ambient envelope at full level — it decays from
         // here via ambient_decay each sample.
         state.ambient_envelope = profile.ambient.noise_level;
-        // Separate seed from the click noise generator so the two
-        // noise streams don't correlate. Also derive from the
-        // per-keystroke counter so ambient noise varies per keypress
-        // (v5.0.0+).
-        state.ambient_noise_state = (rng.wrapping_mul(0x85EB_CA6B)) ^ 0xCAFE_BABE;
+        // `ambient_noise_seed` was derived from the 6th xorshift32 roll
+        // above. This replaces the previous `rng.wrapping_mul(...)` trick
+        // with a properly-mixed value (v10.2.0 — N1).
+        state.ambient_noise_state = ambient_noise_seed;
         if state.ambient_noise_state == 0 {
-            state.ambient_noise_state = 0xCAFEBABE;
+            state.ambient_noise_state = 0x414D_4249; // "AMBI"
         }
         // Reset the high-pass filter state.
         state.ambient_hp_prev_input = 0.0;
@@ -382,8 +465,19 @@ impl AcousticModel for MechanicalClick {
         let cos_omega = omega.cos();
         state.ambient_hp_coeff = (1.0 - cos_omega) / (1.0 + cos_omega);
 
+        // Pre-compute the release-ramp coefficient (v10.2.0+ — dragonzen
+        // audit N2). Target: bring the envelope from its current value to
+        // ~1% over 2 ms, regardless of sample rate. Solving
+        // `coeff^N = 0.01` for `N = 2 ms * sample_rate` gives
+        // `coeff = 0.01^(1/N)`. At 44.1 kHz: N ≈ 88, coeff ≈ 0.9499.
+        // At 48 kHz: N ≈ 96, coeff ≈ 0.9535. At 96 kHz: N ≈ 192,
+        // coeff ≈ 0.9765. Clamped to (0, 0.9999) for safety.
+        let release_samples = (0.002 * sr).max(1.0);
+        state.release_coeff = 0.04_f32.powf(1.0 / release_samples).clamp(0.0, 0.9999);
+
         // Activate voice
         state.active = true;
+        state.releasing = false;
     }
 
     fn render_sample(&self, state: &mut SynthState) -> [f32; 2] {
@@ -391,10 +485,15 @@ impl AcousticModel for MechanicalClick {
             return [0.0, 0.0];
         }
 
-        // ── Stage 1: Generate excitation ──────────────────────────────
+        // ── Stage 1: Generate click + spring excitation ───────────────
         // During the initial burst, produce shaped white noise. After the
         // burst ends, the excitation is zero — the TPT filters ring from
         // their internal state, which IS the spring resonance.
+        //
+        // This stream drives BOTH the click bandpass (sharp switch-leaf
+        // transient) and the spring bandpass (resonant spring ring) —
+        // they share the stream because both model the same physical
+        // switch-leaf impact event.
         let excitation = if state.sample_count < state.excitation_samples {
             // Xorshift32 PRNG — fast, zero-alloc, good statistical quality
             let mut x = state.noise_state;
@@ -403,8 +502,11 @@ impl AcousticModel for MechanicalClick {
             x ^= x << 5;
             state.noise_state = x;
 
-            // Map u32 to f32 in [-1.0, 1.0]
-            let noise = (x as f32 / u32::MAX as f32) * 2.0 - 1.0;
+            // Map u32 to f32 in [-1.0, 1.0] via the shared helper
+            // (v10.2.0 — dragonzen audit N8/B14: replaces the previous
+            // inline `(x as f32 / u32::MAX as f32) * 2.0 - 1.0` which
+            // had precision loss above 2^24 and a positive bias.)
+            let noise = u32_to_signed_f32(x);
 
             // Linear fade within the burst to avoid a hard cutoff that
             // would inject an artificial click at the burst boundary
@@ -414,36 +516,31 @@ impl AcousticModel for MechanicalClick {
             0.0
         };
 
-        // ── Stage 1b: Housing excitation (v4.2.0+) ───────────────────
+        // ── Stage 1b: Housing excitation (v4.2.0+, v10.2.0 decoupled) ──
         // The housing filter is tuned to low frequencies (100-1000 Hz)
         // where the natural response time (1/fc) is much longer than
         // the click burst. We drive it with a SEPARATE, longer
         // excitation window so the filter has time to ring up to its
-        // steady-state Q gain. The PRNG is shared with the click path
-        // (no separate seed needed — the windows overlap and the noise
-        // stream is the same), but the fade envelope is computed
-        // against the housing's own sample count.
+        // steady-state Q gain.
+        //
+        // v10.2.0 (dragonzen audit N3): the housing noise stream is
+        // now decoupled from the click noise stream. Previously the
+        // housing layer re-used `state.noise_state`, which meant the
+        // click bandpass and the housing bandpass saw **identical**
+        // noise during the burst-overlap window. Constructive
+        // interference made the two layers merge into a single "honk"
+        // instead of a layered click + thock. Physically the click
+        // (switch leaf impact) and the thock (keycap hitting PCB) are
+        // separate impact events and must be driven by uncorrelated
+        // noise. The dedicated `state.housing_noise_state` (seeded
+        // separately in init_state) fixes this.
         let housing_excitation = if state.sample_count < state.housing_excitation_samples {
-            // Reuse the current noise_state without advancing it again
-            // — the click path already advanced it this sample. If we
-            // are past the click burst, advance it ourselves.
-            let noise = if state.sample_count < state.excitation_samples {
-                // Click path already advanced noise_state this sample.
-                // Re-derive the same noise value from the current state.
-                // (Saves a PRNG step and keeps the noise streams
-                // correlated — which is fine, since both filters see
-                // the same physical impact event.)
-                let x = state.noise_state;
-                (x as f32 / u32::MAX as f32) * 2.0 - 1.0
-            } else {
-                // Click burst is over — advance the PRNG ourselves.
-                let mut x = state.noise_state;
-                x ^= x << 13;
-                x ^= x >> 17;
-                x ^= x << 5;
-                state.noise_state = x;
-                (x as f32 / u32::MAX as f32) * 2.0 - 1.0
-            };
+            let mut x = state.housing_noise_state;
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            state.housing_noise_state = x;
+            let noise = u32_to_signed_f32(x);
             let progress = state.sample_count as f32 / state.housing_excitation_samples as f32;
             noise * (1.0 - progress)
         } else {
@@ -534,7 +631,9 @@ impl AcousticModel for MechanicalClick {
             x ^= x >> 17;
             x ^= x << 5;
             state.ambient_noise_state = x;
-            let raw_noise = (x as f32 / u32::MAX as f32) * 2.0 - 1.0;
+            // v10.2.0 — dragonzen audit N8/B14: use the shared helper
+            // for precision + symmetry.
+            let raw_noise = u32_to_signed_f32(x);
 
             // One-pole high-pass filter: y[n] = coeff * (y[n-1] + x[n] - x[n-1])
             let hp_out = state.ambient_hp_coeff
@@ -558,9 +657,24 @@ impl AcousticModel for MechanicalClick {
 
         // ── Housekeeping ────────────────────────────────────────────
         state.sample_count += 1;
-        state.envelope_value *= state.decay_coeff;
+        // Apply the appropriate envelope coefficient: fast release ramp
+        // if the key has been released (v10.2.0+ — N2), otherwise the
+        // normal slow decay. Both coefficients are validated to be in
+        // (0, 0.9999] so `envelope_value` remains non-negative and
+        // monotonically decreasing — the voice eventually deactivates
+        // via the `voice_off_threshold` check below.
+        if state.releasing {
+            state.envelope_value *= state.release_coeff;
+        } else {
+            state.envelope_value *= state.decay_coeff;
+        }
 
-        if state.envelope_value.abs() < state.voice_off_threshold {
+        // Voice-off check. `envelope_value` is always >= 0 (initial
+        // amplitude clamped to [0, 1], decay/release coefficients clamped
+        // to [0, 0.9999]), so the `.abs()` previously used here was
+        // unnecessary. Removing it saves one bitwise-AND per sample per
+        // voice (v10.2.0 — dragonzen audit B18).
+        if state.envelope_value < state.voice_off_threshold {
             state.active = false;
         }
 

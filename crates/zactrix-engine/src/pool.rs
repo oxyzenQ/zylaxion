@@ -58,21 +58,75 @@ pub struct VoicePool {
 }
 
 impl VoicePool {
-    /// Create a new voice pool with all voices initialized to inactive.
+    /// Default master volume — tuned for laptop / PC speakers whose
+    /// higher impedance (vs. headphones) reproduces the synth at a
+    /// lower per-watt SPL, allowing the physical key click to dominate
+    /// at lower gains. 5.5× makes the synthesised "TEK" audibly
+    /// overpower the mechanical click on typical laptop speakers. The
+    /// final `.clamp(-1.0, 1.0)` in `process_sample` is the hard
+    /// ceiling that turns any overflow into clean compression instead
+    /// of digital clipping.
+    ///
+    /// For headphones (especially IEMs at 16–32 Ω), 5.5× with hard
+    /// clamp produces severely compressed and loud audio. Headphone
+    /// users should override this to ~1.5× via the `[master]` table in
+    /// `config.toml` (v10.2.0+ — dragonzen audit P1).
+    pub const DEFAULT_MASTER_VOLUME: f32 = 5.5;
+
+    /// Create a new voice pool with all voices initialized to inactive
+    /// and the default master volume (5.5× — laptop-speaker tuned).
     pub fn new() -> Self {
+        Self::with_volume(Self::DEFAULT_MASTER_VOLUME)
+    }
+
+    /// Create a new voice pool with a custom master volume (v10.2.0+ —
+    /// dragonzen audit P1).
+    ///
+    /// `master_volume` is a linear gain multiplier applied to the final
+    /// stereo output. The hard clamp in `process_sample` prevents
+    /// digital clipping, so values > 1.0 produce loudness compression
+    /// rather than distortion — but extreme values (> 10.0) make the
+    /// compression artifacts audible.
+    ///
+    /// # Recommended values
+    ///
+    /// - **5.5** (default): laptop / PC speakers. The physical key
+    ///   click dominates at this gain.
+    /// - **1.5**: headphones (especially IEMs at 16–32 Ω).
+    /// - **3.0**: external monitor speakers or quiet laptop speakers.
+    /// - **0.5**: subtle background effect.
+    pub fn with_volume(master_volume: f32) -> Self {
         Self {
             voices: core::array::from_fn(|_| Voice::new()),
             trigger_counter: 0,
-            // 5.5× master gain — tuned for laptop / PC speakers whose
-            // higher impedance (vs. headphones) reproduces the synth at
-            // a lower per-watt SPL, allowing the physical key click to
-            // dominate at lower gains. 5.5× makes the synthesised "TEK"
-            // audibly overpower the mechanical click on typical laptop
-            // speakers. The final `.clamp(-1.0, 1.0)` in `process_sample`
-            // is the hard ceiling that turns any overflow into clean
-            // compression instead of digital clipping.
-            master_volume: 5.5,
+            // Clamp to a sane range to prevent NaN/Infinity from
+            // reaching the render path. Negative gains are allowed
+            // (phase inversion) but unusual.
+            master_volume: if master_volume.is_finite() {
+                master_volume.clamp(-100.0, 100.0)
+            } else {
+                Self::DEFAULT_MASTER_VOLUME
+            },
         }
+    }
+
+    /// Returns the current master volume (linear gain multiplier).
+    #[inline]
+    pub fn master_volume(&self) -> f32 {
+        self.master_volume
+    }
+
+    /// Update the master volume at runtime (v10.2.0+ — dragonzen audit
+    /// P1). Useful for hot-reload when the user edits `[master]` in
+    /// `config.toml`. The value is clamped to a sane range — see
+    /// [`Self::with_volume`].
+    #[inline]
+    pub fn set_master_volume(&mut self, volume: f32) {
+        self.master_volume = if volume.is_finite() {
+            volume.clamp(-100.0, 100.0)
+        } else {
+            Self::DEFAULT_MASTER_VOLUME
+        };
     }
 
     /// Trigger a new voice for a key press event.
@@ -110,10 +164,20 @@ impl VoicePool {
     ///
     /// In normal use, exactly one voice matches. If multiple voices somehow
     /// share a scancode (should not happen), all are released.
+    ///
+    /// # Soft release ramp (v10.2.0+ — dragonzen audit N2)
+    ///
+    /// Previously this method hard-cut `state.active = false`, producing a
+    /// 1-sample discontinuity at the audio output — audible as a tiny
+    /// "click off" tell, especially on short taps. Now we set
+    /// `state.releasing = true` instead, and `render_sample` ramps the
+    /// envelope down to zero over ~2 ms via `state.release_coeff` before
+    /// deactivating the voice naturally through the normal
+    /// `voice_off_threshold` check.
     pub fn release(&mut self, scancode: u32) {
         for voice in &mut self.voices {
             if voice.is_active() && voice.scancode == scancode {
-                voice.state.active = false;
+                voice.state.releasing = true;
             }
         }
     }
@@ -283,6 +347,12 @@ mod tests {
 
     #[test]
     fn test_release_deactivates_voice() {
+        // v10.2.0 (dragonzen audit N2): release no longer hard-cuts
+        // active=false. Instead it sets `releasing=true` and the voice
+        // ramps its envelope down to zero over ~2 ms via the
+        // `release_coeff` coefficient before naturally deactivating
+        // through the `voice_off_threshold` check. The test must now
+        // render samples until the voice actually goes silent.
         let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
         let mut pool = VoicePool::new();
 
@@ -297,7 +367,30 @@ mod tests {
         assert_eq!(pool.active_count(), 1);
 
         pool.release(30);
-        assert_eq!(pool.active_count(), 0);
+        // Voice is still active immediately after release — it's now in
+        // the fast release-ramp phase.
+        assert_eq!(
+            pool.active_count(),
+            1,
+            "voice should still be active during release ramp"
+        );
+
+        // Render until the release ramp completes. 10 ms of audio at
+        // 44.1 kHz = 441 samples, which is ~5x the 2 ms release window —
+        // generous headroom.
+        let mut samples_rendered = 0;
+        for _ in 0..500 {
+            let _ = pool.process_sample(&model);
+            samples_rendered += 1;
+            if pool.active_count() == 0 {
+                break;
+            }
+        }
+        assert_eq!(
+            pool.active_count(),
+            0,
+            "voice should deactivate after release ramp (rendered {samples_rendered} samples)"
+        );
     }
 
     #[test]
@@ -318,6 +411,58 @@ mod tests {
             pool.active_count(),
             1,
             "Releasing a non-existent scancode should be a no-op"
+        );
+    }
+
+    #[test]
+    fn test_release_ramp_is_smooth_no_click_artifact() {
+        // v10.2.0 (dragonzen audit N2): the release ramp must NOT
+        // produce a discontinuity at the moment of release. The
+        // pre-release sample and the first post-release sample should
+        // differ by a small amount (envelope multiplied by
+        // release_coeff instead of decay_coeff), not by a large jump
+        // to zero. We assert the max sample-to-sample delta around the
+        // release boundary stays well below the "click" threshold.
+        let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
+        let mut pool = VoicePool::new();
+
+        pool.trigger(
+            &model,
+            &KeyEvent {
+                scancode: 30,
+                pressed: true,
+                stereo_position: 0.0,
+            },
+        );
+
+        // Render enough samples for the click transient to peak and
+        // start decaying (~5 ms = 220 samples at 44.1 kHz).
+        for _ in 0..220 {
+            let _ = pool.process_sample(&model);
+        }
+
+        // Capture the last pre-release sample.
+        let pre = pool.process_sample(&model);
+        let pre_amp = pre[0].abs().max(pre[1].abs());
+
+        // Release and capture the first post-release sample.
+        pool.release(30);
+        let post = pool.process_sample(&model);
+        let post_amp = post[0].abs().max(post[1].abs());
+
+        // The post-release amplitude should be CLOSE to the pre-release
+        // amplitude — the only difference is the decay coefficient
+        // (slow) vs the release coefficient (fast). For typical
+        // configs (decay=0.9994, release≈0.95 at 44.1 kHz), the ratio
+        // post/pre is roughly 0.95/0.9994 ≈ 0.95 — a 5% drop, not a
+        // hard cut to zero.
+        assert!(
+            post_amp > pre_amp * 0.5,
+            "release ramp should be smooth: pre={pre_amp:.6}, post={post_amp:.6} (post should be > 50% of pre, not a hard cut to zero)"
+        );
+        assert!(
+            post_amp < pre_amp * 1.05,
+            "release should not INCREASE amplitude: pre={pre_amp:.6}, post={post_amp:.6}"
         );
     }
 

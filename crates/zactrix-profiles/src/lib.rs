@@ -246,6 +246,59 @@ fn default_housing_mix() -> f32 {
     0.4
 }
 
+/// Master output parameters (v10.2.0+ — dragonzen audit P1).
+///
+/// These control the final stereo output stage, independent of any
+/// individual key's acoustic profile. They live in a top-level
+/// `[master]` table in `config.toml` (not inside any `[preset.*]`
+/// block) because they apply to ALL presets — you don't want to have
+/// to re-set the headphone volume for every preset.
+///
+/// # Why this exists
+///
+/// Before v10.2.0, `VoicePool::new()` hardcoded `master_volume = 5.5`
+/// with no way to override it. 5.5× is tuned for laptop speakers whose
+/// higher impedance reproduces the synth at lower per-watt SPL. For
+/// headphones (especially IEMs at 16–32 Ω), 5.5× with hard-clamp
+/// produces severely compressed and loud audio — an ear-damaging
+/// surprise on the first keypress after plugging in.
+///
+/// # Example TOML
+///
+/// ```toml
+/// [master]
+/// # Linear gain multiplier. The hard clamp in process_sample prevents
+/// # digital clipping, so values > 1.0 produce loudness compression
+/// # rather than distortion.
+/// #   5.5  = laptop / PC speakers (default)
+/// #   1.5  = headphones (especially IEMs)
+/// #   3.0  = external monitor speakers
+/// #   0.5  = subtle background effect
+/// volume = 5.5
+/// ```
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct MasterParams {
+    /// Linear gain multiplier applied to the final stereo output.
+    /// Clamped to `[-100.0, 100.0]` on load — negative gains are
+    /// allowed (phase inversion) but unusual.
+    ///
+    /// Default: `5.5` (laptop-speaker tuned).
+    #[serde(default = "default_master_volume")]
+    pub volume: f32,
+}
+
+fn default_master_volume() -> f32 {
+    5.5
+}
+
+impl Default for MasterParams {
+    fn default() -> Self {
+        Self {
+            volume: default_master_volume(),
+        }
+    }
+}
+
 /// Complete acoustic profile for a single key event.
 ///
 /// This struct aggregates all DSP parameters needed to synthesize one
@@ -329,11 +382,29 @@ pub struct SynthState {
     pub housing_excitation_samples: u32,
 
     // --- Excitation noise generator (xorshift32) ---
-    /// Internal state of the xorshift32 PRNG used for noise excitation.
+    /// Internal state of the xorshift32 PRNG used for click + spring noise
+    /// excitation. Drives the click path (bandpass) and the spring path
+    /// (resonant bandpass) — they share this stream because both model the
+    /// same physical switch-leaf impact event.
     pub noise_state: u32,
+    /// Internal state of the xorshift32 PRNG used for the housing "thock"
+    /// excitation (v10.2.0+ — dragonzen audit N3).
+    ///
+    /// Previously the housing layer re-used `noise_state`, which meant the
+    /// click bandpass and the housing bandpass saw **identical** noise
+    /// during the burst-overlap window. Constructive interference made the
+    /// two layers merge into a single "honk" instead of a layered click +
+    /// thock. Physically the click (switch leaf impact) and the thock
+    /// (keycap hitting PCB) are separate impact events and should be driven
+    /// by uncorrelated noise. This separate state fixes that.
+    pub housing_noise_state: u32,
 
     // --- Envelope ---
-    /// Current envelope amplitude value.
+    /// Current envelope amplitude value. Always `>= 0.0` — initialized from
+    /// `ClickParams::amplitude` (clamped to `[0.0, 1.0]`) and decayed
+    /// multiplicatively by `decay_coeff` (clamped to `[0.0, 0.9999]`).
+    /// The non-negativity invariant is relied upon by the voice-off test
+    /// (`envelope_value < voice_off_threshold` — no `.abs()` needed).
     pub envelope_value: f32,
     /// Number of samples rendered since the voice was triggered.
     pub sample_count: u32,
@@ -385,6 +456,28 @@ pub struct SynthState {
     // --- Voice lifecycle ---
     /// Whether this voice is currently producing audio.
     pub active: bool,
+    /// Whether the key has been released and the voice is in its fast
+    /// release-ramp phase (v10.2.0+ — dragonzen audit N2).
+    ///
+    /// When `false`, the voice is in the normal decay phase (slow
+    /// exponential decay via `decay_coeff`). When `true`, the voice
+    /// applies a much faster multiplicative coefficient
+    /// (`release_coeff`) to ramp the envelope to zero over ~2 ms.
+    /// This replaces the previous behavior of hard-cutting
+    /// `active = false` on key release, which produced a 1-sample
+    /// discontinuity audible as a "click off" tell.
+    ///
+    /// The release ramp is initialized to a coefficient that brings
+    /// the envelope from its current value to ~1% over 2 ms (~88
+    /// samples at 44.1 kHz). At the end of the ramp the voice
+    /// deactivates naturally via the normal `voice_off_threshold`
+    /// check.
+    pub releasing: bool,
+    /// Pre-computed per-sample release-ramp coefficient (v10.2.0+).
+    /// Computed in `init_state` from the sample rate so the release
+    /// ramp duration is ~2 ms regardless of the audio device's
+    /// sample rate.
+    pub release_coeff: f32,
 }
 
 impl Default for SynthState {
@@ -405,6 +498,7 @@ impl Default for SynthState {
             housing_mix: 0.4,
             housing_excitation_samples: 0,
             noise_state: 1,
+            housing_noise_state: 1,
             envelope_value: 0.0,
             sample_count: 0,
             excitation_samples: 0,
@@ -422,6 +516,8 @@ impl Default for SynthState {
             ambient_hp_prev_output: 0.0,
             ambient_hp_coeff: 0.0,
             active: false,
+            releasing: false,
+            release_coeff: 0.9,
         }
     }
 }
@@ -1057,6 +1153,17 @@ impl ProfileWithOverrides {
                     merged.decay.voice_off_threshold = v;
                 }
             }
+            if let Some(ambient) = ko.ambient {
+                if let Some(v) = ambient.enabled {
+                    merged.ambient.enabled = v;
+                }
+                if let Some(v) = ambient.noise_level {
+                    merged.ambient.noise_level = v;
+                }
+                if let Some(v) = ambient.noise_decay {
+                    merged.ambient.noise_decay = v;
+                }
+            }
             if let Some(housing) = ko.housing {
                 if let Some(v) = housing.frequency {
                     merged.housing.frequency = v;
@@ -1320,6 +1427,61 @@ frequency = 3000.0
 "#;
         let result = ProfileWithOverrides::parse(toml);
         assert!(result.is_err(), "missing [default] must error");
+    }
+
+    #[test]
+    fn profile_with_overrides_applies_ambient_override() {
+        // Regression for B2: ProfileWithOverrides::parse previously
+        // dropped `[[keys]].ambient.*` overrides because the merge
+        // loop didn't handle the `ambient` field. The daemon path
+        // (zylaxion::config::build_profile_from_entry) was correct,
+        // but the public API of zactrix-profiles was inconsistent.
+        // This test ensures both paths now agree.
+        let toml = r#"
+[default]
+[default.click]
+frequency = 4500.0
+resonance = 2.0
+duration_ms = 1.5
+amplitude = 0.8
+[default.spring]
+frequency = 1800.0
+resonance = 3.5
+mix = 0.6
+[default.decay]
+coefficient = 0.9994
+voice_off_threshold = 0.00001
+[default.ambient]
+enabled = false
+noise_level = 0.1
+noise_decay = 0.99
+
+[[keys]]
+scancode = 28
+[keys.ambient]
+enabled = true
+noise_level = 0.42
+noise_decay = 0.97
+"#;
+        let p = ProfileWithOverrides::parse(toml).expect("parse should succeed");
+        let enter = p.for_scancode(28);
+        assert!(
+            enter.ambient.enabled,
+            "ambient override enabled was dropped"
+        );
+        assert_eq!(
+            enter.ambient.noise_level, 0.42,
+            "ambient override noise_level was dropped"
+        );
+        assert_eq!(
+            enter.ambient.noise_decay, 0.97,
+            "ambient override noise_decay was dropped"
+        );
+
+        // Sanity: scancodes without an override still get the default.
+        let other = p.for_scancode(999);
+        assert!(!other.ambient.enabled);
+        assert_eq!(other.ambient.noise_level, 0.1);
     }
 
     #[test]
