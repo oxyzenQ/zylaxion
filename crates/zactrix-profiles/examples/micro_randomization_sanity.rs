@@ -21,10 +21,11 @@ fn render_waveform(profile: KeyProfile, n: usize) -> Vec<[f32; 2]> {
         scancode: 30,
         pressed: true,
         stereo_position: 0.0,
+        velocity: None,
     };
     let p = model.get_profile(&event);
     let mut state = SynthState::default();
-    model.init_state(&p, &mut state, event.stereo_position);
+    model.init_state(&p, &mut state, event.stereo_position, None);
 
     let mut out = Vec::with_capacity(n);
     for _ in 0..n {

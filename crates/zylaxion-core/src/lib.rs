@@ -506,6 +506,7 @@ impl<S: AudioSink> Orchestrator<S> {
                     scancode: event.scancode,
                     pressed: true,
                     stereo_position: pan,
+                    velocity: None, // standard libinput = digital switch
                 },
             );
         } else {

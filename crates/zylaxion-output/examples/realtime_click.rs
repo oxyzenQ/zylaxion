@@ -51,6 +51,7 @@ fn main() {
                     scancode: 30,
                     pressed: true,
                     stereo_position: 0.0,
+                    velocity: None,
                 },
             );
             next_trigger += Duration::from_millis(500);
