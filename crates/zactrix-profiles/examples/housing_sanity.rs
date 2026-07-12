@@ -7,12 +7,12 @@
 //!   cargo run --example housing_sanity -p zactrix-profiles
 
 use zactrix_profiles::{
-    AcousticModel, HousingParams, KeyEvent, KeyProfile, MechanicalClick, SynthState,
+    AcousticModel, HousingParams, KeyProfile, KeyTrigger, MechanicalClick, SynthState,
 };
 
 fn render_energy(profile: KeyProfile, n: usize) -> f32 {
     let model = MechanicalClick::with_profile(profile, 44_100);
-    let event = KeyEvent {
+    let event = KeyTrigger {
         scancode: 30,
         pressed: true,
         stereo_position: 0.0,

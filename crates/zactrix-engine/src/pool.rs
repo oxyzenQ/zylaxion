@@ -21,7 +21,7 @@
 //! for the new key. This is a simple but effective strategy that prioritizes
 //! the most recently pressed keys.
 
-use zactrix_profiles::{AcousticModel, KeyEvent, MAX_POLYPHONY};
+use zactrix_profiles::{AcousticModel, KeyTrigger, MAX_POLYPHONY};
 
 use crate::Voice;
 
@@ -31,12 +31,12 @@ use crate::Voice;
 ///
 /// ```rust,ignore
 /// use zactrix_engine::VoicePool;
-/// use zactrix_profiles::{MechanicalClick, KeyEvent};
+/// use zactrix_profiles::{MechanicalClick, KeyTrigger};
 ///
 /// let model = MechanicalClick::new(zactrix_profiles::SAMPLE_RATE as u32);
 /// let mut pool = VoicePool::new();
 ///
-/// pool.trigger(&model, &KeyEvent {
+/// pool.trigger(&model, &KeyTrigger {
 ///     scancode: 30, pressed: true, stereo_position: -0.3,
 /// });
 ///
@@ -133,7 +133,7 @@ impl VoicePool {
     ///
     /// If an inactive voice slot is available, it is used. Otherwise, the
     /// oldest active voice (smallest `trigger_timestamp`) is stolen.
-    pub fn trigger<M: AcousticModel>(&mut self, model: &M, event: &KeyEvent) {
+    pub fn trigger<M: AcousticModel>(&mut self, model: &M, event: &KeyTrigger) {
         let profile = model.get_profile(event);
 
         // Find the index of the slot to use: prefer inactive, else steal oldest.
@@ -346,7 +346,7 @@ mod tests {
 
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
@@ -368,7 +368,7 @@ mod tests {
 
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
@@ -410,7 +410,7 @@ mod tests {
 
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
@@ -438,7 +438,7 @@ mod tests {
 
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
@@ -485,7 +485,7 @@ mod tests {
         for i in 0..MAX_POLYPHONY as u32 {
             pool.trigger(
                 &model,
-                &KeyEvent {
+                &KeyTrigger {
                     scancode: 10 + i,
                     pressed: true,
                     stereo_position: 0.0,
@@ -497,7 +497,7 @@ mod tests {
         // Trigger one more — should steal the oldest (scancode 10, timestamp 0)
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 999,
                 pressed: true,
                 stereo_position: 0.0,
@@ -521,7 +521,7 @@ mod tests {
         for i in 0..MAX_POLYPHONY as u32 {
             pool.trigger(
                 &model,
-                &KeyEvent {
+                &KeyTrigger {
                     scancode: 10 + i,
                     pressed: true,
                     stereo_position: 0.0,
@@ -532,7 +532,7 @@ mod tests {
         // Steal twice: first steals scancode 10, second steals scancode 11
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 901,
                 pressed: true,
                 stereo_position: 0.0,
@@ -540,7 +540,7 @@ mod tests {
         );
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 902,
                 pressed: true,
                 stereo_position: 0.0,
@@ -565,7 +565,7 @@ mod tests {
 
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
@@ -613,7 +613,7 @@ mod tests {
         let mut pool_a = VoicePool::new();
         pool_a.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
@@ -630,7 +630,7 @@ mod tests {
         let mut pool_b = VoicePool::new();
         pool_b.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
@@ -656,7 +656,7 @@ mod tests {
         // Trigger two keys at opposite stereo positions
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 30,
                 pressed: true,
                 stereo_position: -1.0,
@@ -664,7 +664,7 @@ mod tests {
         );
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 48,
                 pressed: true,
                 stereo_position: 1.0,
@@ -692,7 +692,7 @@ mod tests {
         for i in 0..5u32 {
             pool.trigger(
                 &model,
-                &KeyEvent {
+                &KeyTrigger {
                     scancode: i,
                     pressed: true,
                     stereo_position: 0.0,
@@ -715,7 +715,7 @@ mod tests {
         // Trigger 3 keys at different stereo positions for a spatial spread
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 30,
                 pressed: true,
                 stereo_position: -0.7,
@@ -723,7 +723,7 @@ mod tests {
         );
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 48,
                 pressed: true,
                 stereo_position: 0.0,
@@ -731,7 +731,7 @@ mod tests {
         );
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 2,
                 pressed: true,
                 stereo_position: 0.5,
@@ -782,7 +782,7 @@ mod tests {
         for i in 0..MAX_POLYPHONY as u32 {
             pool.trigger(
                 &model,
-                &KeyEvent {
+                &KeyTrigger {
                     scancode: 100 + i,
                     pressed: true,
                     stereo_position: 0.0,
@@ -815,11 +815,11 @@ mod tests {
         // We can't easily make MechanicalClick produce NaN directly
         // (the TPT SVF is stable), but we CAN test the guard by
         // constructing a custom AcousticModel that returns NaN.
-        use zactrix_profiles::{AcousticModel, KeyEvent, KeyProfile, SynthState};
+        use zactrix_profiles::{AcousticModel, KeyProfile, KeyTrigger, SynthState};
 
         struct NanModel;
         impl AcousticModel for NanModel {
-            fn get_profile(&self, _event: &KeyEvent) -> KeyProfile {
+            fn get_profile(&self, _event: &KeyTrigger) -> KeyProfile {
                 KeyProfile::default()
             }
             fn init_state(
@@ -841,7 +841,7 @@ mod tests {
         // Trigger a voice so process_sample has something to render.
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 42,
                 pressed: true,
                 stereo_position: 0.0,
@@ -871,7 +871,7 @@ mod tests {
 
         pool.trigger(
             &model,
-            &KeyEvent {
+            &KeyTrigger {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,

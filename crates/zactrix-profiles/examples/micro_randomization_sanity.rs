@@ -13,11 +13,11 @@
 //! Run with:
 //!   cargo run --example micro_randomization_sanity -p zactrix-profiles
 
-use zactrix_profiles::{AcousticModel, KeyEvent, KeyProfile, MechanicalClick, SynthState};
+use zactrix_profiles::{AcousticModel, KeyProfile, KeyTrigger, MechanicalClick, SynthState};
 
 fn render_waveform(profile: KeyProfile, n: usize) -> Vec<[f32; 2]> {
     let model = MechanicalClick::with_profile(profile, 44_100);
-    let event = KeyEvent {
+    let event = KeyTrigger {
         scancode: 30,
         pressed: true,
         stereo_position: 0.0,

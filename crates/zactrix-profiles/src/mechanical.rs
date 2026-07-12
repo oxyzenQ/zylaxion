@@ -63,7 +63,7 @@
 use std::f32::consts::FRAC_PI_2;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::{AcousticModel, KeyEvent, KeyProfile, ProfileWithOverrides, SynthState};
+use crate::{AcousticModel, KeyProfile, KeyTrigger, ProfileWithOverrides, SynthState};
 
 /// Maximum pitch drift applied to click/spring/housing frequency, as a
 /// fraction of the profile value. ±1.5% matches the natural variation
@@ -310,7 +310,7 @@ impl Default for MechanicalClick {
 }
 
 impl AcousticModel for MechanicalClick {
-    fn get_profile(&self, event: &KeyEvent) -> KeyProfile {
+    fn get_profile(&self, event: &KeyTrigger) -> KeyProfile {
         // Per-key override lookup. Falls back to default if the scancode
         // has no entry in the override map.
         self.profiles.for_scancode(event.scancode)
@@ -836,7 +836,7 @@ mod tests {
     #[test]
     fn test_profile_returns_sane_defaults() {
         let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
-        let event = KeyEvent {
+        let event = KeyTrigger {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
@@ -854,7 +854,7 @@ mod tests {
     #[test]
     fn test_center_pan_is_equal_lr() {
         let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
-        let event = KeyEvent {
+        let event = KeyTrigger {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
@@ -878,7 +878,7 @@ mod tests {
     #[test]
     fn test_full_left_pan_is_louder_on_left() {
         let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
-        let event = KeyEvent {
+        let event = KeyTrigger {
             scancode: 42,
             pressed: true,
             stereo_position: -1.0,
@@ -898,7 +898,7 @@ mod tests {
     #[test]
     fn test_full_right_pan_is_louder_on_right() {
         let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
-        let event = KeyEvent {
+        let event = KeyTrigger {
             scancode: 42,
             pressed: true,
             stereo_position: 1.0,
@@ -918,7 +918,7 @@ mod tests {
     #[test]
     fn test_voice_decays_and_deactivates() {
         let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
-        let event = KeyEvent {
+        let event = KeyTrigger {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
@@ -950,7 +950,7 @@ mod tests {
     #[test]
     fn test_silence_after_deactivation() {
         let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
-        let event = KeyEvent {
+        let event = KeyTrigger {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
@@ -980,7 +980,7 @@ mod tests {
     #[test]
     fn test_excitation_is_limited_duration() {
         let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
-        let event = KeyEvent {
+        let event = KeyTrigger {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
@@ -1019,7 +1019,7 @@ mod tests {
         // 0.5 of the start (which would only happen with a non-linear
         // fade). This catches accidental regression to linear.
         let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
-        let event = KeyEvent {
+        let event = KeyTrigger {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
@@ -1057,7 +1057,7 @@ mod tests {
     #[test]
     fn test_inter_keystroke_interval_attenuation() {
         let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
-        let event = KeyEvent {
+        let event = KeyTrigger {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
@@ -1115,7 +1115,7 @@ mod tests {
     #[test]
     fn test_pan_jitter_varies_between_keypresses() {
         let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
-        let event = KeyEvent {
+        let event = KeyTrigger {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
@@ -1156,7 +1156,7 @@ mod tests {
         profile.decay.voice_off_threshold = 1e-7;
 
         let model = MechanicalClick::with_profile(profile, crate::SAMPLE_RATE as u32);
-        let event = KeyEvent {
+        let event = KeyTrigger {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
@@ -1222,7 +1222,7 @@ mod tests {
         // Default profile has coefficient_fast = 0.0 and
         // fast_samples_ms = 0.0.
         let model = MechanicalClick::with_profile(profile, crate::SAMPLE_RATE as u32);
-        let event = KeyEvent {
+        let event = KeyTrigger {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
