@@ -92,7 +92,7 @@ fn main() {
         cli::Commands::Stop => commands::daemon::cmd_stop(),
         cli::Commands::Status => daemon::cmd_status(),
         cli::Commands::Doctor => commands::info::cmd_doctor(),
-        cli::Commands::Testconf => commands::info::cmd_testconf(),
+        cli::Commands::Testconf { file } => commands::info::cmd_testconf(file.as_deref()),
         cli::Commands::ListPresets => commands::info::cmd_list_presets(),
         cli::Commands::ListBackends => commands::info::cmd_list_backends(),
     }
