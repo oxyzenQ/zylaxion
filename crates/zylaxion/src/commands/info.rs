@@ -81,18 +81,67 @@ pub fn cmd_doctor() {
 /// TOML typos and out-of-bounds DSP values before restarting the daemon.
 pub fn cmd_testconf(file: Option<&str>) {
     if let Some(path_str) = file {
-        // Validate a specific file.
         let path = std::path::Path::new(path_str);
-        if !path.is_file() {
-            crate::error_format::error(format!("file not found: {path_str}"));
+
+        // v10.2.0: reject files without .toml extension.
+        if path.extension().and_then(|e| e.to_str()) != Some("toml") {
+            crate::error_format::error(format!("file must have .toml extension: {path_str}"));
             process::exit(1);
         }
-        match config::validate_config_file(path) {
+
+        // v10.2.0: only allow reading from the standard config
+        // directories — not arbitrary paths like /etc/unbound/.
+        let canonical = match path.canonicalize() {
+            Ok(c) => c,
+            Err(_) => {
+                crate::error_format::error(format!("file not found: {path_str}"));
+                process::exit(1);
+            }
+        };
+
+        let allowed_dirs: Vec<std::path::PathBuf> = {
+            let mut dirs = Vec::new();
+            // $XDG_CONFIG_HOME/zylaxion or ~/.config/zylaxion
+            if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME")
+                .filter(|v| !v.is_empty())
+                .map(std::path::PathBuf::from)
+                .filter(|p| p.is_absolute())
+            {
+                dirs.push(xdg.join("zylaxion"));
+            } else if let Some(home) = std::env::var_os("HOME") {
+                dirs.push(std::path::PathBuf::from(home).join(".config/zylaxion"));
+            }
+            dirs.push(std::path::PathBuf::from("/etc/zylaxion"));
+            dirs.push(std::path::PathBuf::from("/usr/local/share/zylaxion"));
+            // Also allow the current directory (for development).
+            if let Ok(cwd) = std::env::current_dir() {
+                dirs.push(cwd);
+            }
+            dirs
+        };
+
+        let is_allowed = allowed_dirs.iter().any(|dir| {
+            if let Ok(dir_canon) = dir.canonicalize() {
+                canonical.starts_with(&dir_canon)
+            } else {
+                canonical.starts_with(dir)
+            }
+        });
+
+        if !is_allowed {
+            crate::error_format::error(format!(
+                "file must be within a zylaxion config directory \
+                 (~/.config/zylaxion/, /etc/zylaxion/, /usr/local/share/zylaxion/, or CWD): {path_str}"
+            ));
+            process::exit(1);
+        }
+
+        match config::validate_config_file(&canonical) {
             Ok(()) => {
-                println!("Config OK: {}", path.display());
+                println!("Config OK: {}", canonical.display());
             }
             Err(err) => {
-                crate::error_format::error(format!("in {}: {err}", path.display()));
+                crate::error_format::error(format!("in {}: {err}", canonical.display()));
                 process::exit(1);
             }
         }
