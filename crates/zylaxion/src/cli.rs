@@ -90,8 +90,11 @@ pub struct Cli {
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
+    /// Without a subcommand: show a quick status overview (daemon
+    /// state, active preset, audio device). With a subcommand: run
+    /// that subcommand. (v10.2.0+ — user feedback)
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]

@@ -85,15 +85,18 @@ fn main() {
     let cli = cli::Cli::parse();
 
     match cli.command {
-        cli::Commands::Start { preset } => commands::daemon::cmd_start(preset),
-        cli::Commands::Daemon { preset, foreground } => {
-            commands::daemon::cmd_daemon(preset, foreground)
-        }
-        cli::Commands::Stop => commands::daemon::cmd_stop(),
-        cli::Commands::Status => daemon::cmd_status(),
-        cli::Commands::Doctor => commands::info::cmd_doctor(),
-        cli::Commands::Testconf { file } => commands::info::cmd_testconf(file.as_deref()),
-        cli::Commands::ListPresets => commands::info::cmd_list_presets(),
-        cli::Commands::ListBackends => commands::info::cmd_list_backends(),
+        Some(cmd) => match cmd {
+            cli::Commands::Start { preset } => commands::daemon::cmd_start(preset),
+            cli::Commands::Daemon { preset, foreground } => {
+                commands::daemon::cmd_daemon(preset, foreground)
+            }
+            cli::Commands::Stop => commands::daemon::cmd_stop(),
+            cli::Commands::Status => daemon::cmd_status(),
+            cli::Commands::Doctor => commands::info::cmd_doctor(),
+            cli::Commands::Testconf { file } => commands::info::cmd_testconf(file.as_deref()),
+            cli::Commands::ListPresets => commands::info::cmd_list_presets(),
+            cli::Commands::ListBackends => commands::info::cmd_list_backends(),
+        },
+        None => commands::info::cmd_overview(),
     }
 }

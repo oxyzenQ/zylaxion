@@ -1,7 +1,8 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Information subcommands: `doctor`, `testconf`, `list-presets`, `list-backends`.
+//! Information subcommands: `doctor`, `testconf`, `list-presets`, `list-backends`,
+//! and the no-subcommand `overview`.
 
 use std::process;
 
@@ -213,6 +214,82 @@ pub fn cmd_list_backends() {
     } else {
         println!("No default output device.");
     }
+}
+
+/// Quick status overview shown when `zylaxion` is run with no
+/// subcommand (v10.2.0+ — user feedback: "should zylaxion can use
+/// verbose because user can see the daemon running, info, other
+/// metrics").
+///
+/// Prints a one-screen summary:
+/// - Daemon status (running/stopped, PID)
+/// - Active preset (from config.toml)
+/// - Audio device (name, sample rate, channels)
+/// - Config file path
+/// - Quick-start hint
+pub fn cmd_overview() {
+    println!("=== zylaxion ===\n");
+
+    // 1. Daemon status.
+    let daemon_running = match crate::daemon::is_daemon_running() {
+        Ok(pid) => {
+            println!("  daemon:  running (PID: {})", pid.as_raw());
+            true
+        }
+        Err(_) => {
+            println!("  daemon:  not running");
+            false
+        }
+    };
+    match config::list_presets() {
+        Ok((path, active, _names)) => {
+            println!("  preset:  {active}");
+            println!("  config:  {}", path.display());
+        }
+        Err(_) => {
+            println!("  preset:  <no config found>");
+        }
+    }
+
+    // 3. Audio device.
+    let host = cpal::default_host();
+    match host.default_output_device() {
+        Some(device) => {
+            let name = device.name().unwrap_or_else(|_| "<unknown>".into());
+            if let Ok(dev_config) = device.default_output_config() {
+                println!(
+                    "  audio:   {name} ({} Hz, {}ch, {:?})",
+                    dev_config.sample_rate().0,
+                    dev_config.channels(),
+                    dev_config.sample_format()
+                );
+            } else {
+                println!("  audio:   {name} (config unavailable)");
+            }
+        }
+        None => {
+            println!("  audio:   no device found");
+        }
+    }
+
+    // 4. Input group.
+    if check_input_group() {
+        println!("  input:   in 'input' group");
+    } else {
+        println!("  input:   NOT in 'input' group (fix: sudo usermod -aG input $USER)");
+    }
+
+    println!();
+    if daemon_running {
+        println!("  zylaxion stop          # stop daemon");
+        println!("  zylaxion start         # foreground mode");
+        println!("  zylaxion list-presets  # switch sound");
+    } else {
+        println!("  zylaxion daemon        # start background daemon");
+        println!("  zylaxion start         # foreground mode");
+        println!("  zylaxion doctor        # system check");
+    }
+    println!();
 }
 
 /// Check if the current user is in the 'input' group by parsing
