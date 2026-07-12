@@ -160,6 +160,16 @@ coefficient = 0.9994
 # Range: 1e-7 - 1e-2
 voice_off_threshold = 0.00001
 
+# v10.2.0+ (dragonzen audit N7): two-stage decay. Real key sounds have
+# a fast initial transient (~5 ms) + slower tail (~150 ms). Setting
+# these enables a separate fast-stage coefficient applied for the first
+# `fast_samples_ms` of audio, then the voice switches to `coefficient`
+# above. Leave at 0.0 to use single-stage decay (backward-compatible).
+#
+# Uncomment to enable for preset.technical:
+# coefficient_fast = 0.997   # Range: 0.0 - 0.9999 (0.0 = disabled)
+# fast_samples_ms = 5.0      # Range: 0.0 - 50.0  (0.0 = disabled)
+
 [preset.technical.ambient]
 # Master enable for the ambient case-rattle path. When false, no
 # ambient noise is generated (zero CPU cost).

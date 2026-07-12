@@ -132,14 +132,55 @@ fn default_spring_mix() -> f32 {
 /// ```
 ///
 /// For `coefficient = 0.9994` at 44100 Hz, this gives roughly 180 ms.
+///
+/// # Two-stage decay (v10.2.0+ — dragonzen audit N7)
+///
+/// Real key sounds have a fast initial transient (~5 ms) + slower tail
+/// (~150 ms). A single multiplicative coefficient forces a compromise:
+/// `0.9994` (180 ms) feels "boomy"; `0.9990` (110 ms) feels "thin".
+/// The optional `coefficient_fast` + `fast_samples_ms` fields enable a
+/// two-stage envelope that captures both regimes:
+///
+/// 1. **Fast stage**: for the first `fast_samples_ms` of audio (default
+///    ~5 ms), apply `coefficient_fast` (e.g. 0.997 — much steeper
+///    decay). This captures the rapid energy drop of the click
+///    transient.
+/// 2. **Slow stage**: after the fast stage ends, switch to `coefficient`
+///    (the existing field, e.g. 0.9994). This carries the long tail
+///    (spring ring, housing thock) at the existing decay rate.
+///
+/// Both fields default to `0.0` / `0.0` which disables the fast stage
+/// — backward-compatible with existing configs that don't set them.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct DecayParams {
-    /// Per-sample multiplicative decay factor. Must be in (0.0, 1.0).
+    /// Per-sample multiplicative decay factor for the slow (tail) stage.
+    /// Must be in (0.0, 1.0). Used after `fast_samples_ms` elapses, or
+    /// for the entire voice if `fast_samples_ms = 0.0`.
     #[serde(default = "default_decay_coefficient")]
     pub coefficient: f32,
     /// Amplitude threshold below which the voice is deactivated.
     #[serde(default = "default_decay_voice_off_threshold")]
     pub voice_off_threshold: f32,
+    /// Per-sample multiplicative decay factor for the fast (initial)
+    /// stage (v10.2.0+ — N7). Must be in (0.0, 1.0). Used for the
+    /// first `fast_samples_ms` of audio, then the voice switches to
+    /// `coefficient`. Default `0.0` disables the fast stage (single-
+    /// stage decay, backward-compatible).
+    ///
+    /// Typical value: `0.997` — at 44.1 kHz this reaches -60 dB in
+    /// ~23 ms, capturing the click transient's rapid energy drop.
+    #[serde(default)]
+    pub coefficient_fast: f32,
+    /// Duration of the fast (initial) stage in milliseconds (v10.2.0+ —
+    /// N7). After this many milliseconds, the voice switches from
+    /// `coefficient_fast` to `coefficient`. Default `0.0` disables the
+    /// fast stage.
+    ///
+    /// Typical value: `5.0` — the click transient's initial energy
+    /// drop completes within ~5 ms, then the spring/housing tail takes
+    /// over.
+    #[serde(default)]
+    pub fast_samples_ms: f32,
 }
 
 fn default_decay_coefficient() -> f32 {
@@ -412,6 +453,15 @@ pub struct SynthState {
     pub excitation_samples: u32,
     /// Pre-computed per-sample decay coefficient (from profile).
     pub decay_coeff: f32,
+    /// Pre-computed per-sample decay coefficient for the fast stage
+    /// (v10.2.0+ — N7). 0.0 disables the fast stage (single-stage
+    /// decay). When > 0.0 and `sample_count < fast_samples_count`,
+    /// `render_sample` applies this coefficient instead of `decay_coeff`.
+    pub decay_coeff_fast: f32,
+    /// Number of samples in the fast (initial) decay stage (v10.2.0+ —
+    /// N7). 0 disables the fast stage. After this many samples the
+    /// voice switches to `decay_coeff` for the slow tail.
+    pub fast_samples_count: u32,
     /// Pre-computed voice-off threshold (from profile).
     pub voice_off_threshold: f32,
 
@@ -422,6 +472,22 @@ pub struct SynthState {
     pub pan_right: f32,
     /// Pre-computed spring mix level (from profile).
     pub spring_mix: f32,
+    /// Per-keypress stereo pan jitter, in the range [-0.03, +0.03]
+    /// (v10.2.0+ — dragonzen audit N6).
+    ///
+    /// Real keyboards have ±2–3° of finger-placement variation that
+    /// subtly shifts the perceived stereo position of each keypress.
+    /// Without this, every press of "A" pans to exactly the same
+    /// position — the locked stereo field is the most obvious
+    /// synthetic tell on headphones.
+    ///
+    /// `init_state` derives this from the per-keystroke PRNG and
+    /// applies it multiplicatively in `render_sample`:
+    ///   `pan_left *= (1.0 + pan_jitter)`
+    ///   `pan_right *= (1.0 - pan_jitter)`
+    /// (note the symmetric signs — jitter moves the image left OR
+    /// right, not just one direction).
+    pub pan_jitter: f32,
 
     // --- Ambient rattle path (optional, enabled per-profile) ---
     /// Whether the ambient rattle path is active for this voice.
@@ -503,10 +569,13 @@ impl Default for SynthState {
             sample_count: 0,
             excitation_samples: 0,
             decay_coeff: 0.9994,
+            decay_coeff_fast: 0.0,
+            fast_samples_count: 0,
             voice_off_threshold: 1e-5,
             pan_left: std::f32::consts::FRAC_1_SQRT_2,
             pan_right: std::f32::consts::FRAC_1_SQRT_2,
             spring_mix: 0.6,
+            pan_jitter: 0.0,
             ambient_enabled: false,
             ambient_level: 0.0,
             ambient_decay: 0.99,
@@ -557,6 +626,36 @@ pub trait AcousticModel: Send + Sync {
     /// # Returns
     /// A stereo sample `[left, right]` in `[-1.0, 1.0]`.
     fn render_sample(&self, state: &mut SynthState) -> [f32; 2];
+
+    /// Record the monotonic timestamp of a keypress and return the
+    /// interval since the previous keypress (v10.2.0+ — dragonzen
+    /// audit N5).
+    ///
+    /// The orchestrator should call this exactly once per keypress,
+    /// BEFORE `init_state`. The returned interval (microseconds) is
+    /// used by `init_state` to attenuate the amplitude of fast repeats
+    /// (≤80 ms interval) by up to -5%, simulating the natural softening
+    /// of repeated keypresses when the finger is still settling.
+    ///
+    /// The default implementation is a no-op (returns 0) — models that
+    /// don't care about inter-keystroke timing don't need to override
+    /// it. `MechanicalClick` overrides it to track `last_trigger_us`.
+    ///
+    /// # Arguments
+    ///
+    /// * `monotonic_us` — current keypress timestamp in microseconds,
+    ///   from the same clock source as `KeyEvent::timestamp`
+    ///   (CLOCK_MONOTONIC on Linux).
+    ///
+    /// # Returns
+    ///
+    /// The interval in microseconds since the previous keypress, or 0
+    /// if there was no previous keypress (first press after construction
+    /// or after a baseline reset).
+    #[inline]
+    fn record_trigger_timestamp(&self, _monotonic_us: u64) -> u64 {
+        0
+    }
 }
 
 impl Default for ClickParams {
@@ -585,6 +684,10 @@ impl Default for DecayParams {
         Self {
             coefficient: 0.9994,
             voice_off_threshold: 1e-5,
+            // Default to disabled — backward-compatible with pre-v10.2.0
+            // configs. Users opt in by setting both fields.
+            coefficient_fast: 0.0,
+            fast_samples_ms: 0.0,
         }
     }
 }
@@ -696,6 +799,19 @@ pub mod ranges {
 
     pub const DECAY_COEFF_MIN: f32 = 0.0;
     pub const DECAY_COEFF_MAX: f32 = 0.9999;
+
+    /// Two-stage decay fast-stage coefficient (v10.2.0+ — N7).
+    /// Same constraints as `DECAY_COEFF`: must be < 1.0 to prevent
+    /// infinite loops. A value of 0.0 disables the fast stage
+    /// (single-stage decay, backward-compatible).
+    pub const DECAY_COEFF_FAST_MIN: f32 = 0.0;
+    pub const DECAY_COEFF_FAST_MAX: f32 = 0.9999;
+
+    /// Two-stage decay fast-stage duration in milliseconds (v10.2.0+ —
+    /// N7). 0.0 disables the fast stage. Capped at 50 ms — beyond
+    /// this the "fast" stage is no longer a transient.
+    pub const DECAY_FAST_SAMPLES_MS_MIN: f32 = 0.0;
+    pub const DECAY_FAST_SAMPLES_MS_MAX: f32 = 50.0;
 
     pub const VOICE_OFF_THRESHOLD_MIN: f32 = 1e-7;
     pub const VOICE_OFF_THRESHOLD_MAX: f32 = 1e-2;
@@ -889,6 +1005,35 @@ impl KeyProfile {
         }
         self.decay.voice_off_threshold = v;
 
+        // Two-stage decay fast-stage parameters (v10.2.0+ — N7).
+        let (v, c) = clamp_finite(
+            self.decay.coefficient_fast,
+            ranges::DECAY_COEFF_FAST_MIN,
+            ranges::DECAY_COEFF_FAST_MAX,
+        );
+        if c {
+            log::warn!(
+                "Invalid decay.coefficient_fast {}, clamping to {} (must be < 1.0 to prevent infinite loops; 0.0 disables the fast stage)",
+                self.decay.coefficient_fast,
+                v
+            );
+        }
+        self.decay.coefficient_fast = v;
+
+        let (v, c) = clamp_finite(
+            self.decay.fast_samples_ms,
+            ranges::DECAY_FAST_SAMPLES_MS_MIN,
+            ranges::DECAY_FAST_SAMPLES_MS_MAX,
+        );
+        if c {
+            log::warn!(
+                "Invalid decay.fast_samples_ms {}, clamping to {} (0.0 disables the fast stage)",
+                self.decay.fast_samples_ms,
+                v
+            );
+        }
+        self.decay.fast_samples_ms = v;
+
         // Ambient parameters
         let (v, c) = clamp_finite(
             self.ambient.noise_level,
@@ -1028,6 +1173,12 @@ pub struct OverrideDecay {
     pub coefficient: Option<f32>,
     #[serde(default)]
     pub voice_off_threshold: Option<f32>,
+    /// v10.2.0+ (N7): fast-stage coefficient override.
+    #[serde(default)]
+    pub coefficient_fast: Option<f32>,
+    /// v10.2.0+ (N7): fast-stage duration override (ms).
+    #[serde(default)]
+    pub fast_samples_ms: Option<f32>,
 }
 
 /// Optional ambient parameter overrides for a `[[keys]]` block.
@@ -1152,6 +1303,13 @@ impl ProfileWithOverrides {
                 if let Some(v) = decay.voice_off_threshold {
                     merged.decay.voice_off_threshold = v;
                 }
+                // v10.2.0+ (N7): two-stage decay per-key overrides.
+                if let Some(v) = decay.coefficient_fast {
+                    merged.decay.coefficient_fast = v;
+                }
+                if let Some(v) = decay.fast_samples_ms {
+                    merged.decay.fast_samples_ms = v;
+                }
             }
             if let Some(ambient) = ko.ambient {
                 if let Some(v) = ambient.enabled {
@@ -1217,6 +1375,8 @@ mod tests {
             decay: DecayParams {
                 coefficient: 0.9994,
                 voice_off_threshold: 1e-5,
+                coefficient_fast: 0.0,
+                fast_samples_ms: 0.0,
             },
             ambient: AmbientParams {
                 enabled: false,
