@@ -629,7 +629,7 @@ impl AcousticModel for MechanicalClick {
         //
         // v10.2.0 (dragonzen audit N3): the housing noise stream is
         // now decoupled from the click noise stream. Previously the
-        // housing layer re-used `state.noise_state`, which meant the
+        // housing layer reused `state.noise_state`, which meant the
         // click bandpass and the housing bandpass saw **identical**
         // noise during the burst-overlap window. Constructive
         // interference made the two layers merge into a single "honk"
