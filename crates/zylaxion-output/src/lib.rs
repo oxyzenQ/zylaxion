@@ -87,6 +87,15 @@ impl std::error::Error for AudioError {}
 ///
 /// All methods take `&mut self` because the producer side of an SPSC ring
 /// buffer is single-threaded by design.
+///
+/// # v10.2.0+ (dragonzen audit P8): testability
+///
+/// `producer_vacancy` and `sample_rate` were previously inherent methods
+/// on `CpalSink` only. They're now part of the trait so that `Orchestrator`
+/// can be generic over `S: AudioSink`, enabling integration tests with a
+/// `MockSink` that records samples without opening a real audio device.
+/// Default implementations return safe values for sinks that don't need
+/// back-pressure (e.g., a MockSink that accepts everything).
 pub trait AudioSink {
     /// Push a single interleaved stereo sample `[left, right]`.
     ///
@@ -98,6 +107,27 @@ pub trait AudioSink {
         for &sample in samples {
             self.write_sample(sample);
         }
+    }
+
+    /// Number of stereo frames that can be pushed before the internal
+    /// buffer is full and samples start being dropped. Used by the
+    /// orchestrator to pace rendering against the audio callback's
+    /// consumption rate.
+    ///
+    /// Default: `usize::MAX` — effectively unbounded. Real audio sinks
+    /// (CpalSink) override this with the actual ring-buffer vacancy.
+    fn producer_vacancy(&self) -> usize {
+        usize::MAX
+    }
+
+    /// Actual sample rate of the audio device (Hz). Used by the
+    /// orchestrator for DSP coefficient calculation and fade-out
+    /// duration timing.
+    ///
+    /// Default: 44100. Real audio sinks override this with the
+    /// negotiated device rate.
+    fn sample_rate(&self) -> u32 {
+        44_100
     }
 }
 
@@ -374,19 +404,6 @@ impl CpalSink {
             _paused: paused,
         })
     }
-
-    /// Actual sample rate reported by the audio device.
-    #[inline]
-    pub fn sample_rate(&self) -> u32 {
-        self.sample_rate
-    }
-
-    /// Number of stereo frames that can be pushed before the ring buffer
-    /// is full and samples start being dropped.
-    #[inline]
-    pub fn producer_vacancy(&self) -> usize {
-        self.producer.vacant_len()
-    }
 }
 
 impl AudioSink for CpalSink {
@@ -400,5 +417,18 @@ impl AudioSink for CpalSink {
         for &sample in samples {
             let _ = self.producer.try_push(sample);
         }
+    }
+
+    /// Number of stereo frames that can be pushed before the ring buffer
+    /// is full and samples start being dropped.
+    #[inline]
+    fn producer_vacancy(&self) -> usize {
+        self.producer.vacant_len()
+    }
+
+    /// Actual sample rate reported by the audio device.
+    #[inline]
+    fn sample_rate(&self) -> u32 {
+        self.sample_rate
     }
 }

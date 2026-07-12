@@ -95,6 +95,15 @@ const DISPATCH_POLL_TIMEOUT_MS: u16 = 100;
 /// so we back off briefly instead of spinning.
 const DISPATCH_ERROR_BACKOFF_MS: u64 = 10;
 
+/// Number of consecutive dispatch errors before attempting suspend/resume
+/// recovery via `udev_assign_seat` (v10.2.0+ — dragonzen audit B17).
+///
+/// At 100ms poll timeout + 10ms backoff per iteration, 50 errors ≈ 5.5
+/// seconds of sustained failure — long enough to rule out transient
+/// glitches (device hot-unplug/replug takes <1s), short enough to recover
+/// within a few seconds of resume.
+const SUSPEND_RECOVERY_ERROR_THRESHOLD: u32 = 50;
+
 // ── KeyEvent ────────────────────────────────────────────────────────────
 
 /// A keyboard event captured from the Linux input subsystem.
@@ -288,8 +297,10 @@ impl InputSource for LibinputSource {
                 // Signal success — the caller's `listen()` unblocks.
                 let _ = init_tx.send(Ok(()));
 
-                // Enter the blocking event loop.
-                event_loop(libinput, tx);
+                // Enter the blocking event loop. The seat name is
+                // passed so the loop can re-assign it during
+                // suspend/resume recovery (v10.2.0 — B17).
+                event_loop(libinput, seat, tx);
             })
             .expect("failed to spawn input thread");
 
@@ -339,7 +350,20 @@ fn monotonic_us() -> u64 {
 /// - **100 ms safety timeout**: ensures the loop periodically checks
 ///   whether the channel receiver has been dropped (which signals
 ///   shutdown). 100 ms is invisible to the user.
-fn event_loop(mut libinput: input::Libinput, tx: Sender<KeyEvent>) {
+///
+/// # Suspend/resume recovery (v10.2.0+ — dragonzen audit B17)
+///
+/// On laptop lid close (suspend), libinput devices disconnect.
+/// `dispatch()` returns `Err` repeatedly. On resume, libinput does
+/// NOT re-enumerate devices automatically — the user would have to
+/// manually restart the daemon. The fix tracks consecutive dispatch
+/// errors; after `SUSPEND_RECOVERY_ERROR_THRESHOLD` (≈5 seconds of
+/// sustained failure), it re-calls `udev_assign_seat(&seat)` to
+/// trigger device re-enumeration. The `seat` parameter is the same
+/// seat name passed to the initial `udev_assign_seat` during `listen`.
+fn event_loop(mut libinput: input::Libinput, seat: String, tx: Sender<KeyEvent>) {
+    let mut consecutive_errors: u32 = 0;
+
     loop {
         // Block on poll() until libinput's fd is readable or the
         // timeout expires. This is the key change vs the previous
@@ -365,6 +389,13 @@ fn event_loop(mut libinput: input::Libinput, tx: Sender<KeyEvent>) {
                 }
                 Err(e) => {
                     eprintln!("[zylaxion-input] poll() error on libinput fd: {e:?}");
+                    // Count poll errors toward the recovery threshold too —
+                    // a persistently broken fd is just as bad as dispatch
+                    // errors.
+                    consecutive_errors += 1;
+                    if consecutive_errors >= SUSPEND_RECOVERY_ERROR_THRESHOLD {
+                        try_suspend_recovery(&mut libinput, &seat, &mut consecutive_errors);
+                    }
                     thread::sleep(Duration::from_millis(DISPATCH_ERROR_BACKOFF_MS));
                     continue;
                 }
@@ -376,9 +407,18 @@ fn event_loop(mut libinput: input::Libinput, tx: Sender<KeyEvent>) {
         // or not events were available.
         if let Err(e) = libinput.dispatch() {
             eprintln!("[zylaxion-input] libinput dispatch error: {e:?}");
+            consecutive_errors += 1;
+            if consecutive_errors >= SUSPEND_RECOVERY_ERROR_THRESHOLD {
+                try_suspend_recovery(&mut libinput, &seat, &mut consecutive_errors);
+            }
             thread::sleep(Duration::from_millis(DISPATCH_ERROR_BACKOFF_MS));
             continue;
         }
+
+        // Dispatch succeeded — reset the error counter. A single
+        // successful dispatch after 49 errors means the device came
+        // back on its own (hot-replug, not suspend/resume).
+        consecutive_errors = 0;
 
         // Drain all queued events and forward keyboard events.
         for event in libinput.by_ref() {
@@ -399,6 +439,45 @@ fn event_loop(mut libinput: input::Libinput, tx: Sender<KeyEvent>) {
 
         // No sleep here — poll() at the top of the loop will block
         // until the next event arrives (or the timeout fires).
+    }
+}
+
+/// Attempt to recover from suspend/resume by re-assigning the libinput
+/// seat (v10.2.0+ — dragonzen audit B17).
+///
+/// Called when `consecutive_errors` reaches `SUSPEND_RECOVERY_ERROR_THRESHOLD`.
+/// Re-calls `udev_assign_seat` which triggers device re-enumeration —
+/// the `open_restricted` callback fires for every input device on the
+/// seat, effectively re-opening all the `/dev/input/event*` fds that
+/// were disconnected during suspend.
+///
+/// On success, resets `consecutive_errors` to 0 so the loop can resume
+/// normal operation. On failure, logs a warning and halves the counter
+/// (so the next recovery attempt happens after another 25 errors ≈ 2.5s
+/// — avoids tight retry loops if udev itself is broken).
+fn try_suspend_recovery(libinput: &mut input::Libinput, seat: &str, consecutive_errors: &mut u32) {
+    eprintln!(
+        "[zylaxion-input] {} consecutive dispatch errors — attempting suspend/resume recovery \
+         (re-assigning seat '{seat}')",
+        *consecutive_errors
+    );
+    match libinput.udev_assign_seat(seat) {
+        Ok(()) => {
+            eprintln!(
+                "[zylaxion-input] suspend/resume recovery successful — seat '{seat}' re-assigned, \
+                 devices should be re-enumerated"
+            );
+            *consecutive_errors = 0;
+        }
+        Err(()) => {
+            eprintln!(
+                "[zylaxion-input] suspend/resume recovery FAILED — udev_assign_seat('{seat}') \
+                 returned Err. Will retry in ~2.5s."
+            );
+            // Halve the counter so we don't immediately re-trigger
+            // (avoids tight retry loop if udev is broken).
+            *consecutive_errors /= 2;
+        }
     }
 }
 
