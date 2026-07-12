@@ -107,11 +107,13 @@ case "${MODE}" in
         if [[ -f "${user_bin}" ]] || [[ -f "${user_cfg}" ]] || [[ -f "${user_svc}" ]]; then
             echo "   cleaning existing user-local install..."
             rm -f "${user_bin}" "${user_svc}"
-            # Remove config only if it's identical to the system one
-            # (same file). If the user customized it, keep it — the
-            # user-local config takes priority over /etc anyway.
+            # v11.0.0: also remove the user-local config so the system
+            # config at /etc/zylaxion/ takes priority. A stale user-local
+            # config from a previous --user install would shadow the new
+            # system config and cause confusion (old presets, old tuning).
             if [[ -f "${user_cfg}" ]]; then
-                echo "   note: keeping ${user_cfg} (user-local override)"
+                rm -f "${user_cfg}"
+                echo "   removed: ${user_cfg} (system config takes priority)"
             fi
             echo "   cleaned: ${user_bin} + ${user_svc}"
         fi
