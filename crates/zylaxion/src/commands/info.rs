@@ -11,7 +11,7 @@ use crate::config;
 
 /// Print a system-health diagnostic report (input group, XDG, audio).
 pub fn cmd_doctor() {
-    println!("=== Zylaxion Doctor ===\n");
+    println!("=== zylaxion doctor ===\n");
 
     let mut ok = true;
 
@@ -89,7 +89,8 @@ pub fn cmd_testconf() {
             crate::error_format::error(err);
             eprintln!();
             eprintln!("Searched:");
-            eprintln!("  1. $HOME/.config/zylaxion/config.toml");
+            eprintln!("  1. $XDG_CONFIG_HOME/zylaxion/config.toml");
+            eprintln!("     (or ~/.config/zylaxion/config.toml if unset)");
             eprintln!("  2. /etc/zylaxion/config.toml");
             eprintln!("  3. /usr/local/share/zylaxion/config.toml");
             eprintln!("  4. ./config.toml (current directory)");
@@ -114,7 +115,7 @@ pub fn cmd_list_presets() {
             println!("Active preset: {active}");
             println!();
             println!("Switch preset:");
-            println!("  Edit `tuning = \"{active}\"` in config.toml, OR");
+            println!("  Edit `tuning = \"<name>\"` in config.toml, OR");
             println!("  Run: zylaxion start --preset <name>");
         }
         Err(e) => {

@@ -27,7 +27,10 @@ Instead of replaying recorded samples, every sound is **synthesized mathematical
 - **Zero audio samples** — no wavetables, no recorded clips, no sample libraries. The entire sound engine is mathematical computation.
 - **Ultra-lightweight** — the binary is self-contained; no audio assets to load, store, or manage.
 - **Infinitely tunable** — every parameter (filter frequencies, resonance Q, decay coefficients, spring mix) is a number in `config.toml`, adjustable in real time.
-- **Deterministic** — the same key + same config always produces the same waveform. No random variation from sample playback.
+- **Micro-randomized** — every keypress gets a unique noise seed, ±1.5% pitch
+  drift, ±5% amplitude drift, ±3% stereo pan jitter, and inter-keystroke
+  timing variation. The same key never sounds identical twice — just like a
+  real physical keyboard. No audio samples are replayed.
 
 No audio files. No sample libraries. No wavetable playback. Just math.
 
@@ -36,12 +39,14 @@ No audio files. No sample libraries. No wavetable playback. Just math.
 ## Features
 
 - **Pure procedural synthesis** — all sounds generated from math, not samples.
-  Dual TPT SVF filters model the click transient and spring resonance of
-  real mechanical key switches with zero audio assets.
+  Three-layer TPT SVF engine models the click transient, spring resonance,
+  and housing "thock" of real mechanical key switches with zero audio assets.
 - **Real-time audio** — cpal + PipeWire with interrupt-driven ring buffer
   rendering. Typical latency under 3 ms.
 - **Polyphonic voice pool** — 16 simultaneous voices with oldest-first voice
-  stealing, stereo panning based on key position, and exponential decay.
+  stealing, stereo panning based on key position, per-keypress pan jitter,
+  two-stage decay envelope (fast transient + slow tail), and a ~2 ms soft
+  release ramp that eliminates the "click off" artifact on key-up.
 - **Central `config.toml`** — single source of truth for all acoustic
   DSP parameters (click frequency, resonance, spring mix, decay
   coefficient, per-key overrides). Edit, save, and the running daemon
@@ -79,15 +84,15 @@ cargo build --release --locked
 ./scripts/install.sh
 ```
 
-To install to a custom prefix:
+To install system-wide (binary → `/usr/bin/`, config → `/etc/zylaxion/`):
 
 ```bash
-PREFIX="$HOME/.local" ./scripts/install.sh
+./scripts/install.sh --system
 ```
 
-The installer copies the binary to `${PREFIX}/bin/zylaxion` and the
-central `config.toml` to `${PREFIX}/share/zylaxion/config.toml`. It
-does **not** run `cargo build` — build first, then install.
+The installer copies the binary, config, and systemd user service. Use
+`--user` (default) for `~/.local/bin/` or `--system` for `/usr/bin/`.
+It runs `cargo build --release --locked` automatically.
 
 Since v3.0.0 the installer also deploys a **systemd user service** to
 `~/.config/systemd/user/zylaxion.service`. To enable auto-start on login:
@@ -138,12 +143,15 @@ EXPECTED=$(awk '{print $1}' zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz.shake256)
 zylaxion start                    # Foreground mode (Ctrl+C to quit)
 zylaxion start --preset cherryMX  # Override active preset from CLI
 zylaxion daemon                   # Background daemon mode
+zylaxion daemon --foreground      # Foreground daemon (for systemd)
 zylaxion stop                     # Stop a running daemon
 zylaxion status                   # Check if daemon is running
 zylaxion doctor                   # System health diagnostic
 zylaxion testconf                 # Validate config.toml syntax + ranges
 zylaxion list-presets             # List available presets + active one
 zylaxion list-backends            # Show available audio backends
+zylaxion --check-update           # Check for latest GitHub release
+zylaxion -V                       # Show version + build info
 ```
 
 ### Configuration
@@ -153,7 +161,8 @@ filter frequencies, resonance (Q), spring mix level, decay rate, and
 amplitude, plus optional `[[keys]]` per-scancode overrides. The file
 is loaded from (first found wins):
 
-1. `~/.config/zylaxion/config.toml` — user-local override
+1. `$XDG_CONFIG_HOME/zylaxion/config.toml` — user-local override
+   (falls back to `~/.config/zylaxion/config.toml` if `$XDG_CONFIG_HOME` is unset)
 2. `/etc/zylaxion/config.toml` — system config
 3. `/usr/local/share/zylaxion/config.toml` — installed default
 4. `./config.toml` — relative to CWD (development)
@@ -166,7 +175,7 @@ preset is determined by:
 
 1. `--preset <name>` on the CLI (highest priority — overrides everything)
 2. `tuning = "<name>"` in the `[preset]` table of `config.toml`
-3. `"technical"` (hardcoded default) if neither is set
+3. `"technical"` (hardcoded last-resort fallback) if neither is set
 
 If the resolved preset does NOT exist in `config.toml`, the program
 prints a clear error listing the available presets and exits — there
@@ -331,7 +340,7 @@ ls -l "$XDG_RUNTIME_DIR/zylaxion.sock"
 cargo build --release --locked
 
 # Bump workspace version
-./scripts/version-to.sh v5.0.1
+./scripts/version-to.sh v10.2.0
 ```
 
 ## Uninstall
@@ -347,7 +356,7 @@ zylaxion-input          zylaxion-core           zactrix-engine          zylaxion
 (The Ears)              (The Brain)            (Zactrix Engine)        (The Mouth)
 ───────────             ──────────             ───────────────         ─────────────
 LibinputSource ──►      recv_timeout()
-   KeyEvent               │
+   InputKeyEvent          │
                      trigger / release
                            │
                            ▼
