@@ -29,13 +29,29 @@ pub const SAMPLE_RATE: f32 = 44_100.0;
 /// Maximum simultaneous voices the engine can produce.
 pub const MAX_POLYPHONY: usize = 16;
 
-/// A trigger event sent to the acoustic model to start a voice (v10.2.0+ —
-/// dragonzen audit I4: renamed from `KeyEvent` to avoid collision with
-/// `zylaxion_input::KeyEvent` which represents a raw kernel input event
-/// with a timestamp. `KeyTrigger` is the DSP-side concept: it carries the
-/// scancode, press/release state, and pre-computed stereo position. The
-/// orchestrator translates `zylaxion_input::KeyEvent` → `KeyTrigger` by
-/// computing the stereo position from the scancode.
+/// A trigger event sent to the acoustic model to start a voice.
+///
+/// `KeyTrigger` is the DSP-side concept: it carries the scancode,
+/// press/release state, pre-computed stereo position, and optional
+/// velocity for analog switches. The orchestrator translates
+/// `zylaxion_input::KeyEvent` → `KeyTrigger` by computing the stereo
+/// position from the scancode.
+///
+/// # Velocity (v11.0.0+ — analog switch support)
+///
+/// `velocity: Option<f32>` enables Hall-effect / analog switch
+/// support (Wooting Lekker, Topre R3, Razer Analog Optical, etc.).
+/// - `None` = digital switch (default). The DSP treats this as full
+///   velocity (1.0) — standard mechanical keyboards.
+/// - `Some(v)` where `v` is in `[0.0, 1.0]` = analog switch. The
+///   DSP scales amplitude, resonance, and excitation burst duration
+///   proportionally. A light tap (`Some(0.3)`) produces a quieter,
+///   softer click; a hard press (`Some(1.0)`) matches the digital
+///   behavior.
+///
+/// The standard libinput input path always sends `None`. A future
+/// Hall-effect input source would fill in the velocity from the
+/// device's analog data.
 #[derive(Debug, Clone, Copy)]
 pub struct KeyTrigger {
     /// Hardware evdev scancode of the key.
@@ -44,6 +60,10 @@ pub struct KeyTrigger {
     pub pressed: bool,
     /// Stereo panning position: -1.0 (full left) to 1.0 (full right).
     pub stereo_position: f32,
+    /// Analog key velocity: `None` for digital switches (treated as
+    /// 1.0), `Some(0.0..=1.0)` for Hall-effect / analog switches.
+    /// (v11.0.0+)
+    pub velocity: Option<f32>,
 }
 
 /// Parameters controlling the initial click transient of a key press.
@@ -618,7 +638,13 @@ pub trait AcousticModel: Send + Sync {
     /// Implementers should pre-compute all filter coefficients, pan gains, and
     /// timing values here so that `render_sample` is free of division and
     /// transcendentals.
-    fn init_state(&self, profile: &KeyProfile, state: &mut SynthState, stereo_position: f32);
+    fn init_state(
+        &self,
+        profile: &KeyProfile,
+        state: &mut SynthState,
+        stereo_position: f32,
+        velocity: Option<f32>,
+    );
 
     /// Render a single stereo sample.
     ///
@@ -711,71 +737,6 @@ impl Default for HousingParams {
             mix: 0.4,
         }
     }
-}
-
-// ── Profile loading ──────────────────────────────────────────────────
-//
-// The two functions in this section (`load_profile_from_file` and
-// `load_profile_from_str`) are the LEGACY `[profile]`-table format
-// used pre-v0.3.0. The daemon and CLI use the newer
-// `ProfileWithOverrides::parse` (which expects `[default]` + optional
-// `[[keys]]` blocks) and the `zylaxion::config` resolver (which
-// expects `[preset.X]` tables).
-//
-// v10.2.0 (dragonzen audit I7): these are kept for backwards
-// compatibility with external callers that may still use the legacy
-// format, but marked `#[deprecated]`. Plan to remove in v11.0.0.
-// If you're writing new code, use `ProfileWithOverrides::parse`
-// instead — it supports per-key overrides and is the format the
-// shipping `config.toml` uses.
-
-/// Load a [`KeyProfile`] from a TOML file (legacy `[profile]` format).
-///
-/// # Deprecated
-///
-/// Use [`ProfileWithOverrides::parse`] instead — it supports the
-/// `[default]` + `[[keys]]` format used by the shipping `config.toml`,
-/// including per-key overrides. This legacy loader only handles the
-/// pre-v0.3.0 `[profile]` table format and will be removed in v11.0.0.
-///
-/// # Errors
-///
-/// Returns a human-readable error string if the file cannot be read or
-/// parsed.  This function is intentionally fallible — callers should
-/// fall back to a hardcoded default on failure.
-#[deprecated(
-    since = "10.2.0",
-    note = "use `ProfileWithOverrides::parse` instead — this legacy `[profile]`-table loader will be removed in v11.0.0"
-)]
-#[allow(deprecated)]
-pub fn load_profile_from_file(path: &std::path::Path) -> Result<KeyProfile, String> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
-    load_profile_from_str(&content)
-}
-
-/// Parse a [`KeyProfile`] from a TOML string (legacy `[profile]` format).
-///
-/// # Deprecated
-///
-/// Use [`ProfileWithOverrides::parse`] instead. See the deprecation
-/// note on [`load_profile_from_file`] for details.
-///
-/// Expects the standard `[profile]` top-level table. The parsed profile
-/// is validated and clamped to safe DSP ranges before being returned.
-#[deprecated(
-    since = "10.2.0",
-    note = "use `ProfileWithOverrides::parse` instead — this legacy `[profile]`-table loader will be removed in v11.0.0"
-)]
-pub fn load_profile_from_str(toml: &str) -> Result<KeyProfile, String> {
-    #[derive(Deserialize)]
-    struct ProfileFile {
-        profile: KeyProfile,
-    }
-    let mut file: ProfileFile =
-        toml::from_str(toml).map_err(|e| format!("failed to parse profile TOML: {e}"))?;
-    file.profile.validate_and_clamp();
-    Ok(file.profile)
 }
 
 // ── Validation & clamping ───────────────────────────────────────────
@@ -1675,32 +1636,5 @@ noise_decay = 0.97
         let other = p.for_scancode(999);
         assert!(!other.ambient.enabled);
         assert_eq!(other.ambient.noise_level, 0.1);
-    }
-
-    #[test]
-    #[allow(deprecated)]
-    fn load_profile_from_str_clamps_legacy_format() {
-        // The legacy [profile] format (used pre-v0.3.0) should still
-        // parse and be validated. Test uses the deprecated function
-        // deliberately — `#[allow(deprecated)]` silences the warning.
-        let toml = r#"
-[profile]
-[profile.click]
-frequency = 4500.0
-resonance = 2.0
-duration_ms = 1.5
-amplitude = 0.8
-[profile.spring]
-frequency = 1800.0
-resonance = 3.5
-mix = 0.6
-[profile.decay]
-coefficient = 1.5
-voice_off_threshold = 0.00001
-"#;
-        let p = load_profile_from_str(toml).expect("parse should succeed");
-        // decay = 1.5 (>= 1.0) MUST be clamped to prevent infinite loops.
-        assert!(p.decay.coefficient < 1.0);
-        assert_eq!(p.decay.coefficient, ranges::DECAY_COEFF_MAX);
     }
 }

@@ -16,10 +16,11 @@ fn render_energy(profile: KeyProfile, n: usize) -> f32 {
         scancode: 30,
         pressed: true,
         stereo_position: 0.0,
+        velocity: None,
     };
     let p = model.get_profile(&event);
     let mut state = SynthState::default();
-    model.init_state(&p, &mut state, event.stereo_position);
+    model.init_state(&p, &mut state, event.stereo_position, None);
 
     let mut sum_sq = 0.0_f32;
     for _ in 0..n {

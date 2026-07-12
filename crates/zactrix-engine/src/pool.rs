@@ -37,7 +37,7 @@ use crate::Voice;
 /// let mut pool = VoicePool::new();
 ///
 /// pool.trigger(&model, &KeyTrigger {
-///     scancode: 30, pressed: true, stereo_position: -0.3,
+///     scancode: 30, pressed: true, stereo_position: -0.3, velocity: None,
 /// });
 ///
 /// // Render one second of audio
@@ -157,7 +157,12 @@ impl VoicePool {
         voice.profile = profile;
         voice.scancode = event.scancode;
         voice.trigger_timestamp = ts;
-        model.init_state(&voice.profile, &mut voice.state, event.stereo_position);
+        model.init_state(
+            &voice.profile,
+            &mut voice.state,
+            event.stereo_position,
+            event.velocity,
+        );
     }
 
     /// Release all active voices matching the given scancode.
@@ -350,6 +355,7 @@ mod tests {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
         assert_eq!(pool.active_count(), 1);
@@ -372,6 +378,7 @@ mod tests {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
         assert_eq!(pool.active_count(), 1);
@@ -414,6 +421,7 @@ mod tests {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
         pool.release(999); // non-existent
@@ -442,6 +450,7 @@ mod tests {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
 
@@ -489,6 +498,7 @@ mod tests {
                     scancode: 10 + i,
                     pressed: true,
                     stereo_position: 0.0,
+                    velocity: None,
                 },
             );
         }
@@ -501,6 +511,7 @@ mod tests {
                 scancode: 999,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
         assert_eq!(pool.active_count(), MAX_POLYPHONY);
@@ -525,6 +536,7 @@ mod tests {
                     scancode: 10 + i,
                     pressed: true,
                     stereo_position: 0.0,
+                    velocity: None,
                 },
             );
         }
@@ -536,6 +548,7 @@ mod tests {
                 scancode: 901,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
         pool.trigger(
@@ -544,6 +557,7 @@ mod tests {
                 scancode: 902,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
 
@@ -569,6 +583,7 @@ mod tests {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
 
@@ -617,6 +632,7 @@ mod tests {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
         let mut samples_a: Vec<[f32; 2]> = Vec::with_capacity(256);
@@ -634,6 +650,7 @@ mod tests {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
         let mut samples_b = vec![[0.0f32; 2]; 256];
@@ -660,6 +677,7 @@ mod tests {
                 scancode: 30,
                 pressed: true,
                 stereo_position: -1.0,
+                velocity: None,
             },
         );
         pool.trigger(
@@ -668,6 +686,7 @@ mod tests {
                 scancode: 48,
                 pressed: true,
                 stereo_position: 1.0,
+                velocity: None,
             },
         );
 
@@ -696,6 +715,7 @@ mod tests {
                     scancode: i,
                     pressed: true,
                     stereo_position: 0.0,
+                    velocity: None,
                 },
             );
         }
@@ -719,6 +739,7 @@ mod tests {
                 scancode: 30,
                 pressed: true,
                 stereo_position: -0.7,
+                velocity: None,
             },
         );
         pool.trigger(
@@ -727,6 +748,7 @@ mod tests {
                 scancode: 48,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
         pool.trigger(
@@ -735,6 +757,7 @@ mod tests {
                 scancode: 2,
                 pressed: true,
                 stereo_position: 0.5,
+                velocity: None,
             },
         );
 
@@ -786,6 +809,7 @@ mod tests {
                     scancode: 100 + i,
                     pressed: true,
                     stereo_position: 0.0,
+                    velocity: None,
                 },
             );
         }
@@ -827,6 +851,7 @@ mod tests {
                 _profile: &KeyProfile,
                 state: &mut SynthState,
                 _stereo_position: f32,
+                _velocity: Option<f32>,
             ) {
                 state.active = true;
             }
@@ -845,6 +870,7 @@ mod tests {
                 scancode: 42,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
 
@@ -875,6 +901,7 @@ mod tests {
                 scancode: 30,
                 pressed: true,
                 stereo_position: 0.0,
+                velocity: None,
             },
         );
 

@@ -316,7 +316,13 @@ impl AcousticModel for MechanicalClick {
         self.profiles.for_scancode(event.scancode)
     }
 
-    fn init_state(&self, profile: &KeyProfile, state: &mut SynthState, stereo_position: f32) {
+    fn init_state(
+        &self,
+        profile: &KeyProfile,
+        state: &mut SynthState,
+        stereo_position: f32,
+        velocity: Option<f32>,
+    ) {
         let sr = self.sample_rate;
 
         // ── Micro-randomization (v5.0.0+, v10.2.0 overhaul) ─────────
@@ -416,9 +422,21 @@ impl AcousticModel for MechanicalClick {
             (profile.click.amplitude * (1.0 + amplitude_drift) * (1.0 - interval_attenuation))
                 .clamp(0.0, 2.0);
 
-        // Pre-compute click filter TPT coefficients (using drifted frequency)
+        // v11.0.0: Analog velocity support (Hall-effect switches).
+        // velocity scales: amplitude (louder hit = louder sound),
+        // resonance (harder press = slightly brighter click). None =
+        // digital switch, treated as 1.0.
+        let vel = velocity.unwrap_or(1.0).clamp(0.0, 1.0);
+        let velocity_amplitude = (amplitude * vel).clamp(0.0, 2.0);
+        // Harder press → slightly lower Q (brighter, more energy
+        // passes through the bandpass). Light tap → higher Q (narrower,
+        // more muted). Scale: ±20% of the profile resonance.
+        let velocity_resonance_scale = 1.0 + (1.0 - vel) * 0.2;
+
+        // Pre-compute click filter TPT coefficients (using drifted
+        // frequency + velocity-modulated resonance)
         state.click_g = (std::f32::consts::PI * click_freq / sr).tan();
-        state.click_k = 1.0 / profile.click.resonance;
+        state.click_k = 1.0 / (profile.click.resonance * velocity_resonance_scale);
 
         // Pre-compute spring filter TPT coefficients (using drifted frequency)
         state.spring_g = (std::f32::consts::PI * spring_freq / sr).tan();
@@ -502,7 +520,8 @@ impl AcousticModel for MechanicalClick {
         // Reset envelope and sample counter. Uses the drifted amplitude
         // so the entire voice starts at a slightly different level each
         // keypress.
-        state.envelope_value = amplitude;
+        // v11.0.0: use velocity-scaled amplitude for the envelope.
+        state.envelope_value = velocity_amplitude;
         state.sample_count = 0;
 
         // Initialize the click + spring noise generator with the
@@ -840,6 +859,7 @@ mod tests {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
+            velocity: None,
         };
 
         let profile = model.get_profile(&event);
@@ -858,11 +878,12 @@ mod tests {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
+            velocity: None,
         };
 
         let profile = model.get_profile(&event);
         let mut state = SynthState::default();
-        model.init_state(&profile, &mut state, event.stereo_position);
+        model.init_state(&profile, &mut state, event.stereo_position, None);
 
         // v10.2.0 (N6): per-keypress pan jitter (±3%) means L and R
         // are no longer bit-identical even at center pan. The
@@ -882,11 +903,12 @@ mod tests {
             scancode: 42,
             pressed: true,
             stereo_position: -1.0,
+            velocity: None,
         };
 
         let profile = model.get_profile(&event);
         let mut state = SynthState::default();
-        model.init_state(&profile, &mut state, event.stereo_position);
+        model.init_state(&profile, &mut state, event.stereo_position, None);
 
         let [l, r] = model.render_sample(&mut state);
         assert!(
@@ -902,11 +924,12 @@ mod tests {
             scancode: 42,
             pressed: true,
             stereo_position: 1.0,
+            velocity: None,
         };
 
         let profile = model.get_profile(&event);
         let mut state = SynthState::default();
-        model.init_state(&profile, &mut state, event.stereo_position);
+        model.init_state(&profile, &mut state, event.stereo_position, None);
 
         let [l, r] = model.render_sample(&mut state);
         assert!(
@@ -922,11 +945,12 @@ mod tests {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
+            velocity: None,
         };
 
         let profile = model.get_profile(&event);
         let mut state = SynthState::default();
-        model.init_state(&profile, &mut state, event.stereo_position);
+        model.init_state(&profile, &mut state, event.stereo_position, None);
 
         let mut peak: f32 = 0.0;
         let mut deactivated = false;
@@ -954,11 +978,12 @@ mod tests {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
+            velocity: None,
         };
 
         let profile = model.get_profile(&event);
         let mut state = SynthState::default();
-        model.init_state(&profile, &mut state, event.stereo_position);
+        model.init_state(&profile, &mut state, event.stereo_position, None);
 
         // Render until voice deactivates
         for _ in 0..500_000 {
@@ -984,11 +1009,12 @@ mod tests {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
+            velocity: None,
         };
 
         let profile = model.get_profile(&event);
         let mut state = SynthState::default();
-        model.init_state(&profile, &mut state, event.stereo_position);
+        model.init_state(&profile, &mut state, event.stereo_position, None);
 
         let burst_end = state.excitation_samples as usize;
 
@@ -1023,11 +1049,12 @@ mod tests {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
+            velocity: None,
         };
 
         let profile = model.get_profile(&event);
         let mut state = SynthState::default();
-        model.init_state(&profile, &mut state, event.stereo_position);
+        model.init_state(&profile, &mut state, event.stereo_position, None);
 
         // Render up to the burst midpoint.
         let mid = state.excitation_samples / 2;
@@ -1061,6 +1088,7 @@ mod tests {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
+            velocity: None,
         };
 
         // First press — no previous, no attenuation. Returns 0
@@ -1072,7 +1100,7 @@ mod tests {
         );
         let profile1 = model.get_profile(&event);
         let mut state1 = SynthState::default();
-        model.init_state(&profile1, &mut state1, event.stereo_position);
+        model.init_state(&profile1, &mut state1, event.stereo_position, None);
         let amp_first = state1.envelope_value;
 
         // Second press 20 ms later — fast repeat, should attenuate by
@@ -1097,7 +1125,7 @@ mod tests {
         // mechanism.)
         let profile2 = model.get_profile(&event);
         let mut state2 = SynthState::default();
-        model.init_state(&profile2, &mut state2, event.stereo_position);
+        model.init_state(&profile2, &mut state2, event.stereo_position, None);
         // Smoke: state2 should be active with a positive envelope.
         assert!(state2.active, "voice should be active after trigger");
         assert!(
@@ -1119,6 +1147,7 @@ mod tests {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
+            velocity: None,
         };
 
         // Render many presses and collect the pan_jitter values.
@@ -1128,7 +1157,7 @@ mod tests {
         for _ in 0..20 {
             let profile = model.get_profile(&event);
             let mut state = SynthState::default();
-            model.init_state(&profile, &mut state, event.stereo_position);
+            model.init_state(&profile, &mut state, event.stereo_position, None);
             // Quantize to f32 bits — same value = same hash.
             jitters.insert(state.pan_jitter.to_le_bytes());
         }
@@ -1160,11 +1189,12 @@ mod tests {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
+            velocity: None,
         };
 
         let p = model.get_profile(&event);
         let mut state = SynthState::default();
-        model.init_state(&p, &mut state, event.stereo_position);
+        model.init_state(&p, &mut state, event.stereo_position, None);
 
         // Track envelope_value over time. Compute the per-sample
         // ratio for the fast stage (samples 1..fast_samples_count)
@@ -1226,11 +1256,12 @@ mod tests {
             scancode: 42,
             pressed: true,
             stereo_position: 0.0,
+            velocity: None,
         };
 
         let p = model.get_profile(&event);
         let mut state = SynthState::default();
-        model.init_state(&p, &mut state, event.stereo_position);
+        model.init_state(&p, &mut state, event.stereo_position, None);
 
         assert_eq!(
             state.fast_samples_count, 0,
@@ -1250,6 +1281,56 @@ mod tests {
         assert!(
             (ratio1 - state.decay_coeff).abs() < 1e-6,
             "disabled two-stage should use decay_coeff everywhere, got ratio={ratio1:.6}"
+        );
+    }
+
+    /// v11.0.0: analog velocity scales amplitude. A light tap (0.3)
+    /// should produce a quieter envelope than a full press (None=1.0).
+    #[test]
+    fn test_velocity_scales_amplitude() {
+        let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
+        let profile = KeyProfile::default();
+
+        // Full press (digital switch — None = 1.0).
+        let mut state_full = SynthState::default();
+        model.init_state(&profile, &mut state_full, 0.0, None);
+        let amp_full = state_full.envelope_value;
+
+        // Light tap (analog — Some(0.3)).
+        let mut state_light = SynthState::default();
+        model.init_state(&profile, &mut state_light, 0.0, Some(0.3));
+        let amp_light = state_light.envelope_value;
+
+        assert!(
+            amp_light < amp_full * 0.8,
+            "light tap (0.3) should produce quieter amplitude than full press: \
+             light={amp_light:.4}, full={amp_full:.4}"
+        );
+        assert!(
+            amp_light > 0.0,
+            "light tap should still produce positive amplitude: {amp_light:.4}"
+        );
+    }
+
+    /// v11.0.0: velocity=None (digital) and velocity=Some(1.0) (full
+    /// analog) should produce identical amplitude.
+    #[test]
+    fn test_velocity_none_equals_full() {
+        let model = MechanicalClick::new(crate::SAMPLE_RATE as u32);
+        let profile = KeyProfile::default();
+
+        let mut state_digital = SynthState::default();
+        model.init_state(&profile, &mut state_digital, 0.0, None);
+
+        let mut state_analog_full = SynthState::default();
+        model.init_state(&profile, &mut state_analog_full, 0.0, Some(1.0));
+
+        // Amplitudes should be very close (modulo micro-randomization
+        // drift, which differs per keystroke). Allow 10% tolerance.
+        let ratio = state_digital.envelope_value / state_analog_full.envelope_value;
+        assert!(
+            (ratio - 1.0).abs() < 0.1,
+            "None and Some(1.0) should produce similar amplitude: ratio={ratio:.4}"
         );
     }
 }
