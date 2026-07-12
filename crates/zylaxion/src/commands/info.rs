@@ -5,6 +5,7 @@
 //! and the no-subcommand `overview`.
 
 use std::process;
+use std::sync::Arc;
 
 use cpal::traits::{DeviceTrait, HostTrait};
 
@@ -290,6 +291,48 @@ pub fn cmd_overview() {
         println!("  zylaxion doctor        # system check");
     }
     println!();
+}
+
+/// Live overview: refresh the status every 2 seconds (like `watch`).
+/// Clears the screen + reprints the overview. Press Ctrl+C to exit.
+/// (v10.2.0+ — user feedback: `--live` flag)
+pub fn cmd_live_overview() {
+    use std::io::{self, Write};
+
+    // Install a simple SIGINT handler so Ctrl+C exits cleanly
+    // instead of panicking.
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let stop_clone = Arc::clone(&stop);
+    let _ = signal_hook::flag::register(signal_hook::consts::SIGINT, stop_clone);
+
+    loop {
+        if stop.load(std::sync::atomic::Ordering::Relaxed) {
+            break;
+        }
+
+        // Clear screen + move cursor to top-left.
+        print!("\x1b[2J\x1b[H");
+        let _ = io::stdout().flush();
+
+        // Print the overview.
+        cmd_overview();
+
+        // Print a footer with refresh hint.
+        println!("  (refreshing every 2s — Ctrl+C to exit)");
+        let _ = io::stdout().flush();
+
+        // Sleep 2s, but check stop flag every 200ms for responsive exit.
+        for _ in 0..10 {
+            if stop.load(std::sync::atomic::Ordering::Relaxed) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
+    }
+
+    // Clear screen on exit for clean terminal.
+    print!("\x1b[2J\x1b[H");
+    let _ = io::stdout().flush();
 }
 
 /// Check if the current user is in the 'input' group by parsing
