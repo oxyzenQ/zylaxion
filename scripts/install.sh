@@ -98,6 +98,23 @@ fi
 echo ">> [2/4] Installing binary (${MODE})"
 case "${MODE}" in
     --system)
+        # v10.2.0: if a user-local install exists, clean it up first
+        # so there are no stale binaries or config in ~ that would
+        # shadow the system-wide install.
+        user_bin="${HOME}/.local/bin/${PROJECT_NAME}"
+        user_cfg="${HOME}/.config/${PROJECT_NAME}/config.toml"
+        user_svc="${HOME}/.config/systemd/user/${PROJECT_NAME}.service"
+        if [[ -f "${user_bin}" ]] || [[ -f "${user_cfg}" ]] || [[ -f "${user_svc}" ]]; then
+            echo "   cleaning existing user-local install..."
+            rm -f "${user_bin}" "${user_svc}"
+            # Remove config only if it's identical to the system one
+            # (same file). If the user customized it, keep it — the
+            # user-local config takes priority over /etc anyway.
+            if [[ -f "${user_cfg}" ]]; then
+                echo "   note: keeping ${user_cfg} (user-local override)"
+            fi
+            echo "   cleaned: ${user_bin} + ${user_svc}"
+        fi
         "${SUDO}" install -Dm755 "${BINARY}" "/usr/bin/${PROJECT_NAME}"
         echo "   installed: /usr/bin/${PROJECT_NAME}"
         ;;
