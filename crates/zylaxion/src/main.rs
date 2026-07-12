@@ -97,6 +97,12 @@ fn main() {
             cli::Commands::ListPresets => commands::info::cmd_list_presets(),
             cli::Commands::ListBackends => commands::info::cmd_list_backends(),
         },
-        None => commands::info::cmd_overview(),
+        None => {
+            if cli.live {
+                commands::info::cmd_live_overview();
+            } else {
+                commands::info::cmd_overview();
+            }
+        }
     }
 }

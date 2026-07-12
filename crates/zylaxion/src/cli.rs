@@ -90,6 +90,12 @@ pub struct Cli {
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
+    /// Live mode: refresh the overview every 2 seconds (like `watch`).
+    /// Only effective without a subcommand. Press Ctrl+C to exit.
+    /// (v10.2.0+ — user feedback)
+    #[arg(long, global = false)]
+    pub live: bool,
+
     /// Without a subcommand: show a quick status overview (daemon
     /// state, active preset, audio device). With a subcommand: run
     /// that subcommand. (v10.2.0+ — user feedback)
