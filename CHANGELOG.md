@@ -20,6 +20,19 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-improve-3**: the README grows a Demo section in the zelynic
+  shape — the brand-styled `zylaxion -h` output rendered as
+  `assets/zylaxion-help-demo.png` inside the round-border wrapper
+  (border-radius 24px + soft shadow, purple-family branding). The
+  asset is an honest capture: the image is typeset from the actual
+  binary's stdout (color escape stream parsed verbatim), not a mock —
+  and the help surface touches no audio or input hardware, so a
+  capture host renders it byte-identical to a desktop. A demo video
+  (typing sounds) requires real audio hardware the sandbox lacks; the
+  README records that it follows at the next owner-host capture
+  session, the same standing-disclaimer class the zelynic demo
+  section uses.
+
 - **night-improve-1**: the scripts tree now follows the zelynic
   organization — `scripts/package/install.sh`,
   `scripts/package/uninstall.sh`, and `scripts/dev/version-to.sh`
