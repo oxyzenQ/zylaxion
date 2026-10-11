@@ -68,8 +68,8 @@ license terms.
 | ---------- | -------------- | ------------------------------------------------------------ |
 | Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions   |
 | Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year                 |
-| Business   | $5,199/year    | SMB, revenue $100K – $10M/year                               |
-| Company    | $110,199/year  | Enterprise (>$10M/year revenue) OR any redistribution rights |
+| Business   | $2,199/year    | Individual businesses and small teams (SMB)                  |
+| Company    | $9,199/year    | Companies and enterprise, OR any redistribution rights       |
 
 Notes:
 
@@ -81,7 +81,10 @@ Notes:
   value increases year by year; the owner re-prices the business end of
   the ladder as the project compounds. Grandfathering is the standing
   rule: buyers who paid before any move keep the price they paid, for
-  the term they bought.
+  the term they bought. The business end moves with the work: Business
+  $2,199/year and Company $9,199/year are the owner's pricing call for
+  zylaxion (night-improve-17) — Personal stays free and Individual
+  holds at $99/year.
 - **Redistribution rights** are granted at the Company tier only.
   Trademark licensing is separate — see
   [TRADEMARK.md](TRADEMARK.md).
@@ -148,17 +151,23 @@ BTC to a non-Taproot address — permanently lose funds.
 88umzS7abaToaGQVgTVXt5SnuvcjTw2jPSM6Ha2JYmXM
 ```
 
+![Solana payment address QR code](assets/qr/solana.png)
+
 ### Ethereum (ETH / USDT-ERC20 / USDC-ERC20)
 
 ```text
 0x1bCbA21c07B5636a942De27AA7Ee8283cEDb4C3D
 ```
 
+![Ethereum payment address QR code](assets/qr/ethereum.png)
+
 ### Bitcoin (BTC, Taproot P2TR)
 
 ```text
 bc1p88nqysn4p8u9zxwz2pyxs5pl77wllcrk6ca2r2l3ryr3863hxkys5vdkze
 ```
+
+![Bitcoin payment address QR code](assets/qr/bitcoin.png)
 
 These addresses double as the project's voluntary donation addresses;
 commercial payments are distinguished by the licensing inquiry that

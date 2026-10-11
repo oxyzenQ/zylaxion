@@ -436,6 +436,100 @@ LibinputSource ──►      recv_timeout()
                                           ringbuf ──►  cpal callback
 ```
 
+## Stability
+
+### Stable API (from v11.0.0)
+
+The CLI surface is frozen. No breaking changes to commands, flags, or
+output format. Future releases focus on:
+
+- Bug fixes
+- Kernel and desktop-stack compatibility updates
+- Performance improvements (internal, no API changes)
+
+### Release channels
+
+Stable releases are tagged `vX.Y.Z`. Pre-release builds are restricted
+to five channels — `dev`, `nightly`, `alpha`, `beta`, `rc` (e.g.
+`v1.0.0-dev.1`, `v1.0.0-rc.1`). CI rejects any other suffix and never
+marks a pre-release as "latest".
+
+## Support
+
+zylaxion is an open-source project built and maintained independently —
+the author is **rezky_nightky (oxyzenQ)**.
+
+If this project made your keyboard sound the way it always should have,
+you can support future maintenance here:
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/rezky)
+
+### Crypto donations
+
+Owner-verified receive addresses. All three passed offline cryptographic
+verification (EIP-55 mixed-case checksum for Ethereum, bech32m
+witness-v1 for Taproot, base58-to-32-byte ed25519 key for Solana).
+Always double-check the address on screen before sending — network
+mismatches (e.g., sending USDT-ERC20 to a Solana address, or sending
+BTC to a non-Taproot address) will permanently lose funds.
+
+- **Solana** — `SOL` / `USDT` (SPL) on Solana mainnet: `88umzS7abaToaGQVgTVXt5SnuvcjTw2jPSM6Ha2JYmXM`
+- **Ethereum** — `ETH` / `USDT` (ERC-20) / `USDC` (ERC-20) on Ethereum mainnet: `0x1bCbA21c07B5636a942De27AA7Ee8283cEDb4C3D`
+- **Bitcoin** — `BTC` on Taproot (P2TR, bech32m, `bc1p`-prefixed — verified Taproot, not native SegWit): `bc1p88nqysn4p8u9zxwz2pyxs5pl77wllcrk6ca2r2l3ryr3863hxkys5vdkze`
+
+The QR codes for all three live in
+[COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md#5-payment) — the same
+owner-verified addresses. Support is optional. The project remains
+open-source.
+
+## Commercial Licensing
+
+Companies using zylaxion in production need a commercial license.
+
+zylaxion is dual-licensed: **GPL-3.0-only** for open-source use, and a
+**Commercial License** for proprietary and commercial use (SaaS
+offerings, internal tools that cannot meet copyleft, redistribution
+under your own terms). Full details, payment instructions, and the
+verification process live in [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md);
+the short version:
+
+| Tier       | Price          | Target                                              |
+| ---------- | -------------- | --------------------------------------------------- |
+| Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, contributions      |
+| Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year        |
+| Business   | $2,199/year    | Individual businesses and small teams (SMB)         |
+| Company    | $9,199/year    | Companies and enterprise, OR redistribution rights  |
+
+The business end of the ladder follows the value upward
+(night-improve-17): zylaxion is a masterpiece, and its value increases
+year by year — the price tracks the value, and it will keep rising as
+the work compounds. Buyers who paid before a move are grandfathered at
+the price they bought, for the term they bought.
+
+**Unauthorized use is theft.** Taking this code — stealing it, forking
+it illegally, stripping the license, or building a closed-source
+commercial product on it — without first contacting the owner
+(rezky_nightky / oxyzenQ) and paying the license is, in the owner's own
+words, the mark of the worst kind of human — a rotten one. The honest
+paths are exactly two: comply with GPL-3.0-only (free, first-class, not
+a trial), or buy the tier your revenue honestly matches. There is no
+third path that leaves you clean.
+
+Tiers are self-declared in good faith. Payment is USD-pegged crypto
+(Solana / Ethereum / Bitcoin, owner-verified addresses with QR codes —
+see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)). Licensing contact:
+[with.rezky@gmail.com](mailto:with.rezky@gmail.com).
+
+The voluntary [crypto donations](#crypto-donations) above are separate
+from commercial licensing — donations support the project; a commercial
+license buys rights.
+
+## License
+
+Dual-licensed: **GPL-3.0-only** for open-source use (see
+[LICENSE](LICENSE)), or the **Commercial License** for proprietary and
+commercial use (see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)).
+
 ## Intellectual Property & Trademark
 
 **zylaxion** is the exclusive intellectual property of
