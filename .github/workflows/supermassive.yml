@@ -1,0 +1,136 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+# SUPERMASSIVE — the deep battery (night-improve-7, owner-approved until
+# peak LTS; the name and the seat are the zelynic lineage).
+# =============================================================================
+#
+# Runs weekly (Mon 05:00 UTC, ahead of the 07:00 maintenance lane) and on
+# demand via workflow_dispatch. Deliberately NOT on push: the push estate is
+# ci.yml's job; this workflow is the periodic deep proof a push lane must
+# not pay for on every commit.
+#
+# Honest physics of a sound keyboard in CI: there is no audio device and no
+# input device on a runner. What the battery therefore proves — and proves
+# deeply, on the pinned toolchain, not a floating one:
+#   - the full test surface of all six workspace crates, every target class
+#     (lib, bins, tests, examples, benches) and every feature combination
+#     (the Zactrix engine's procedural synthesis, profile math, orchestrator
+#     wiring, CLI/config/daemon unit contracts are pure computation and run
+#     headless by design);
+#   - the documentation build with warnings denied;
+#   - the exact release shape (the `cargo pro-linux-amd64-gnu` alias, the
+#     release workflow's build contract verbatim) plus the binary's
+#     hardware-free surfaces: -V (build identity) and -h (the branded help
+#     render), the same surfaces the README demo asset was captured from.
+# What it cannot prove and does not claim: real ALSA output timing and real
+# libinput event flow — those need hardware and stay the owner's desktop
+# verification.
+#
+# Toolchain: no rustup override anywhere — rust-toolchain.toml's 1.98.1 pin
+# governs every cargo invocation, so the battery always tests the exact
+# toolchain the MSRV contract promises.
+#
+# Action pins: release-commit SHAs with version tokens, the night-improve-8
+# estate — kept current by scripts/gates/check-actions-pins.sh.
+
+---
+name: Supermassive
+
+"on":
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 1" # Monday 05:00 UTC — ahead of the maintenance lane
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supermassive-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-battery:
+    name: supermassive test - full battery (pinned toolchain)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            libasound2-dev libinput-dev libudev-dev pkg-config
+
+      - name: Install pinned toolchain (rust-toolchain.toml governs)
+        run: rustup show active-toolchain
+
+      - name: Cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-supermassive-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-supermassive-
+
+      - name: Formatting gate
+        run: cargo fmt --all -- --check
+
+      - name: Full test battery (all targets, all features)
+        run: cargo test --workspace --all-targets --all-features
+
+      - name: Documentation build, warnings denied
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo doc --workspace --no-deps --all-features
+
+  release-shape:
+    name: supermassive test - release shape proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            libasound2-dev libinput-dev libudev-dev pkg-config
+
+      - name: Install pinned toolchain (rust-toolchain.toml governs)
+        run: rustup show active-toolchain
+
+      - name: Cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-supermassive-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-supermassive-release-
+
+      - name: Build the exact release shape (night-improve-11 alias)
+        run: cargo pro-linux-amd64-gnu --locked
+
+      - name: Binary identity and hardware-free surfaces
+        run: |
+          BIN="target/x86_64-unknown-linux-gnu/release/zylaxion"
+          file "${BIN}"
+          ldd "${BIN}" || true
+          du -h "${BIN}"
+          echo "--- zylaxion -V ---"
+          "${BIN}" -V
+          echo "--- zylaxion -h (first 20 lines) ---"
+          "${BIN}" -h | head -20
