@@ -32,31 +32,6 @@ mod privilege;
 mod signals;
 
 fn main() {
-    // v10.2.0 (dragonzen audit I6): set RUST_LOG as the very first
-    // thing, BEFORE `Cli::parse()`. The previous order (parse first,
-    // then set_var) worked because clap is single-threaded today,
-    // but that's not a stable contract — clap's help/version flags
-    // could spawn threads in the future. Doing it first eliminates
-    // the race window entirely.
-    //
-    // We peek argv directly (no clap) for `--verbose` so we don't
-    // depend on parser internals. A pre-existing RUST_LOG env var
-    // takes precedence over the `--verbose` heuristic — power users
-    // who set RUST_LOG=trace manually keep their setting.
-    let verbose = std::env::args().any(|a| a == "--verbose" || a == "-v");
-    if std::env::var_os("RUST_LOG").is_none() {
-        // SAFETY (night-improve-4, edition 2024): `set_var` is unsafe
-        // in the 2024 edition because it races with concurrent reads
-        // of the environment. This runs at the very top of `main`,
-        // before any thread exists (the comment above records why
-        // this must stay first), so no other thread can observe the
-        // write — the single-threaded precondition the std docs name
-        // holds by construction here.
-        unsafe {
-            std::env::set_var("RUST_LOG", if verbose { "debug" } else { "info" });
-        }
-    }
-
     // v10.2.0 (dragonzen audit S3): install a panic hook that logs
     // the panic location + payload before the default handler prints
     // to stderr. This is critical for the cpal audio callback path:
@@ -88,22 +63,10 @@ fn main() {
         prev_hook(info);
     }));
 
-    // Early-exit flags — intercepted BEFORE `Cli::parse()` to bypass Clap's
-    // subcommand requirement. This is the bulletproof way to handle early-exit
-    // flags without fighting the parser: `zylaxion --check-update` (with no
-    // subcommand) would otherwise error out before the flag is ever processed.
-    if std::env::args().any(|a| a == "--check-update") {
-        commands::update::run_check_update();
-        std::process::exit(0);
-    }
-    // (night-improve-16: the privilege guard lives INSIDE
-    // `run_check_update` — refuse euid 0 before any network I/O, the
-    // zelynic placement — so any future caller inherits the guard.)
-
     // -V / --version (night-improve-13): intercepted when it is the FIRST
     // argument — the documented invocation shape (`zylaxion -V`) — so the
-    // version report renders through the brand lane (purple header on a
-    // TTY, the zelynic print_version_report parity) instead of clap's
+    // version report renders through the brand lane (purple TTY header via
+    // new stdout lanes; clap path shares one body), instead of clap's
     // plain dump. Any other position falls through to clap, whose own
     // version rendering carries the same report body (the two surfaces
     // share one body via cli::version_body, they cannot drift on facts).
@@ -116,6 +79,19 @@ fn main() {
     }
 
     let cli = cli::Cli::parse();
+
+    // Early-exit surfaces (night-improve-15, the zelynic dispatch
+    // order): the curated help first, then the network check. Both
+    // are real parsed fields now — the former argv peeks (and the
+    // dead clap fields behind them) are gone.
+    if cli.help {
+        commands::help::print_reference();
+        std::process::exit(0);
+    }
+    if cli.check_update {
+        commands::update::run_check_update();
+        std::process::exit(0);
+    }
 
     match cli.command {
         Some(cmd) => match cmd {

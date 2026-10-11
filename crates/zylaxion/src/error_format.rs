@@ -52,12 +52,12 @@ const WARN_OPEN: &str = "\x1b[38;2;255;235;60m";
 /// Warning yellow, bold — the label token itself.
 const WARN_BOLD_OPEN: &str = "\x1b[1;38;2;255;235;60m";
 /// Brand purple `#A855F7`, bold — section headers.
-const BRAND_OPEN: &str = "\x1b[1;38;2;168;85;247m";
+pub(crate) const BRAND_OPEN: &str = "\x1b[1;38;2;168;85;247m";
 /// Calm grey `#8B8B8B` — the passive-suggestion tier.
-const GREY_OPEN: &str = "\x1b[38;2;139;139;139m";
+pub(crate) const GREY_OPEN: &str = "\x1b[38;2;139;139;139m";
 /// Status green `#50FA7B` — affirmative verdicts and runnable tips.
-const OK_OPEN: &str = "\x1b[38;2;80;250;123m";
-const RESET: &str = "\x1b[0m";
+pub(crate) const OK_OPEN: &str = "\x1b[38;2;80;250;123m";
+pub(crate) const RESET: &str = "\x1b[0m";
 
 /// Whether stderr may carry color: a TTY, `NO_COLOR` unset, and
 /// `CLICOLOR != 0` (checked once per call — these paths are cold).
@@ -195,8 +195,10 @@ pub fn ok_marker(text: &str) -> String {
 // change: the gate probes stdout instead of stderr.
 
 /// Whether stdout may carry color: a TTY, `NO_COLOR` unset, and
-/// `CLICOLOR != 0` (the exact stderr rule, stdout-scoped).
-fn stdout_color_enabled() -> bool {
+/// `CLICOLOR != 0` (the exact stderr rule, stdout-scoped). Exposed
+/// crate-wide so curated stdout surfaces (the help reference) gate
+/// their spans on the same rule.
+pub(crate) fn stdout_color_enabled() -> bool {
     if !std::io::stdout().is_terminal() {
         return false;
     }
