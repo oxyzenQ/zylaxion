@@ -1,3 +1,6 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
 [workspace]
 members = [
     "crates/zactrix-engine",
@@ -10,8 +13,19 @@ members = [
 resolver = "2"
 
 [workspace.package]
+# night-improve-4: edition 2024 across ALL packages so the repo speaks
+# one edition (the zelynic lineage). Migration verified clean: the 2024
+# hard errors (unsafe attributes, unsafe extern blocks, static mut
+# refs) have zero call sites in this tree — every unsafe block is a
+# plain nix/libc FFI wrapper. The 2024 floor is Rust 1.85; the pinned
+# toolchain below (1.98.1) rides far above it.
+edition = "2024"
+# night-improve-4: the MSRV contract, pinned to the exact toolchain
+# rust-toolchain.toml installs (1.98.1). Bumping either half of the
+# pair is a two-file change: this field and that channel — never one
+# alone, or the declared floor and the tested floor drift apart.
+rust-version = "1.98.1"
 version = "11.0.0"
-edition = "2021"
 license = "GPL-3.0-only"
 authors = ["rezky_nightky (oxyzenQ)"]
 repository = "https://github.com/oxyzenQ/zylaxion"

@@ -483,14 +483,16 @@ fn validate_config_str(content: &str) -> Result<(), String> {
     }
 
     // Check that tuning (if present) references an existing preset.
-    if let Some(tuning) = &parsed.tuning {
-        if !parsed.presets.contains_key(tuning) {
-            return Err(format!(
-                "preset.tuning = '{}' references a preset that does not exist. Available: {}",
-                tuning,
-                format_preset_list(&parsed.presets)
-            ));
-        }
+    // night-improve-4 (edition 2024): let-chains collapse the nested
+    // guard clippy flagged as collapsible_if.
+    if let Some(tuning) = &parsed.tuning
+        && !parsed.presets.contains_key(tuning)
+    {
+        return Err(format!(
+            "preset.tuning = '{}' references a preset that does not exist. Available: {}",
+            tuning,
+            format_preset_list(&parsed.presets)
+        ));
     }
 
     Ok(())

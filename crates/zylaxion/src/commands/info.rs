@@ -355,12 +355,13 @@ fn check_input_group() -> bool {
 
     if let Ok(content) = std::fs::read_to_string("/etc/group") {
         for line in content.lines() {
-            if let Some(rest) = line.strip_prefix("input:x:") {
-                if let Some(gid_str) = rest.split(':').next() {
-                    if let Ok(input_gid) = gid_str.parse::<u32>() {
-                        return user_groups.contains(&input_gid);
-                    }
-                }
+            // night-improve-4 (edition 2024): let-chains collapse the
+            // nested guards clippy flagged as collapsible_if.
+            if let Some(rest) = line.strip_prefix("input:x:")
+                && let Some(gid_str) = rest.split(':').next()
+                && let Ok(input_gid) = gid_str.parse::<u32>()
+            {
+                return user_groups.contains(&input_gid);
             }
         }
     }

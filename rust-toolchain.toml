@@ -1,7 +1,17 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
+# Default toolchain: pinned to 1.98.1 (with rustfmt + clippy).
+#
+# Dormant mode (night-improve-4): pinned to a specific version instead
+# of "stable" so a future stable release cannot silently break the
+# build. The channel mirrors the MSRV in Cargo.toml (rust-version =
+# "1.98.1") — bump both together via the same change, then run the
+# full gatekeeper (./scripts/build.sh --check-all) to verify. Edition
+# and channel are different axes: the 2024 edition's floor (1.85) is
+# far below this pin.
+
 [toolchain]
-channel = "stable"
+channel = "1.98.1"
 profile = "minimal"
 components = ["rustfmt", "clippy"]

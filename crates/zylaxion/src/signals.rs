@@ -40,8 +40,8 @@
 //! --foreground` mode (systemd), SIGHUP is harmless — systemd doesn't
 //! send it during normal operation.
 
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 use signal_hook::consts::{SIGHUP, SIGINT, SIGQUIT, SIGTERM};
 use signal_hook::flag;

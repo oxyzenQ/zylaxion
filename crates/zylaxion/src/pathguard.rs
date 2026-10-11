@@ -125,13 +125,19 @@ pub fn resolve_runtime_dir() -> PathBuf {
     }
 }
 
+/// Serialize env-mutating tests across the crate (night-improve-4,
+/// edition 2024). `std::env::set_var`/`remove_var` became unsafe
+/// because they race with concurrent environment reads; every test
+/// that mutates the environment must hold this crate-wide lock so
+/// parallel test threads never race each other's save/restore
+/// windows. This suite takes it inside `with_test_env`; the
+/// `instance_lock` suite takes it via `crate::pathguard::ENV_LOCK`.
+#[cfg(test)]
+pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
-
-    /// Serialize env-mutating tests.
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn with_test_env<F: FnOnce()>(home: &str, xdg_runtime: Option<&str>, f: F) {
         // Recover from poison if a previous test panicked while holding the lock.
@@ -139,21 +145,33 @@ mod tests {
         let old_home = std::env::var_os("HOME");
         let old_xdg = std::env::var_os("XDG_RUNTIME_DIR");
 
-        std::env::set_var("HOME", home);
-        match xdg_runtime {
-            Some(v) => std::env::set_var("XDG_RUNTIME_DIR", v),
-            None => std::env::remove_var("XDG_RUNTIME_DIR"),
+        // SAFETY (night-improve-4, edition 2024): `set_var`/`remove_var`
+        // are unsafe because they race with concurrent environment
+        // reads. ENV_LOCK is held for the whole save/mutate/test/restore
+        // window, and every env-mutating test in this crate takes the
+        // same crate-wide lock, so no concurrent read can observe a
+        // torn state here.
+        unsafe {
+            std::env::set_var("HOME", home);
+            match xdg_runtime {
+                Some(v) => std::env::set_var("XDG_RUNTIME_DIR", v),
+                None => std::env::remove_var("XDG_RUNTIME_DIR"),
+            }
         }
 
         f();
 
-        match old_home {
-            Some(h) => std::env::set_var("HOME", h),
-            None => std::env::remove_var("HOME"),
-        }
-        match old_xdg {
-            Some(v) => std::env::set_var("XDG_RUNTIME_DIR", v),
-            None => std::env::remove_var("XDG_RUNTIME_DIR"),
+        // SAFETY (night-improve-4, edition 2024): restore path — same
+        // serialized ENV_LOCK window as the mutation block above.
+        unsafe {
+            match old_home {
+                Some(h) => std::env::set_var("HOME", h),
+                None => std::env::remove_var("HOME"),
+            }
+            match old_xdg {
+                Some(v) => std::env::set_var("XDG_RUNTIME_DIR", v),
+                None => std::env::remove_var("XDG_RUNTIME_DIR"),
+            }
         }
     }
 
@@ -206,7 +224,11 @@ mod tests {
             for p in [
                 "/proc", "/sys", "/dev", "/boot", "/root", "/usr", "/bin", "/sbin", "/lib",
             ] {
-                std::env::set_var("XDG_RUNTIME_DIR", p);
+                // SAFETY (night-improve-4, edition 2024): mutation under
+                // the held ENV_LOCK — see `with_test_env`.
+                unsafe {
+                    std::env::set_var("XDG_RUNTIME_DIR", p);
+                }
                 assert_eq!(
                     resolve_runtime_dir(),
                     PathBuf::from("/tmp"),

@@ -39,7 +39,16 @@ fn main() {
     // who set RUST_LOG=trace manually keep their setting.
     let verbose = std::env::args().any(|a| a == "--verbose" || a == "-v");
     if std::env::var_os("RUST_LOG").is_none() {
-        std::env::set_var("RUST_LOG", if verbose { "debug" } else { "info" });
+        // SAFETY (night-improve-4, edition 2024): `set_var` is unsafe
+        // in the 2024 edition because it races with concurrent reads
+        // of the environment. This runs at the very top of `main`,
+        // before any thread exists (the comment above records why
+        // this must stay first), so no other thread can observe the
+        // write — the single-threaded precondition the std docs name
+        // holds by construction here.
+        unsafe {
+            std::env::set_var("RUST_LOG", if verbose { "debug" } else { "info" });
+        }
     }
 
     // v10.2.0 (dragonzen audit S3): install a panic hook that logs
