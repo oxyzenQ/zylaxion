@@ -76,7 +76,14 @@ fn main() {
         std::process::exit(0);
     }
 
-    let cli = cli::Cli::parse();
+    // Fatal parse errors render through the UX bridge (night-improve-19,
+    // the zelynic lineage): brand-styled render, the case-insensitive
+    // typo rescue behind clap's own engine, exactly one canonical
+    // footer, exit 2. The version surface keeps clap's exit 0.
+    let cli = match cli::Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(e) => cli::ux::exit_clap_error(e),
+    };
 
     // Early-exit surfaces (night-improve-15, the zelynic dispatch
     // order): the curated help first, then the network check. Both
