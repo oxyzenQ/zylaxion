@@ -24,7 +24,7 @@
 //! flag, not a critical op. The one hard-exit surface is the
 //! privilege guard (night-improve-16): under euid 0 the check
 //! refuses with the "do not use sudo" verdict and exits 1 BEFORE
-//! any network I/O — see [`crate::privilege::network_refusal`].
+//! any network I/O — see [`crate::session::privilege::network_refusal`].
 
 use std::process::Command;
 
@@ -153,8 +153,10 @@ pub fn run_check_update() {
     // where root is the hazard instead of the requirement. The refusal
     // is a usage violation, not an informational failure, so it exits
     // 1 (the informational failure paths below keep exit 0).
-    if let Some(refusal) = crate::privilege::network_refusal(crate::privilege::euid_is_root()) {
-        crate::error_format::error(refusal);
+    if let Some(refusal) =
+        crate::session::privilege::network_refusal(crate::session::privilege::euid_is_root())
+    {
+        crate::output::error(refusal);
         std::process::exit(1);
     }
 
@@ -178,9 +180,9 @@ pub fn run_check_update() {
         Err(e) => {
             if e.kind() == std::io::ErrorKind::NotFound {
                 // night-improve-6: every failure rides the labeled lane.
-                crate::error_format::error("update check failed: curl is not available on PATH");
+                crate::output::error("update check failed: curl is not available on PATH");
             } else {
-                crate::error_format::error(format!("update check failed: {e}"));
+                crate::output::error(format!("update check failed: {e}"));
             }
             return;
         }
@@ -188,7 +190,7 @@ pub fn run_check_update() {
 
     if !output.status.success() {
         let code = output.status.code().unwrap_or(-1);
-        crate::error_format::error(format!(
+        crate::output::error(format!(
             "update check failed: {}",
             interpret_curl_exit(code)
         ));
@@ -198,7 +200,7 @@ pub fn run_check_update() {
     let raw = match String::from_utf8(output.stdout) {
         Ok(s) => s,
         Err(_) => {
-            crate::error_format::error("update check failed: response was not valid UTF-8");
+            crate::output::error("update check failed: response was not valid UTF-8");
             return;
         }
     };
@@ -206,13 +208,13 @@ pub fn run_check_update() {
     let (body, status_str) = match raw.rsplit_once('\n') {
         Some(pair) => pair,
         None => {
-            crate::error_format::error("update check failed: GitHub API response was malformed");
+            crate::output::error("update check failed: GitHub API response was malformed");
             return;
         }
     };
     let status: u16 = status_str.trim().parse().unwrap_or(0);
     if status != 200 {
-        crate::error_format::error(format!(
+        crate::output::error(format!(
             "update check failed: {}",
             interpret_http_status(status)
         ));
@@ -222,7 +224,7 @@ pub fn run_check_update() {
     let latest_tag = match extract_tag_name(body) {
         Some(t) => t,
         None => {
-            crate::error_format::error(
+            crate::output::error(
                 "update check failed: could not parse latest release tag from GitHub response",
             );
             return;

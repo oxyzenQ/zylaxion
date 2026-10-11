@@ -42,14 +42,14 @@ pub struct IpcResponse {
 /// — falls back to `/tmp` if the env var points to a dangerous system
 /// path (e.g. `/etc`, `/usr`, `~/.ssh`).
 pub fn socket_path() -> PathBuf {
-    crate::pathguard::resolve_runtime_dir().join("zylaxion.sock")
+    crate::session::pathguard::resolve_runtime_dir().join("zylaxion.sock")
 }
 
 /// Return the path to the daemon PID file.
 ///
 /// Same pathguard validation as `socket_path()`.
 pub fn pid_path() -> PathBuf {
-    crate::pathguard::resolve_runtime_dir().join("zylaxion.pid")
+    crate::session::pathguard::resolve_runtime_dir().join("zylaxion.pid")
 }
 
 /// Strict permission applied to the IPC socket file: `0o600`

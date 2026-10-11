@@ -28,8 +28,8 @@ The zylaxion logo lives in `assets/`. Width: **260px**.
 
 The zelynic family color contract (night-improve-6). Purple is the branding
 color; the semantic tiers below are shared across the toolchain so the clap
-surface (`crates/zylaxion/src/cli_styles.rs`) and the application-rendered
-output (`crates/zylaxion/src/error_format.rs`) read as one tool:
+surface (`crates/zylaxion/src/cli/styles.rs`) and the application-rendered
+output (`crates/zylaxion/src/output/mod.rs`) read as one tool:
 
 | Tier | Value | Used for |
 |---|---|---|

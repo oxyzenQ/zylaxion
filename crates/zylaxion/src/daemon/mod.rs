@@ -93,14 +93,14 @@ pub fn daemonize() -> Result<DaemonChildSync, String> {
                         // night-improve-6: route through the labeled lane
                         // instead of a hand-rolled prefix duplicate.
                         let msg = String::from_utf8_lossy(&buf);
-                        crate::error_format::error(format!("daemon init failed: {msg}"));
+                        crate::output::error(format!("daemon init failed: {msg}"));
                         std::process::exit(1);
                     }
                 }
                 Err(e) => {
                     // night-improve-6: labeled lane, not a hand-rolled
                     // prefix duplicate.
-                    crate::error_format::error(format!("init-sync pipe read failed: {e}"));
+                    crate::output::error(format!("init-sync pipe read failed: {e}"));
                     std::process::exit(1);
                 }
             }
@@ -392,12 +392,12 @@ pub fn client_send_and_print(cmd: &str) {
             if resp.ok {
                 println!("{}", resp.message);
             } else {
-                crate::error_format::error(resp.message);
+                crate::output::error(resp.message);
                 std::process::exit(1);
             }
         }
         Err(e) => {
-            crate::error_format::error(e);
+            crate::output::error(e);
             std::process::exit(1);
         }
     }
@@ -421,12 +421,12 @@ pub fn cmd_status() {
                     }
                 }
             } else {
-                crate::error_format::error(resp.message);
+                crate::output::error(resp.message);
                 std::process::exit(1);
             }
         }
         Err(e) => {
-            crate::error_format::error(e);
+            crate::output::error(e);
             std::process::exit(1);
         }
     }

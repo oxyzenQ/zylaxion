@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use cpal::traits::{DeviceTrait, HostTrait};
 
-use crate::config;
+use crate::session::config;
 
 /// Print a system-health diagnostic report (build facts, input group,
 /// XDG, audio).
@@ -19,13 +19,10 @@ use crate::config;
 /// variant, build timestamp, rustc, profile — the binary answers "which
 /// exact artifact am I?" before anything about the host, because on a
 /// foreign build every host verdict below reads differently. Every fact
-/// is compile-time truth assembled by [`crate::build_info`] (the
+/// is compile-time truth assembled by [`crate::info::build`] (the
 /// Hinnant clock stamps the build time, no time crate).
 pub fn cmd_doctor() {
-    println!(
-        "{}\n",
-        crate::error_format::section("=== zylaxion doctor ===")
-    );
+    println!("{}\n", crate::output::section("=== zylaxion doctor ==="));
 
     // Privilege awareness (night-improve-16, the audit's warn lane):
     // doctor stays reachable as root (a diagnostic must diagnose), but
@@ -33,13 +30,13 @@ pub fn cmd_doctor() {
     // always "in" the input group, root's audio server is a different
     // instance, root's XDG_RUNTIME_DIR may not even be the user's.
     // Name the distortion up front so the report cannot mislead.
-    if crate::privilege::euid_is_root() {
-        crate::error_format::warning(
+    if crate::session::privilege::euid_is_root() {
+        crate::output::warning(
             "running as root — the verdicts below describe root's session, not yours",
         );
         println!(
             "      {}",
-            crate::error_format::tip_line("tip: re-run without sudo")
+            crate::output::tip_line("tip: re-run without sudo")
         );
         println!();
     }
@@ -48,8 +45,8 @@ pub fn cmd_doctor() {
 
     // 0. Build facts (compile-time truth — cannot fail, never counts
     // against the ok verdict).
-    let build = crate::build_info::BuildInfo::collect();
-    println!("{}", crate::error_format::section("[1/4] Build facts..."));
+    let build = crate::info::build::BuildInfo::collect();
+    println!("{}", crate::output::section("[1/4] Build facts..."));
     println!("      Version:    v{}", build.version);
     println!("      Commit:     {}", build.git_sha);
     println!("      Variant:    {}", build.variant);
@@ -60,46 +57,43 @@ pub fn cmd_doctor() {
     // 1. Input group check.
     println!(
         "\n{}",
-        crate::error_format::section("[2/4] Input group membership...")
+        crate::output::section("[2/4] Input group membership...")
     );
     if check_input_group() {
         println!(
             "      {}",
-            crate::error_format::ok_line("PASS: user is in the 'input' group")
+            crate::output::ok_line("PASS: user is in the 'input' group")
         );
     } else {
         println!(
             "      {}",
-            crate::error_format::fail_line("FAIL: user is NOT in the 'input' group")
+            crate::output::fail_line("FAIL: user is NOT in the 'input' group")
         );
         println!(
             "      {}",
-            crate::error_format::tip_line("fix: sudo usermod -aG input $USER")
+            crate::output::tip_line("fix: sudo usermod -aG input $USER")
         );
         println!(
             "      {}",
-            crate::error_format::tip_line("then log out and back in")
+            crate::output::tip_line("then log out and back in")
         );
         ok = false;
     }
 
     // 2. XDG_RUNTIME_DIR check.
-    println!(
-        "\n{}",
-        crate::error_format::section("[3/4] XDG_RUNTIME_DIR...")
-    );
+    println!("\n{}", crate::output::section("[3/4] XDG_RUNTIME_DIR..."));
     match std::env::var("XDG_RUNTIME_DIR") {
         Ok(dir) => {
             let path = std::path::Path::new(&dir);
             if path.is_dir() {
                 println!(
                     "      {}",
-                    crate::error_format::ok_line(&format!("PASS: $XDG_RUNTIME_DIR = {dir}"))
+                    crate::output::ok_line(&format!("PASS: $XDG_RUNTIME_DIR = {dir}"))
                 );
             } else {
                 println!(
                     "      {}",
-                    crate::error_format::fail_line(&format!(
+                    crate::output::fail_line(&format!(
                         "FAIL: $XDG_RUNTIME_DIR = {dir} (not a directory)"
                     ))
                 );
@@ -109,37 +103,34 @@ pub fn cmd_doctor() {
         Err(_) => {
             println!(
                 "      {}",
-                crate::error_format::fail_line("FAIL: $XDG_RUNTIME_DIR is not set")
+                crate::output::fail_line("FAIL: $XDG_RUNTIME_DIR is not set")
             );
             println!(
                 "      {}",
-                crate::error_format::tip_line("fix: export XDG_RUNTIME_DIR=/run/user/$(id -u)")
+                crate::output::tip_line("fix: export XDG_RUNTIME_DIR=/run/user/$(id -u)")
             );
             ok = false;
         }
     }
 
     // 3. Audio server check (best-effort).
-    println!(
-        "\n{}",
-        crate::error_format::section("[4/4] Audio server...")
-    );
+    println!("\n{}", crate::output::section("[4/4] Audio server..."));
     match cpal::default_host().default_output_device() {
         Some(device) => {
             let name = device.name().unwrap_or_else(|_| "<unknown>".into());
             println!(
                 "      {}",
-                crate::error_format::ok_line(&format!("PASS: default output device: {name}"))
+                crate::output::ok_line(&format!("PASS: default output device: {name}"))
             );
         }
         None => {
             println!(
                 "      {}",
-                crate::error_format::fail_line("FAIL: no audio output device found")
+                crate::output::fail_line("FAIL: no audio output device found")
             );
             println!(
                 "      {}",
-                crate::error_format::tip_line("fix: start PipeWire or PulseAudio")
+                crate::output::tip_line("fix: start PipeWire or PulseAudio")
             );
             ok = false;
         }
@@ -149,12 +140,12 @@ pub fn cmd_doctor() {
     if ok {
         println!(
             "{}",
-            crate::error_format::ok_line("All checks passed — zylaxion is ready to run.")
+            crate::output::ok_line("All checks passed — zylaxion is ready to run.")
         );
     } else {
         println!(
             "{}",
-            crate::error_format::fail_line("Some checks failed — see above for fixes.")
+            crate::output::fail_line("Some checks failed — see above for fixes.")
         );
         process::exit(1);
     }
@@ -177,7 +168,7 @@ pub fn cmd_testconf(file: Option<&str>) {
 
         // v10.2.0: reject files without .toml extension.
         if path.extension().and_then(|e| e.to_str()) != Some("toml") {
-            crate::error_format::error(format!("file must have .toml extension: {path_str}"));
+            crate::output::error(format!("file must have .toml extension: {path_str}"));
             process::exit(1);
         }
 
@@ -186,7 +177,7 @@ pub fn cmd_testconf(file: Option<&str>) {
         let canonical = match path.canonicalize() {
             Ok(c) => c,
             Err(_) => {
-                crate::error_format::error(format!("file not found: {path_str}"));
+                crate::output::error(format!("file not found: {path_str}"));
                 process::exit(1);
             }
         };
@@ -221,7 +212,7 @@ pub fn cmd_testconf(file: Option<&str>) {
         });
 
         if !is_allowed {
-            crate::error_format::error(format!(
+            crate::output::error(format!(
                 "file must be within a zylaxion config directory \
                  (~/.config/zylaxion/, /etc/zylaxion/, /usr/local/share/zylaxion/, or CWD): {path_str}"
             ));
@@ -232,11 +223,11 @@ pub fn cmd_testconf(file: Option<&str>) {
             Ok(()) => {
                 println!(
                     "{}",
-                    crate::error_format::ok_line(&format!("Config OK: {}", canonical.display()))
+                    crate::output::ok_line(&format!("Config OK: {}", canonical.display()))
                 );
             }
             Err(err) => {
-                crate::error_format::error(format!("in {}: {err}", canonical.display()));
+                crate::output::error(format!("in {}: {err}", canonical.display()));
                 process::exit(1);
             }
         }
@@ -246,15 +237,15 @@ pub fn cmd_testconf(file: Option<&str>) {
             Ok(path) => {
                 println!(
                     "{}",
-                    crate::error_format::ok_line(&format!("Config OK: {}", path.display()))
+                    crate::output::ok_line(&format!("Config OK: {}", path.display()))
                 );
             }
             Err((Some(path), err)) => {
-                crate::error_format::error(format!("in {}: {err}", path.display()));
+                crate::output::error(format!("in {}: {err}", path.display()));
                 process::exit(1);
             }
             Err((None, err)) => {
-                crate::error_format::error(format!(
+                crate::output::error(format!(
                     "{err}\n\nSearched:\n  1. $XDG_CONFIG_HOME/zylaxion/config.toml\n     (or ~/.config/zylaxion/config.toml if unset)\n  2. /etc/zylaxion/config.toml\n  3. /usr/local/share/zylaxion/config.toml\n  4. ./config.toml (current directory)"
                 ));
                 process::exit(1);
@@ -273,7 +264,7 @@ pub fn cmd_list_presets() {
             println!("Available presets (from {}):\n", path.display());
             for name in &names {
                 let marker = if name == &active {
-                    crate::error_format::ok_marker(" <- active")
+                    crate::output::ok_marker(" <- active")
                 } else {
                     String::new()
                 };
@@ -287,7 +278,7 @@ pub fn cmd_list_presets() {
             println!("  Run: zylaxion start --preset <name>");
         }
         Err(e) => {
-            crate::error_format::error(e);
+            crate::output::error(e);
             process::exit(1);
         }
     }

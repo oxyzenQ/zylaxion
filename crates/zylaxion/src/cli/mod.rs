@@ -7,7 +7,7 @@
 //! contract: brand header (`zylaxion: v<ver>` + the one-line tagline),
 //! then the plain build-facts body — `Build:`, `Build-time:`,
 //! `Copyright:`, `License:`, `Source:`. The build facts come from
-//! [`crate::build_info`] (the Hinnant clock stamps them, no time
+//! [`crate::info::build`] (the Hinnant clock stamps them, no time
 //! crate). Two surfaces share ONE body so they cannot drift:
 //! `-V` / `--version` intercepted in `main.rs` renders the brand header
 //! in purple on a TTY via [`print_version_report`], and clap's own
@@ -22,6 +22,8 @@
 
 use clap::{Parser, Subcommand};
 use std::sync::OnceLock;
+
+pub mod styles;
 
 /// The one-line tagline under the version header — the same string the
 /// clap `about` surface carries, kept as a const so the report header
@@ -43,9 +45,9 @@ fn version_body() -> String {
          Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
          License: GPL-3.0-only\n\
          Source: https://github.com/oxyzenQ/zylaxion",
-        crate::build_info::build_label(),
-        crate::build_info::build_hash(),
-        crate::build_info::build_time(),
+        crate::info::build::build_label(),
+        crate::info::build::build_hash(),
+        crate::info::build::build_time(),
     )
 }
 
@@ -64,7 +66,7 @@ fn long_version() -> &'static str {
         .get_or_init(|| {
             format!(
                 "zylaxion: v{}\n{}\n{}",
-                crate::build_info::VERSION,
+                crate::info::build::VERSION,
                 ABOUT,
                 version_body()
             )
@@ -82,9 +84,9 @@ fn long_version() -> &'static str {
 /// scripts or log files. The body stays on plain lines so it is easy to
 /// grep from scripts (`zylaxion -V | grep Build-time`).
 pub fn print_version_report() {
-    let header = format!("zylaxion: v{}\n{}", crate::build_info::VERSION, ABOUT);
-    crate::error_format::print_stdout_brand(&header);
-    crate::error_format::print_stdout_line(&version_body());
+    let header = format!("zylaxion: v{}\n{}", crate::info::build::VERSION, ABOUT);
+    crate::output::print_stdout_brand(&header);
+    crate::output::print_stdout_line(&version_body());
 }
 
 #[cfg(test)]
@@ -169,7 +171,7 @@ mod tests {
     long_about = None,
     disable_help_flag = true,
     disable_help_subcommand = true,
-    styles = crate::cli_styles::styles()
+    styles = crate::cli::styles::styles()
 )]
 pub struct Cli {
     /// Print the end-to-end reference (commands, examples, flags)

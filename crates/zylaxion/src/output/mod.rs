@@ -33,7 +33,7 @@
 //!
 //! # Capability gate
 //!
-//! One gate, no depth ladder (the contract `cli_styles` documents for
+//! One gate, no depth ladder (the contract `crate::cli::styles` documents for
 //! the clap surface): color renders only when stderr is a terminal,
 //! `NO_COLOR` is unset and `CLICOLOR != 0`. Truecolor escapes ride the
 //! same approximation rule as clap's probe — a 16-color terminal

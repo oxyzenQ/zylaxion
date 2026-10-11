@@ -279,7 +279,7 @@ mod tests {
     /// the exact `key = value` shapes the manifest writes.
     #[test]
     fn release_profile_consts_pin_the_manifest_contract() {
-        let manifest = include_str!("../../../Cargo.toml");
+        let manifest = include_str!("../../../../Cargo.toml");
         let profile_section = manifest
             .split("[profile.release]")
             .nth(1)
