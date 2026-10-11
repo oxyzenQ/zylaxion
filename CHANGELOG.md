@@ -20,6 +20,14 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-improve-0**: the design philosophy is now codified in
+  `docs/PHILOSOPHY.md` under the owner's "the boring and stealth"
+  banner — one sound done perfectly, the keystroke never leaves the
+  process, Linux-first evdev-only input, pure procedural synthesis
+  with zero assets, lean dependencies, honesty over impression. The
+  README Security & Privacy section links to it. Docs-only change;
+  no code touched.
+
 - **night-improve-5**: restructured the changelog — the v10-era
   record moved to `docs/archive/CHANGELOG-V10.0.0-ERA.md` (frozen
   history, wrapped with an archive note), the v6.0.0 release notes
