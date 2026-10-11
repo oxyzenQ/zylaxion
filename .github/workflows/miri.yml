@@ -1,0 +1,131 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+# Dragon Guard - Miri — undefined-behavior verification of the pure-Rust core
+# =============================================================================
+#
+# night-improve-12d (the zelynic miri lineage, sized to zylaxion): miri
+# interprets every instruction, so it is the UB net under the pure-
+# computation surface — the string/math/logic core (the Hinnant clock
+# lanes, the config parser/validator, the preset tuning tables, the
+# engine pool math, the CLI contracts) where an unsafe-adjacent
+# refactor would first lie. The hardware lanes (evdev/libinput
+# capture, the cpal audio callback) cannot run under an interpreter
+# and no test spawns them — the suite is already the pure surface by
+# the CI physics (no audio/input device in the runner).
+#
+# Weekly cadence mirrors the zelynic contract: miri is slow and
+# nightly-only, so it is not on the per-PR critical path — the path
+# filters catch Rust-surface changes the same week, and the Sunday run
+# (00:00 UTC / 07:00 WIB) picks up whatever slipped through.
+#
+# Deliberately NO RUSTFLAGS=-D warnings here: the miri build is not
+# the warning-gated lane (ci.yml owns that contract), and pinning
+# warnings on the interpreter build would couple two unrelated
+# policies.
+
+name: Dragon Guard - Miri
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "**/*.rs"
+      - "**/*.toml"
+      - "**/Cargo.lock"
+      - ".cargo/**"
+      - "scripts/**"
+      - ".github/workflows/miri.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      # Same spelling as push (the no-drift law).
+      - "**/*.rs"
+      - "**/*.toml"
+      - "**/Cargo.lock"
+      - ".cargo/**"
+      - "scripts/**"
+      - ".github/workflows/miri.yml"
+  schedule:
+    # Sunday 00:00 UTC (07:00 WIB) — picks up the week's commits in
+    # one shot, the zelynic cadence.
+    - cron: "0 0 * * 0"
+  # Manual trigger from the Actions tab.
+  workflow_dispatch:
+
+# Least privilege: the job only reads the repo.
+permissions:
+  contents: read
+
+# Rapid pushes to the same ref cancel the superseded run instead of
+# queueing a duplicate miri build.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  miri:
+    name: Miri UB verification (workspace test suite)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, the zelynic estate SHA pin
+
+      # The moving `nightly` tag with the miri component — the
+      # interpreter build rides nightly by construction; the
+      # rust-toolchain.toml stable pin stays the shipping contract and
+      # is NOT overridden for the normal lanes.
+      - name: Install nightly + miri
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # @stable, the zelynic estate SHA pin
+        with:
+          toolchain: nightly
+          components: miri
+
+      # The workspace links the C hardware stack (alsa, libinput,
+      # udev) even though no test exercises the devices — the build
+      # needs the dev headers or the sys crates' pkg-config probes
+      # fail before miri can interpret a single test.
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            libasound2-dev libinput-dev libudev-dev pkg-config
+
+      - name: Cache cargo registry & build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6, the zelynic estate SHA pin
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: miri-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            miri-
+
+      # The interpreted run: every workspace test suite under miri's
+      # engine. Miri flags: -Zmiri-disable-isolation is NOT set (the
+      # suite must stay deterministic — a test needing host isolation
+      # would be a test bug, and miri failing loudly is the contract);
+      # the backtrace flag keeps a UB report actionable in the log.
+      - name: Run Miri over the workspace test suite
+        run: |
+          set -euo pipefail
+          cargo +nightly miri test --workspace 2>&1 | tee target/miri-log.txt
+          echo ""
+          echo "=== Miri verdict: all suites interpreted clean ==="
+
+      # The failure evidence outlives the runner: the interpreted log
+      # (which test, which allocation, which borrow).
+      - name: Upload Miri log on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7, the zelynic estate SHA pin
+        with:
+          name: miri-log
+          path: target/miri-log.txt
+          retention-days: 30

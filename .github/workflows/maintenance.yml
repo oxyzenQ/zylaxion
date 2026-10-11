@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 ---
-name: Maintenance deps weekly
+name: Dragon Guard - Dependency Maintenance
 
 "on":
   workflow_dispatch:
