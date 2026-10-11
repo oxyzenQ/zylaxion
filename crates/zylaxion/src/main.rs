@@ -13,6 +13,8 @@
 //! - [`config`]    — filesystem search for the central `config.toml`
 //! - [`commands`]  — subcommand handlers (`start`, `daemon`, `stop`, `doctor`, …)
 //! - [`daemon`]    — POSIX daemonization, PID file, signal handling, IPC
+//! - [`privilege`] — the root-usage audit (refusals for the network
+//!   and daemon surfaces, the night-improve-16 guard)
 
 use clap::Parser;
 
@@ -26,6 +28,7 @@ mod daemon;
 mod error_format;
 mod instance_lock;
 mod pathguard;
+mod privilege;
 mod signals;
 
 fn main() {
@@ -93,6 +96,9 @@ fn main() {
         commands::update::run_check_update();
         std::process::exit(0);
     }
+    // (night-improve-16: the privilege guard lives INSIDE
+    // `run_check_update` — refuse euid 0 before any network I/O, the
+    // zelynic placement — so any future caller inherits the guard.)
 
     // -V / --version (night-improve-13): intercepted when it is the FIRST
     // argument — the documented invocation shape (`zylaxion -V`) — so the
