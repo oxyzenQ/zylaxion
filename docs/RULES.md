@@ -45,7 +45,7 @@ upstream GitHub release.
      `cargo-audit` is not installed, the script prints a warning and
      continues instead of failing. Install with `cargo install
      cargo-audit` to enable the audit gate.
-- **`scripts/version-to.sh vMAJOR.MINOR.PATCH`:** Single-source-of-truth version bumper.
+- **`scripts/dev/version-to.sh vMAJOR.MINOR.PATCH`:** Single-source-of-truth version bumper.
   Patches all `Cargo.toml` files. Zero tolerance for manual version edits.
 
 ## Build Prerequisites
@@ -76,11 +76,11 @@ A CI runner missing any of these will fail at `cargo clippy` with
 - `assets/zylaxion.service` is a systemd **user** unit (not system —
   Zylaxion runs per-user so it inherits the user's PulseAudio/PipeWire
   cookie and `XDG_RUNTIME_DIR`).
-- `scripts/install.sh` deploys the unit to:
+- `scripts/package/install.sh` deploys the unit to:
   - `~/.config/systemd/user/zylaxion.service` when run as a normal user.
   - `/etc/systemd/user/zylaxion.service` when run as root (system-wide
     default for all users).
-- `scripts/uninstall.sh` removes the unit and prints a reminder to run
+- `scripts/package/uninstall.sh` removes the unit and prints a reminder to run
   `systemctl --user disable zylaxion` first.
 - The unit uses `Type=simple`, `Restart=on-failure`, `RestartSec=3`,
   and `After=pipewire.service sound.target` so it always starts after

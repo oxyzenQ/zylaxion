@@ -9,7 +9,7 @@
 set -euo pipefail
 
 PROJECT_NAME="zylaxion"
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CONFIG_SRC="${REPO_ROOT}/config.toml"
 SERVICE_SRC="${REPO_ROOT}/assets/zylaxion.service"
 
@@ -194,6 +194,6 @@ echo "  - Verify config:"
 echo "      ${PROJECT_NAME} testconf"
 echo "  - Uninstall:"
 case "${MODE}" in
-    --system) echo "      sudo ./scripts/uninstall.sh --system" ;;
-    --user)   echo "      ./scripts/uninstall.sh" ;;
+    --system) echo "      sudo ./scripts/package/uninstall.sh --system" ;;
+    --user)   echo "      ./scripts/package/uninstall.sh" ;;
 esac

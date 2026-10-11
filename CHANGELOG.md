@@ -20,6 +20,22 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-improve-1**: the scripts tree now follows the zelynic
+  organization — `scripts/package/install.sh`,
+  `scripts/package/uninstall.sh`, and `scripts/dev/version-to.sh`
+  join `scripts/build.sh` at the root, matching the zelynic layout
+  (`dev/` for development tooling, `package/` for install flow). All
+  internal and documentation references updated (README, RULES.md,
+  and the scripts' own usage strings) and `install.sh`'s repo-root
+  resolution adjusted for its new depth. `build.sh` gains the zelynic
+  gate interface: the bare `check-all` spelling plus `-q`/`--quiet`
+  (essentials-only output — verdicts always emit, banners do not), so
+  `./scripts/build.sh check-all -q` works verbatim. File permissions
+  normalized to the owner's 644/755 contract (the zelynic
+  check-permissions policy): the 21 non-executable files tracked as
+  100755 (sources, manifests, lock, license, gitignore) demoted to
+  644, the four shebang scripts stay 755, directories 755.
+
 - **night-improve-2**: the helper output (`-h`/`--help`, usage lines,
   and clap-printed errors) now carries the brand palette via a new
   `cli_styles` module — the zelynic clap-styling pattern. Section

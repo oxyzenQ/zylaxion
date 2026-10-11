@@ -84,7 +84,7 @@ case "${MODE}" in
             remove_at "${HOME}/.config/${PROJECT_NAME}" no
         elif [[ -f "${HOME}/.config/${PROJECT_NAME}/config.toml" ]]; then
             echo "   NOTE: user config preserved at ~/.config/${PROJECT_NAME}/config.toml"
-            echo "         remove with: ./scripts/uninstall.sh --purge"
+            echo "         remove with: ./scripts/package/uninstall.sh --purge"
         fi
         ;;
     --all)
@@ -97,7 +97,7 @@ case "${MODE}" in
             remove_at "${HOME}/.config/${PROJECT_NAME}" no
         elif [[ -f "${HOME}/.config/${PROJECT_NAME}/config.toml" ]]; then
             echo "   NOTE: user config preserved at ~/.config/${PROJECT_NAME}/config.toml"
-            echo "         remove with: ./scripts/uninstall.sh --purge"
+            echo "         remove with: ./scripts/package/uninstall.sh --purge"
         fi
         # Service
         remove_at "/etc/systemd/user/${PROJECT_NAME}.service" yes

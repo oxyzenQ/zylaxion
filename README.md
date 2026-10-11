@@ -81,13 +81,13 @@ cd zylaxion
 cargo build --release --locked
 
 # Install (binary + config.toml go to ~/.local by default)
-./scripts/install.sh
+./scripts/package/install.sh
 ```
 
 To install system-wide (binary → `/usr/bin/`, config → `/etc/zylaxion/`):
 
 ```bash
-./scripts/install.sh --system
+./scripts/package/install.sh --system
 ```
 
 The installer copies the binary, config, and systemd user service. Use
@@ -345,13 +345,13 @@ ls -l "$XDG_RUNTIME_DIR/zylaxion.sock"
 cargo build --release --locked
 
 # Bump workspace version
-./scripts/version-to.sh v10.2.0
+./scripts/dev/version-to.sh v10.2.0
 ```
 
 ## Uninstall
 
 ```bash
-./scripts/uninstall.sh
+./scripts/package/uninstall.sh
 ```
 
 ## Architecture
