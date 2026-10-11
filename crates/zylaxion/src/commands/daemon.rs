@@ -84,6 +84,16 @@ fn init_logger(default_filter: Option<&str>) {
 /// If the resolved preset does not exist in config.toml, prints a clear
 /// error and exits — there is NO silent fallback.
 pub fn cmd_start(cli_preset: Option<String>) {
+    // Privilege guard first (night-improve-16): refuse euid 0 before
+    // ANY state touch — `acquire_or_exit` below creates the lock file,
+    // and acquiring it as root IS the pollution event (a root-owned
+    // lock inside the user's runtime dir breaks the next user-mode
+    // run). Full verdict table: `crate::privilege` module docs.
+    if let Some(refusal) = crate::privilege::session_refusal(crate::privilege::euid_is_root()) {
+        crate::error_format::error(refusal);
+        process::exit(1);
+    }
+
     init_logger(None);
 
     let _lock = instance_lock::acquire_or_exit();
@@ -194,6 +204,15 @@ pub fn cmd_start(cli_preset: Option<String>) {
 /// behaviour for manual CLI usage but causes systemd to think the
 /// service died immediately (parent exit → service inactive).
 pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
+    // Privilege guard first (night-improve-16): same contract as
+    // `cmd_start`, and here it must also precede the fork — the parent
+    // refuses, so no root-owned child ever materializes. Full verdict
+    // table: `crate::privilege` module docs.
+    if let Some(refusal) = crate::privilege::session_refusal(crate::privilege::euid_is_root()) {
+        crate::error_format::error(refusal);
+        process::exit(1);
+    }
+
     let _lock = instance_lock::acquire_or_exit();
 
     // Stash the CLI preset in an Arc so the config-watcher thread can

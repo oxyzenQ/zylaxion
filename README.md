@@ -323,7 +323,13 @@ is codified in [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md).
 - **Does not transmit keystrokes** — no telemetry, no analytics, no
   crash reports. The only outbound network call is the explicit
   `zylaxion --check-update` subcommand, which fetches the latest
-  GitHub release tag and exits. No background phone-home.
+  GitHub release tag and exits. No background phone-home. Under
+  root (`sudo`, `su`, a root shell) that check refuses with a
+  "do not use sudo" error before any network I/O, and `start` /
+  `daemon` refuse too — a root daemon would plant root-owned lock,
+  socket, and PID files inside your session, breaking the next
+  user-mode run. `zylaxion doctor` warns when run as root because
+  its verdicts describe root's session, not yours.
 - **Does not accept inbound network connections** — there is no TCP
   listener, no HTTP server. The only IPC channel is a Unix domain
   socket bound to `$XDG_RUNTIME_DIR/zylaxion.sock` with file mode

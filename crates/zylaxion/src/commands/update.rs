@@ -20,8 +20,11 @@
 //! Network errors, curl-not-installed, non-200 responses, and
 //! malformed JSON are all reported gracefully — the command never
 //! panics, only prints a human message and returns. The caller
-//! (`main.rs`) exits 0 regardless because this is an informational
-//! flag, not a critical op.
+//! (`main.rs`) exits 0 for those because this is an informational
+//! flag, not a critical op. The one hard-exit surface is the
+//! privilege guard (night-improve-16): under euid 0 the check
+//! refuses with the "do not use sudo" verdict and exits 1 BEFORE
+//! any network I/O — see [`crate::privilege::network_refusal`].
 
 use std::process::Command;
 
@@ -141,8 +144,20 @@ fn interpret_http_status(code: u16) -> &'static str {
 ///
 /// Network errors, curl-not-installed, non-200 responses, and malformed JSON
 /// are all reported gracefully — the command never panics, only prints a
-/// human message and returns. The caller exits 0 (informational flag).
+/// human message and returns. The caller exits 0 for those (informational
+/// flag). The euid-0 refusal exits 1 (night-improve-16, the module docs
+/// carry the contract).
 pub fn run_check_update() {
+    // Privilege guard first (night-improve-16, the zelynic placement):
+    // refuse euid 0 before any network I/O — this is the one command
+    // where root is the hazard instead of the requirement. The refusal
+    // is a usage violation, not an informational failure, so it exits
+    // 1 (the informational failure paths below keep exit 0).
+    if let Some(refusal) = crate::privilege::network_refusal(crate::privilege::euid_is_root()) {
+        crate::error_format::error(refusal);
+        std::process::exit(1);
+    }
+
     let output = Command::new("curl")
         .args([
             "--silent",

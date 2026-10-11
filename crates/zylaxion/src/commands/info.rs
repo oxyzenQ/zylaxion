@@ -27,6 +27,23 @@ pub fn cmd_doctor() {
         crate::error_format::section("=== zylaxion doctor ===")
     );
 
+    // Privilege awareness (night-improve-16, the audit's warn lane):
+    // doctor stays reachable as root (a diagnostic must diagnose), but
+    // every verdict below would describe ROOT's session — root is
+    // always "in" the input group, root's audio server is a different
+    // instance, root's XDG_RUNTIME_DIR may not even be the user's.
+    // Name the distortion up front so the report cannot mislead.
+    if crate::privilege::euid_is_root() {
+        crate::error_format::warning(
+            "running as root — the verdicts below describe root's session, not yours",
+        );
+        println!(
+            "      {}",
+            crate::error_format::tip_line("tip: re-run without sudo")
+        );
+        println!();
+    }
+
     let mut ok = true;
 
     // 0. Build facts (compile-time truth — cannot fail, never counts
