@@ -7,7 +7,16 @@
 // The module position is unchanged, so super::* still resolves.
 
 use super::*;
-use crate::profiles::{MechanicalClick, SAMPLE_RATE};
+
+/// Night-improve-22: these tests were authored against the
+/// pre-registry construction default (KeyProfile::default()). Pin the
+/// input explicitly so the suite stays deterministic no matter which
+/// preset the compiled DEFAULT_PRESET names.
+fn model_at_default_profile() -> MechanicalClick {
+    MechanicalClick::with_profile(KeyProfile::default(), crate::profiles::SAMPLE_RATE as u32)
+}
+
+use crate::profiles::{KeyProfile, MechanicalClick, SAMPLE_RATE};
 
 #[test]
 fn test_pool_instantiation() {
@@ -18,7 +27,7 @@ fn test_pool_instantiation() {
 
 #[test]
 fn test_single_trigger_activates_one_voice() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let mut pool = VoicePool::new();
 
     pool.trigger(
@@ -41,7 +50,7 @@ fn test_release_deactivates_voice() {
     // `release_coeff` coefficient before naturally deactivating
     // through the `voice_off_threshold` check. The test must now
     // render samples until the voice actually goes silent.
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let mut pool = VoicePool::new();
 
     pool.trigger(
@@ -84,7 +93,7 @@ fn test_release_deactivates_voice() {
 
 #[test]
 fn test_release_nonexistent_scancode_is_noop() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let mut pool = VoicePool::new();
 
     pool.trigger(
@@ -113,7 +122,7 @@ fn test_release_ramp_is_smooth_no_click_artifact() {
     // release_coeff instead of decay_coeff), not by a large jump
     // to zero. We assert the max sample-to-sample delta around the
     // release boundary stays well below the "click" threshold.
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let mut pool = VoicePool::new();
 
     pool.trigger(
@@ -159,7 +168,7 @@ fn test_release_ramp_is_smooth_no_click_artifact() {
 
 #[test]
 fn test_voice_stealing_replaces_oldest() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let mut pool = VoicePool::new();
 
     // Fill all 16 voice slots
@@ -197,7 +206,7 @@ fn test_voice_stealing_replaces_oldest() {
 
 #[test]
 fn test_voice_stealing_priority() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let mut pool = VoicePool::new();
 
     // Fill all voices
@@ -246,7 +255,7 @@ fn test_voice_stealing_priority() {
 
 #[test]
 fn test_process_sample_produces_output() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let mut pool = VoicePool::new();
 
     pool.trigger(
@@ -280,7 +289,7 @@ fn test_process_sample_produces_output() {
 
 #[test]
 fn test_process_batch_matches_per_sample() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
 
     // Render via process_sample. Reset the micro-randomization
     // counter before triggering so both voices start from the same
@@ -339,7 +348,7 @@ fn test_process_batch_matches_per_sample() {
 
 #[test]
 fn test_multiple_voices_mix_correctly() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let mut pool = VoicePool::new();
 
     // Trigger two keys at opposite stereo positions
@@ -377,7 +386,7 @@ fn test_multiple_voices_mix_correctly() {
 
 #[test]
 fn test_reset_clears_all_voices() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let mut pool = VoicePool::new();
 
     for i in 0..5u32 {
@@ -401,7 +410,7 @@ fn test_reset_clears_all_voices() {
 fn test_render_one_second_and_write_wav() {
     use std::io::Write;
 
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let mut pool = VoicePool::new();
 
     // Trigger 3 keys at different stereo positions for a spatial spread
@@ -470,7 +479,7 @@ fn test_render_one_second_and_write_wav() {
 
 #[test]
 fn test_all_voices_naturally_decay() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let mut pool = VoicePool::new();
 
     // Trigger all 16 voices
@@ -564,7 +573,7 @@ fn test_nan_output_replaced_with_silence() {
 #[test]
 fn test_normal_output_not_affected_by_nan_guard() {
     // Verify the NaN guard doesn't affect normal (finite) output.
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let mut pool = VoicePool::new();
 
     pool.trigger(

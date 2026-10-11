@@ -62,7 +62,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::profiles::{KeyProfile, ProfileWithOverrides};
+use crate::profiles::KeyProfile;
 
 /// Maximum pitch drift applied to click/spring/housing frequency, as a
 /// fraction of the profile value. ±1.5% matches the natural variation
@@ -147,22 +147,24 @@ fn splitmix64(x: u64) -> u64 {
 ///
 /// # Profile lookup
 ///
-/// A `MechanicalClick` holds a [`ProfileWithOverrides`] — a default
-/// [`KeyProfile`] plus an optional per-scancode override map. When a key
-/// is pressed, [`get_profile`](AcousticModel::get_profile) checks the
-/// override map first; if no entry exists for the scancode, the default
-/// profile is returned. This allows users to give specific keys (e.g.
-/// Space, Enter) distinct sounds via `[[keys]]` blocks in the TOML.
+/// A `MechanicalClick` holds one [`KeyProfile`] — the active preset's
+/// validated DSP table (night-improve-22: compile-time registry data,
+/// no per-key override map). Every key press returns this profile from
+/// [`get_profile`](AcousticModel::get_profile); per-key variation comes
+/// from the micro-randomization below, not from a lookup table.
 ///
 /// # Hot-reload
 ///
-/// The model is `Send + Sync` and immutable once constructed. Hot-reload
-/// is implemented at the orchestrator level by swapping the entire
-/// `MechanicalClick` instance behind an `ArcSwap` — active voices
-/// continue rendering with their cached profile (captured at trigger
-/// time), while new keypresses pick up the new model automatically.
+/// The model is `Send + Sync` and immutable once constructed. The
+/// orchestrator still swaps the entire `MechanicalClick` instance
+/// behind an `ArcSwap` — active voices continue rendering with their
+/// cached profile (captured at trigger time). Since night-improve-22
+/// nothing swaps it: a preset change is a process restart.
 pub struct MechanicalClick {
-    profiles: ProfileWithOverrides,
+    /// The active preset's acoustic profile — one validated DSP table
+    /// applied to every key (night-improve-22: the registry replaced
+    /// the per-key override map).
+    profile: KeyProfile,
     /// The actual sample rate of the audio device (e.g. 44100, 48000,
     /// 96000). Used in `init_state` to compute filter coefficients and
     /// excitation burst durations so the DSP math is accurate at any
@@ -223,48 +225,23 @@ pub struct MechanicalClick {
 }
 
 impl MechanicalClick {
-    /// Create a new `MechanicalClick` model with default parameters and
-    /// no per-key overrides, using the given `sample_rate` (Hz) for all
-    /// DSP coefficient calculations.
+    /// Create a new `MechanicalClick` model with the registry's
+    /// compiled default profile, using the given `sample_rate` (Hz)
+    /// for all DSP coefficient calculations.
     #[inline]
     pub fn new(sample_rate: u32) -> Self {
-        Self {
-            profiles: ProfileWithOverrides {
-                default: KeyProfile::default(),
-                overrides: std::collections::HashMap::new(),
-            },
-            sample_rate: sample_rate as f32,
-            keystroke_counter: AtomicU64::new(1),
-            last_trigger_us: AtomicU64::new(0),
-            last_interval_us: AtomicU64::new(0),
-        }
+        let default = crate::profiles::registry_lookup(crate::profiles::DEFAULT_PRESET)
+            .expect("compiled DEFAULT_PRESET must exist in the registry");
+        Self::with_profile(default.profile, sample_rate)
     }
 
-    /// Create a `MechanicalClick` model with a custom default
-    /// [`KeyProfile`] and no per-key overrides.
+    /// Create a `MechanicalClick` model from an explicit [`KeyProfile`]
+    /// — the active preset's validated table, handed over by the
+    /// session resolver (night-improve-22).
     #[inline]
-    // night-improve-21: exercised by the mechanical test tree only;
-    // the unified binary's non-test compilation never calls it.
-    #[allow(dead_code)]
     pub fn with_profile(profile: KeyProfile, sample_rate: u32) -> Self {
         Self {
-            profiles: ProfileWithOverrides {
-                default: profile,
-                overrides: std::collections::HashMap::new(),
-            },
-            sample_rate: sample_rate as f32,
-            keystroke_counter: AtomicU64::new(1),
-            last_trigger_us: AtomicU64::new(0),
-            last_interval_us: AtomicU64::new(0),
-        }
-    }
-
-    /// Create a `MechanicalClick` model from a loaded
-    /// [`ProfileWithOverrides`] (default + per-key overrides).
-    #[inline]
-    pub fn with_overrides(profiles: ProfileWithOverrides, sample_rate: u32) -> Self {
-        Self {
-            profiles,
+            profile,
             sample_rate: sample_rate as f32,
             keystroke_counter: AtomicU64::new(1),
             last_trigger_us: AtomicU64::new(0),

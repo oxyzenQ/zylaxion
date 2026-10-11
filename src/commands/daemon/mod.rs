@@ -29,7 +29,7 @@ use std::sync::atomic::AtomicBool;
 
 use crate::core::Orchestrator;
 use crate::input::{InputSource, LibinputSource};
-use crate::profiles::{MechanicalClick, ProfileWithOverrides};
+use crate::profiles::MechanicalClick;
 use arc_swap::ArcSwap;
 
 use crate::daemon;
@@ -133,18 +133,11 @@ pub fn cmd_start(cli_preset: Option<String>) {
     log::info!("audio device sample rate: {sample_rate} Hz");
 
     // 3. Wrap the model in Arc<ArcSwap<>> — the swap point that once
-    //    served the config-era hot reload. The registry profile is
-    //    compile-time data with no per-key overrides, so the wrapper
-    //    carries an empty override map until the override machinery
-    //    demolition lands later this night.
-    let model: Arc<ArcSwap<MechanicalClick>> =
-        Arc::new(ArcSwap::from_pointee(MechanicalClick::with_overrides(
-            ProfileWithOverrides {
-                default: profile,
-                overrides: std::collections::HashMap::new(),
-            },
-            sample_rate,
-        )));
+    //    served the config-era hot reload. The active preset's profile
+    //    comes straight from the compiled registry.
+    let model: Arc<ArcSwap<MechanicalClick>> = Arc::new(ArcSwap::from_pointee(
+        MechanicalClick::with_profile(profile, sample_rate),
+    ));
 
     // 4. Run the main loop. No watcher thread: night-improve-22
     //    retired the config file, so there is nothing to poll — the
@@ -329,17 +322,11 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
     let sample_rate = orchestrator.sample_rate();
     log::info!("audio device sample rate: {sample_rate} Hz");
 
-    // night-improve-22: the registry profile is compile-time data with
-    // no per-key overrides, so the wrapper carries an empty override
-    // map until the override machinery demolition lands later tonight.
-    let model: Arc<ArcSwap<MechanicalClick>> =
-        Arc::new(ArcSwap::from_pointee(MechanicalClick::with_overrides(
-            ProfileWithOverrides {
-                default: profile,
-                overrides: std::collections::HashMap::new(),
-            },
-            sample_rate,
-        )));
+    // night-improve-22: the active preset's profile comes straight
+    // from the compiled registry.
+    let model: Arc<ArcSwap<MechanicalClick>> = Arc::new(ArcSwap::from_pointee(
+        MechanicalClick::with_profile(profile, sample_rate),
+    ));
 
     // v10.2.0 (dragonzen audit B6): spawn_ipc_thread now returns Result.
     // A failure here is non-fatal — the daemon can still run without

@@ -18,7 +18,6 @@
 //! - [`TptSvf`] — topology-preserving SVF for numerically stable filtering.
 mod mechanical;
 mod model;
-mod overrides;
 mod params;
 mod profile;
 mod registry;
@@ -36,16 +35,6 @@ pub use registry::{
 
 pub use mechanical::MechanicalClick;
 pub use model::{AcousticModel, SynthState};
-// night-improve-21: the Override* re-exports are exercised by the
-// session config test tree through this root path; the unified
-// binary's non-test compilation never touches them, hence the allow.
-// `ranges` stays on the root too: the wired profiles test tree reads
-// it through this bare path.
-#[allow(unused_imports)]
-pub use overrides::{
-    KeyOverride, OverrideAmbient, OverrideClick, OverrideDecay, OverrideHousing, OverrideSpring,
-    ProfileWithOverrides,
-};
 pub use params::{
     AmbientParams, ClickParams, DecayParams, HousingParams, KeyTrigger, MAX_POLYPHONY, SAMPLE_RATE,
     SpringParams,
