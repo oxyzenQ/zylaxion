@@ -69,8 +69,9 @@ impl VoicePool {
     ///
     /// For headphones (especially IEMs at 16-32 ohm), 5.5× with hard
     /// clamp produces severely compressed and loud audio. Headphone
-    /// users should override this to ~1.5× via the `[master]` table in
-    /// `config.toml` (v10.2.0+ — dragonzen audit P1).
+    /// users should override this to ~1.5× via ZYLAXION_VOLUME=1.5 in
+    /// the environment (night-improve-22 — the env var replaced the
+    /// config-era [master] table).
     pub const DEFAULT_MASTER_VOLUME: f32 = 5.5;
 
     /// Create a new voice pool with all voices initialized to inactive
@@ -120,10 +121,8 @@ impl VoicePool {
         self.master_volume
     }
 
-    /// Update the master volume at runtime (v10.2.0+ — dragonzen audit
-    /// P1). Useful for hot-reload when the user edits `[master]` in
-    /// `config.toml`. The value is clamped to a sane range — see
-    /// [`Self::with_volume`].
+    /// Update the master volume at runtime. The value is clamped to a
+    /// sane range — see [`Self::with_volume`].
     // night-improve-21: unwired in the unified tree (hot-reload
     // applies params, not volume, today); expect() self-retires when
     // the volume hot-reload lane lands.

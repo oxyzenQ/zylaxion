@@ -163,10 +163,9 @@ pub fn cmd_start(cli_preset: Option<String>) {
 ///
 /// Forks FIRST (no audio/input before fork), then the child initialises
 /// hardware, writes the PID file, installs signal handlers, spawns the
-/// IPC thread (for `stop`/`status`) and the config-watcher thread (for
-/// auto-reload), and runs the orchestrator loop.
+/// IPC thread (for `stop`/`status`), and runs the orchestrator loop.
 ///
-/// If the resolved preset does not exist in config.toml, prints a clear
+/// If the resolved preset does not exist in the registry, prints a clear
 /// error and exits — there is NO silent fallback.
 ///
 /// # `foreground` mode (for process supervisors like systemd)

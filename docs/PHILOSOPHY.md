@@ -20,13 +20,14 @@ wins; this file explains the reasoning that produced the gate.
 The daemon has exactly one job — turn key events into keystroke
 sounds — and it does that job the same way on every boot. No skins,
 no visualizers, no companion app, no cloud profiles. Every acoustic
-parameter lives in one `config.toml`, the daemon hot-reloads it
-within one second of a save, and `zylaxion testconf` catches TOML
-typos and out-of-bounds DSP values before they can touch a running
-session. When a preset name does not resolve, the program prints the
+preset is compile-time data in the registry (night-improve-22
+deleted `config.toml` and its parser, watcher, and validator — a
+sound switcher does not need them, and a file format nobody tunes
+per-keystroke is maintenance weight pretending to be flexibility).
+When a preset name does not resolve, the program prints the
 available presets and exits — there is no silent fallback, because a
 tool that quietly guesses is a tool the owner cannot trust. Boring
-means the behavior is fully predictable from the files on disk.
+means the behavior is fully predictable from the binary itself.
 
 ## 2. Stealth: The Keystroke Never Leaves the Process
 

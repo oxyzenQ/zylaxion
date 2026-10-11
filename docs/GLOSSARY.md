@@ -67,8 +67,10 @@ drifts between docs is a bug.
 ## The runtime
 
 - **preset** — a named acoustic tuning (materials, pitch, decay,
-  volume curve) in config.toml, played by the engine when a key
-  event arrives. The profiles module (`src/profiles/`) owns the tables.
+  volume curve) compiled into the binary in the registry
+  (`src/profiles/registry.rs`), selected with `--preset` or
+  `ZYLAXION_PRESET` and played by the engine when a key event
+  arrives. The profiles module (`src/profiles/`) owns the tables.
 - **voice pool** — the engine's fixed-capacity synthesizer voice
   set (`src/engine/`); keystrokes claim and release voices; the
   render path is allocation-free by contract.

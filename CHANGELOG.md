@@ -18,6 +18,44 @@ and the pre-v10 release notes live next to it in
 
 ## [Unreleased]
 
+### Removed
+
+- **night-improve-22** — the no-config law. `config.toml` (1672 lines)
+  and its entire support stack are deleted: the session search-path
+  module (src/session/config/), the TOML parse/validate surface, the
+  mtime config-watcher thread (a 1-second filesystem poller), the
+  `testconf` subcommand, the per-key `[[keys]]` override machinery
+  (KeyOverride, the Override* field-patch structs, ProfileWithOverrides,
+  MechanicalClick::with_overrides), the MasterParams [master]-table
+  carrier, and the `toml` dependency (the lock graph sheds the
+  toml/toml_edit/toml_write/serde_spanned branch; serde survives solely
+  for the daemon IPC protocol). Owner's verdict: hard to maintenance,
+  low gains investment, absurd for keyboard sound.
+
+### Added
+
+- **night-improve-22** — the masterclass replacement, the compiled
+  preset registry. All 24 acoustic presets are now compile-time Rust
+  data in src/profiles/registry.rs, transcribed byte-for-byte from the
+  retired config.toml and pinned in-range by a new test tree (each
+  value must survive validate_and_clamp with zero drift — the old
+  testconf guarantee, enforced at test time on typed data). Preset
+  selection is the Unix configuration surface: `--preset <name>` on
+  the CLI > `ZYLAXION_PRESET` in the environment > the compiled
+  default (`technical`, unchanged as the known-good fallback). The
+  master output volume follows the same law via `ZYLAXION_VOLUME`
+  (default 5.5; invalid values are hard errors — the no-silent-
+  fallback contract survives). A preset is chosen once at process
+  start; switching is a daemon restart — the honest lifecycle for a
+  sound switcher. `list-presets` renders the catalog with one-line
+  descriptions; unknown names keep the GNU-shaped error with the
+  did-you-mean tip; the systemd unit gains a commented
+  `Environment=` preset pin. install.sh ships two artifacts instead
+  of three; uninstall.sh cleans legacy config-era directories.
+  Net tree delta: about 900 lines deleted, 6 dependencies shed.
+  Suite: 154 tests green (five consecutive runs), clippy
+  --all-targets -D warnings clean, version untouched at 11.0.0.
+
 ### Changed
 
 - **night-improve-21** (39586b4): the cosmic dragon unification — the

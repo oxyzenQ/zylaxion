@@ -166,21 +166,25 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   and other AI tool directories.
 - No tracked AI artifacts.
 
-## Configuration System (zylaxion-specific)
+## Preset System (zylaxion-specific, night-improve-22 the no-config law)
 
-- A single `config.toml` (repo root, installed to
-  `${PREFIX}/share/zylaxion/config.toml`) holds all DSP parameters.
-- Search order: `~/.config/zylaxion/config.toml` → `/etc/zylaxion/` →
-  `/usr/local/share/zylaxion/` → `./config.toml` → hardcoded default.
-- The file uses a `[default]` table plus optional `[[keys]]` per-scancode
-  overrides. Both are validated and clamped by `KeyProfile::validate_and_clamp`
-  on load — out-of-bounds values (e.g. `decay = 9999`) are silently clamped
-  to safe ranges with a `log::warn!`.
-- The running daemon polls `config.toml`'s mtime every 1 second (via the
-  `config-watcher` thread) and atomically swaps the `AcousticModel` behind
-  an `ArcSwap` on change. No restart, no IPC `reload` command.
-- `zylaxion testconf` validates the config without starting the engine —
-  equivalent to `nginx -t` or `sshd -t`.
-- DSP parameters flow: `KeyProfile` → `MechanicalClick::with_overrides()` →
-  `VoicePool::trigger()` → `init_state()`. All TPT filter coefficients are
-  set from profile values — this chain must never be broken.
+- All acoustic presets are compile-time data in `src/profiles/registry.rs`:
+  24 hand-tuned presets, type-checked by rustc, pinned in-range by the
+  registry test tree (each value must survive `validate_and_clamp` with
+  zero drift). There is no config file, no search path, no watcher.
+- Active preset resolution lives in `src/session/preset.rs`:
+  `--preset <name>` on the CLI → `ZYLAXION_PRESET` in the environment →
+  the compiled default (`technical`). The master output volume follows
+  the same law via `ZYLAXION_VOLUME` (default 5.5, invalid values are
+  hard errors — no silent fallback anywhere).
+- A preset is chosen once at process start; changing it means
+  restarting the daemon. The former 1-second mtime poller and the
+  `testconf` validator died with the config file — a validator for
+  compile-time data would validate nothing.
+- Unknown preset names produce the canonical error with the full
+  catalog plus the did-you-mean tip (the suggestion engine, edit
+  distance 2).
+- DSP parameters flow: `registry` → `session::preset::resolve()` →
+  `MechanicalClick::with_profile()` → `VoicePool::trigger()` →
+  `init_state()`. All TPT filter coefficients are set from profile
+  values — this chain must never be broken.

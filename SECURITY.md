@@ -57,10 +57,14 @@ In scope:
   transmission of keystroke content is critical by definition.
 - The audio engine lanes (`src/engine/`, `src/profiles/`,
   `src/core/`) — the
-  synthesis DSP, the orchestrator, and the hot-reload swap path.
-- The config system (`config.toml` discovery, parsing, and the
-  filesystem watcher) — path traversal in the preset/override lanes
-  and TOCTOU on the watched file are in scope.
+  synthesis DSP, the orchestrator, and the model swap point.
+- The preset resolution surface (`src/session/preset.rs`) —
+  environment-variable handling (`ZYLAXION_PRESET`,
+  `ZYLAXION_VOLUME`) is in scope: injection into log lines,
+  parse-path panics, and the no-silent-fallback contract. The
+  config-era filesystem watcher and TOML parser were removed with
+  night-improve-22 and with them their TOCTOU and path-traversal
+  surface.
 - The daemon lifecycle (`src/daemon/`) —
   daemonization, the PID file, the instance lock, and signal
   handling.
