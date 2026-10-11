@@ -275,7 +275,9 @@ zylaxion start --preset neon_pulse
 ## Security & Privacy
 
 Zylaxion is designed with a **zero-leakage** posture. The short
-version: **your keystrokes never leave the process.**
+version: **your keystrokes never leave the process.** The full
+design philosophy behind that posture — "the boring and stealth" —
+is codified in [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md).
 
 ### What Zylaxion reads
 
