@@ -21,6 +21,15 @@ readme = "README.md"
 keywords = ["keyboard", "audio", "sound", "linux", "real-time"]
 categories = ["command-line-utilities", "multimedia::audio", "os::linux-apis"]
 
+# night-improve-10: explicit auto-discovery controls, the zelynic
+# Pattern-C discipline — a stray tests/, benches/ or examples/
+# directory can never silently become a target the gate lane did not
+# vet. None of the three directories exist in this crate; in-tree
+# #[cfg(test)] modules are unaffected by autotests.
+autotests = false
+autobenches = false
+autoexamples = false
+
 [dependencies]
 zylaxion-core = { path = "../zylaxion-core" }
 zylaxion-input = { path = "../zylaxion-input" }

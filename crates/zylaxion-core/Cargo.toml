@@ -8,6 +8,17 @@ authors.workspace = true
 repository.workspace = true
 description = "Orchestrator that wires input, engine, and output for the Zylaxion keyboard acoustic engine"
 
+# night-improve-10: explicit auto-discovery controls, the zelynic
+# Pattern-C discipline — a stray tests/ or benches/ directory can
+# never silently become a target the gate lane did not vet. Neither
+# exists in this crate; in-tree #[cfg(test)] modules are unaffected.
+# autoexamples stays default-ON deliberately: this crate ships real
+# examples/ targets, already vetted by the gate lane (cargo test
+# links every example) — switching it off would retire vetted
+# targets, the opposite of the discipline.
+autotests = false
+autobenches = false
+
 [dependencies]
 zactrix-engine = { path = "../zactrix-engine" }
 zactrix-profiles = { path = "../zactrix-profiles" }
