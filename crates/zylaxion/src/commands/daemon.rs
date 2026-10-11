@@ -1,5 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: pre-gate legacy (647 lines) - the start/daemon lifecycle split is Owner-sequenced migration debt
 
 //! Foreground and daemon subcommands: `start`, `daemon`, `stop`.
 //!

@@ -1,5 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: pre-gate legacy (1336 lines) - the mechanical synth voice split is Owner-sequenced migration debt
 
 //! Default mechanical keyboard click model.
 //!

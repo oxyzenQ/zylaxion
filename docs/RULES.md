@@ -1,3 +1,6 @@
+<!-- Copyright (C) 2026 rezky_nightky -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Zylaxion Project Rules
 
 Absolute source of truth for maintaining consistency, efficiency, and quality.

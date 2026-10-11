@@ -1,3 +1,6 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
 # Zylaxion Central Configuration
 # =============================================================================
 #
@@ -102,7 +105,7 @@ tuning = "ibm_model_m"
 # Recommended values per output device:
 #   5.5  = laptop / PC speakers (default — physical key click dominates)
 #   3.0  = external monitor speakers or quiet laptop speakers
-#   1.5  = headphones (especially IEMs at 16-32 Ω)
+#   1.5  = headphones (especially IEMs at 16-32 ohm)
 #   0.5  = subtle background effect
 #
 # NOTE: hot-reload of this value is not yet wired — restart the daemon

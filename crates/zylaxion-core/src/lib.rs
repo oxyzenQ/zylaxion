@@ -1,5 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: pre-gate legacy (980 lines) - the orchestrator split is Owner-sequenced migration debt
 
 //! The Brain — orchestrates input → engine → output.
 //!

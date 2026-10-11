@@ -1,5 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: pre-gate legacy (1640 lines) - the preset table + tuning model split is Owner-sequenced migration debt
 
 //! Acoustic profile definitions and DSP models for the Zactrix engine.
 //!
@@ -321,7 +322,7 @@ fn default_housing_mix() -> f32 {
 /// Before v10.2.0, `VoicePool::new()` hardcoded `master_volume = 5.5`
 /// with no way to override it. 5.5× is tuned for laptop speakers whose
 /// higher impedance reproduces the synth at lower per-watt SPL. For
-/// headphones (especially IEMs at 16–32 Ω), 5.5× with hard-clamp
+/// headphones (especially IEMs at 16-32 ohm), 5.5× with hard-clamp
 /// produces severely compressed and loud audio — an ear-damaging
 /// surprise on the first keypress after plugging in.
 ///

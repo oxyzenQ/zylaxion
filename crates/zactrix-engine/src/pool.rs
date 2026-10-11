@@ -1,5 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: pre-gate legacy (917 lines) - the voice-pool split is Owner-sequenced migration debt
 
 //! Pre-allocated polyphonic voice pool with voice stealing.
 //!
@@ -67,7 +68,7 @@ impl VoicePool {
     /// ceiling that turns any overflow into clean compression instead
     /// of digital clipping.
     ///
-    /// For headphones (especially IEMs at 16–32 Ω), 5.5× with hard
+    /// For headphones (especially IEMs at 16-32 ohm), 5.5× with hard
     /// clamp produces severely compressed and loud audio. Headphone
     /// users should override this to ~1.5× via the `[master]` table in
     /// `config.toml` (v10.2.0+ — dragonzen audit P1).
@@ -92,7 +93,7 @@ impl VoicePool {
     ///
     /// - **5.5** (default): laptop / PC speakers. The physical key
     ///   click dominates at this gain.
-    /// - **1.5**: headphones (especially IEMs at 16–32 Ω).
+    /// - **1.5**: headphones (especially IEMs at 16-32 ohm).
     /// - **3.0**: external monitor speakers or quiet laptop speakers.
     /// - **0.5**: subtle background effect.
     pub fn with_volume(master_volume: f32) -> Self {

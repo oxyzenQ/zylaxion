@@ -1,3 +1,6 @@
+<!-- Copyright (C) 2026 rezky_nightky -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Zylaxion v6.0.0 — The Production-Grade Release
 
 **Released:** 2026-06-22  

@@ -48,12 +48,12 @@ pub fn cmd_doctor() {
     if check_input_group() {
         println!(
             "      {}",
-            crate::error_format::ok_line("✓ user is in the 'input' group")
+            crate::error_format::ok_line("PASS: user is in the 'input' group")
         );
     } else {
         println!(
             "      {}",
-            crate::error_format::fail_line("✗ user is NOT in the 'input' group")
+            crate::error_format::fail_line("FAIL: user is NOT in the 'input' group")
         );
         println!(
             "      {}",
@@ -77,13 +77,13 @@ pub fn cmd_doctor() {
             if path.is_dir() {
                 println!(
                     "      {}",
-                    crate::error_format::ok_line(&format!("✓ $XDG_RUNTIME_DIR = {dir}"))
+                    crate::error_format::ok_line(&format!("PASS: $XDG_RUNTIME_DIR = {dir}"))
                 );
             } else {
                 println!(
                     "      {}",
                     crate::error_format::fail_line(&format!(
-                        "✗ $XDG_RUNTIME_DIR = {dir} (not a directory)"
+                        "FAIL: $XDG_RUNTIME_DIR = {dir} (not a directory)"
                     ))
                 );
                 ok = false;
@@ -92,7 +92,7 @@ pub fn cmd_doctor() {
         Err(_) => {
             println!(
                 "      {}",
-                crate::error_format::fail_line("✗ $XDG_RUNTIME_DIR is not set")
+                crate::error_format::fail_line("FAIL: $XDG_RUNTIME_DIR is not set")
             );
             println!(
                 "      {}",
@@ -112,13 +112,13 @@ pub fn cmd_doctor() {
             let name = device.name().unwrap_or_else(|_| "<unknown>".into());
             println!(
                 "      {}",
-                crate::error_format::ok_line(&format!("✓ default output device: {name}"))
+                crate::error_format::ok_line(&format!("PASS: default output device: {name}"))
             );
         }
         None => {
             println!(
                 "      {}",
-                crate::error_format::fail_line("✗ no audio output device found")
+                crate::error_format::fail_line("FAIL: no audio output device found")
             );
             println!(
                 "      {}",
