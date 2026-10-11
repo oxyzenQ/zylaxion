@@ -72,6 +72,7 @@ sections. The sections and their home gates:
 | 6 | Emoji sweep | inline in `gate-keepers.sh` |
 | 7 | Actions pins health | `scripts/gates/check-actions-pins.sh` |
 | 8 | Release parity | `scripts/gates/check-release-parity.sh` |
+| 9 | Name-case rule (lowercase law, nothing excluded) | `scripts/gates/check-name-case.py` |
 
 A new gate joins this table and the orchestrator in the same commit —
 a gate that is not wired is a wish, not a gate.

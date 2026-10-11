@@ -10,10 +10,35 @@
 
 ---
 
-## Name
+## Name Usage
 
-The project name is **zylaxion** (all lowercase). It must never be capitalized
-as `Zylaxion` in any official context.
+The project name is **zylaxion** (all lowercase) in every context —
+prose, titles, headings, code, CLI output, comments, commit subjects,
+and file paths. There is no context where a capital first letter or
+an internal capital is correct, including the start of a sentence.
+
+| Context | Format |
+|---|---|
+| Running text / prose | zylaxion |
+| Titles / headings | zylaxion |
+| Code / CLI | `zylaxion` (lowercase) |
+
+The one uppercase family that survives is identifiers, never the
+name itself: the `ZYLAXION_*` environment variables and build stamps
+(`ZYLAXION_BUILD`, `ZYLAXION_BUILD_TIME`, ...), plus the all-caps
+banner comment titles heading the scripts/ gate files — shell and
+identifier conventions, not brand displays.
+
+Incorrect forms (the name-case gate rejects every one of them):
+
+- a capitalized first letter, or any internal capital, in any
+  context — even at the start of a sentence;
+- all-caps prose uses outside the identifier family.
+
+Since night-improve-20 the rule is machine-enforced:
+`scripts/gates/check-name-case.py` (gate-keepers section 9) scans
+every tracked file and path — nothing excluded — and fails the build
+on any casing outside the two families above.
 
 ## Identity
 

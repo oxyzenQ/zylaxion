@@ -1,7 +1,7 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Zylaxion v6.0.0 — The Production-Grade Release
+# zylaxion v6.0.0 — The Production-Grade Release
 
 **Released:** 2026-06-22  
 **Branch:** `main`  
@@ -67,7 +67,7 @@ This release focuses on **build hardening** and **production readiness validatio
 ## Git Tag
 
 ```
-git tag -a v6.0.0 -m "Zylaxion v6.0.0 — Production-Grade Release
+git tag -a v6.0.0 -m "zylaxion v6.0.0 — Production-Grade Release
 
 Release profile hardening: lto=true, panic=abort
 Measured 33-45% render path performance improvement

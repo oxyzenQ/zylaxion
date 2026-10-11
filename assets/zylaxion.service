@@ -15,13 +15,13 @@
 #   journalctl --user -u zylaxion -f
 #
 # Why a *user* unit (not a system unit)?
-#   Zylaxion plays audio through the user's PipeWire/PulseAudio session,
+#   zylaxion plays audio through the user's PipeWire/PulseAudio session,
 #   which is only reachable via the user's XDG_RUNTIME_DIR and the
 #   user's audio cookie. A system service would not see the audio
 #   server and would fail at startup.
 
 [Unit]
-Description=Zylaxion Keyboard Acoustic Engine
+Description=zylaxion Keyboard Acoustic Engine
 After=pipewire.service sound.target
 # Weak dependency so a PipeWire restart does NOT force us to restart
 # (cpal will simply re-establish the stream on the next callback).

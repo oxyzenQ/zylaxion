@@ -4,7 +4,7 @@
 
 //! The Brain — orchestrates input → engine → output.
 //!
-//! [`Orchestrator`] connects the three layers of Zylaxion:
+//! [`Orchestrator`] connects the three layers of zylaxion:
 //!
 //! ```text
 //!  zylaxion-input          zylaxion-core           zactrix-engine          zylaxion-output
@@ -520,7 +520,7 @@ impl<S: AudioSink> Orchestrator<S> {
     ///
     /// This prevents the "pop" / volume-jump artefact that otherwise occurs
     /// when PipeWire reuses its internal buffer for the next audio client
-    /// while it still holds a non-zero DC offset from Zylaxion's last
+    /// while it still holds a non-zero DC offset from zylaxion's last
     /// rendered frame. The 1024-frame silence pad gives the cpal callback
     /// enough time (~23 ms at 44.1 kHz) to drain any remaining non-zero
     /// samples and settle the device back to a zero baseline before the

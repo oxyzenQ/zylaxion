@@ -7,9 +7,10 @@
 # (night-improve-12, the zelynic gate-keepers lineage).
 #
 # Every section is a hard gate: a non-zero exit anywhere fails the run.
-# All CI warnings are failures; none are ignored. Run it before every
-# commit; CI re-runs the same sections on every push (the
-# Dragon Guard - Gate-keepers workflow).
+# All warnings are failures; none are ignored. Run it before every
+# commit; CI (Dragon Guard - CI) enforces its own lanes on every push:
+# fmt, clippy, tests, actionlint/yamllint/codespell, the supply-chain
+# scan, and the supermassive build matrix.
 #
 # Sections:
 #   1.  File permissions (scripts/gates/check-permissions.sh — the
@@ -42,6 +43,14 @@
 #       a local alias build reproduces the release optimization tier
 #       the README documents bit-for-bit; a one-file edit can no
 #       longer silently break that contract)
+#   9.  Name-case rule (night-improve-20 —
+#       scripts/gates/check-name-case.py: the project name is lowercase
+#       zylaxion in every context; the gate scans EVERY tracked file
+#       and every tracked path (git ls-files — the .cargo/ and
+#       .github/ hidden trees included, nothing excluded) and fails on
+#       any casing outside the two legal families: lowercase, and the
+#       identifier family (ZYLAXION_* env vars, the scripts/ banner
+#       titles). A wrong-case name anywhere fails the push)
 #
 # Usage:
 #   bash scripts/gate-keepers.sh             # full gate run
@@ -180,7 +189,11 @@ run_section 7 "Actions pins health" \
 run_section 8 "Release parity" \
         bash scripts/gates/check-release-parity.sh
 
-# ── Verdict ────────────────────────────────────────────────────────────────
+# ── 9. Name-case rule (the lowercase law, nothing excluded) ─────────────────
+run_section 9 "Name-case rule" \
+        python3 scripts/gates/check-name-case.py
+
+# ── Verdict ─────────────────────────────────────────────────────────────
 echo ""
 if [ "${#FAILED_SECTIONS[@]}" -gt 0 ]; then
         echo "GATE-KEEPERS FAIL (${#FAILED_SECTIONS[@]} section(s)):"

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! **Zylaxion** — real-time mechanical keyboard acoustic synthesizer for Linux.
+//! **zylaxion** — real-time mechanical keyboard acoustic synthesizer for Linux.
 //!
 //! Transforms every keystroke into a spatially-accurate click sound
 //! through your speakers, using the kernel's evdev interface and

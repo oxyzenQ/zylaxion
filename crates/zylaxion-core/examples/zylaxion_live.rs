@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Zylaxion live — the moment of truth.
+//! zylaxion live — the moment of truth.
 //!
 //! Press any key on your keyboard and hear it through your speakers
 //! in real time.  This is the full pipeline: kernel → libinput →
@@ -26,7 +26,7 @@ use zylaxion_core::Orchestrator;
 use zylaxion_input::{InputSource, LibinputSource};
 
 fn main() {
-    println!("=== Zylaxion Live ===\n");
+    println!("=== zylaxion Live ===\n");
 
     // ── 1. Start input capture ────────────────────────────────────
     println!("[zylaxion-live] starting keyboard capture...");

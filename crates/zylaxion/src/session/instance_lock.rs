@@ -97,7 +97,7 @@ pub fn acquire() -> Result<Flock<File>, String> {
     match Flock::lock(file, FlockArg::LockExclusiveNonblock) {
         Ok(guard) => Ok(guard),
         Err((_file, nix::errno::Errno::EWOULDBLOCK)) => {
-            Err("Zylaxion is already running. Stop the other instance first.".to_string())
+            Err("zylaxion is already running. Stop the other instance first.".to_string())
         }
         Err((_file, e)) => Err(format!("failed to acquire lock at {}: {e}", path.display())),
     }

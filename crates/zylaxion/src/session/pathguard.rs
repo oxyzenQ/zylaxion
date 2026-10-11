@@ -5,7 +5,7 @@
 //!
 //! ## Scope
 //!
-//! Zylaxion writes three runtime files: a lock file, a Unix socket, and a
+//! zylaxion writes three runtime files: a lock file, a Unix socket, and a
 //! PID file. All three live under `$XDG_RUNTIME_DIR` (or `/tmp` as
 //! fallback). Without this guard, a malicious or careless environment
 //! could set `XDG_RUNTIME_DIR=/etc` and cause zylaxion to write socket
@@ -71,7 +71,7 @@ fn is_dangerous(canonical: &Path) -> bool {
         .unwrap_or_default();
 
     // System paths — never valid for zylaxion runtime state, even if
-    // XDG_RUNTIME_DIR points here. Zylaxion is a user-space desktop app;
+    // XDG_RUNTIME_DIR points here. zylaxion is a user-space desktop app;
     // its runtime state must live in /run/user/$UID or /tmp, NOT in /etc,
     // /usr, /var, etc.
     let deny_prefixes: &[&str] = &[

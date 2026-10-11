@@ -9,7 +9,7 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "Linux kernel keyboard input capture via libinput for the Zylaxion engine"
+description = "Linux kernel keyboard input capture via libinput for the zylaxion engine"
 
 # night-improve-10: explicit auto-discovery controls, the zelynic
 # Pattern-C discipline — a stray tests/ or benches/ directory can

@@ -1,7 +1,7 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Zylaxion Project Rules
+# zylaxion Project Rules
 
 Absolute source of truth for maintaining consistency, efficiency, and quality.
 
@@ -53,7 +53,7 @@ upstream GitHub release.
 
 ## Build Prerequisites
 
-Zylaxion plays audio through `cpal`, which talks to the OS audio server
+zylaxion plays audio through `cpal`, which talks to the OS audio server
 (PipeWire / PulseAudio / ALSA) via the ALSA backend. Only the ALSA
 development headers are required at build time; no PipeWire native
 headers are needed.
@@ -77,7 +77,7 @@ A CI runner missing any of these will fail at `cargo clippy` with
 ## systemd User Service (v3.0.0+)
 
 - `assets/zylaxion.service` is a systemd **user** unit (not system —
-  Zylaxion runs per-user so it inherits the user's PulseAudio/PipeWire
+  zylaxion runs per-user so it inherits the user's PulseAudio/PipeWire
   cookie and `XDG_RUNTIME_DIR`).
 - `scripts/package/install.sh` deploys the unit to:
   - `~/.config/systemd/user/zylaxion.service` when run as a normal user.
@@ -91,7 +91,7 @@ A CI runner missing any of these will fail at `cargo clippy` with
 
 ## Security & Privacy (v3.1.0+)
 
-Zylaxion has a **zero-leakage** posture. Hard rules:
+zylaxion has a **zero-leakage** posture. Hard rules:
 
 - **Never log scancodes.** The `KeyEvent` struct (in `zylaxion-input`)
   carries a raw hardware scancode that can be mapped back to typed
@@ -109,14 +109,14 @@ Zylaxion has a **zero-leakage** posture. Hard rules:
   sets the umask to `0o077` during `bind()` AND `chmod`s the file to
   `0o600` afterward. This blocks other users on the system from
   sending `stop` / `status` commands to the daemon.
-- **No inbound network.** Zylaxion opens no TCP listener, no HTTP
+- **No inbound network.** zylaxion opens no TCP listener, no HTTP
   server, no gRPC port. The only IPC channel is the Unix domain
   socket described above.
 - **No outbound telemetry.** The only network call is the explicit
   `zylaxion --check-update` subcommand, which fetches one GitHub
   release tag and exits. There is no background phone-home, no
   analytics, no crash-reporter.
-- **No on-disk keystroke storage.** Zylaxion writes only two files:
+- **No on-disk keystroke storage.** zylaxion writes only two files:
   `$XDG_RUNTIME_DIR/zylaxion.pid` and `$XDG_RUNTIME_DIR/zylaxion.sock`.
   No history file, no debug log file, no profile dump.
 
@@ -146,7 +146,8 @@ grep -rn 'scancode' crates/ --include='*.rs' | \
 - **Author:** `rezky_nightky (oxyzenQ)`. No casing inconsistencies.
 - **Repository:** `github.com/oxyzenQ/zylaxion` (capital Q).
 - **Contact:** `with dot rezky at gmail dot com`.
-- **Project name:** `zylaxion` (lowercase). Never `Zylaxion`.
+- **Project name:** `zylaxion` (lowercase). Never capitalized in any
+  context — machine-enforced by `scripts/gates/check-name-case.py`.
 - **Badges:** ONLY Ko-fi (`ko-fi/rezky`).
 - **License:** GPL-3.0-only.
 - **Trademark:** See `docs/trademark.md`.
@@ -162,7 +163,7 @@ grep -rn 'scancode' crates/ --include='*.rs' | \
   and other AI tool directories.
 - No tracked AI artifacts.
 
-## Configuration System (Zylaxion-Specific)
+## Configuration System (zylaxion-specific)
 
 - A single `config.toml` (repo root, installed to
   `${PREFIX}/share/zylaxion/config.toml`) holds all DSP parameters.

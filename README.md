@@ -39,7 +39,7 @@
 
 ---
 
-Zylaxion transforms every keystroke into a spatially accurate mechanical keyboard sound using Linux's `evdev` interface and real-time audio output through `cpal` and PipeWire.
+zylaxion transforms every keystroke into a spatially accurate mechanical keyboard sound using Linux's `evdev` interface and real-time audio output through `cpal` and PipeWire.
 
 Instead of replaying recorded samples, every sound is **synthesized mathematically** using noise excitation, TPT State Variable Filters, resonance modeling, and exponential decay envelopes. This pure procedural approach means:
 
@@ -87,7 +87,7 @@ No audio files. No sample libraries. No wavetable playback. Just math.
 Requires: Rust toolchain ([rustup.rs](https://rustup.rs/)),
 `pkg-config`, `libasound2-dev`, `libinput-dev`, `libudev-dev`.
 
-> Zylaxion plays audio through `cpal`, which talks to PipeWire /
+> zylaxion plays audio through `cpal`, which talks to PipeWire /
 > PulseAudio / ALSA via the OS's default audio bridge. No PipeWire
 > native development headers are required — only `libasound2-dev`
 > (ALSA backend that cpal links against).
@@ -217,7 +217,7 @@ out-of-bounds DSP values before they affect the running daemon.
 
 ### Built-in sound presets
 
-Zylaxion ships with **24 presets** — 6 "character" presets, 3
+zylaxion ships with **24 presets** — 6 "character" presets, 3
 switch-type presets, **10 high-fidelity legendary keyboard profiles**
 (v4.0.0+) tuned to mimic real switches, and **5 sci-fi / futuristic
 presets** (v4.1.0+) that don't mimic anything real. Since v4.2.0,
@@ -293,23 +293,23 @@ zylaxion start --preset neon_pulse
 
 ## Security & Privacy
 
-Zylaxion is designed with a **zero-leakage** posture. The short
+zylaxion is designed with a **zero-leakage** posture. The short
 version: **your keystrokes never leave the process.** The full
 design philosophy behind that posture — "the boring and stealth" —
 is codified in [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md).
 
-### What Zylaxion reads
+### What zylaxion reads
 
 - **Hardware scancodes** — the physical key location on the keyboard
   (e.g. scancode `30` is the home row key under QWERTY's left hand).
-  This is *not* an ASCII character. Zylaxion does not translate
+  This is *not* an ASCII character. zylaxion does not translate
   scancodes into letters, symbols, or text. It feeds them straight
   into the DSP engine to choose a stereo pan position and trigger a
   click sound.
 - The kernel's `evdev` interface via `libinput` — same data any
   keyboard-aware Linux program can read.
 
-### What Zylaxion does NOT do
+### What zylaxion does NOT do
 
 - **Does not log scancodes** — not at `info`, not at `debug`, not at
   `trace`. The `KeyEvent` struct exists to drive the DSP engine, not
@@ -317,7 +317,7 @@ is codified in [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md).
   crates/ | grep -E 'log::|println!|eprintln!'` returns zero hits
   in production paths.
 - **Does not store keystrokes** — there is no on-disk log, no
-  history file, no analytics. The only thing Zylaxion writes to disk
+  history file, no analytics. The only thing zylaxion writes to disk
   is its PID file (`$XDG_RUNTIME_DIR/zylaxion.pid`) and the daemon's
   Unix socket (`$XDG_RUNTIME_DIR/zylaxion.sock`).
 - **Does not transmit keystrokes** — no telemetry, no analytics, no
@@ -342,7 +342,7 @@ A naive "acoustic keyboard" implementation that logged scancodes for
 debugging would be a side-channel leak: malware with read access to
 `journalctl --user -u zylaxion` could reconstruct typed passwords by
 mapping scancodes back through the user's keyboard layout (QWERTY,
-Dvorak, etc.). Zylaxion's zero-trust logging policy eliminates this
+Dvorak, etc.). zylaxion's zero-trust logging policy eliminates this
 attack surface — there is nothing in the logs to reconstruct.
 
 ### Verifying the policy yourself
@@ -367,7 +367,7 @@ ls -l "$XDG_RUNTIME_DIR/zylaxion.sock"
 ./scripts/build.sh --check-all
 
 # The full gate-keepers run (permissions, headers, LOC caps, language,
-# emoji sweep, pins health, release parity)
+# emoji sweep, pins health, release parity, name-case rule)
 ./scripts/gate-keepers.sh
 
 # Build release binary
