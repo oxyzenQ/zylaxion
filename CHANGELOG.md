@@ -20,6 +20,83 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-improve-20** (bb23bfb): the lowercase law enforced — the
+  zelynic NIGHT-dinner-22 lineage, ported whole. New
+  `scripts/gates/check-name-case.py` (gate-keepers section 9) scans
+  EVERY tracked file and every tracked path (git ls-files, the .cargo/
+  and .github/ hidden trees included, nothing excluded) and fails on
+  any casing outside the two legal families: lowercase, and the
+  identifier family (ZYLAXION_* env vars and build stamps, plus the
+  all-caps banner titles heading the scripts/ gate files). The tree
+  re-cased: 44 wrong-case occurrences across 23 files — README, RULES,
+  BRANDING, the v6.0.0-era frozen records included (the law excludes
+  nothing), the three crate descriptions, the systemd unit
+  description, and the instance-lock error string (sentence-start
+  lowercase is the law). docs/BRANDING.md grew the full Name Usage
+  codification (correct form table, identifier-family rule, incorrect
+  forms, the machine-enforcement pointer). 92 files, 671 name tokens,
+  0 violations.
+
+- **night-improve-19** (83ea734): the UX bridge — every fatal parse
+  error now renders through one authority: brand-styled clap render
+  through the shared capability gate (one color law), the
+  case-insensitive typo rescue behind clap's own engine, exactly one
+  canonical "For more information, try '--help'." footer (clap cannot
+  append it — zylaxion's --help is a parsed field per the single-tier
+  law), exit 2. The rescue ladder: clap's tip stands; then the
+  top-level authority table (help/V/check-update/live typed at
+  subcommand position tip the exact top-level spelling); then the
+  case-insensitive Jaro fallback over the FAILING command's flag pool
+  — argv walks to the subcommand the user is actually in, so
+  `zylaxion start --PRESET` rescues `--preset` where the reference's
+  root-only pool would stay silent. New `cli/ux.rs` + `cli/suggestion.rs`
+  (Levenshtein value matcher, both sides case-folded for the mixed-case
+  preset vocabulary — `cherymx` tips `cherryMX` — and the Jaro flag
+  matcher); the two duplicated preset-not-found sites deduplicated into
+  one constructor carrying the did-you-mean tip. Live-proven on all
+  five surfaces; 6 bridge pins, 7 engine pins, 2 config pins.
+
+- **night-improve-18** (4deabb2): the no-mercy era — the zelynic
+  structure discipline completed. The LOC gate law rewritten: 600
+  lines for every tracked .rs anywhere in the tree, NO marker (the
+  `// LOC_EXEMPT:` debt lane retired), over the cap means SPLIT the
+  same hour; beside the cap the gate enforces the layout law (every
+  crate's src/ root holds exactly its entry file, main.rs / lib.rs,
+  everything else in dir/mod.rs subsystem dirs). The Pattern C test
+  tree: every *.rs test file lives under its crate's test/ directory
+  (19 files, #[path]-wired, one theme per file) — module positions
+  unchanged so super::* still resolves, 150 tests, the exact
+  pre-move count. The six-marker debt ledger is PAID (max file 587):
+  zactrix-profiles/src/lib.rs (1641) into params/, model/, profile/,
+  overrides/ + a wiring-only lib.rs with crate-root re-exports;
+  mechanical.rs (1337) into mechanical/{mod,render}.rs; config.rs
+  (980) into config/{mod,paths}.rs; zylaxion-core/lib.rs (981) to 587;
+  zactrix-engine pool.rs (918) to 297 + voice/ dir; daemon.rs (679)
+  into daemon/{mod,watcher}.rs. Docs refreshed (RULES.md's stale
+  800-LOC/2000-LOC claims replaced with the live law, QA.md Q4, the
+  glossary marker entry retired, MAINTENANCE ledger 1 paid).
+
+- **night-improve-17** (58331f1): the masterclass README — the zelynic
+  consistency pass. Stability section: the Stable API contract (from
+  v11.0.0, the CLI surface frozen — commands, flags, output format)
+  plus the release-channels law (dev/nightly/alpha/beta/rc, CI rejects
+  any other suffix). Support section: Ko-fi plus the crypto-donations
+  lane with the three owner-verified receive addresses and the
+  network-mismatch warning. Commercial Licensing section: the ladder
+  at the owner's prices — Business $2,199/year (individual businesses
+  and small teams), Company $9,199/year (companies and enterprise, or
+  redistribution rights); Personal free, Individual holds at
+  $99/year — with the rationale (a masterpiece whose value increases
+  year by year; the price tracks the value; grandfathering protects
+  earlier buyers) and the unauthorized-use warning in the owner's own
+  wording: stealing, illegal forking, or building closed-source
+  commercial products without first contacting the owner
+  (rezky_nightky / oxyzenQ) and paying the license is the mark of the
+  worst kind of human — a rotten one; the honest paths are exactly
+  two. COMMERCIAL_LICENSE.md re-priced with the three owner-verified
+  QR codes (assets/qr/, the same verified set) beside their payment
+  addresses.
+
 - **night-improve-16** (9c61e03): the privilege guard and the root-usage
   audit — the zelynic NIGHT-hunt-11 contract lands verbatim:
   `--check-update` under euid 0 refuses with the "do not use sudo" verdict
