@@ -10,7 +10,9 @@
 //! ## Architecture
 //!
 //! - [`AcousticModel`] trait — the interface every sound profile must implement.
-//! - [`KeyProfile`] and sub-parameter structs — TOML-friendly DSP configuration.
+//! - [`KeyProfile`] and sub-parameter structs — the DSP configuration tables.
+//! - [`registry`] — the compiled preset catalog (night-improve-22, the
+//!   no-config law: every shipped preset is compile-time data here).
 //! - [`SynthState`] — zero-alloc per-voice state passed through the render path.
 //! - [`MechanicalClick`] — the reference implementation for mechanical switches.
 //! - [`TptSvf`] — topology-preserving SVF for numerically stable filtering.
@@ -19,7 +21,17 @@ mod model;
 mod overrides;
 mod params;
 mod profile;
+mod registry;
 mod tpt;
+
+// night-improve-22: the registry re-exports are consumed by the
+// session preset resolver and the commands tree wired in this same
+// night; the non-test compilation flags them until those consumers
+// land, so the bridge carries the family-standard scoped allow.
+#[allow(unused_imports)]
+pub use registry::{
+    DEFAULT_PRESET, Preset, lookup as registry_lookup, names_sorted as registry_names,
+};
 
 pub use mechanical::MechanicalClick;
 pub use model::{AcousticModel, SynthState};
