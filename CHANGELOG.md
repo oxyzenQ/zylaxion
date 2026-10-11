@@ -20,6 +20,47 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-improve-16** (9c61e03): the privilege guard and the root-usage
+  audit — the zelynic NIGHT-hunt-11 contract lands verbatim:
+  `--check-update` under euid 0 refuses with the "do not use sudo" verdict
+  and a re-run-without-sudo tip BEFORE any network I/O (exit 1). The total
+  audit (the verdict table lives in the new module's docs): `start` /
+  `daemon` refuse too, before the instance lock and before the fork —
+  acquiring the lock as root IS the pollution event (root-owned
+  lock/socket/PID files inside the user's runtime dir break the next
+  user-mode run), and a root daemon grabs input system-wide in a session
+  no user desktop shares. `doctor` stays reachable but warns its verdicts
+  describe root's session. `stop` / `status` deliberately unguarded (the
+  rescue path). The new `session::privilege` module (after the
+  night-improve-14 folders) carries pure, unit-pinned refusal wordings
+  (4 drift-pin tests) and `euid_is_root()` via nix.
+
+- **night-improve-15** (8c87d18): the single help reference and the
+  verbose verdict — the owner's suspicion audited and confirmed:
+  `-v/--verbose` was a gimmick (clap field parsed and never consumed, the
+  real work an argv peek setting RUST_LOG=debug through an unsafe
+  set_var, and only 3 debug!/trace! sites in the whole engine), so it is
+  removed, not imitated; `cmd_start` logs at info directly and RUST_LOG
+  stays the power-user door. The help surface takes the zelynic
+  single-tier law: clap's auto help and `help` subcommand disabled, one
+  curated end-to-end reference (purple group headings, grey synopses and
+  flag spellings, green annotated example pairs) dispatched from a real
+  `-h/--help` field; subcommand-level `--help` is now an
+  unknown-argument error (exit 2) and `start --check-update` no longer
+  hijacks into an update check. Three drift-pin tests hold the reference
+  to the command surface.
+
+- **night-improve-14** (5f6e40a): the zelynic foundation shape — src/
+  root holds exactly one file (`main.rs`, bootstrap + dispatch; the
+  audit found ten loose files there). Every concern moved to its folder:
+  `cli/` (Cli + Commands + version report + clap styles), `output/`
+  (the color/lane system, the former error_format.rs), `info/` (build
+  facts + the Hinnant clock), `session/` (config, instance lock,
+  pathguard, privilege, signals — the session contract); `commands/` and
+  `daemon/` unchanged. About 94 module-path references rewritten, the
+  `include_str!` manifest depth re-pinned, and the docs (QA.md,
+  BRANDING.md) re-pointed at the new homes.
+
 - **night-improve-12** (the mature-infra depth audit, five landing
   commits): the zelynic estate ported and adapted —
   - **12a (06b0ea6)**: the dual-license estate — COMMERCIAL_LICENSE.md
