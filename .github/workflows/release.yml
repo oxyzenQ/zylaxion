@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
         with:
           fetch-depth: 0
 
@@ -101,7 +101,7 @@ jobs:
           cat release-body.md
 
       - name: Upload release artifacts
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3, night-improve-8 SHA pin
         env:
           TAG: ${{ github.ref_name }}
         with:
