@@ -20,8 +20,9 @@ What it does (all lanes verified in-situ):
 
 1. Validates the version shape (stable semver and the pre-release
    family `vX.Y.Z-rc.N` are both accepted).
-2. Rewrites the workspace version — the root manifest AND every
-   member crate that carries its own version line — in one pass.
+2. Rewrites the package version — the root manifest (night-improve-21:
+   one package; the sibling-manifest scanner stays honest for the day
+   a second manifest appears) — in one pass.
 3. Syncs `Cargo.lock` through `cargo update --workspace --offline`,
    then verifies every member's lock entry actually moved (third-
    party entries untouched).
@@ -87,7 +88,7 @@ Two ledgers the maintainer owns and shrinks over time:
    same hour (a pure move — new module files, byte-identical
    behavior, gates green before and after). `scripts/gates/check-loc.sh`
    also enforces the layout law: src roots hold only their entry
-   file, tests live under each crate's test/ tree.
+   file, tests live under the package's test/ tree.
 2. **The actions-pin estate** — the SHA-pinned third-party actions.
    `check-actions-pins.sh` self-heals drift in `auto` mode and warns
    otherwise; majors are NEVER auto-healed — a major move is a

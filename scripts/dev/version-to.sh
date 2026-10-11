@@ -12,7 +12,8 @@
 #   ./scripts/dev/version-to.sh v11.1.0 --commit # Update and auto-commit
 #   ./scripts/dev/version-to.sh                  # Show current version
 #
-# Single source of truth: the root Cargo.toml [workspace.package] version.
+# Single source of truth: the root Cargo.toml [package] version
+# (night-improve-21: one package, the cosmic dragon unification).
 # Files updated:
 #   Cargo.toml                     (the source of truth itself)
 #   Cargo.lock                     (every workspace member entry, cargo-synced)
@@ -48,8 +49,7 @@ readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[0;33m'
 readonly NC='\033[0m'
 
-# Read current version from the root Cargo.toml (the workspace.package
-# version every member inherits).
+# Read current version from the root Cargo.toml (the package version).
 current_version() {
     grep -m1 '^version = ' Cargo.toml | sed 's/.*"\(.*\)".*/\1/'
 }
@@ -146,13 +146,15 @@ changelog_release() {
     fi
 }
 
-# Sync Cargo.lock to the bumped workspace (night-improve-9: a six-member
-# workspace materializes EVERY member's version into the lock — the old
-# root-only sed left five stale entries for the next build to rewrite,
-# dirtying the tree). cargo is the authority on its own lock format:
-# `cargo update --workspace --offline` moves member versions and stays
-# frozen on third-party deps. Verified per member name afterwards; a
-# verification miss warns honestly instead of failing the whole bump.
+# Sync Cargo.lock to the bumped package (night-improve-9: the old
+# six-member workspace materialized EVERY member's version into the
+# lock — the root-only sed left stale entries for the next build to
+# rewrite, dirtying the tree; night-improve-21 collapsed the members
+# into one package, and the contract is the same for the root entry).
+# cargo is the authority on its own lock format: `cargo update
+# --workspace --offline` moves the package version and stays frozen on
+# third-party deps. Verified per entry name afterwards; a verification
+# miss warns honestly instead of failing the whole bump.
 lock_sync_and_verify() {
     local target="$1"
     if ! command -v cargo > /dev/null 2>&1; then
@@ -172,7 +174,14 @@ lock_sync_and_verify() {
             echo -e "  ${YELLOW}!${NC} Cargo.lock          → ${member}: expected ${target}, got ${entry_ver:-absent} (run 'cargo update --workspace --offline' to fix)"
             all_ok=0
         fi
-    done < <(find crates -maxdepth 2 -name Cargo.toml -print0 |
+    done < <(if [ -d crates ]; then
+        find crates -maxdepth 2 -name Cargo.toml -print0 |
+            xargs -0 -I{} sh -c 'grep -m1 "^name = " "{}" | sed "s/.*\"\(.*\".*/\1/"'
+    else
+        # night-improve-21: no member manifests — verify the root
+        # entry through the same manifest-path pipeline.
+        printf './Cargo.toml\0'
+    fi |
         xargs -0 -r grep -h -m1 '^name = ' |
         sed 's/name = "\(.*\)"/\1/')
     [ "${all_ok}" = "1" ]

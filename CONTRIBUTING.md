@@ -42,13 +42,14 @@ runs).
 ## Project Structure
 
 ```
-crates/
-  zylaxion/            — the binary: CLI, config system, daemon, commands
-  zylaxion-core/       — the orchestrator: wires input events to synthesis
-  zylaxion-input/      — evdev/libinput capture lane
-  zylaxion-output/     — audio backend lane (cpal / PipeWire / ALSA)
-  zactrix-engine/      — the real-time synthesis engine (voice pool)
-  zactrix-profiles/    — the acoustic preset tables and tuning model
+src/                   — one package, the cosmic dragon engine
+  core/                — the orchestrator: wires input events to synthesis
+  input/               — evdev/libinput capture lane
+  audio/               — audio backend lane (cpal / PipeWire / ALSA)
+  engine/              — the real-time synthesis engine (voice pool)
+  profiles/            — the acoustic preset tables and tuning model
+  cli|commands|daemon|info|output|session/ — the shell: CLI, config
+                         system, daemonization, commands
 docs/                  — architecture, branding, verification, audits
 scripts/
   build.sh             — the local gate entry point

@@ -20,6 +20,31 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-improve-21** (39586b4): the cosmic dragon unification — the
+  six-crate workspace (zactrix-engine, zactrix-profiles, zylaxion-core,
+  zylaxion-input, zylaxion-output, zylaxion) becomes ONE package at the
+  repo root, the cosmic dragon engine and architecture. The former
+  crate boundaries survive as module boundaries: src/engine/ (the
+  voice pool), src/profiles/ (the acoustic model), src/core/ (the
+  Orchestrator spine, the error contract split into src/core/error/
+  under the no-mercy 600-LOC cap), src/input/ (libinput capture),
+  src/audio/ (the cpal sink and the SPSC ring bridge), and the shell
+  modules (cli, commands, daemon, info, output, session) unchanged.
+  The Pattern-C test tree consolidated under the root test/ with every
+  #[path] wiring remapped; the five vetted examples/ targets moved
+  with module includes and keep their autoexamples-ON status. The
+  dependency table is the exact union of the six former manifests,
+  every version untouched (11.0.0 lineage, owner-decided bumps);
+  cross-crate imports rewired to crate:: paths (the bare `input`
+  extern carries a leading :: so the input module and the libinput
+  binding never collide). check-loc.sh retires the per-crate loop
+  with the workspace; the single-file policy now has one subject. Dead
+  re-export bridges retired; unwired API-complete items carry scoped
+  allow/expect markers with night-improve-21 reasons. Live docs
+  refreshed tree-wide (README, RULES, GLOSSARY, BRANDING,
+  CONTRIBUTING, QA, SECURITY, NOTICE, config.toml, release.yml); the
+  frozen historical records stay untouched.
+
 - **night-improve-20** (bb23bfb): the lowercase law enforced — the
   zelynic NIGHT-dinner-22 lineage, ported whole. New
   `scripts/gates/check-name-case.py` (gate-keepers section 9) scans

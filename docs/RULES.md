@@ -13,14 +13,13 @@ Absolute source of truth for maintaining consistency, efficiency, and quality.
   fails the gate on any over-cap file; over the cap means SPLIT, the
   same hour, a pure move with gates green in between (the former
   `// LOC_EXEMPT:` debt lane is retired — all six pre-gate files were
-  split). The same gate enforces the layout law: every crate's src/
+  split). The same gate enforces the layout law: the package's src/
   root holds exactly its entry file (`main.rs` for the binary,
   `lib.rs` for a library), every other module lives in its subsystem
   directory (`dir/mod.rs` style), and every `*.rs` test file lives
-  under its crate's `test/` directory (the Pattern C `#[path]`
+  under the package's `test/` tree (the Pattern C `#[path]`
   wiring, one theme per file) under the same cap.
-- **Modular `main.rs`:** `crates/zylaxion/src/main.rs` MUST stay within
-  100–300 LOC. Bootstrap and wiring only. Logic goes into specific
+- **Modular `main.rs`:** `src/main.rs` MUST stay within 100–300 LOC. Bootstrap and wiring only. Logic goes into specific
   modules (the zelynic foundation shape, night-improve-14).
 - **Release Profile:** `[profile.release]` uses `lto = "thin"`, `codegen-units = 1`,
   `opt-level = 3`, `strip = true`, `panic = "unwind"`.
@@ -65,7 +64,8 @@ CI installs them in `.github/workflows/ci.yml` via `apt-get install`:
 
 - `pkg-config` — needed to locate `alsa.pc`, `libudev.pc`, `libinput.pc`.
 - `libasound2-dev` — ALSA C headers (consumed by `cpal`'s ALSA backend).
-- `libinput-dev`, `libudev-dev` — required by `zylaxion-input` for evdev.
+- `libinput-dev`, `libudev-dev` — required by the input lane (`src/input/`)
+  for evdev.
 
 A CI runner missing any of these will fail at `cargo clippy` with
 `pkg-config` exiting non-zero.
@@ -96,7 +96,7 @@ A CI runner missing any of these will fail at `cargo clippy` with
 
 zylaxion has a **zero-leakage** posture. Hard rules:
 
-- **Never log scancodes.** The `KeyEvent` struct (in `zylaxion-input`)
+- **Never log scancodes.** The `KeyEvent` struct (in `src/input/`)
   carries a raw hardware scancode that can be mapped back to typed
   text via the user's keyboard layout. Logging it — even at `debug`
   or `trace` level — would create a side-channel leak exploitable by
@@ -107,7 +107,7 @@ zylaxion has a **zero-leakage** posture. Hard rules:
     no scancode, no key identity).
   - The only place scancodes may be printed is `examples/` binaries
     that gate output behind an explicit `--dump-scancodes` CLI flag
-    (see `crates/zylaxion-input/examples/listen_keys.rs`).
+    (see `examples/listen_keys.rs`).
 - **IPC socket MUST be `0o600`.** `daemon::ipc::create_listener`
   sets the umask to `0o077` during `bind()` AND `chmod`s the file to
   `0o600` afterward. This blocks other users on the system from
@@ -127,7 +127,7 @@ Audit verification (run before every release):
 
 ```bash
 # Should print zero matches in production paths:
-grep -rn 'scancode' crates/ --include='*.rs' | \
+grep -rn 'scancode' src/ examples/ --include='*.rs' | \
     grep -E 'log::|println!|eprintln!' | \
     grep -v 'examples/'
 ```

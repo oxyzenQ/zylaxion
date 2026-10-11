@@ -68,11 +68,12 @@ drifts between docs is a bug.
 
 - **preset** — a named acoustic tuning (materials, pitch, decay,
   volume curve) in config.toml, played by the engine when a key
-  event arrives. The `zactrix-profiles` crate owns the tables.
+  event arrives. The profiles module (`src/profiles/`) owns the tables.
 - **voice pool** — the engine's fixed-capacity synthesizer voice
-  set (`zactrix-engine`); keystrokes claim and release voices; the
+  set (`src/engine/`); keystrokes claim and release voices; the
   render path is allocation-free by contract.
-- **orchestrator** — `zylaxion-core`'s event loop: input events in,
+- **orchestrator** — the core module's event loop (`src/core/`): input
+  events in,
   voice triggers out, audio batches to the sink; the daemon's core.
 - **IPC socket** — `$XDG_RUNTIME_DIR/zylaxion.sock`, mode `0o600`,
   length-prefixed, speaking only the documented verbs (`stop`,

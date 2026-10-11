@@ -46,22 +46,22 @@ acts in good faith.
 
 In scope:
 
-- The Rust CLI and everything it executes (`crates/zylaxion/`),
+- The Rust CLI and everything it executes (`src/`),
   including the update-check surface and the IPC daemon control
   socket — the socket file is created with mode `0o600` by design,
   and any weakening of that contract is a vulnerability.
-- The input capture lane (`crates/zylaxion-input/`) — evdev and
+- The input capture lane (`src/input/`) — evdev and
   libinput event reading. Keyboard event data must stay in the
   synthesis path only: it is never written to disk, never sent
   anywhere, and never logged with key content. Any persistence or
   transmission of keystroke content is critical by definition.
-- The audio engine lanes (`crates/zactrix-engine/`,
-  `crates/zactrix-profiles/`, `crates/zylaxion-core/`) — the
+- The audio engine lanes (`src/engine/`, `src/profiles/`,
+  `src/core/`) — the
   synthesis DSP, the orchestrator, and the hot-reload swap path.
 - The config system (`config.toml` discovery, parsing, and the
   filesystem watcher) — path traversal in the preset/override lanes
   and TOCTOU on the watched file are in scope.
-- The daemon lifecycle (`crates/zylaxion/src/daemon/`) —
+- The daemon lifecycle (`src/daemon/`) —
   daemonization, the PID file, the instance lock, and signal
   handling.
 - The release pipeline and artifacts: workflows

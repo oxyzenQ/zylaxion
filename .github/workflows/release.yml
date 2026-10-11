@@ -52,7 +52,7 @@ concurrency:
 #     --enable-static; the autoconf musl quirk needs
 #     ac_cv_c_undeclared_builtin_options='none needed'), and pkg-config
 #     points cargo at the static .a cleanly.
-#   - BLOCKED: the input leg. The `input` crate (crates/zylaxion-input)
+#   - BLOCKED: the input leg. The input module (src/input/)
 #     pulls `udev` -> `libudev-sys` (C libudev, the systemd/eudev
 #     stack) plus `input-sys` (C libinput, which itself links libudev
 #     and drags libevdev + mtdev + libwacom). A static musl build dies
@@ -63,7 +63,7 @@ concurrency:
 #   - UNBLOCK PATHS (the owner's call, like every version bump):
 #     (a) build the static eudev + libinput + libevdev + mtdev stack in
 #         CI before the cargo build (a real, heavy recipe), or
-#     (b) rework zylaxion-input onto a pure-Rust evdev lane and drop
+#     (b) rework the input lane onto a pure-Rust evdev path and drop
 #         the libinput C dependency.
 #     When either lands, the matrix regains the two musl legs verbatim
 #     in the zelynic shape:
