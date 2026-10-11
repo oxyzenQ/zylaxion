@@ -20,6 +20,64 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-improve-12** (the mature-infra depth audit, five landing
+  commits): the zelynic estate ported and adapted —
+  - **12a (06b0ea6)**: the dual-license estate — COMMERCIAL_LICENSE.md
+    (the four-tier ladder at the owner's current prices, the
+    owner-verified crypto addresses), NOTICE, SECURITY.md (the
+    input-data discipline: no key content persists, no network in the
+    audio path, a 0o600 IPC socket speaking only documented verbs),
+    CLA.md, CONTRIBUTING.md, and the QA record seeded with
+    session-verified facts.
+  - **12b (c10e9c1)**: the gate-keepers — six gates under scripts/gates/
+    (check-loc 600-line law with the honest LOC_EXEMPT debt ledger,
+    check-scripts-loc 1000-line cap, check-permissions the exact
+    644/755 contract with shebang parity, check-headers, the
+    check-language English-only sweep with the NON_LATIN_FIXTURE
+    marker, the inline emoji sweep) plus gate-keepers.sh, every section
+    a hard gate. The cleanups the gates demanded: 16 files gained the
+    license header, the doctor switched to word verdicts (PASS:/FAIL:),
+    the ohm unit ASCII-ized, the OS line added to the pre-existing
+    scripts. The permission gate proved itself on run one: the umask-002
+    worktree drift across 70+ files caught and --fix restored.
+  - **12c (fd585ef)**: the arch-baseline release lane — Dragon Guard -
+    Release with the channel/version contracts, the x86-64-v3/v4 gnu
+    matrix, embedded-label verification (v3 executed, v4 byte-grepped),
+    the flat tarball invariant, three checksum families (SHA-512,
+    BLAKE2b-512, SHAKE256 quantum-resistant), the GPG detached-
+    signature lane with passphrase confinement, the dist/ inventory
+    tripwire; the pro-linux-amd64-v3-gnu / v4-gnu aliases + profiles
+    with live-proofed local builds, and the release-parity gate
+    (section 8). The musl legs are a documented dormant lane with the
+    session's empirical evidence: static musl alsa-lib proven buildable
+    end to end, the real blocker libudev-sys/libinput, unlock paths
+    recorded for the owner's call.
+  - **12d (ee851c8)**: the miri UB lane (Dragon Guard - Miri — the
+    workspace suite under the nightly interpreter, weekly Sunday plus
+    path filters) and the family rename — every workflow now carries
+    the Dragon Guard name.
+  - **12e (1fd74f5)**: the docs structure — the map (docs/README.md),
+    the glossary (docs/GLOSSARY.md), the maintainer handbook
+    (docs/MAINTENANCE.md).
+
+- **night-improve-13** (0fd7cc4): the Hinnant clock and the zelynic
+  version-report contract — env_logger stripped to `auto-color` (its
+  `humantime` feature has mapped to dep:jiff since 0.11.8, and the
+  default regex filter chain went with it): eight crates left the lock
+  outright (jiff ×3, defmt ×3, thiserror ×2) plus the regex tree, and
+  zylaxion now carries no time crate and no regex crate anywhere. The
+  wall-clock needs answer through Howard Hinnant's civil_from_days
+  instead: the new clock.rs renders the daemon log stamps (same
+  millisecond UTC shape, journal greps keep their contract), build.rs
+  stamps `ZYLAXION_BUILD_TIME` plus the rustc/profile/opt-level facts,
+  and the new build_info lane feeds the version report and the doctor.
+  `-V`/`--version` now speaks the zelynic report shape — brand header
+  (purple on a TTY via the new stdout lanes), `Build:` /
+  `Build-time:` / `Copyright:` / `License:` / `Source:` — with one
+  body shared between the first-arg intercept and clap's own path; the
+  doctor leads with the `[1/4] Build facts` block (Version, Commit,
+  Variant, Built, Rustc, Profile with the manifest drift-guard test).
+
 - **night-improve-11**: cargo aliases land in the zelynic usage shape —
   `.cargo/config.toml` (now tracked; the local-only ignore rule retired)
   carries `cargo pro-native-gnu` (host-CPU native build via its own profile)
