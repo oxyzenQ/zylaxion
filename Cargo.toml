@@ -39,3 +39,12 @@ codegen-units = 1
 panic = "unwind"
 overflow-checks = false
 incremental = false
+
+# night-improve-11: native-CPU host build profile backing the
+# `cargo pro-native-gnu` alias (.cargo/config.toml [alias]). Inherits
+# release unchanged — the alias injects -C target-cpu=native, so the
+# binary is the same optimization tier as the release package, tuned
+# to the build host. Own profile dir keeps the artifact in
+# target/pro-native-gnu/, never clobbering target/release/.
+[profile.pro-native-gnu]
+inherits = "release"

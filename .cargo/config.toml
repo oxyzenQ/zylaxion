@@ -1,0 +1,59 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# Zylaxion cargo configuration — the zelynic alias lineage, sized to
+# this project's real build shapes (night-improve-11).
+#
+# Zylaxion ships ONE release target: x86_64-unknown-linux-gnu (see
+# release.yml — the musl lane is permanently absent because cpal's
+# alsa-sys needs pkg-config against glibc's libasound2-dev, and a
+# "static" binary still linking libasound would not be static anyway).
+# The config therefore carries no musl [target.*] block and no
+# static-crt flags — the honest delta from the zelynic reference.
+#
+# No build-level rustflags either: [profile.release] already pins
+# codegen-units = 1 (the zelynic [build] rustflags exists to force
+# that pin onto profiles that lack it; duplicating it here would tax
+# every dev build for zero gain). The zelynic target-level shadow
+# trap (target.rustflags silently ignoring build.rustflags) has no
+# victim here — there are no [target.*] blocks to shadow.
+#
+# -V naming needs no env stamp: BUILD_TARGET (cli.rs) is cfg-derived
+# ("linux-amd64-gnu" / "linux-amd64-musl") and rides every binary, so
+# the Build: line names the shape the same way for alias builds as for
+# release builds. The zelynic aliases carry env labels only because
+# their build.rs overrides the platform id; zylaxion's derives it.
+#
+# Backing profiles live in the workspace root Cargo.toml:
+# [profile.pro-native-gnu] inherits [profile.release] unchanged — the
+# only delta is the alias-injected -C target-cpu flag — so alias
+# binaries are the same optimization tier as the release package.
+[alias]
+# Host-CPU native glibc build (the zelynic pro-native lineage).
+# Compiles for the exact host CPU (-C target-cpu=native), dynamic
+# linking, full release optimization tier. Lands in
+# target/pro-native-gnu/zylaxion (own profile dir — a native build
+# never clobbers target/release/zylaxion).
+#
+# Note: cargo aliases cannot detect the host arch — on an aarch64 host
+# the alias still builds the host triple fine (dynamic gnu needs no
+# target pin); only the name stays amd64-shaped by family convention.
+pro-native-gnu = [
+  "build",
+  "--profile",
+  "pro-native-gnu",
+  "--config",
+  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
+]
+# The exact CI release shape — release.yml builds
+# `cargo build --release --target x86_64-unknown-linux-gnu` verbatim.
+# One command, byte-identical contract to the release package: same
+# profile, same target triple, no local-only flags. With --target the
+# binary lands in target/x86_64-unknown-linux-gnu/release/zylaxion,
+# isolated from any host-default build in target/release/.
+pro-linux-amd64-gnu = [
+  "build",
+  "--release",
+  "--target",
+  "x86_64-unknown-linux-gnu",
+]
