@@ -90,13 +90,17 @@ pub fn daemonize() -> Result<DaemonChildSync, String> {
                         std::process::exit(0);
                     } else {
                         // Child wrote an error message before closing.
+                        // night-improve-6: route through the labeled lane
+                        // instead of a hand-rolled prefix duplicate.
                         let msg = String::from_utf8_lossy(&buf);
-                        eprintln!("zylaxion: error: daemon init failed: {msg}");
+                        crate::error_format::error(format!("daemon init failed: {msg}"));
                         std::process::exit(1);
                     }
                 }
                 Err(e) => {
-                    eprintln!("zylaxion: error: init-sync pipe read failed: {e}");
+                    // night-improve-6: labeled lane, not a hand-rolled
+                    // prefix duplicate.
+                    crate::error_format::error(format!("init-sync pipe read failed: {e}"));
                     std::process::exit(1);
                 }
             }
