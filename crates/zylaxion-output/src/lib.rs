@@ -28,12 +28,12 @@
 //! between the two threads — no Mutex, no blocking.
 
 use std::fmt;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use ringbuf::traits::{Consumer, Observer, Producer, Split};
 use ringbuf::HeapRb;
+use ringbuf::traits::{Consumer, Observer, Producer, Split};
 
 /// Concrete producer type for the heap ring buffer.
 type HeapProd = <HeapRb<[f32; 2]> as Split>::Prod;

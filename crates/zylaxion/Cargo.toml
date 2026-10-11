@@ -2,11 +2,24 @@
 name = "zylaxion"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "Real-time mechanical keyboard acoustic synthesizer for Linux"
+description = "Real-time mechanical keyboard acoustic synthesizer for Linux. Pure procedural synthesis, zero audio samples, the boring and stealth."
 build = "build.rs"
+# night-improve-4: registry-grade manifest completeness, the zelynic
+# package-data pattern. The documentation field is the version-less
+# docs.rs base URL so it always tracks the newest hosted build the
+# moment the owner publishes to the registry. Keyword and category
+# slugs use only live registry buckets: command-line-utilities (the
+# primary terminal-binary bucket), multimedia::audio (the DSP engine
+# surface), os::linux-apis (the honest bucket for an evdev/libinput,
+# Linux-only tool).
+documentation = "https://docs.rs/zylaxion"
+readme = "README.md"
+keywords = ["keyboard", "audio", "sound", "linux", "real-time"]
+categories = ["command-line-utilities", "multimedia::audio", "os::linux-apis"]
 
 [dependencies]
 zylaxion-core = { path = "../zylaxion-core" }

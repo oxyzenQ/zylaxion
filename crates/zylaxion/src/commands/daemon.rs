@@ -19,8 +19,8 @@
 //!      channel disconnects.
 
 use std::process;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use std::time::{Duration, SystemTime};
 
 use arc_swap::ArcSwap;
@@ -499,11 +499,13 @@ fn spawn_config_watcher(
                     }
                 };
 
-                if let Some(prev) = last_mtime {
-                    if now_mtime <= prev {
-                        // mtime hasn't advanced — nothing to do.
-                        continue;
-                    }
+                // night-improve-4 (edition 2024): let-chains collapse
+                // the nested guard clippy flagged as collapsible_if.
+                if let Some(prev) = last_mtime
+                    && now_mtime <= prev
+                {
+                    // mtime hasn't advanced — nothing to do.
+                    continue;
                 }
 
                 // v10.2.0 (dragonzen audit P3): also require a size

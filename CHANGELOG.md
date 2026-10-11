@@ -20,6 +20,23 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-improve-4**: the workspace rides Rust edition 2024 with the
+  MSRV pinned to 1.98.1 — `rust-version = "1.98.1"` now sits next to
+  `edition = "2024"` in the shared `[workspace.package]` table and is
+  inherited by all six crates, and `rust-toolchain.toml` pins the same
+  1.98.1 channel in dormant mode (a future stable cannot silently
+  break the build). Migration verified clean: the only 2024 hard error
+  was `std::env::set_var`/`remove_var` becoming unsafe — the call
+  sites gained `unsafe` blocks with SAFETY comments plus a crate-wide
+  `ENV_LOCK` so env-mutating tests serialize; four nested guards
+  collapsed into 2024 let-chains; `cargo fmt` re-applied the 2024
+  style edition (import version-sort, closure indentation). The main
+  crate manifest carries the zelynic-grade package data: extended
+  description, docs.rs documentation link, readme, keywords, and
+  registry categories. Gatekeeper green: fmt + clippy
+  (`--all-targets --all-features -D warnings`) + 111 tests pass on
+  the pinned 1.98.1 toolchain.
+
 - **night-improve-0**: the design philosophy is now codified in
   `docs/PHILOSOPHY.md` under the owner's "the boring and stealth"
   banner — one sound done perfectly, the keystroke never leaves the

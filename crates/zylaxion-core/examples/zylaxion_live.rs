@@ -17,8 +17,8 @@
 //! Press Ctrl+C to stop.
 
 use std::process;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 use arc_swap::ArcSwap;
 use zactrix_profiles::MechanicalClick;

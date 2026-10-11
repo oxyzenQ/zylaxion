@@ -9,11 +9,11 @@ use std::fs;
 use std::io::Write;
 use std::os::fd::AsRawFd;
 use std::os::unix::net::UnixListener;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use nix::sys::signal::{self, SigHandler, Signal};
-use nix::unistd::{dup2, fork, getpid, setsid, ForkResult, Pid};
+use nix::unistd::{ForkResult, Pid, dup2, fork, getpid, setsid};
 
 /// Ignore `SIGHUP` and `SIGPIPE` so the daemon child does not die or
 /// hang when the controlling terminal disappears or a socket write fails.
@@ -320,59 +320,61 @@ pub fn spawn_ipc_thread(
 
     std::thread::Builder::new()
         .name("zylaxion-ipc".into())
-        .spawn(move || loop {
-            // Check stop flag at the top of every iteration so we exit
-            // promptly when the orchestrator is shutting down.
-            if stop_flag.load(Ordering::Relaxed) {
-                log::info!("IPC thread exiting (stop flag set)");
-                return;
-            }
+        .spawn(move || {
+            loop {
+                // Check stop flag at the top of every iteration so we exit
+                // promptly when the orchestrator is shutting down.
+                if stop_flag.load(Ordering::Relaxed) {
+                    log::info!("IPC thread exiting (stop flag set)");
+                    return;
+                }
 
-            // `accept()` on a non-blocking listener returns immediately.
-            // `WouldBlock` means no client is connecting — sleep briefly
-            // and retry. `Err(WouldBlock)` is the common case.
-            match listener.accept() {
-                Ok((stream, _addr)) => {
-                    // Reset to blocking for the duration of the request
-                    // handling so `read_line` / `write_all` behave
-                    // normally. The stream is dropped at the end of
-                    // `handle_one_connection`, restoring the fd.
-                    let _ = stream.set_nonblocking(false);
+                // `accept()` on a non-blocking listener returns immediately.
+                // `WouldBlock` means no client is connecting — sleep briefly
+                // and retry. `Err(WouldBlock)` is the common case.
+                match listener.accept() {
+                    Ok((stream, _addr)) => {
+                        // Reset to blocking for the duration of the request
+                        // handling so `read_line` / `write_all` behave
+                        // normally. The stream is dropped at the end of
+                        // `handle_one_connection`, restoring the fd.
+                        let _ = stream.set_nonblocking(false);
 
-                    // Wrap each connection in catch_unwind so a panic
-                    // in handle_one_connection doesn't kill the IPC
-                    // thread (S2). The daemon stays responsive to
-                    // future `stop` commands.
-                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        ipc::handle_one_connection_on(&listener, &stream)
-                    }));
-                    match result {
-                        Ok(Some(cmd)) if cmd == "stop" => {
-                            log::info!("received 'stop' command via IPC");
-                            stop_flag.store(true, Ordering::Relaxed);
-                            return;
-                        }
-                        Ok(_) => continue,
-                        Err(payload) => {
-                            log::error!(
-                                "IPC connection panicked: {:?} — thread continues",
-                                payload
-                            );
-                            continue;
+                        // Wrap each connection in catch_unwind so a panic
+                        // in handle_one_connection doesn't kill the IPC
+                        // thread (S2). The daemon stays responsive to
+                        // future `stop` commands.
+                        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            ipc::handle_one_connection_on(&listener, &stream)
+                        }));
+                        match result {
+                            Ok(Some(cmd)) if cmd == "stop" => {
+                                log::info!("received 'stop' command via IPC");
+                                stop_flag.store(true, Ordering::Relaxed);
+                                return;
+                            }
+                            Ok(_) => continue,
+                            Err(payload) => {
+                                log::error!(
+                                    "IPC connection panicked: {:?} — thread continues",
+                                    payload
+                                );
+                                continue;
+                            }
                         }
                     }
-                }
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    // No client connecting — poll stop_flag after a
-                    // short sleep. 100 ms gives sub-100ms shutdown
-                    // responsiveness while keeping idle CPU at ~10 Hz.
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    continue;
-                }
-                Err(e) => {
-                    log::warn!("IPC accept() error: {e} — retrying in 100 ms");
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    continue;
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        // No client connecting — poll stop_flag after a
+                        // short sleep. 100 ms gives sub-100ms shutdown
+                        // responsiveness while keeping idle CPU at ~10 Hz.
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        continue;
+                    }
+                    Err(e) => {
+                        log::warn!("IPC accept() error: {e} — retrying in 100 ms");
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        continue;
+                    }
                 }
             }
         })

@@ -47,16 +47,16 @@ use std::fs::OpenOptions;
 use std::os::fd::{AsFd, OwnedFd};
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
 use crossbeam_channel::{Receiver, Sender};
-use input::event::keyboard::KeyboardEventTrait;
 use input::LibinputInterface;
-use nix::poll::{poll, PollFd, PollFlags, PollTimeout};
-use nix::time::{clock_gettime, ClockId};
+use input::event::keyboard::KeyboardEventTrait;
+use nix::poll::{PollFd, PollFlags, PollTimeout, poll};
+use nix::time::{ClockId, clock_gettime};
 
 // ── Constants ───────────────────────────────────────────────────────────
 

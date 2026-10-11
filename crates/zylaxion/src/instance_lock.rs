@@ -195,10 +195,21 @@ mod tests {
     /// back to `/tmp` otherwise.
     #[test]
     fn lock_path_respects_xdg_runtime_dir() {
+        // Edition 2024 (night-improve-4) made env mutation unsafe; this
+        // suite shares the crate-wide ENV_LOCK so parallel tests cannot
+        // race the save/mutate/restore window below.
+        let _env_guard = crate::pathguard::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
         // Save and restore so other tests aren't affected.
         let saved = std::env::var_os("XDG_RUNTIME_DIR");
 
-        std::env::set_var("XDG_RUNTIME_DIR", "/tmp/zylaxion-lock-test-xdg");
+        // SAFETY (night-improve-4, edition 2024): mutations serialized
+        // by the ENV_LOCK held above — see pathguard's `with_test_env`.
+        unsafe {
+            std::env::set_var("XDG_RUNTIME_DIR", "/tmp/zylaxion-lock-test-xdg");
+        }
         let p = lock_path();
         assert_eq!(p.file_name().unwrap(), LOCK_FILE_NAME);
         assert_eq!(
@@ -206,15 +217,21 @@ mod tests {
             "/tmp/zylaxion-lock-test-xdg"
         );
 
-        std::env::remove_var("XDG_RUNTIME_DIR");
+        // SAFETY (night-improve-4, edition 2024): same serialized window.
+        unsafe {
+            std::env::remove_var("XDG_RUNTIME_DIR");
+        }
         let p = lock_path();
         assert_eq!(p.file_name().unwrap(), LOCK_FILE_NAME);
         assert_eq!(p.parent().unwrap().to_str().unwrap(), "/tmp");
 
         // Restore
-        match saved {
-            Some(v) => std::env::set_var("XDG_RUNTIME_DIR", v),
-            None => std::env::remove_var("XDG_RUNTIME_DIR"),
+        // SAFETY (night-improve-4, edition 2024): same serialized window.
+        unsafe {
+            match saved {
+                Some(v) => std::env::set_var("XDG_RUNTIME_DIR", v),
+                None => std::env::remove_var("XDG_RUNTIME_DIR"),
+            }
         }
     }
 
