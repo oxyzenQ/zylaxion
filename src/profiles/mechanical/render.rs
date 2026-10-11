@@ -20,9 +20,11 @@ use super::{
 
 impl AcousticModel for MechanicalClick {
     fn get_profile(&self, event: &KeyTrigger) -> KeyProfile {
-        // Per-key override lookup. Falls back to default if the scancode
-        // has no entry in the override map.
-        self.profiles.for_scancode(event.scancode)
+        // night-improve-22: one compiled preset profile for every key;
+        // the per-scancode override map died with the config file.
+        // KeyProfile is Copy, so this is a plain table read.
+        let _ = event.scancode;
+        self.profile
     }
 
     fn init_state(

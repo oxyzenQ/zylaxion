@@ -7,11 +7,20 @@
 // The module position is unchanged, so super::* still resolves.
 
 use super::*;
+
+/// Night-improve-22: these tests were authored against the
+/// pre-registry construction default (KeyProfile::default()). Pin the
+/// input explicitly so the suite stays deterministic no matter which
+/// preset the compiled DEFAULT_PRESET names.
+fn model_at_default_profile() -> MechanicalClick {
+    MechanicalClick::with_profile(KeyProfile::default(), crate::profiles::SAMPLE_RATE as u32)
+}
+
 use crate::profiles::{AcousticModel, KeyTrigger, SynthState};
 
 #[test]
 fn test_profile_returns_sane_defaults() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let event = KeyTrigger {
         scancode: 42,
         pressed: true,
@@ -30,7 +39,7 @@ fn test_profile_returns_sane_defaults() {
 
 #[test]
 fn test_center_pan_is_equal_lr() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let event = KeyTrigger {
         scancode: 42,
         pressed: true,
@@ -55,7 +64,7 @@ fn test_center_pan_is_equal_lr() {
 
 #[test]
 fn test_full_left_pan_is_louder_on_left() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let event = KeyTrigger {
         scancode: 42,
         pressed: true,
@@ -76,7 +85,7 @@ fn test_full_left_pan_is_louder_on_left() {
 
 #[test]
 fn test_full_right_pan_is_louder_on_right() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let event = KeyTrigger {
         scancode: 42,
         pressed: true,
@@ -97,7 +106,7 @@ fn test_full_right_pan_is_louder_on_right() {
 
 #[test]
 fn test_voice_decays_and_deactivates() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let event = KeyTrigger {
         scancode: 42,
         pressed: true,
@@ -130,7 +139,7 @@ fn test_voice_decays_and_deactivates() {
 
 #[test]
 fn test_silence_after_deactivation() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let event = KeyTrigger {
         scancode: 42,
         pressed: true,
@@ -161,7 +170,7 @@ fn test_silence_after_deactivation() {
 
 #[test]
 fn test_excitation_is_limited_duration() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let event = KeyTrigger {
         scancode: 42,
         pressed: true,
@@ -201,7 +210,7 @@ fn test_excitation_fade_is_quadratic() {
     // exact — just verify the mid-burst is significantly below
     // 0.5 of the start (which would only happen with a non-linear
     // fade). This catches accidental regression to linear.
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let event = KeyTrigger {
         scancode: 42,
         pressed: true,
@@ -240,7 +249,7 @@ fn test_excitation_fade_is_quadratic() {
 /// reduce the amplitude of fast repeats.
 #[test]
 fn test_inter_keystroke_interval_attenuation() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let event = KeyTrigger {
         scancode: 42,
         pressed: true,
@@ -299,7 +308,7 @@ fn test_inter_keystroke_interval_attenuation() {
 /// two consecutive presses of the same key.
 #[test]
 fn test_pan_jitter_varies_between_keypresses() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let event = KeyTrigger {
         scancode: 42,
         pressed: true,
@@ -445,7 +454,7 @@ fn test_two_stage_decay_disabled_when_coefficient_fast_zero() {
 /// should produce a quieter envelope than a full press (None=1.0).
 #[test]
 fn test_velocity_scales_amplitude() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let profile = KeyProfile::default();
 
     // Full press (digital switch — None = 1.0).
@@ -473,7 +482,7 @@ fn test_velocity_scales_amplitude() {
 /// analog) should produce identical amplitude.
 #[test]
 fn test_velocity_none_equals_full() {
-    let model = MechanicalClick::new(crate::profiles::SAMPLE_RATE as u32);
+    let model = model_at_default_profile();
     let profile = KeyProfile::default();
 
     let mut state_digital = SynthState::default();

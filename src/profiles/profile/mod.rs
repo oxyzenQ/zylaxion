@@ -8,26 +8,19 @@
 //! law). Every path is re-exported at the crate root, so external
 //! users see no change.
 
-use serde::{Deserialize, Serialize};
-
 use crate::profiles::{AmbientParams, ClickParams, DecayParams, HousingParams, SpringParams};
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct KeyProfile {
     /// Click transient parameters.
-    #[serde(default)]
     pub click: ClickParams,
     /// Spring resonance parameters.
-    #[serde(default)]
     pub spring: SpringParams,
     /// Decay envelope parameters.
-    #[serde(default)]
     pub decay: DecayParams,
     /// Ambient case-rattle parameters.
-    #[serde(default)]
     pub ambient: AmbientParams,
     /// Housing "thock" parameters (v4.2.0+).
-    #[serde(default)]
     pub housing: HousingParams,
 }
 
@@ -59,6 +52,12 @@ pub struct KeyProfile {
 ///   the longest practical spring ring-out burst.
 /// - `voice_off_threshold`: 1e-7–1e-2. Too small and voices never
 ///   deactivate; too large and they cut off audibly.
+// night-improve-22: the config-era TOML loading path was the only
+// non-test consumer of the range guardrails; the production profile
+// is compile-time registry data, so these now serve the test trees
+// exclusively (profiles_tests clamp pins + registry_tests no-drift
+// proof). The scoped allow keeps the zero-warning gate honest.
+#[allow(dead_code)]
 pub mod ranges {
     pub const CLICK_FREQ_MIN: f32 = 500.0;
     pub const CLICK_FREQ_MAX: f32 = 8000.0;
@@ -127,6 +126,12 @@ pub mod ranges {
 /// - `+inf` is replaced by `max`.
 /// - `-inf` is replaced by `min`.
 /// - Finite values outside the range are clamped to the nearest bound.
+// night-improve-22: the config-era TOML loading path was the only
+// non-test consumer of the range guardrails; the production profile
+// is compile-time registry data, so these now serve the test trees
+// exclusively (profiles_tests clamp pins + registry_tests no-drift
+// proof). The scoped allow keeps the zero-warning gate honest.
+#[allow(dead_code)]
 fn clamp_finite(value: f32, min: f32, max: f32) -> (f32, bool) {
     if value.is_nan() {
         return (min, true);
@@ -167,6 +172,10 @@ impl KeyProfile {
     /// - **Never** on the hardcoded default profile (it is constructed
     ///   in code and already safe — calling this is harmless but
     ///   wasteful).
+    // night-improve-22: exercised by the profiles + registry test
+    // trees (the clamp/no-drift proof); the production profile is
+    // compile-time data, so the non-test compilation never calls it.
+    #[allow(dead_code)]
     pub fn validate_and_clamp(&mut self) {
         // Click parameters
         let (v, c) = clamp_finite(

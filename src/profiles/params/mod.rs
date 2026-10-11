@@ -1,14 +1,12 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! The TOML-facing parameter structs and their defaults.
+//! The acoustic parameter structs and their compiled-in defaults.
 //!
 //! Split from the crate root in night-improve-18 (the no-mercy LOC
 //! law): the param tables are the config surface, the crate root
 //! stays the wiring + re-export home. Every path is re-exported at
 //! the crate root, so external users see no change.
-
-use serde::{Deserialize, Serialize};
 
 pub const SAMPLE_RATE: f32 = 44_100.0;
 
@@ -69,34 +67,17 @@ pub struct KeyTrigger {
 /// | `frequency` | 4000–5500 Hz | 3500–4500 Hz | 2500–3500 Hz |
 /// | `resonance` | 1.5–3.0 | 1.0–2.0 | 2.0–4.0 |
 /// | `duration_ms` | 1.0–2.0 ms | 0.8–1.5 ms | 1.5–3.0 ms |
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy)]
 pub struct ClickParams {
     /// Center frequency of the click bandpass filter (Hz).
-    #[serde(default = "default_click_frequency")]
     pub frequency: f32,
     /// Quality factor of the click filter. Higher values produce a narrower,
     /// more resonant click with longer ring-out.
-    #[serde(default = "default_click_resonance")]
     pub resonance: f32,
     /// Duration of the noise excitation burst in milliseconds.
-    #[serde(default = "default_click_duration_ms")]
     pub duration_ms: f32,
     /// Peak amplitude of the click transient (0.0–1.0).
-    #[serde(default = "default_click_amplitude")]
     pub amplitude: f32,
-}
-
-fn default_click_frequency() -> f32 {
-    4500.0
-}
-fn default_click_resonance() -> f32 {
-    2.0
-}
-fn default_click_duration_ms() -> f32 {
-    1.5
-}
-fn default_click_amplitude() -> f32 {
-    0.8
 }
 
 /// Parameters controlling the spring/housing resonance after the initial click.
@@ -105,27 +86,14 @@ fn default_click_amplitude() -> f32 {
 /// natural frequency, simulating the spring snapping back and the keycap
 /// housing vibrating. The `mix` parameter controls how prominent this
 /// resonance is relative to the click transient.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy)]
 pub struct SpringParams {
     /// Resonance frequency of the spring element (Hz).
-    #[serde(default = "default_spring_frequency")]
     pub frequency: f32,
     /// Quality factor. Higher values produce longer, more pronounced ringing.
-    #[serde(default = "default_spring_resonance")]
     pub resonance: f32,
     /// Mix level of the spring component in the final output (0.0–1.0).
-    #[serde(default = "default_spring_mix")]
     pub mix: f32,
-}
-
-fn default_spring_frequency() -> f32 {
-    1800.0
-}
-fn default_spring_resonance() -> f32 {
-    3.5
-}
-fn default_spring_mix() -> f32 {
-    0.6
 }
 
 /// Parameters controlling the exponential decay envelope applied to the output.
@@ -162,15 +130,13 @@ fn default_spring_mix() -> f32 {
 ///
 /// Both fields default to `0.0` / `0.0` which disables the fast stage
 /// — backward-compatible with existing configs that don't set them.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy)]
 pub struct DecayParams {
     /// Per-sample multiplicative decay factor for the slow (tail) stage.
     /// Must be in (0.0, 1.0). Used after `fast_samples_ms` elapses, or
     /// for the entire voice if `fast_samples_ms = 0.0`.
-    #[serde(default = "default_decay_coefficient")]
     pub coefficient: f32,
     /// Amplitude threshold below which the voice is deactivated.
-    #[serde(default = "default_decay_voice_off_threshold")]
     pub voice_off_threshold: f32,
     /// Per-sample multiplicative decay factor for the fast (initial)
     /// stage (v10.2.0+ — N7). Must be in (0.0, 1.0). Used for the
@@ -180,7 +146,6 @@ pub struct DecayParams {
     ///
     /// Typical value: `0.997` — at 44.1 kHz this reaches -60 dB in
     /// ~23 ms, capturing the click transient's rapid energy drop.
-    #[serde(default)]
     pub coefficient_fast: f32,
     /// Duration of the fast (initial) stage in milliseconds (v10.2.0+ —
     /// N7). After this many milliseconds, the voice switches from
@@ -190,15 +155,7 @@ pub struct DecayParams {
     /// Typical value: `5.0` — the click transient's initial energy
     /// drop completes within ~5 ms, then the spring/housing tail takes
     /// over.
-    #[serde(default)]
     pub fast_samples_ms: f32,
-}
-
-fn default_decay_coefficient() -> f32 {
-    0.9994
-}
-fn default_decay_voice_off_threshold() -> f32 {
-    1e-5
 }
 
 /// Parameters controlling the ambient case-rattle / hollow-housing noise.
@@ -213,29 +170,19 @@ fn default_decay_voice_off_threshold() -> f32 {
 /// white noise with its own decay envelope, mixed into the final output.
 /// When `enabled` is `false`, no ambient noise is generated (zero CPU
 /// cost).
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy)]
 pub struct AmbientParams {
     /// Master enable for the ambient rattle path. When `false`, the
     /// engine skips ambient noise generation entirely.
-    #[serde(default)]
     pub enabled: bool,
     /// Peak amplitude of the ambient noise burst (0.0 = silent,
     /// 1.0 = full). Typical values: 0.05 (subtle) to 0.3 (heavy rattle).
-    #[serde(default = "default_ambient_noise_level")]
     pub noise_level: f32,
     /// Per-sample multiplicative decay factor for the ambient envelope.
     /// Controls how long the rattle persists after the keypress.
     /// MUST be < 1.0 (same constraint as `DecayParams::coefficient`).
     /// Lower values = faster rattle decay; higher values = longer ring.
-    #[serde(default = "default_ambient_noise_decay")]
     pub noise_decay: f32,
-}
-
-fn default_ambient_noise_level() -> f32 {
-    0.1
-}
-fn default_ambient_noise_decay() -> f32 {
-    0.99
 }
 
 /// Parameters controlling the housing "thock" — the deep, low-frequency
@@ -263,7 +210,7 @@ fn default_ambient_noise_decay() -> f32 {
 /// All three are driven by the same noise excitation burst and share
 /// the main decay envelope — they differ only in their filter
 /// frequency, resonance Q, and output mix level.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy)]
 pub struct HousingParams {
     /// Resonant frequency of the housing / PCB impact (Hz).
     ///
@@ -271,12 +218,10 @@ pub struct HousingParams {
     /// - Thick aluminum / brass cases: 200–400 Hz (deeper thock).
     /// - Plastic / FR4 PCB: 400–600 Hz (mid thock).
     /// - Low-profile switches: 600–800 Hz (tighter, less body).
-    #[serde(default = "default_housing_frequency")]
     pub frequency: f32,
     /// Quality factor of the housing bandpass filter. Higher values
     /// produce a more pronounced, sustained thock; lower values a
     /// broader, muffled impact.
-    #[serde(default = "default_housing_resonance")]
     pub resonance: f32,
     /// Mix level of the housing layer in the final output (0.0–1.0).
     ///
@@ -284,18 +229,7 @@ pub struct HousingParams {
     /// - Tactile switches (MX Clear, Zealios): 0.4–0.6.
     /// - Clicky switches (MX Blue, buckling-spring): 0.2–0.3 (the click
     ///   is the dominant character, thock should not mask it).
-    #[serde(default = "default_housing_mix")]
     pub mix: f32,
-}
-
-fn default_housing_frequency() -> f32 {
-    400.0
-}
-fn default_housing_resonance() -> f32 {
-    2.0
-}
-fn default_housing_mix() -> f32 {
-    0.4
 }
 
 impl Default for ClickParams {
