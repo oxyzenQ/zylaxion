@@ -108,10 +108,17 @@ same hour.
 ## Q5 — How do I verify a downloaded release binary?
 
 [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) is the walkthrough:
-sha256 checksum first, then the signature, then the smoke checks
-(`zylaxion -V` should print the Build facts that match the release
-page's declared platform label). The release lane builds
-`x86_64` Linux binaries for gnu and musl at the x86-64-v3 and v4
+sha256/sha512 checksum first, then the GPG signature when the release
+carries one, then the smoke checks (`zylaxion -V` should print the
+Build facts that match the release page's declared platform label).
+The release lane builds `x86_64` gnu binaries at the x86-64-v3 and v4
 optimization baselines — pick the artifact whose label matches your
 CPU (v3: AVX2-era; v4: AVX-512-era); when in doubt, v3 runs
-everywhere v4 does.
+everywhere v4 does. The musl lane is documented dormant: the C input
+and audio stack (libinput, libudev, alsa-lib) has no static musl
+answer yet — alsa-lib alone was proven solvable (the static musl .a
+builds), the blocker is `libudev-sys`/libinput, and the unlock paths
+live in the release workflow's matrix header (`release.yml`, the
+night-improve-12c evidence block). Every artifact self-reports its
+platform id through the `ZYLAXION_BUILD` stamp, and the local alias
+parity is gate-enforced (`scripts/gates/check-release-parity.sh`).

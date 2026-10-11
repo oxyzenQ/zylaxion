@@ -4,8 +4,22 @@
 # Verifying Release Artifacts
 
 Every release ships **three** checksum files per archive, covering
-classical + post-quantum algorithms. Verify at least one before
-trusting a downloaded binary.
+classical + post-quantum algorithms — and, when the owner's signing
+key is configured for the release lane, a GPG detached ASCII-armored
+signature (`.asc`) per archive. Verify at least one checksum before
+trusting a downloaded binary; verify the signature when it is
+present.
+
+## Artifacts (night-improve-12c naming)
+
+The tarball name carries the platform id the binary itself reports
+(`zylaxion -V` prints the same label on its `Build:` line):
+
+- `zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz` — x86-64-v3 (AVX2-era
+  CPUs), dynamic glibc. The safe default: every CPU that runs v4 runs
+  v3.
+- `zylaxion-vX.Y.Z-linux-amd64-v4-gnu.tar.gz` — x86-64-v4
+  (AVX-512-era CPUs), dynamic glibc.
 
 ## Checksum files
 
@@ -22,22 +36,39 @@ mismatch). No manual hash comparison needed.
 
 ```bash
 # Classical (universal, every Linux has this)
-sha512sum -c project-vX.Y.Z-linux-amd64-gnu.tar.gz.sha512sum
+sha512sum -c zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.sha512sum
 
 # Quantum-resistant — BLAKE2b (fastest, in coreutils)
-b2sum -c project-vX.Y.Z-linux-amd64-gnu.tar.gz.b2sum
+b2sum -c zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.b2sum
 
 # Quantum-resistant — SHAKE256 (NIST PQ standard, via Python)
 # openssl's -shake256 default output length varies by version/distro;
 # Python hashlib.shake_256 is consistent (64 bytes = 128 hex chars)
-COMPUTED=$(python3 -c "import hashlib; print(hashlib.shake_256(open('project-vX.Y.Z-linux-amd64-gnu.tar.gz','rb').read()).hexdigest(64))")
-EXPECTED=$(awk '{print $1}' project-vX.Y.Z-linux-amd64-gnu.tar.gz.shake256)
-[ "$COMPUTED" = "$EXPECTED" ] && echo "project-vX.Y.Z-linux-amd64-gnu.tar.gz: OK" || echo "FAILED"
+PKG=zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz
+COMPUTED=$(python3 -c "import hashlib; print(hashlib.shake_256(open('$PKG','rb').read()).hexdigest(64))")
+EXPECTED=$(awk '{print $1}' "$PKG.shake256")
+[ "$COMPUTED" = "$EXPECTED" ] && echo "$PKG: OK" || echo "FAILED"
+
+# GPG detached signature (when the release carries .asc files)
+gpg --verify zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.asc \
+  zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz
+# Import the owner's public key once, from the repository's release
+# page or a keyserver, and check the fingerprint out of band.
 ```
 
-Replace `project-vX.Y.Z-linux-amd64-gnu` with the actual archive name
-(e.g. `zylaxion-v10.0.1-linux-amd64-gnu` or
-`zylaxion-v10.0.1-linux-amd64-musl`).
+Swap the platform label (`-v4-gnu`) for the artifact you actually
+downloaded — the label set lives in the release page's table.
+
+## Smoke check after extraction
+
+Run the binary's self-report and compare it against the tarball
+name's platform id:
+
+```bash
+./zylaxion -V
+# Build: linux-amd64-v3-gnu (<short-sha>)   <- must match the label
+# Build-time: M/D/YYYY HH:MM (UTC)          <- Hinnant-stamped UTC
+```
 
 ## Why three algorithms
 
@@ -49,7 +80,8 @@ single family does not invalidate verification via the other two.
 
 - `sha512sum` — GNU coreutils (preinstalled on every Linux)
 - `b2sum` — GNU coreutils ≥ 8.x (preinstalled on modern distros)
-- `openssl` — OpenSSL 1.1.1+ (preinstalled on virtually every Linux)
+- `python3` — for the SHAKE256 lane (hashlib is stdlib)
+- `gpg` — GnuPG 2.x (only for the signature lane)
 
-All three tools ship with Arch Linux, Debian, Ubuntu, Fedora, Alpine,
+All four tools ship with Arch Linux, Debian, Ubuntu, Fedora, Alpine,
 and macOS by default — no extra install needed.
