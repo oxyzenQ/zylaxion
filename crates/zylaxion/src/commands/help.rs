@@ -13,14 +13,14 @@
 //! without updating this module fails the suite (the tests below).
 //!
 //! Tier law (the zelynic help contract, one palette — see
-//! [`crate::cli_styles`] and BRANDING.md): the banner and every
+//! [`crate::cli::styles`] and BRANDING.md): the banner and every
 //! section heading ride brand purple bold; every command synopsis and
 //! every flag spelling rides calm grey (grammar, not content); every
 //! runnable example rides status green (the "this is what you type"
 //! tier); prose stays default. Under a pipe or `NO_COLOR` everything
 //! degrades to byte-exact plain text (the stdout capability gate).
 
-use crate::error_format::{BRAND_OPEN, GREY_OPEN, OK_OPEN, RESET};
+use crate::output::{BRAND_OPEN, GREY_OPEN, OK_OPEN, RESET};
 
 /// Render the end-to-end reference: usage, commands grouped by role,
 /// examples, global flags, and the no-subcommand contract.
@@ -132,9 +132,9 @@ pub(crate) fn render_reference(color: bool) -> String {
 /// Print the reference broken-pipe-safe (`zylaxion -h | head` must
 /// truncate, never panic).
 pub(crate) fn print_reference() {
-    let text = render_reference(crate::error_format::stdout_color_enabled());
+    let text = render_reference(crate::output::stdout_color_enabled());
     for line in text.lines() {
-        crate::error_format::print_stdout_line(line);
+        crate::output::print_stdout_line(line);
     }
 }
 

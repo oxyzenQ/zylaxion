@@ -131,7 +131,7 @@ pub fn resolve_runtime_dir() -> PathBuf {
 /// that mutates the environment must hold this crate-wide lock so
 /// parallel test threads never race each other's save/restore
 /// windows. This suite takes it inside `with_test_env`; the
-/// `instance_lock` suite takes it via `crate::pathguard::ENV_LOCK`.
+/// `instance_lock` suite takes it via `crate::session::pathguard::ENV_LOCK`.
 #[cfg(test)]
 pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 

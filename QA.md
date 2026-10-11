@@ -22,7 +22,7 @@ that every one of them earns its place:
 
 - **No time crates.** Any wall-clock need is answered by the std clock
   plus Howard Hinnant's `civil_from_days` algorithm — the runtime twin
-  lives in `crates/zylaxion/src/clock.rs` (daemon log stamps) and the
+  lives in `crates/zylaxion/src/info/clock.rs` (daemon log stamps) and the
   compile-time twin in `crates/zylaxion/build.rs` (the `Build-time:`
   stamp). env_logger runs with `default-features = false` because its
   default timestamp feature transitively pulled the jiff tree
@@ -55,7 +55,7 @@ Source: https://github.com/oxyzenQ/zylaxion
 ```
 
 - The `Build:` label comes from the canonical label chain
-  (`crates/zylaxion/src/build_info.rs`): the `ZYLAXION_BUILD` env
+  (`crates/zylaxion/src/info/build.rs`): the `ZYLAXION_BUILD` env
   stamp when a release lane exports one, else the compile-time
   arch+libc detection.
 - The `Build-time:` stamp is computed in `build.rs` by the Hinnant
@@ -84,7 +84,7 @@ Source: https://github.com/oxyzenQ/zylaxion
 The exit code reflects the hard checks (sections 2 and 3, plus audio
 degradation), so `zylaxion doctor` is scriptable as a health probe.
 The doctor speaks in word verdicts (green/red lanes through
-`error_format.rs`), not glyph decorations.
+`crates/zylaxion/src/output/mod.rs`), not glyph decorations.
 
 ## Q4 — Where does the 600-line law stand today?
 
@@ -95,7 +95,7 @@ script under `scripts/`. The honest ledger at gate-introduction time
 `// LOC_EXEMPT:` marker and a justification):
 
 - `crates/zactrix-profiles/src/lib.rs`, `mechanical.rs`,
-  `crates/zylaxion-core/src/lib.rs`, `crates/zylaxion/src/config.rs`,
+  `crates/zylaxion-core/src/lib.rs`, `crates/zylaxion/src/session/config.rs`,
   `crates/zactrix-engine/src/pool.rs`,
   `crates/zylaxion/src/commands/daemon.rs`.
 

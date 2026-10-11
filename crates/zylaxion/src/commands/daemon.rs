@@ -29,9 +29,9 @@ use zactrix_profiles::MechanicalClick;
 use zylaxion_core::Orchestrator;
 use zylaxion_input::{InputSource, LibinputSource};
 
-use crate::config;
 use crate::daemon;
-use crate::instance_lock;
+use crate::session::config;
+use crate::session::instance_lock;
 
 /// Polling interval for the config-file watcher.
 ///
@@ -42,7 +42,7 @@ const CONFIG_WATCH_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Shared logger wiring (night-improve-13): one builder for both the
 /// foreground (`start`) and daemonized paths. The timestamp lane is a
-/// hand-rolled UTC stamp ([`crate::clock`] — the Hinnant civil_from_days
+/// hand-rolled UTC stamp ([`crate::info::clock`] — the Hinnant civil_from_days
 /// core, std clock only) because env_logger's own timestamp lane (the
 /// `humantime` feature) transitively pulls the jiff crate tree — the
 /// exact dependency bloat the no-time-crate contract refuses. The
@@ -66,7 +66,7 @@ fn init_logger(default_filter: Option<&str>) {
             writeln!(
                 buf,
                 "[{} {:<5} {}] {}",
-                crate::clock::iso_utc_millis(),
+                crate::info::clock::iso_utc_millis(),
                 record.level(),
                 record.target(),
                 record.args()
@@ -88,9 +88,11 @@ pub fn cmd_start(cli_preset: Option<String>) {
     // ANY state touch — `acquire_or_exit` below creates the lock file,
     // and acquiring it as root IS the pollution event (a root-owned
     // lock inside the user's runtime dir breaks the next user-mode
-    // run). Full verdict table: `crate::privilege` module docs.
-    if let Some(refusal) = crate::privilege::session_refusal(crate::privilege::euid_is_root()) {
-        crate::error_format::error(refusal);
+    // run). Full verdict table: `crate::session::privilege` module docs.
+    if let Some(refusal) =
+        crate::session::privilege::session_refusal(crate::session::privilege::euid_is_root())
+    {
+        crate::output::error(refusal);
         process::exit(1);
     }
 
@@ -102,7 +104,7 @@ pub fn cmd_start(cli_preset: Option<String>) {
         match config::resolve_config(cli_preset.as_deref()) {
             Ok(tuple) => tuple,
             Err(e) => {
-                crate::error_format::error(e);
+                crate::output::error(e);
                 process::exit(1);
             }
         };
@@ -114,7 +116,7 @@ pub fn cmd_start(cli_preset: Option<String>) {
     let event_rx = match input_source.listen() {
         Ok(rx) => rx,
         Err(e) => {
-            crate::error_format::error(format!("input error: {e}"));
+            crate::output::error(format!("input error: {e}"));
             process::exit(1);
         }
     };
@@ -125,8 +127,8 @@ pub fn cmd_start(cli_preset: Option<String>) {
     let mut orchestrator = match Orchestrator::with_master_volume(master_params.volume) {
         Ok(o) => o,
         Err(e) => {
-            crate::error_format::error(format!("audio error: {e}"));
-            crate::error_format::warning("make sure PipeWire or PulseAudio is running");
+            crate::output::error(format!("audio error: {e}"));
+            crate::output::warning("make sure PipeWire or PulseAudio is running");
             process::exit(1);
         }
     };
@@ -147,7 +149,9 @@ pub fn cmd_start(cli_preset: Option<String>) {
     // stop_flag, letting the orchestrator exit gracefully (fade-out,
     // CpalSink drop, Flock drop). Without this, `kill -9` would skip
     // Drop guards and leave the terminal / PipeWire in a broken state.
-    if let Err(e) = crate::signals::install_graceful_shutdown_handlers(Arc::clone(&stop_flag)) {
+    if let Err(e) =
+        crate::session::signals::install_graceful_shutdown_handlers(Arc::clone(&stop_flag))
+    {
         log::warn!("failed to install signal handlers: {e}");
     }
 
@@ -207,9 +211,11 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
     // Privilege guard first (night-improve-16): same contract as
     // `cmd_start`, and here it must also precede the fork — the parent
     // refuses, so no root-owned child ever materializes. Full verdict
-    // table: `crate::privilege` module docs.
-    if let Some(refusal) = crate::privilege::session_refusal(crate::privilege::euid_is_root()) {
-        crate::error_format::error(refusal);
+    // table: `crate::session::privilege` module docs.
+    if let Some(refusal) =
+        crate::session::privilege::session_refusal(crate::session::privilege::euid_is_root())
+    {
+        crate::output::error(refusal);
         process::exit(1);
     }
 
@@ -221,7 +227,7 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
     let cli_preset_arc = Arc::new(cli_preset);
 
     if daemon::is_daemon_running().is_ok() {
-        crate::error_format::error("zylaxion daemon is already running");
+        crate::output::error("zylaxion daemon is already running");
         process::exit(1);
     }
 
@@ -258,7 +264,7 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
                 // the parent will print it. We still need to exit.
                 // If daemonize() failed before fork, there's no parent
                 // to sync with — print to stderr directly.
-                crate::error_format::error(format!("daemonize failed: {e}"));
+                crate::output::error(format!("daemonize failed: {e}"));
                 process::exit(1);
             }
         }
@@ -313,7 +319,9 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
     // CpalSink drop, Flock drop, PID file cleanup). Without this,
     // `pkill -f zylaxion` would skip Drop guards and leave stale lock
     // files + a broken PipeWire graph.
-    if let Err(e) = crate::signals::install_graceful_shutdown_handlers(Arc::clone(&stop_flag)) {
+    if let Err(e) =
+        crate::session::signals::install_graceful_shutdown_handlers(Arc::clone(&stop_flag))
+    {
         log::warn!("failed to install signal handlers: {e}");
     }
 
@@ -406,7 +414,7 @@ pub fn cmd_stop() {
 ///
 /// - Polls every [`CONFIG_WATCH_INTERVAL`] (1 second).
 /// - On every poll, re-runs the search-path resolution via
-///   [`crate::config::find_config_path`]. This catches the case where
+///   [`crate::session::config::find_config_path`]. This catches the case where
 ///   a higher-priority config file appears while the daemon is
 ///   running (e.g. user creates `~/.config/zylaxion/config.toml`
 ///   while the daemon was watching `/usr/local/share/zylaxion/...`).
@@ -500,7 +508,7 @@ fn spawn_config_watcher(
                 // priority config file appears while the daemon is
                 // already running. Without this, the watcher would be
                 // locked to whatever path was resolved at startup.
-                let resolved = crate::config::find_config_path();
+                let resolved = crate::session::config::find_config_path();
 
                 if resolved != current_path {
                     log::info!(
@@ -592,7 +600,7 @@ fn spawn_config_watcher(
                 // reload_preset reads preset.tuning from the file — the
                 // initial --preset CLI flag is intentionally NOT passed
                 // here so that file edits always take precedence.
-                match crate::config::reload_preset(path, None) {
+                match crate::session::config::reload_preset(path, None) {
                     Ok((profiles, active, master)) => {
                         // v10.2.0 (B13): read the current sample_rate
                         // from the shared atomic instead of using the

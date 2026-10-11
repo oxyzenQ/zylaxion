@@ -135,7 +135,7 @@ pub fn resolve_config(
     }
 
     // No config file found — use hardcoded default.
-    crate::error_format::warning("no config.toml found — using hardcoded default");
+    crate::output::warning("no config.toml found — using hardcoded default");
     Ok((
         ProfileWithOverrides {
             default: KeyProfile::default(),

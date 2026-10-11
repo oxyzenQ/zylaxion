@@ -54,7 +54,7 @@ const LOCK_FILE_NAME: &str = "zylaxion.lock";
 /// path (e.g. `/etc`, `/usr`, `~/.ssh`). This prevents the lock file
 /// from being written into protected directories.
 pub fn lock_path() -> PathBuf {
-    crate::pathguard::resolve_runtime_dir().join(LOCK_FILE_NAME)
+    crate::session::pathguard::resolve_runtime_dir().join(LOCK_FILE_NAME)
 }
 
 /// Acquire an exclusive, non-blocking flock on the single-instance lock
@@ -112,7 +112,7 @@ pub fn acquire_or_exit() -> Flock<File> {
     match acquire() {
         Ok(guard) => guard,
         Err(e) => {
-            crate::error_format::error(e);
+            crate::output::error(e);
             std::process::exit(1);
         }
     }
@@ -198,7 +198,7 @@ mod tests {
         // Edition 2024 (night-improve-4) made env mutation unsafe; this
         // suite shares the crate-wide ENV_LOCK so parallel tests cannot
         // race the save/mutate/restore window below.
-        let _env_guard = crate::pathguard::ENV_LOCK
+        let _env_guard = crate::session::pathguard::ENV_LOCK
             .lock()
             .unwrap_or_else(|e| e.into_inner());
 
@@ -341,15 +341,13 @@ mod tests {
                         // BUG: child acquired the lock while parent held it.
                         // night-improve-6: internal-failure lanes ride the
                         // labeled red lane like every other error.
-                        crate::error_format::error(
+                        crate::output::error(
                             "BUG: child acquired lock that parent holds — single-instance lock is broken",
                         );
                         std::process::exit(42);
                     }
                     Err((_, e)) => {
-                        crate::error_format::error(format!(
-                            "unexpected error from child flock: {e}"
-                        ));
+                        crate::output::error(format!("unexpected error from child flock: {e}"));
                         std::process::exit(43);
                     }
                 }

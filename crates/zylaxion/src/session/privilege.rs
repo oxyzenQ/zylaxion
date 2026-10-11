@@ -3,7 +3,7 @@
 
 //! Privilege guard — the root-usage audit (night-improve-16).
 //!
-//! The sibling of [`crate::pathguard`]: pathguard pins WHERE runtime
+//! The sibling of [`crate::session::pathguard`]: pathguard pins WHERE runtime
 //! state may live, this module pins WHO may run the privileged
 //! surfaces. Both exist because zylaxion is a user-session program —
 //! every byte of state it writes (lock, socket, PID) belongs inside

@@ -7,29 +7,27 @@
 //! through your speakers, using the kernel's evdev interface and
 //! low-latency audio via cpal / PipeWire.
 //!
-//! # Architecture
+//! # Architecture (night-improve-14, the zelynic foundation shape)
 //!
-//! - [`cli`]       — clap argument definitions & masterclass version format
-//! - [`config`]    — filesystem search for the central `config.toml`
+//! `src/main.rs` is the ONLY file at the src root — bootstrap + dispatch;
+//! every concern lives in its own folder:
+//!
+//! - [`cli`]       — clap definitions, the version report, clap styles
+//! - [`output`]    — the color/lane system (errors, warnings, brand tiers)
+//! - [`info`]      — the binary's self-knowledge: build facts, Hinnant clock
+//! - [`session`]   — the session contract: config, instance lock,
+//!   pathguard, privilege, signals
 //! - [`commands`]  — subcommand handlers (`start`, `daemon`, `stop`, `doctor`, …)
-//! - [`daemon`]    — POSIX daemonization, PID file, signal handling, IPC
-//! - [`privilege`] — the root-usage audit (refusals for the network
-//!   and daemon surfaces, the night-improve-16 guard)
+//! - [`daemon`]    — POSIX daemonization, PID file, IPC
 
 use clap::Parser;
 
-mod build_info;
 mod cli;
-mod cli_styles;
-mod clock;
 mod commands;
-mod config;
 mod daemon;
-mod error_format;
-mod instance_lock;
-mod pathguard;
-mod privilege;
-mod signals;
+mod info;
+mod output;
+mod session;
 
 fn main() {
     // v10.2.0 (dragonzen audit S3): install a panic hook that logs
