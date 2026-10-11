@@ -60,24 +60,38 @@ pub const VOLUME_ENV_VAR: &str = "ZYLAXION_VOLUME";
 /// (`cmd_start` / `cmd_daemon`) prints the message and exits; there
 /// is **no silent fallback** to a different preset or volume.
 pub fn resolve(cli_preset: Option<&str>) -> Result<(KeyProfile, &'static str, f32), String> {
+    let preset_env = std::env::var(PRESET_ENV_VAR).ok();
+    let volume_env = std::env::var(VOLUME_ENV_VAR).ok();
+    resolve_from(cli_preset, preset_env.as_deref(), volume_env.as_deref())
+}
+
+/// The pure resolution core: same contract as [`resolve`], with the
+/// environment values passed in explicitly. All decision and error
+/// formatting logic lives here so the test tree can pin it without
+/// touching the process environment (night-improve-22: env mutation
+/// races concurrent env readers — the edition-2024 hazard — so the
+/// pure core keeps the suite deterministic; the env-reading shell
+/// above it is one thin integration test).
+pub fn resolve_from(
+    cli_preset: Option<&str>,
+    preset_env: Option<&str>,
+    volume_env: Option<&str>,
+) -> Result<(KeyProfile, &'static str, f32), String> {
     let (preset, source) = match cli_preset {
         Some(name) => (lookup_or_error(name, "the --preset flag")?, "--preset flag"),
-        None => match std::env::var(PRESET_ENV_VAR) {
-            Ok(raw) if !raw.trim().is_empty() => (
-                lookup_or_error(
-                    raw.trim(),
-                    &format!("the {PRESET_ENV_VAR} environment variable"),
-                )?,
+        None => match preset_env.map(str::trim).filter(|v| !v.is_empty()) {
+            Some(name) => (
+                lookup_or_error(name, &format!("the {PRESET_ENV_VAR} environment variable"))?,
                 PRESET_ENV_VAR,
             ),
-            _ => (
+            None => (
                 registry_lookup(DEFAULT_PRESET)
                     .expect("compiled DEFAULT_PRESET must exist in the registry"),
                 "compiled default",
             ),
         },
     };
-    let volume = master_volume()?;
+    let volume = master_volume_from(volume_env)?;
     log::info!("preset '{}' selected via {source}", preset.name);
     Ok((preset.profile, preset.name, volume))
 }
@@ -92,12 +106,23 @@ pub fn resolve(cli_preset: Option<&str>) -> Result<(KeyProfile, &'static str, f3
 // night (list-presets, overview).
 #[allow(dead_code)]
 pub fn context_preset_name() -> &'static str {
-    match std::env::var(PRESET_ENV_VAR) {
-        Ok(raw) => match registry_lookup(raw.trim()) {
+    let preset_env = std::env::var(PRESET_ENV_VAR).ok();
+    context_preset_name_from(preset_env.as_deref())
+}
+
+/// The pure core of [`context_preset_name`]: same contract, the
+/// environment value passed in explicitly (no process-env access —
+/// see [`resolve_from`] for the race-free testing rationale).
+// night-improve-22: consumed by the commands tree wired in this same
+// night (list-presets, overview).
+#[allow(dead_code)]
+pub fn context_preset_name_from(preset_env: Option<&str>) -> &'static str {
+    match preset_env.map(str::trim).filter(|v| !v.is_empty()) {
+        Some(name) => match registry_lookup(name) {
             Some(p) => p.name,
             None => DEFAULT_PRESET,
         },
-        Err(_) => DEFAULT_PRESET,
+        None => DEFAULT_PRESET,
     }
 }
 
@@ -107,10 +132,17 @@ pub fn context_preset_name() -> &'static str {
 /// has always lived — `VoicePool::with_volume` clamps to [-100, 100]
 /// with the hard sample clamp as the final ceiling.
 pub fn master_volume() -> Result<f32, String> {
+    let volume_env = std::env::var(VOLUME_ENV_VAR).ok();
+    master_volume_from(volume_env.as_deref())
+}
+
+/// The pure core of [`master_volume`]: same contract, the environment
+/// value passed in explicitly (see [`resolve_from`] for the rationale).
+pub fn master_volume_from(volume_env: Option<&str>) -> Result<f32, String> {
     let default = crate::engine::VoicePool::DEFAULT_MASTER_VOLUME;
-    let raw = match std::env::var(VOLUME_ENV_VAR) {
-        Err(_) => return Ok(default),
-        Ok(raw) => raw,
+    let raw = match volume_env {
+        None => return Ok(default),
+        Some(raw) => raw,
     };
     let trimmed = raw.trim();
     if trimmed.is_empty() {

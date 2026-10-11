@@ -155,16 +155,18 @@ pub struct Cli {
 pub enum Commands {
     /// Run in the foreground (press Ctrl+C to quit)
     Start {
-        /// Override the active preset from config.toml. If omitted, the
-        /// `preset.tuning` value is used.
+        /// Select the acoustic preset by name (from the compiled
+        /// registry). If omitted, the ZYLAXION_PRESET environment
+        /// variable is used, then the compiled default.
         #[arg(long)]
         preset: Option<String>,
     },
 
     /// Run as a background daemon (controlled via Unix socket).
     Daemon {
-        /// Override the active preset from config.toml. If omitted, the
-        /// `preset.tuning` value is used.
+        /// Select the acoustic preset by name (from the compiled
+        /// registry). If omitted, the ZYLAXION_PRESET environment
+        /// variable is used, then the compiled default.
         #[arg(long)]
         preset: Option<String>,
 

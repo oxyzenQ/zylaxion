@@ -61,8 +61,8 @@ pub(crate) fn render_reference(color: bool) -> String {
     push("      Run in the foreground (Ctrl+C to quit).".into());
     push("      # hear it right now".into());
     push(ok("      zylaxion start"));
-    push("      # a specific preset from config.toml".into());
-    push(ok("      zylaxion start --preset cherry"));
+    push("      # a specific preset from the compiled registry".into());
+    push(ok("      zylaxion start --preset cherryMX"));
     push(String::new());
     push(grey("  zylaxion daemon [--preset <NAME>] [--foreground]"));
     push("      Run as a background daemon, controlled via stop / status.".into());
@@ -86,16 +86,11 @@ pub(crate) fn render_reference(color: bool) -> String {
     push("      # the first stop when audio is silent".into());
     push(ok("      zylaxion doctor"));
     push(String::new());
-    push(grey("  zylaxion testconf [FILE]"));
-    push("      Validate config.toml syntax and parameter ranges.".into());
-    push("      # a specific file instead of the search path".into());
-    push(ok("      zylaxion testconf my.conf"));
-    push(String::new());
 
     push(brand("Discover:"));
     push(String::new());
     push(grey("  zylaxion list-presets"));
-    push("      List available acoustic presets from config.toml.".into());
+    push("      List the acoustic presets compiled into this binary.".into());
     push(String::new());
     push(grey("  zylaxion list-backends"));
     push("      List available audio backends.".into());

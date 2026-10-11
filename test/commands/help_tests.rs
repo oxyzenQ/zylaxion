@@ -21,7 +21,6 @@ fn reference_carries_every_subcommand_and_group() {
         "stop",
         "status",
         "doctor",
-        "testconf",
         "list-presets",
         "list-backends",
     ] {
