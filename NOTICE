@@ -16,7 +16,7 @@ Forking policy (summary — see TRADEMARK.md for full text):
 - Non-contribution forks (rebrand, relaunch, derivative product): require
   owner discussion first. Must use a different name + different branding.
 
-The acoustic presets shipped in the repository (the zactrix-profiles
+The acoustic presets shipped in the repository (the profiles module's
 tuning tables and any preset packs under assets/) are distributed under
 the same GPL-3.0-only terms as the binary that plays them.
 

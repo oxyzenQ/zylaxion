@@ -75,9 +75,9 @@ CLI. The `notify` crate was rejected for the config watcher because
 a 1 Hz mtime poll costs single-digit microseconds — invisible next
 to a 2 ms audio latency budget — and a dependency is supply-chain
 surface that must be audited forever after. The same instinct caps
-file size (800 LOC), keeps `main.rs` a thin bootstrap, and keeps
-the workspace at six crates with a fixed data flow: input → core →
-engine → output.
+file size (600 LOC, the no-mercy cap), keeps `main.rs` a thin
+bootstrap, and keeps the tree at one package with a fixed data flow:
+input → core → engine → audio.
 
 ## 6. Honesty Over Impression
 

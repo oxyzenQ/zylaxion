@@ -16,17 +16,19 @@ no padding.
 
 ## Q1 — How big is the dependency tree, and what is the no-bloat policy?
 
-The workspace resolves to **84 unique packages** (`cargo tree
---workspace` count at commit 0fd7cc4), and the standing contract is
+The package resolves to **67 unique packages** (`cargo tree
+--workspace` count at commit 39586b4, night-improve-21: the six-crate
+workspace became one package and six path deps left the lock), and
+the standing contract is
 that every one of them earns its place:
 
 - **No time crates.** Any wall-clock need is answered by the std clock
   plus Howard Hinnant's `civil_from_days` algorithm — the runtime twin
-  lives in `crates/zylaxion/src/info/clock.rs` (daemon log stamps) and the
-  compile-time twin in `crates/zylaxion/build.rs` (the `Build-time:`
+  lives in `src/info/clock.rs` (daemon log stamps) and the
+  compile-time twin in `build.rs` (the `Build-time:`
   stamp). env_logger runs with `default-features = false` because its
   default timestamp feature transitively pulled the jiff tree
-  (`crates/zylaxion/Cargo.toml`, night-improve-13).
+  (`Cargo.toml`, night-improve-13).
 - **No regex crates in the build graph.** env_filter's regex feature
   went with the same change; RUST_LOG keeps the standard
   comma-separated directive syntax, which was always the documented
@@ -42,7 +44,7 @@ that activates it, not to add a second crate doing the same job.
 ## Q2 — What exactly does `-V` / `--version` print, and why that shape?
 
 The zelynic reference contract
-(`crates/zylaxion/src/cli.rs`, night-improve-13):
+(`src/cli/`, night-improve-13):
 
 ```
 zylaxion: v<version>
@@ -55,7 +57,7 @@ Source: https://github.com/oxyzenQ/zylaxion
 ```
 
 - The `Build:` label comes from the canonical label chain
-  (`crates/zylaxion/src/info/build.rs`): the `ZYLAXION_BUILD` env
+  (`src/info/build.rs`): the `ZYLAXION_BUILD` env
   stamp when a release lane exports one, else the compile-time
   arch+libc detection.
 - The `Build-time:` stamp is computed in `build.rs` by the Hinnant
@@ -63,13 +65,13 @@ Source: https://github.com/oxyzenQ/zylaxion
   across build hosts.
 - Two surfaces, one body: the first-arg `-V`/`--version` intercept
   renders the brand header in purple on a TTY
-  (`crates/zylaxion/src/main.rs`), and clap's own version path shares
+  (`src/main.rs`), and clap's own version path shares
   the same `version_body()` — the tests in `cli.rs` pin the line set
   and the ordering so the surfaces cannot drift.
 
 ## Q3 — What does `doctor` check, and can it fail a script?
 
-`crates/zylaxion/src/commands/info.rs`, four sections:
+`src/commands/info.rs`, four sections:
 
 1. **Build facts** — version, commit, variant, build time, rustc,
    profile (compile-time truth, never counts against the verdict).
@@ -84,7 +86,7 @@ Source: https://github.com/oxyzenQ/zylaxion
 The exit code reflects the hard checks (sections 2 and 3, plus audio
 degradation), so `zylaxion doctor` is scriptable as a health probe.
 The doctor speaks in word verdicts (green/red lanes through
-`crates/zylaxion/src/output/mod.rs`), not glyph decorations.
+`src/output/mod.rs`), not glyph decorations.
 
 ## Q4 — Where does the 600-line law stand today?
 
@@ -95,9 +97,9 @@ the debt ledger: the six pre-gate files that carried the
 `// LOC_EXEMPT:` marker are split, the marker is retired, and the
 gate honors no exemption — over the cap means SPLIT, the same hour,
 a pure move with gates green in between. The same gate enforces the
-layout law beside the cap: every crate's src/ root holds only its
+layout law beside the cap: the package's src/ root holds only its
 entry file (main.rs / lib.rs), and every *.rs test file lives under
-its crate's test/ directory (the Pattern C #[path] wiring), counted
+the package's test/ tree (the Pattern C #[path] wiring), counted
 under the same cap.
 
 ## Q5 — How do I verify a downloaded release binary?

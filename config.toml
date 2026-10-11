@@ -86,7 +86,7 @@
 #
 # Note: if you remove this `tuning` key entirely, the daemon falls
 # back to the hardcoded DEFAULT_PRESET = "technical" (see
-# `crates/zylaxion/src/config.rs`). The fallback is intentionally
+# `src/session/config/`). The fallback is intentionally
 # "technical" — a known-good universally-available preset — rather
 # than "ibm_model_m" which may not exist in stripped configs.
 [preset]

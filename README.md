@@ -314,7 +314,7 @@ is codified in [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md).
 - **Does not log scancodes** — not at `info`, not at `debug`, not at
   `trace`. The `KeyEvent` struct exists to drive the DSP engine, not
   for human inspection. Audit the codebase: `grep -r 'scancode'
-  crates/ | grep -E 'log::|println!|eprintln!'` returns zero hits
+  src/ | grep -E 'log::|println!|eprintln!'` returns zero hits
   in production paths.
 - **Does not store keystrokes** — there is no on-disk log, no
   history file, no analytics. The only thing zylaxion writes to disk
@@ -351,7 +351,7 @@ attack surface — there is nothing in the logs to reconstruct.
 # Should print zero matches in production paths (excluding examples/
 # which carry an explicit --dump-scancodes opt-in for hardware
 # debugging):
-grep -rn 'scancode' crates/ --include='*.rs' | \
+grep -rn 'scancode' src/ examples/ --include='*.rs' | \
     grep -E 'log::|println!|eprintln!' | \
     grep -v 'examples/'
 
@@ -387,7 +387,7 @@ cargo pro-linux-amd64-gnu
 cargo pro-linux-amd64-v3-gnu
 cargo pro-linux-amd64-v4-gnu
 
-# Bump workspace version
+# Bump the package version
 ./scripts/dev/version-to.sh v11.0.1
 ```
 
@@ -419,8 +419,7 @@ in the release workflow's matrix header). Verification walkthrough:
 ## Architecture
 
 ```
-zylaxion-input          zylaxion-core           zactrix-engine          zylaxion-output
-(The Ears)              (The Brain)            (Zactrix Engine)        (The Mouth)
+input (The Ears)         core (The Brain)       engine (The Voice)      audio (The Mouth)
 ───────────             ──────────             ───────────────         ─────────────
 LibinputSource ──►      recv_timeout()
    InputKeyEvent          │
