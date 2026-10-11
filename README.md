@@ -360,8 +360,15 @@ ls -l "$XDG_RUNTIME_DIR/zylaxion.sock"
 # Build release binary
 cargo build --release --locked
 
+# Host-native build, tuned to this machine's CPU (own target dir,
+# same optimization tier as the release package)
+cargo pro-native-gnu
+
+# The exact CI release shape (matches the release workflow verbatim)
+cargo pro-linux-amd64-gnu
+
 # Bump workspace version
-./scripts/dev/version-to.sh v10.2.0
+./scripts/dev/version-to.sh v11.0.1
 ```
 
 ## Uninstall
