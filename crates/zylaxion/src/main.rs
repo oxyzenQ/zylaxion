@@ -17,6 +17,7 @@
 use clap::Parser;
 
 mod cli;
+mod cli_styles;
 mod commands;
 mod config;
 mod daemon;
