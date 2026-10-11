@@ -1,28 +1,299 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+# OS: Linux only — zylaxion is a Linux sound keyboard; no other OS is supported.
+# =============================================================================
+# ZYLAXION VERSION MANAGER
+# =============================================================================
+# Centralized version management — update ALL files from a single command.
 #
-# Single-source-of-truth version bumper for the Zylaxion workspace.
-# Usage: ./scripts/dev/version-to.sh v1.0.0
-
+# Usage:
+#   ./scripts/dev/version-to.sh v11.0.1          # Update to v11.0.1
+#   ./scripts/dev/version-to.sh v11.1.0 --commit # Update and auto-commit
+#   ./scripts/dev/version-to.sh                  # Show current version
+#
+# Single source of truth: the root Cargo.toml [workspace.package] version.
+# Files updated:
+#   Cargo.toml                     (the source of truth itself)
+#   Cargo.lock                     (every workspace member entry, cargo-synced)
+#   CHANGELOG.md                   (night-improve-9: the release ledger line)
+#   any sibling Cargo.toml that carries its OWN version line
+#                                  (night-improve-9: the zelynic ebpf lane,
+#                                  generalized — zylaxion has no such manifest
+#                                  today, all members inherit
+#                                  version.workspace = true; the scanner
+#                                  honors one the day it appears)
+# Files auto-derived: scripts/build.sh (reads from Cargo.toml), the binary
+# (env!("CARGO_PKG_VERSION")). README.md is probed for a version surface and
+# reported honestly either way (the zelynic NIGHT-hunt-32 rule: never claim a
+# rewrite that did not happen — this repo's README carries no badge, no
+# release URL and no Version line today, so the honest lane is the expected
+# one).
+# The changelog ledger (night-improve-9, the zelynic NIGHT-improve-76 shape):
+# a bump is a release event — the ledger records it the same way the Cargo
+# files do: a "## [Released]" heading with the bare version line under it,
+# newest first, pre-release and stable alike, above "## [Unreleased]".
+# Probed honestly: a missing file, a missing anchor, or a "## [Released]"
+# section without this tool's own shape warns and writes nothing — a ledger
+# this script did not create is not one it rewrites.
+# =============================================================================
 set -euo pipefail
 
-VERSION="${1:?Usage: ./scripts/dev/version-to.sh <version>  (e.g. v1.0.0)}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "${SCRIPT_DIR}"
 
-if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "Error: version must match vMAJOR.MINOR.PATCH (e.g. v1.0.0)" >&2
-    exit 1
+# Colors
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[0;33m'
+readonly NC='\033[0m'
+
+# Read current version from the root Cargo.toml (the workspace.package
+# version every member inherits).
+current_version() {
+    grep -m1 '^version = ' Cargo.toml | sed 's/.*"\(.*\)".*/\1/'
+}
+
+# Scan non-root manifests that carry their OWN version line. A
+# workspace-inherit member (version.workspace = true) has none and is
+# correctly absent here — its version moves with the root automatically.
+sibling_scan() {
+    find . -name Cargo.toml -not -path './target/*' -not -path './.git/*' \
+        -not -path './Cargo.toml' -print0 |
+        while IFS= read -r -d '' f; do
+            if grep -q '^version = ' "$f"; then
+                local n v
+                n="$(grep -m1 '^name = ' "$f" | sed 's/.*"\(.*\)".*/\1/')"
+                v="$(grep -m1 '^version = ' "$f" | sed 's/.*"\(.*\)".*/\1/')"
+                printf '%s\t%s\t%s\n' "$f" "$n" "$v"
+            fi
+        done
+}
+
+# Validate semver format (pre-release labels allowed: v11.1.0-rc.1 is
+# the owner's shape; the old vMAJOR.MINOR.PATCH-only regex would have
+# rejected the family's own beta/rc convention).
+validate_version() {
+    local ver="$1"
+    if ! echo "${ver}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+        echo -e "${RED}Error: Invalid version '${ver}'. Expected format: X.Y.Z or X.Y.Z-label${NC}" >&2
+        exit 1
+    fi
+}
+
+# Write the release line to CHANGELOG.md (night-improve-9). The ledger
+# shape is the owner's: a "## [Released]" heading with the bare version
+# line under it — newest first, created above "## [Unreleased]" when
+# absent. Honest probes: a missing file, a missing "## [Unreleased]"
+# anchor, or a "## [Released]" section without this tool's own shape
+# warns and writes nothing.
+changelog_release() {
+    local ver="v$1"
+    if [ ! -f CHANGELOG.md ]; then
+        echo -e "  ${YELLOW}!${NC} CHANGELOG.md        → file absent, nothing to write"
+        return 0
+    fi
+    # A version line never repeats: the re-run at a version the ledger
+    # already carries (the usual stale-tree re-entry) writes nothing.
+    if grep -qxF "${ver}" CHANGELOG.md; then
+        echo -e "  ${YELLOW}!${NC} CHANGELOG.md        → ${ver} already recorded, nothing to write"
+        return 0
+    fi
+    local tmp
+    tmp="$(mktemp)"
+    if grep -q '^## \[Released\]$' CHANGELOG.md; then
+        # The section exists. This tool's own shape puts one blank
+        # spacer between the heading and the version lines — the new
+        # version splices in under it, above the current top line.
+        if [ -z "$(sed -n '/^## \[Released\]$/{n;p;}' CHANGELOG.md)" ]; then
+            awk -v ver="${ver}" '
+                /^## \[Released\]$/ && !done {
+                    print
+                    getline spacer
+                    print spacer
+                    print ver
+                    done = 1
+                    next
+                }
+                { print }
+            ' CHANGELOG.md >"${tmp}"
+            mv "${tmp}" CHANGELOG.md
+            echo -e "  ${GREEN}OK${NC} CHANGELOG.md        → ${ver} (## [Released], newest first)"
+        else
+            rm -f "${tmp}"
+            echo -e "  ${YELLOW}!${NC} CHANGELOG.md        → unexpected ## [Released] shape (no blank spacer under the heading) — nothing to write"
+        fi
+    else
+        # No section yet — create it above "## [Unreleased]" (the
+        # unreleased work keeps its own section below the ledger).
+        if grep -q '^## \[Unreleased\]$' CHANGELOG.md; then
+            awk -v ver="${ver}" '
+                /^## \[Unreleased\]$/ && !done {
+                    print "## [Released]"
+                    print ""
+                    print ver
+                    print ""
+                    done = 1
+                }
+                { print }
+            ' CHANGELOG.md >"${tmp}"
+            mv "${tmp}" CHANGELOG.md
+            echo -e "  ${GREEN}OK${NC} CHANGELOG.md        → ${ver} (section created above ## [Unreleased])"
+        else
+            rm -f "${tmp}"
+            echo -e "  ${YELLOW}!${NC} CHANGELOG.md        → no ## [Unreleased] anchor found — nothing to write"
+        fi
+    fi
+}
+
+# Sync Cargo.lock to the bumped workspace (night-improve-9: a six-member
+# workspace materializes EVERY member's version into the lock — the old
+# root-only sed left five stale entries for the next build to rewrite,
+# dirtying the tree). cargo is the authority on its own lock format:
+# `cargo update --workspace --offline` moves member versions and stays
+# frozen on third-party deps. Verified per member name afterwards; a
+# verification miss warns honestly instead of failing the whole bump.
+lock_sync_and_verify() {
+    local target="$1"
+    if ! command -v cargo > /dev/null 2>&1; then
+        echo -e "  ${YELLOW}!${NC} Cargo.lock          → cargo not on PATH — run 'cargo update --workspace --offline' manually"
+        return 0
+    fi
+    if ! cargo update --workspace --offline > /dev/null 2>&1; then
+        echo -e "  ${YELLOW}!${NC} Cargo.lock          → cargo update --workspace --offline failed — run it manually to resync"
+        return 0
+    fi
+    local member entry_ver all_ok=1
+    while IFS= read -r member; do
+        entry_ver="$(grep -A1 "^name = \"${member}\"$" Cargo.lock | grep '^version = "' | head -1 | sed 's/^version = "\(.*\)"/\1/')"
+        if [ "${entry_ver}" = "${target}" ]; then
+            echo -e "  ${GREEN}OK${NC} Cargo.lock          → ${member} version = ${target}"
+        else
+            echo -e "  ${YELLOW}!${NC} Cargo.lock          → ${member}: expected ${target}, got ${entry_ver:-absent} (run 'cargo update --workspace --offline' to fix)"
+            all_ok=0
+        fi
+    done < <(find crates -maxdepth 2 -name Cargo.toml -print0 |
+        xargs -0 -r grep -h -m1 '^name = ' |
+        sed 's/name = "\(.*\)"/\1/')
+    [ "${all_ok}" = "1" ]
+}
+
+# Show current version and exit
+if [ $# -eq 0 ]; then
+    echo -e "Current version: ${GREEN}v$(current_version)${NC}"
+    echo ""
+    echo "Usage: ./scripts/dev/version-to.sh v<VERSION> [--commit]"
+    exit 0
 fi
 
-CARGO_VERSION="${VERSION#v}"
+NEW_VERSION="${1#v}"
+shift
 
-echo "Bumping workspace to ${VERSION} (Cargo.toml: ${CARGO_VERSION})"
+COMMIT=false
+for arg in "$@"; do
+    case "${arg}" in
+    --commit | -c) COMMIT=true ;;
+    *)
+        echo -e "${RED}Unknown option: ${arg}${NC}" >&2
+        exit 1
+        ;;
+    esac
+done
 
-while IFS= read -r -d '' file; do
-    if grep -q '^version = ' "$file"; then
-        sed -i "s/^version = \".*\"/version = \"${CARGO_VERSION}\"/" "$file"
-        echo "  patched: ${file}"
-    fi
-done < <(find . -name "Cargo.toml" -not -path "./target/*" -print0)
+validate_version "${NEW_VERSION}"
+CURRENT=$(current_version)
 
-echo "Done."
+# Sibling manifests with their own versions (the zelynic ebpf lane,
+# generalized). Empty today — the report line proves the scan ran.
+SIBLINGS="$(sibling_scan)"
+ALREADY=true
+if [ "${CURRENT}" != "${NEW_VERSION}" ]; then
+    ALREADY=false
+else
+    while IFS=$'\t' read -r f n v; do
+        [ -z "$f" ] && continue
+        if [ "${v}" != "${NEW_VERSION}" ]; then
+            ALREADY=false
+            break
+        fi
+    done <<< "${SIBLINGS}"
+fi
+
+if [ "${ALREADY}" = "true" ]; then
+    echo -e "${YELLOW}Already at v${NEW_VERSION} (root + all own-version siblings), nothing to change.${NC}"
+    exit 0
+fi
+
+echo -e "Updating version: ${YELLOW}v${CURRENT}${NC} → ${GREEN}v${NEW_VERSION}${NC}"
+echo ""
+
+# --- Update root Cargo.toml (source of truth) ---
+# Only the [workspace.package] version line, never dependency versions.
+if [ "${CURRENT}" = "${NEW_VERSION}" ]; then
+    echo -e "  ${YELLOW}!${NC} Cargo.toml          → already at v${NEW_VERSION} (a sibling lane alone drifted)"
+else
+    sed -i "0,/^version = \".*\"/s//version = \"${NEW_VERSION}\"/" Cargo.toml
+    echo -e "  ${GREEN}OK${NC} Cargo.toml          → ${NEW_VERSION}"
+fi
+
+# --- Sibling manifests that carry their own version (night-improve-9) ---
+# The zelynic script bumps ebpf/Cargo.toml alongside the root; the
+# zylaxion generalization honors any manifest with its own version
+# line, wherever a future lane appears. Members inheriting
+# version.workspace = true need (and get) nothing here.
+SIBLING_TOUCHED=()
+if [ -z "${SIBLINGS}" ]; then
+    echo -e "  ${GREEN}OK${NC} sibling manifests   → none carry own versions (members inherit workspace.package)"
+else
+    while IFS=$'\t' read -r f n v; do
+        [ -z "$f" ] && continue
+        if [ "${v}" != "${NEW_VERSION}" ]; then
+            sed -i "0,/^version = \".*\"/s//version = \"${NEW_VERSION}\"/" "$f"
+            echo -e "  ${GREEN}OK${NC} ${f} → ${NEW_VERSION}"
+            SIBLING_TOUCHED+=("${f}")
+        else
+            echo -e "  ${YELLOW}!${NC} ${f} → already at v${NEW_VERSION}"
+        fi
+    done <<< "${SIBLINGS}"
+fi
+
+# --- Sync + verify Cargo.lock (every workspace member entry) ---
+if [ -f Cargo.lock ]; then
+    lock_sync_and_verify "${NEW_VERSION}" || true
+fi
+
+# --- Update README.md (probed first — the zelynic NIGHT-hunt-32 rule) ---
+README_HITS="$(grep -cE 'releases/download/v[0-9]|zylaxion-v[0-9]+\.[0-9]+|^Version: v[0-9]' README.md 2>/dev/null || true)"
+if [ "${README_HITS:-0}" -gt 0 ]; then
+    sed -i -E "s|releases/download/v[0-9]+\.[0-9]+\.[0-9]+|releases/download/v${NEW_VERSION}|g" README.md
+    sed -i -E "s|zylaxion-v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?-|zylaxion-v${NEW_VERSION}-|g" README.md
+    sed -i "s|Version: v.*|Version: v${NEW_VERSION}|" README.md
+    echo -e "  ${GREEN}OK${NC} README.md           → v${NEW_VERSION} (release URLs + versioned examples)"
+else
+    echo -e "  ${YELLOW}!${NC} README.md           → no version surface found (no release URL / versioned example / Version line) — nothing to rewrite"
+fi
+
+# --- Update CHANGELOG.md (night-improve-9: the release ledger line) ---
+changelog_release "${NEW_VERSION}"
+
+# --- scripts/build.sh reads dynamically from Cargo.toml, no update needed ---
+echo -e "  ${GREEN}OK${NC} scripts/build.sh    → auto (reads from Cargo.toml)"
+
+# --- Binary reads from Cargo.toml via env!("CARGO_PKG_VERSION"), no update needed ---
+echo -e "  ${GREEN}OK${NC} Binary (zylaxion)   → auto (reads from Cargo.toml)"
+
+echo ""
+echo -e "${GREEN}Version updated to v${NEW_VERSION}${NC}"
+echo "next: git add Cargo.toml Cargo.lock CHANGELOG.md && git commit"
+
+if [ "${COMMIT}" = "true" ]; then
+    git add Cargo.toml
+    [ -f Cargo.lock ] && git add Cargo.lock
+    [ "${README_HITS:-0}" -gt 0 ] && git add README.md
+    [ -f CHANGELOG.md ] && git add CHANGELOG.md
+    for f in "${SIBLING_TOUCHED[@]:-}"; do
+        [ -n "$f" ] && git add "$f"
+    done
+    git commit -m "release: v${NEW_VERSION}"
+    echo -e "${GREEN}OK Committed: release: v${NEW_VERSION}${NC}"
+fi
