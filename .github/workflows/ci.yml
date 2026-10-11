@@ -21,7 +21,7 @@ jobs:
       core: ${{ steps.detect.outputs.core }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
         with:
           fetch-depth: 0
       - name: Detect core file changes
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
 
       - name: Install system dependencies
         run: |
@@ -59,7 +59,7 @@ jobs:
         run: rustup default stable
 
       - name: Cache
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6, night-improve-8 SHA pin
         with:
           path: |
             ~/.cargo/registry
@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
 
       - name: Install workflow lint tools
         run: |
@@ -116,7 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
 
       - name: Install Rust toolchain
         run: rustup default stable
