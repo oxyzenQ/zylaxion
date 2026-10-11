@@ -20,6 +20,51 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-improve-11**: cargo aliases land in the zelynic usage shape —
+  `.cargo/config.toml` (now tracked; the local-only ignore rule retired)
+  carries `cargo pro-native-gnu` (host-CPU native build via its own profile)
+  and `cargo pro-linux-amd64-gnu` (the exact release workflow contract).
+  Honest deltas documented in place: no musl blocks (the ALSA constraint)
+  and no build-level rustflags (release already pins codegen-units).
+
+- **night-improve-10**: masterclass package data — the workspace author row
+  adopts the zelynic obfuscated-contact format, and all six crates carry
+  explicit auto-discovery controls (a stray tests/, benches/ or examples/
+  directory can never silently become an unvetted target; the four crates
+  with real examples/ keep that discovery ON deliberately).
+
+- **night-improve-9**: `version-to.sh` inherits the zelynic abilities — a
+  changelog release ledger (a bare version line under `## [Released]`,
+  newest first, probed honestly), a sibling-manifest bump lane for any
+  future own-version crate, and a six-member Cargo.lock sync (cargo
+  update --workspace --offline, verified per member, third-party deps
+  frozen). Pre-release versions validate now.
+
+- **night-improve-8**: the actions-pin health gate — all eight workflow
+  pins moved from floating tags to release-commit SHA pins with version
+  tokens (the same commits the zelynic estate runs), and
+  `scripts/gates/check-actions-pins.sh` keeps them current: modes
+  off|warn|strict|auto, content-hash cache with TTL, honest skips, MAJOR
+  moves never auto-healed, guarded apply.
+
+- **night-improve-7**: the Supermassive deep battery — weekly plus on
+  demand, two legs on the pinned toolchain: the full test battery (all
+  targets, all features) with the docs build warnings-denied, and the
+  release shape proof (the night-improve-11 alias plus the binary's
+  hardware-free surfaces). The header states the physics honestly: no
+  audio or input device in CI, no claims about real ALSA timing or
+  libinput event flow.
+
+- **night-improve-6**: the labeled color lanes — the depth audit of every
+  error/failed/unknown/typo path. `error_format` becomes the tier module
+  (bold red error lane, bold yellow warning lane, calm grey passive
+  suggestions, status green runnable tips, brand purple headers) behind
+  one capability gate (TTY + NO_COLOR + CLICOLOR), broken-pipe-safe, with
+  the mono prefix byte-identical to the grep-able historical shape. The
+  stray hand-rolled error prints in daemon/mod.rs, update.rs and
+  instance_lock.rs now ride the labeled lane, and BRANDING.md documents
+  the palette.
+
 - **night-improve-3**: the README grows a Demo section in the zelynic
   shape — the brand-styled `zylaxion -h` output rendered as
   `assets/zylaxion-help-demo.png` inside the round-border wrapper
