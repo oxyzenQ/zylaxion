@@ -35,7 +35,7 @@
 # estate — kept current by scripts/gates/check-actions-pins.sh.
 
 ---
-name: Supermassive
+name: Dragon Guard - Supermassive
 
 "on":
   workflow_dispatch:
