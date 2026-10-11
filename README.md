@@ -360,6 +360,10 @@ ls -l "$XDG_RUNTIME_DIR/zylaxion.sock"
 # Run all checks (fmt + clippy + test)
 ./scripts/build.sh --check-all
 
+# The full gate-keepers run (permissions, headers, LOC caps, language,
+# emoji sweep, pins health, release parity)
+./scripts/gate-keepers.sh
+
 # Build release binary
 cargo build --release --locked
 
@@ -370,9 +374,35 @@ cargo pro-native-gnu
 # The exact CI release shape (matches the release workflow verbatim)
 cargo pro-linux-amd64-gnu
 
+# Arch-baseline release shapes — bit-for-bit the optimization tier the
+# release artifacts ship (x86-64-v3: AVX2-era CPUs; x86-64-v4:
+# AVX-512-era). Each stamps its platform id into the binary's Build:
+# line (self-report via zylaxion -V).
+cargo pro-linux-amd64-v3-gnu
+cargo pro-linux-amd64-v4-gnu
+
 # Bump workspace version
 ./scripts/dev/version-to.sh v11.0.1
 ```
+
+### Release artifacts
+
+Release tags ship one tarball per platform at
+[Releases](https://github.com/oxyzenQ/zylaxion/releases), each with
+three checksums (SHA-512, BLAKE2b-512, and the quantum-resistant
+SHAKE256) and — when the owner's signing key is configured — a GPG
+detached signature (`.asc`):
+
+- `zylaxion-v<version>-linux-amd64-v3-gnu.tar.gz` — x86-64-v3 baseline,
+  dynamic glibc
+- `zylaxion-v<version>-linux-amd64-v4-gnu.tar.gz` — x86-64-v4 baseline,
+  dynamic glibc
+
+Pick v3 when in doubt: every CPU that runs v4 runs v3. The musl lane
+is documented dormant (the C input/audio stack — libinput/udev/alsa —
+has no static musl answer yet; the evidence and the unlock paths live
+in the release workflow's matrix header). Verification walkthrough:
+[docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md).
 
 ## Uninstall
 

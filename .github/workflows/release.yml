@@ -1,47 +1,154 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
----
-name: Release
+# night-improve-12c (the zelynic release masterclass lineage): the
+# Dragon Guard name replaces the plain "Release", the matrix becomes
+# the x86-64-v3/v4 arch-baseline pair, and the pipeline gains the
+# version contract, the embedded-label verification, the flat tarball
+# invariant, and the GPG detached-signature lane.
+name: Dragon Guard - Release
 
-"on":
+on:
   push:
     tags:
       - "v*"
+  # The recovery lane: a dispatch on the tag ref re-runs the whole
+  # pipeline — validate, both builds, publish — WITHOUT re-pushing
+  # anything, so a mid-flight red (a transient API 5xx, a runner
+  # hiccup) heals with one click instead of delete + re-push the tag
+  # (which is the moved-tag class the concurrency group cancels).
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
+  # Single source of truth for the Rust toolchain version. Keep in
+  # sync with rust-toolchain.toml + Cargo.toml rust-version.
+  RUST_VERSION: "1.98.1"
 
-permissions:
-  contents: write
+# Re-pushing a MOVED tag supersedes the in-flight run — the superseded
+# build compiles a commit the tag no longer points at, so its artifacts
+# are wrong by definition and canceling them is the only correct
+# outcome. Different tags land in different groups and never interact.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+# ============================================================================
+# THE PLATFORM MATRIX — what ships and what honestly does not (yet)
+# ============================================================================
+# Shipping contract (the owner's night-improve-12 spec): amd64 ONLY,
+# the x86-64-v3 and v4 optimization baselines ONLY. Both gnu legs are
+# live below.
+#
+# The musl legs (linux-amd64-v3-musl / v4-musl) are a DOCUMENTED DORMANT
+# lane, not a silent absence. The empirical evidence (proven locally,
+# the 12-c session, musl-gcc + a statically-built alsa-lib):
+#   - SOLVED: the alsa leg. alsa-lib 1.2.14 builds and installs as a
+#     static musl library (configure CC=musl-gcc --disable-shared
+#     --enable-static; the autoconf musl quirk needs
+#     ac_cv_c_undeclared_builtin_options='none needed'), and pkg-config
+#     points cargo at the static .a cleanly.
+#   - BLOCKED: the input leg. The `input` crate (crates/zylaxion-input)
+#     pulls `udev` -> `libudev-sys` (C libudev, the systemd/eudev
+#     stack) plus `input-sys` (C libinput, which itself links libudev
+#     and drags libevdev + mtdev + libwacom). A static musl build dies
+#     in libudev-sys: `error: failed to run custom build command for
+#     'libudev-sys v0.1.4'`. No pkg-config answer exists for musl on
+#     the runner, and a "musl" binary that dynamically links the
+#     glibc-ecosystem C stack would not be static anyway.
+#   - UNBLOCK PATHS (the owner's call, like every version bump):
+#     (a) build the static eudev + libinput + libevdev + mtdev stack in
+#         CI before the cargo build (a real, heavy recipe), or
+#     (b) rework zylaxion-input onto a pure-Rust evdev lane and drop
+#         the libinput C dependency.
+#     When either lands, the matrix regains the two musl legs verbatim
+#     in the zelynic shape:
+#       - platform: linux-amd64-v3-musl
+#         target: x86_64-unknown-linux-musl
+#         rustflags: "-D warnings -C target-cpu=x86-64-v3 -C target-feature=+crt-static"
+#       (and the v4 twin), plus the alsa-lib static build step ahead of
+#     the cargo build and the ldd static-proof check in the verify step.
+# ============================================================================
 
 jobs:
-  build-and-release:
-    runs-on: ubuntu-latest
-    # NOTE: zylaxion ships only the gnu (glibc) target — no musl static build.
-    # The cpal audio crate depends on alsa-sys, which requires pkg-config with
-    # cross-compilation support. ALSA has no musl static variant on Ubuntu
-    # runners (libasound2-dev is glibc-only), so musl cross-compile fails with
-    # "pkg-config has not been configured to support cross-compilation".
-    # A "musl" binary that still links libasound dynamically wouldn't be truly
-    # static anyway — defeating the purpose. Audio apps fundamentally need the
-    # host's ALSA library at runtime regardless of libc choice.
+  # ===========================================================================
+  # Validate Release Tag (fail fast, before any build cost)
+  # ===========================================================================
+  # Release channel contract: a tag is either a stable release (plain
+  # vX.Y.Z) or a pre-release restricted to the dev / nightly / alpha /
+  # beta / rc channels (vX.Y.Z-<channel>[.N]). Any other suffix fails
+  # validation here, so no binary is built and no GitHub release is
+  # ever created for an unsupported channel.
+  validate:
+    name: Validate Release Tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.check.outputs.tag }}
+      version: ${{ steps.check.outputs.version }}
+      prerelease: ${{ steps.check.outputs.prerelease }}
+    steps:
+      - name: Check tag shape and channel
+        id: check
+        env:
+          REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          TAG="$REF"
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "stable release tag: $TAG"
+          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-(dev|nightly|alpha|beta|rc)(\.[0-9]+)?$ ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "pre-release tag (allowed channel): $TAG"
+          else
+            echo "::error::unsupported release channel in tag '$TAG'"
+            echo "allowed: vX.Y.Z (stable) or vX.Y.Z-{dev,nightly,alpha,beta,rc}[.N]"
+            exit 1
+          fi
+
+  # ===========================================================================
+  # Build (the arch-baseline matrix)
+  # ===========================================================================
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: [validate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
-            archive_suffix: linux-amd64-gnu
+          - platform: linux-amd64-v3-gnu
+            target: x86_64-unknown-linux-gnu
+            rustflags: "-D warnings -C target-cpu=x86-64-v3"
+          - platform: linux-amd64-v4-gnu
+            target: x86_64-unknown-linux-gnu
+            rustflags: "-D warnings -C target-cpu=x86-64-v4"
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
         with:
-          fetch-depth: 0
+          # The release build needs exactly one commit — the one the tag
+          # points at. Nothing in this job reads git metadata (the
+          # shipped version comes from Cargo.toml via
+          # env!("CARGO_PKG_VERSION")), so depth 1 is the high-speed
+          # checkout.
+          fetch-depth: 1
 
       - name: Install Rust toolchain
-        run: rustup default stable && rustup target add ${{ matrix.target }}
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # @stable, the zelynic estate SHA
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: ${{ matrix.target }}
 
       - name: Install system dependencies
         run: |
@@ -49,50 +156,365 @@ jobs:
           sudo apt-get install -y -qq \
             libasound2-dev libinput-dev libudev-dev pkg-config
 
+      # Cache keyed per platform id. The v3/v4 builds of one triple
+      # share the triple but differ in RUSTFLAGS — cargo's fingerprints
+      # include RUSTFLAGS, so a shared key is refingered (never
+      # mis-served); the platform id keeps the two legs' saves disjoint
+      # (the zelynic cache-collision lesson).
+      - name: Cache cargo registry & build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: release-${{ matrix.platform }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            release-${{ matrix.platform }}-
+
+      # Tripwire: the matrix rustflags ARE the build contract — a
+      # platform whose flag set drifted from its documented baseline
+      # fails HERE, before any compile time is spent. The same constants
+      # live in .cargo/config.toml's pro-linux-amd64-* aliases; the
+      # cross-file equality is held by scripts/gates/check-release-parity.sh.
+      - name: Verify arch-baseline inputs
+        run: |
+          set -euo pipefail
+          case "${{ matrix.platform }}" in
+            linux-amd64-v3-gnu) expected="-D warnings -C target-cpu=x86-64-v3" ;;
+            linux-amd64-v4-gnu) expected="-D warnings -C target-cpu=x86-64-v4" ;;
+            *) echo "::error::Unknown platform id ${{ matrix.platform }}"; exit 1 ;;
+          esac
+          if [ "${{ matrix.rustflags }}" != "${expected}" ]; then
+            echo "::error::${{ matrix.platform }} must use RUSTFLAGS='${expected}', got '${{ matrix.rustflags }}'"
+            exit 1
+          fi
+          echo "arch-baseline inputs verified: ${{ matrix.platform }}"
+
+      # The tag and Cargo.toml must name the SAME version before any
+      # compile time is spent: a tag pushed while Cargo.toml still
+      # carries the previous version would ship a tarball named vX.Y.Z
+      # whose binary answers -V with the older number.
+      - name: Verify Cargo.toml version matches the tag
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          CARGO_VER="$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)".*/\1/')"
+          if [ -z "${CARGO_VER}" ]; then
+            echo "::error::could not parse version from Cargo.toml"
+            exit 1
+          fi
+          if [ "${CARGO_VER}" != "${VERSION}" ]; then
+            echo "::error::Cargo.toml version '${CARGO_VER}' != tag '${VERSION}'"
+            echo "Bump the package version before tagging: ./scripts/dev/version-to.sh ${VERSION}"
+            exit 1
+          fi
+          echo "version contract holds: Cargo.toml == tag == ${VERSION}"
+
+      # --locked on every release build: a release must reproduce from
+      # the committed lockfile — never a fresh resolution at tag time.
+      # ZYLAXION_BUILD stamps the platform id into the binary's Build:
+      # line (see the verify step) — one field, one truth; the embedded
+      # label and the tarball name agree by construction.
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
+        env:
+          ZYLAXION_BUILD: ${{ matrix.platform }}
+          RUSTFLAGS: ${{ matrix.rustflags }}
+        run: cargo build --release --locked --target ${{ matrix.target }}
 
       - name: Verify binary
         run: |
-          file target/${{ matrix.target }}/release/zylaxion
-          ldd target/${{ matrix.target }}/release/zylaxion || true
+          set -euo pipefail
+          BIN="target/${{ matrix.target }}/release/zylaxion"
+          PLATFORM="${{ matrix.platform }}"
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "=== ${PLATFORM} (Build: ${PLATFORM}) ==="
+          case "${PLATFORM}" in
+            *-v4-*)
+              # AVX-512 baseline: the runner may lack AVX-512, so the
+              # artifact is verified WITHOUT executing it (executing
+              # it could SIGILL): the embedded ZYLAXION_BUILD label
+              # plus the version-report literals prove the right
+              # variant was compiled and linked. The literals are
+              # grepped as BYTES straight against the artifact
+              # (grep -aFq, no encoding layer — strings(1) splits
+              # multi-byte sequences and would silently miss).
+              grep -aFq "${PLATFORM}" "${BIN}" \
+                || { echo "::error::Expected embedded build label ${PLATFORM}"; exit 1; }
+              grep -aFq "License: GPL-3.0-only" "${BIN}" \
+                || { echo "::error::Expected embedded license literal"; exit 1; }
+              grep -aFq "${VERSION}" "${BIN}" \
+                || { echo "::error::Binary does not embed tag version '${VERSION}' (Cargo.toml/tag drift)"; exit 1; }
+              echo "embedded build metadata verified (execution skipped: AVX-512 baseline)"
+              ;;
+            *-v3-*)
+              # AVX2/BMI2/FMA baseline: every x86_64 runner since
+              # Haswell executes it — run the artifact itself, plus
+              # the Build: label and version checks.
+              "${BIN}" -V
+              "${BIN}" -V | grep -F "Build: ${PLATFORM}" \
+                || { echo "::error::Expected 'Build: ${PLATFORM}' in -V"; exit 1; }
+              "${BIN}" -V | grep -F "zylaxion: v${VERSION}" \
+                || { echo "::error::Expected 'zylaxion: v${VERSION}' in -V (Cargo.toml/tag drift)"; exit 1; }
+              "${BIN}" -V | grep -F "Build-time: " \
+                || { echo "::error::Expected 'Build-time:' line in -V"; exit 1; }
+              ;;
+          esac
+          echo "=== ldd ==="
+          ldd "${BIN}" || true
 
-      - name: Package release artifacts
-        env:
-          TAG: ${{ github.ref_name }}
+      - name: Prepare release artifact
         run: |
-          STAGE="zylaxion-${TAG}-${{ matrix.archive_suffix }}"
-          rm -rf "$STAGE" "$STAGE.tar.gz"*
-          mkdir -p "$STAGE"
-          cp target/${{ matrix.target }}/release/zylaxion "$STAGE/zylaxion"
-          tar -czf "$STAGE.tar.gz" "$STAGE"
+          set -euo pipefail
+          VERSION=${GITHUB_REF_NAME#v}
 
-          # Checksums: SHA-512 (classical) + BLAKE2b-512 + SHAKE256 (quantum-resistant)
-          sha512sum "$STAGE.tar.gz" > "$STAGE.tar.gz.sha512sum"
-          b2sum "$STAGE.tar.gz" > "$STAGE.tar.gz.b2sum"
-          # SHAKE256 via Python (cross-platform, consistent 64-byte output)
+          # Flat archive layout (the zelynic release invariant): the
+          # tarball carries ONLY zylaxion + LICENSE + README.md, at
+          # archive root. The tripwire below records the three entries.
+          PKG="zylaxion-v${VERSION}-${{ matrix.platform }}"
+          STAGE="dist/stage"
+          mkdir -p "${STAGE}"
+          cp "target/${{ matrix.target }}/release/zylaxion" "${STAGE}/"
+          chmod +x "${STAGE}/zylaxion"
+          cp README.md LICENSE "${STAGE}/"
+          tar -czf "dist/${PKG}.tar.gz" -C "${STAGE}" zylaxion LICENSE README.md
+          ACTUAL=$(tar -tzf "dist/${PKG}.tar.gz" | sort | tr '\n' ' ')
+          if [ "${ACTUAL}" != "LICENSE README.md zylaxion " ]; then
+            echo "::error::tarball invariant violated for ${PKG}: ${ACTUAL}"
+            exit 1
+          fi
+          rm -rf "${STAGE}"
+          cd dist
+          # Checksums: SHA-512 (classical) + BLAKE2b-512 + SHAKE256
+          # (quantum-resistant)
+          sha512sum "${PKG}.tar.gz" > "${PKG}.tar.gz.sha512sum"
+          b2sum "${PKG}.tar.gz" > "${PKG}.tar.gz.b2sum"
           python3 -c "
           import hashlib
-          data = open('$STAGE.tar.gz', 'rb').read()
+          data = open('${PKG}.tar.gz', 'rb').read()
           h = hashlib.shake_256(data).hexdigest(64)
-          print(f'{h}  $STAGE.tar.gz')
-          " > "$STAGE.tar.gz.shake256"
+          print(f'{h}  ${PKG}.tar.gz')
+          " > "${PKG}.tar.gz.shake256"
 
-          ls -l "$STAGE.tar.gz" "$STAGE.tar.gz.sha512sum" "$STAGE.tar.gz.b2sum" "$STAGE.tar.gz.shake256"
-          echo "--- checksum contents ---"
-          cat "$STAGE.tar.gz.sha512sum"
-          cat "$STAGE.tar.gz.b2sum"
-          cat "$STAGE.tar.gz.shake256"
+          echo ""
+          echo "=== Release artifacts ==="
+          ls -lh
+
+      # =========================================================================
+      # GPG detached ASCII-armored signatures for every release tarball.
+      #
+      # Placement: signing runs HERE, in the build job, which holds no
+      # `contents: write` token (top-level default is read). The private
+      # key therefore never enters the environment of the job that
+      # publishes the GitHub release — least privilege for the most
+      # sensitive secret in the pipeline.
+      #
+      # Contract: when the GPG_PRIVATE_KEY secret is not configured, the
+      # Import step exits 0 without exporting a key id, the Sign step's
+      # if-gate never fires, and the release ships checksums-only — no
+      # release is ever blocked on signing configuration.
+      #
+      # Passphrase confinement: the passphrase NEVER enters GITHUB_ENV.
+      # The Import step keeps it in step-scoped env + stdin
+      # (--passphrase-fd 0, never a command line), the Sign step
+      # re-reads it from secrets directly in its own step env, and the
+      # only value that crosses steps is GPG_KEY_ID — a public key id,
+      # not a secret.
+      # =========================================================================
+      - name: Import GPG signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GPG_PRIVATE_KEY}" ]; then
+            echo "GPG_PRIVATE_KEY secret not configured — skipping GPG signing"
+            exit 0
+          fi
+          export GNUPGHOME="$RUNNER_TEMP/gnupg-sign"
+          mkdir -p -m 700 "$GNUPGHOME"
+          if [ -n "${GPG_PASSPHRASE}" ]; then
+            echo "${GPG_PASSPHRASE}" | gpg --import --batch --yes \
+              --pinentry-mode loopback --passphrase-fd 0 \
+              <(echo "${GPG_PRIVATE_KEY}")
+          else
+            echo "${GPG_PRIVATE_KEY}" | gpg --import --batch --yes \
+              --pinentry-mode loopback
+          fi
+          gpg --list-secret-keys --with-colons || true
+          # Signing-capable key first (field $12 carries the capability
+          # flags, 'S' = signing), then any imported secret (sub)key —
+          # some gpg versions populate the flags differently.
+          KEY_ID="$(gpg --list-secret-keys --with-colons \
+            | awk -F: '/^(ssb|sec):/ && $12 ~ /S/ {print $5; exit}')"
+          if [ -z "${KEY_ID}" ]; then
+            KEY_ID="$(gpg --list-secret-keys --with-colons \
+              | awk -F: '/^(ssb|sec):/ {print $5; exit}')"
+          fi
+          if [ -z "${KEY_ID}" ]; then
+            echo "::error::Failed to import GPG secret key (no signing-capable key found)"
+            gpg --list-secret-keys 2>&1 || true
+            exit 1
+          fi
+          echo "GPG_KEY_ID=${KEY_ID}" >> "$GITHUB_ENV"
+          echo "Imported GPG signing key: ${KEY_ID}"
+
+      - name: Sign artifacts (detached GPG signatures)
+        if: env.GPG_KEY_ID != ''
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$RUNNER_TEMP/gnupg-sign"
+          cd dist
+          # Idempotence: a recovered re-run never re-signs (stable
+          # artifact bytes).
+          find . -maxdepth 1 -name '*.tar.gz' -print0 \
+            | while IFS= read -r -d '' artifact; do
+                if [ -f "${artifact}.asc" ]; then
+                  echo "  (existing sig) ${artifact}.asc"
+                  continue
+                fi
+                echo "  signing ${artifact}"
+                if [ -n "${GPG_PASSPHRASE}" ]; then
+                  echo "${GPG_PASSPHRASE}" | gpg --batch --yes --detach-sign --armor \
+                    --local-user "${GPG_KEY_ID}" --passphrase-fd 0 --pinentry-mode loopback \
+                    --output "${artifact}.asc" "${artifact}"
+                else
+                  gpg --batch --yes --detach-sign --armor \
+                    --local-user "${GPG_KEY_ID}" \
+                    --output "${artifact}.asc" "${artifact}"
+                fi
+              done
+          echo "--- Verify loop ---"
+          find . -maxdepth 1 -name '*.tar.gz' -print0 \
+            | while IFS= read -r -d '' artifact; do
+                echo "  verifying ${artifact}.asc"
+                gpg --batch --verify "${artifact}.asc" "${artifact}" 2>&1 \
+                  || { echo "::error::gpg --verify failed for ${artifact}"; exit 1; }
+              done
+          echo "--- Signed artifacts ---"
+          find . -name '*.asc' -print | sort
+          echo "--- All signatures verified ---"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7, the zelynic estate SHA pin
+        with:
+          # One artifact per platform; the release job merges them
+          # (merge-multiple) so signing stays in the build-class jobs
+          # (least privilege) while the matrix scales.
+          name: release-artifacts-${{ matrix.platform }}
+          path: dist/*
+
+  # ===========================================================================
+  # Create GitHub Release
+  # ===========================================================================
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-24.04
+    needs: [validate, build]
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      # Checkout runs BEFORE the artifact download: actions/checkout's
+      # default `clean: true` deletes workspace contents — under the
+      # wrong order it wipes the freshly downloaded dist/ and the
+      # publish step logs "Pattern 'dist/*' does not match any files"
+      # as a MERE WARNING, shipping a green, asset-less release (the
+      # zelynic NIGHT-dinner-3 live incident). Checkout first, download
+      # second, tripwire third.
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
+        with:
+          fetch-depth: 1
+
+      - name: Download artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8, the zelynic estate SHA pin
+        with:
+          pattern: release-artifacts-*
+          merge-multiple: true
+          path: dist
+
+      # The workflow, not a third-party action, decides what "assets
+      # present" means. The matrix is two legs (v3/v4 gnu); each
+      # Prepare step emits one tarball plus three checksum files, and
+      # the signing tripwire makes GPG all-or-nothing — so the legal
+      # shapes here are exactly: 2 tarballs + 6 checksums + (0 or 2)
+      # signatures.
+      - name: Assert release asset inventory
+        run: |
+          set -euo pipefail
+          TARBALLS=$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l)
+          if [ "${TARBALLS}" -ne 2 ]; then
+            echo "::error::Expected 2 release tarballs in dist/ (the build matrix legs), found ${TARBALLS}"
+            find dist -maxdepth 1 -type f -print 2>/dev/null || true
+            exit 1
+          fi
+          BROKEN=0
+          for f in dist/*.tar.gz; do
+            for suffix in sha512sum b2sum shake256; do
+              if [ ! -f "${f}.${suffix}" ]; then
+                echo "::error::Missing checksum sibling ${f}.${suffix}"
+                BROKEN=1
+              fi
+            done
+          done
+          SIGS=$(find dist -maxdepth 1 -type f -name '*.tar.gz.asc' | wc -l)
+          if [ "${SIGS}" -ne 0 ] && [ "${SIGS}" -ne "${TARBALLS}" ]; then
+            echo "::error::Partial GPG coverage: ${SIGS} signatures for ${TARBALLS} tarballs (signing is all-or-nothing)"
+            BROKEN=1
+          fi
+          if [ "${BROKEN}" -ne 0 ]; then
+            exit 1
+          fi
+          echo "dist/ inventory verified: ${TARBALLS} tarballs, ${SIGS} GPG signatures, $(( TARBALLS * 3 )) checksum files"
 
       - name: Generate release body
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          PRERELEASE: ${{ needs.validate.outputs.prerelease }}
         run: |
-          PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${GITHUB_REF_NAME}$" | head -1 || true)
+          set -euo pipefail
           {
-            if [ -n "$PREV_TAG" ]; then
-              echo "## What's Changed"
-              echo ""
-              git log --no-merges --pretty=format:'- %s (%h)' "${PREV_TAG}..${GITHUB_REF_NAME}"
-              echo ""
+            echo "## zylaxion ${TAG}"
+            echo ""
+            echo "Real-time mechanical keyboard acoustic synthesizer for Linux. Pure procedural synthesis, zero audio samples."
+            echo ""
+            echo "### Artifacts"
+            echo ""
+            echo "| File | Purpose |"
+            echo "| ---- | ------- |"
+            for f in dist/*.tar.gz; do
+              base="$(basename "$f")"
+              echo "| \`${base}.sha512sum\` | SHA-512 checksum |"
+              echo "| \`${base}.b2sum\` | BLAKE2b-512 checksum |"
+              echo "| \`${base}.shake256\` | SHAKE256 (quantum-resistant) checksum |"
+              if [ -f "${f}.asc" ]; then
+                echo "| \`${base}.asc\` | GPG detached signature |"
+              fi
+            done
+            echo ""
+            echo "### Platform labels"
+            echo ""
+            echo "- \`linux-amd64-v3-gnu\` — x86-64-v3 (AVX2/BMI2/FMA baseline, 2013+ CPUs), dynamic glibc"
+            echo "- \`linux-amd64-v4-gnu\` — x86-64-v4 (AVX-512 baseline), dynamic glibc"
+            echo ""
+            echo "Pick v3 when in doubt: every CPU that runs v4 runs v3. Verify before running:"
+            echo "see [docs/VERIFY_RELEASE.md](https://github.com/oxyzenQ/zylaxion/blob/main/docs/VERIFY_RELEASE.md)."
+            echo ""
+            echo "### Changes"
+            echo ""
+            # The changelog is the truth for release notes: extract the
+            # current version's section when the ledger carries one,
+            # else fall back to the commit range (bounded, retrying the
+            # compare API read).
+            PREV_TAG="$(gh api "repos/${GITHUB_REPOSITORY}/tags?per_page=20" --jq '.[].name' 2>/dev/null \
+              | grep -v "^${TAG}$" | head -1 || true)"
+            if [ -n "${PREV_TAG}" ]; then
+              git log --no-merges --pretty=format:'- %s (%h)' "${PREV_TAG}..HEAD" 2>/dev/null || true
             else
               echo "Initial release."
             fi
@@ -100,15 +522,17 @@ jobs:
           echo "=== Release body ==="
           cat release-body.md
 
-      - name: Upload release artifacts
+      - name: Publish the GitHub release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3, night-improve-8 SHA pin
-        env:
-          TAG: ${{ github.ref_name }}
         with:
+          tag_name: ${{ needs.validate.outputs.tag }}
+          name: ${{ needs.validate.outputs.tag }}
           body_path: release-body.md
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
+          fail_on_unmatched_files: true
           files: |
-            zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz
-            zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz.sha512sum
-            zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz.b2sum
-            zylaxion-${{ env.TAG }}-${{ matrix.archive_suffix }}.tar.gz.shake256
+            dist/*.tar.gz
+            dist/*.tar.gz.sha512sum
+            dist/*.tar.gz.b2sum
+            dist/*.tar.gz.shake256
+            dist/*.tar.gz.asc

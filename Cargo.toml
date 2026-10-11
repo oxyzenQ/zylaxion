@@ -51,3 +51,16 @@ incremental = false
 # target/pro-native-gnu/, never clobbering target/release/.
 [profile.pro-native-gnu]
 inherits = "release"
+
+# night-improve-12c: arch-baseline release profiles backing the
+# `cargo pro-linux-amd64-v3-gnu` / `pro-linux-amd64-v4-gnu` aliases.
+# Inherits release unchanged — the alias injects -C target-cpu and the
+# ZYLAXION_BUILD label; the optimization tier is the release contract
+# the release.yml matrix ships. Own profile dirs keep the artifacts in
+# target/pro-linux-amd64-v3-gnu/ and target/pro-linux-amd64-v4-gnu/,
+# never clobbering each other or target/release/.
+[profile.pro-linux-amd64-v3-gnu]
+inherits = "release"
+
+[profile.pro-linux-amd64-v4-gnu]
+inherits = "release"

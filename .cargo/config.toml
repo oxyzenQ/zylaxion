@@ -57,3 +57,46 @@ pro-linux-amd64-gnu = [
   "--target",
   "x86_64-unknown-linux-gnu",
 ]
+
+# ── the arch-baseline release aliases (night-improve-12c, the zelynic
+#    pro-linux lineage) ─────────────────────────────────────────────────
+#
+# Owner contract: `cargo pro-linux-amd64-v3-gnu` / `pro-linux-amd64-v4-gnu`
+# compile the EXACT release shapes release.yml ships (the two gnu legs
+# of the matrix; the musl legs are the documented dormant lane — the
+# empirical blocker lives in release.yml's matrix header). Each alias
+# carries its own profile so the two artifacts land in separate target
+# dirs and never clobber each other or target/release/zylaxion, and a
+# ZYLAXION_BUILD label that is the platform id under the `local-`
+# marker — the same stamp build.rs forwards into the Build: line, so a
+# locally built artifact self-reports exactly like the release one.
+#
+# The rustflags ride via --config build.rustflags (a per-invocation
+# override, never a global [build] mutation — plain `cargo build` stays
+# untouched). The -D warnings lint token is deliberately OUT of the
+# alias (a local build has no business failing on warnings); the parity
+# contract between these aliases and the release matrix is held by
+# scripts/gates/check-release-parity.sh, which compares only the -C
+# codegen tokens.
+pro-linux-amd64-v3-gnu = [
+  "build",
+  "--profile",
+  "pro-linux-amd64-v3-gnu",
+  "--target",
+  "x86_64-unknown-linux-gnu",
+  "--config",
+  "env.ZYLAXION_BUILD=\"local-linux-amd64-v3-gnu\"",
+  "--config",
+  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v3\"]",
+]
+pro-linux-amd64-v4-gnu = [
+  "build",
+  "--profile",
+  "pro-linux-amd64-v4-gnu",
+  "--target",
+  "x86_64-unknown-linux-gnu",
+  "--config",
+  "env.ZYLAXION_BUILD=\"local-linux-amd64-v4-gnu\"",
+  "--config",
+  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\"]",
+]

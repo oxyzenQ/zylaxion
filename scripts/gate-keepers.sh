@@ -35,6 +35,13 @@
 #   7.  Actions pins health (scripts/gates/check-actions-pins.sh —
 #       the self-healing SHA-pin estate; honest-skips offline, warn
 #       mode by default, never blocks a push on upstream flakiness)
+#   8.  Release parity (night-improve-12c —
+#       scripts/gates/check-release-parity.sh: the live platforms'
+#       -C codegen tokens in .cargo/config.toml's pro-linux-amd64-*
+#       aliases must equal the release workflow matrix's rustflags, so
+#       a local alias build reproduces the release optimization tier
+#       the README documents bit-for-bit; a one-file edit can no
+#       longer silently break that contract)
 #
 # Usage:
 #   bash scripts/gate-keepers.sh             # full gate run
@@ -50,50 +57,50 @@ cd "$REPO_ROOT"
 
 FIX_ALL=false
 if [[ "${1:-}" == "--fix-all" ]]; then
-	FIX_ALL=true
+        FIX_ALL=true
 elif [[ $# -gt 0 ]]; then
-	echo "ERROR: unknown argument: $1 (expected --fix-all or none)"
-	exit 1
+        echo "ERROR: unknown argument: $1 (expected --fix-all or none)"
+        exit 1
 fi
 
 FAILED_SECTIONS=()
 
 run_section() {
-	local num="$1"
-	local name="$2"
-	shift 2
-	echo ""
-	echo "── [$num] $name ──────────────────────────────────────────"
-	if "$@"; then
-		return 0
-	else
-		FAILED_SECTIONS+=("$num. $name")
-		return 0 # keep running the remaining sections; verdict at the end
-	fi
+        local num="$1"
+        local name="$2"
+        shift 2
+        echo ""
+        echo "── [$num] $name ──────────────────────────────────────────"
+        if "$@"; then
+                return 0
+        else
+                FAILED_SECTIONS+=("$num. $name")
+                return 0 # keep running the remaining sections; verdict at the end
+        fi
 }
 
 echo "zylaxion gate-keepers — the full gate run"
 echo "repository: $REPO_ROOT"
 
 if $FIX_ALL; then
-	run_section 1 "File permissions (--fix-all)" \
-		bash scripts/gates/check-permissions.sh --fix
+        run_section 1 "File permissions (--fix-all)" \
+                bash scripts/gates/check-permissions.sh --fix
 else
-	run_section 1 "File permissions" \
-		bash scripts/gates/check-permissions.sh
+        run_section 1 "File permissions" \
+                bash scripts/gates/check-permissions.sh
 fi
 
 run_section 2 "SPDX headers" \
-	bash scripts/gates/check-headers.sh
+        bash scripts/gates/check-headers.sh
 
 run_section 3 "Rust LOC cap (600)" \
-	bash scripts/gates/check-loc.sh
+        bash scripts/gates/check-loc.sh
 
 run_section 4 "Scripts LOC cap (1000)" \
-	bash scripts/gates/check-scripts-loc.sh
+        bash scripts/gates/check-scripts-loc.sh
 
 run_section 5 "Language discipline" \
-	bash scripts/gates/check-language.sh
+        bash scripts/gates/check-language.sh
 
 # ── 6. Emoji sweep (inline) ────────────────────────────────────────────────
 run_section 6 "Emoji sweep" python3 - <<'PYEOF'
@@ -167,16 +174,20 @@ PYEOF
 
 # ── 7. Actions pins health (honest skips offline; warn by default) ─────────
 run_section 7 "Actions pins health" \
-	bash scripts/gates/check-actions-pins.sh
+        bash scripts/gates/check-actions-pins.sh
+
+# ── 8. Release parity (the alias/matrix optimization-tier contract) ────────
+run_section 8 "Release parity" \
+        bash scripts/gates/check-release-parity.sh
 
 # ── Verdict ────────────────────────────────────────────────────────────────
 echo ""
 if [ "${#FAILED_SECTIONS[@]}" -gt 0 ]; then
-	echo "GATE-KEEPERS FAIL (${#FAILED_SECTIONS[@]} section(s)):"
-	for s in "${FAILED_SECTIONS[@]}"; do
-		echo "  - $s"
-	done
-	exit 1
+        echo "GATE-KEEPERS FAIL (${#FAILED_SECTIONS[@]} section(s)):"
+        for s in "${FAILED_SECTIONS[@]}"; do
+                echo "  - $s"
+        done
+        exit 1
 fi
 
 echo "GATE-KEEPERS OK: all sections green."
