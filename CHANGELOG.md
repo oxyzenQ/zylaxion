@@ -20,6 +20,22 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-improve-2**: the helper output (`-h`/`--help`, usage lines,
+  and clap-printed errors) now carries the brand palette via a new
+  `cli_styles` module — the zelynic clap-styling pattern. Section
+  headings (`Usage:`, `Commands:`, `Options:`) render bold brand
+  purple #A855F7; every flag spelling (`-v`, `--verbose`,
+  `--preset <PRESET>`) and every command synopsis rides the calm grey
+  grammar tier #8B8B8B (flags are typeable grammar, not content — the
+  owner's eye-strain call); error labels render bold error red
+  #FF5A5A, typed mistakes invalid yellow #FFEB3C, and did-you-mean
+  candidates the same calm grey. Help prose tidied alongside: the
+  `--live` doc comment split into short and long help (the summary
+  view shows one line per flag again), the `testconf -f` doc gained
+  an explicit paragraph break, and the `start` about dropped its
+  trailing period for synopsis consistency. Gatekeeper green: fmt +
+  clippy + 111 tests.
+
 - **night-improve-4**: the workspace rides Rust edition 2024 with the
   MSRV pinned to 1.98.1 — `rust-version = "1.98.1"` now sits next to
   `edition = "2024"` in the shared `[workspace.package]` table and is

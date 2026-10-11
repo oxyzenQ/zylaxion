@@ -73,11 +73,16 @@ fn long_version() -> &'static str {
 }
 
 /// Zylaxion — real-time mechanical keyboard acoustic synthesizer for Linux.
+///
+/// The `styles` attribute wires the brand palette (purple headings,
+/// grey grammar tier for every flag spelling and command synopsis) into
+/// every surface clap renders — see `cli_styles` for the contract.
 #[derive(Parser)]
 #[command(
     name = "zylaxion",
     version = long_version(),
     about = "Real-time mechanical keyboard acoustic synthesizer for Linux",
+    styles = crate::cli_styles::styles(),
     after_help = "License: GPL-3.0-only | https://github.com/oxyzenQ/zylaxion"
 )]
 pub struct Cli {
@@ -91,6 +96,7 @@ pub struct Cli {
     pub verbose: bool,
 
     /// Live mode: refresh the overview every 2 seconds (like `watch`).
+    ///
     /// Only effective without a subcommand. Press Ctrl+C to exit.
     /// (v10.2.0+ — user feedback)
     #[arg(long, global = false)]
@@ -105,7 +111,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Run in the foreground (press Ctrl+C to quit).
+    /// Run in the foreground (press Ctrl+C to quit)
     Start {
         /// Override the active preset from config.toml. If omitted, the
         /// `preset.tuning` value is used.
@@ -157,6 +163,7 @@ pub enum Commands {
     /// With a path argument: validates that specific file instead.
     Testconf {
         /// Optional path to a config.toml file to validate.
+        ///
         /// If omitted, searches the standard config paths.
         #[arg(long = "file", short = 'f')]
         file: Option<String>,
