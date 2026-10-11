@@ -31,10 +31,15 @@ Wants=pipewire.socket
 [Service]
 Type=simple
 # `--foreground` skips the internal fork/setsid daemonization and runs
-# the full daemon logic (IPC socket, signal handlers, config watcher,
-# orchestrator loop) inline on the main thread. This is REQUIRED for
-# systemd's Type=simple supervision — without it, the parent process
-# exits immediately and systemd marks the service as inactive.
+# the full daemon logic (IPC socket, signal handlers, orchestrator
+# loop) inline on the main thread. This is REQUIRED for systemd's
+# Type=simple supervision — without it, the parent process exits
+# immediately and systemd marks the service as inactive.
+#
+# Pick a preset the compiled registry carries (zylaxion list-presets):
+# uncomment Environment= to pin one for the service, or export
+# ZYLAXION_PRESET for shell sessions. ZYLAXION_VOLUME works the same.
+#Environment=ZYLAXION_PRESET=ibm_model_m
 ExecStart=%h/.local/bin/zylaxion daemon --foreground
 # Our signal hook in src/signals.rs catches SIGTERM and triggers a
 # graceful shutdown (fade-out, CpalSink drop, PID file cleanup).
