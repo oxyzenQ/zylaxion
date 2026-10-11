@@ -90,20 +90,15 @@ The doctor speaks in word verdicts (green/red lanes through
 
 `scripts/gates/check-loc.sh` enforces the cap tree-wide, and
 `scripts/gates/check-scripts-loc.sh` enforces 1000 lines for every
-script under `scripts/`. The honest ledger at gate-introduction time
-(no silent debt — every entry self-declares in its own file with a
-`// LOC_EXEMPT:` marker and a justification):
-
-- `crates/zactrix-profiles/src/lib.rs`, `mechanical.rs`,
-  `crates/zylaxion-core/src/lib.rs`, `crates/zylaxion/src/session/config.rs`,
-  `crates/zactrix-engine/src/pool.rs`,
-  `crates/zylaxion/src/commands/daemon.rs`.
-
-These six predate the gate and are the scheduled split work — the
-owner sequences the splits (the same way the Owner sequences version
-bumps); the gate's job is to make the debt visible in-file and stop
-it from growing. New files get no marker: over the cap means split,
-same hour.
+script under `scripts/`. The no-mercy era (night-improve-18) closed
+the debt ledger: the six pre-gate files that carried the
+`// LOC_EXEMPT:` marker are split, the marker is retired, and the
+gate honors no exemption — over the cap means SPLIT, the same hour,
+a pure move with gates green in between. The same gate enforces the
+layout law beside the cap: every crate's src/ root holds only its
+entry file (main.rs / lib.rs), and every *.rs test file lives under
+its crate's test/ directory (the Pattern C #[path] wiring), counted
+under the same cap.
 
 ## Q5 — How do I verify a downloaded release binary?
 

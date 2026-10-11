@@ -20,8 +20,9 @@
 #       GPL-3.0-only identifier on every code/config/doc file, the
 #       OS line on every .sh)
 #   3.  Rust LOC cap (scripts/gates/check-loc.sh — 600 lines, every
-#       tracked .rs anywhere in the tree; // LOC_EXEMPT: marker =
-#       tracked migration debt, Owner-sequenced)
+#       tracked .rs anywhere in the tree; night-improve-18's no-mercy
+#       era honors no marker — over the cap means SPLIT — plus the
+#       src-root single-file policy and the Pattern C test tree)
 #   4.  Scripts LOC cap (scripts/gates/check-scripts-loc.sh — 1000
 #       lines for every .sh/.py under scripts/; # LOC_EXEMPT: marker)
 #   5.  Language discipline (scripts/gates/check-language.sh —

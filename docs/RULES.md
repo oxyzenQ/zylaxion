@@ -7,18 +7,21 @@ Absolute source of truth for maintaining consistency, efficiency, and quality.
 
 ## Architecture & Code Quality
 
-- **LOC Limit:** The core engine (`zactrix-engine` + `zactrix-profiles`) MUST
-  remain under 2,000 lines of code. Current: ~2,100 LOC across both crates
-  (excluding `*.md`, `*.txt`, `*.toml`, `examples/`). The 1,000-LOC target
-  from v0.x was arbitrary for DSP-heavy crates and was relaxed to 2,000 in
-  v10.2.0 to reflect the natural growth from housing layer (v4.2.0),
-  micro-randomization (v5.0.0), and the v10.2.0 dragonzen audit (N2 release
-  ramp, N5 timing variation, N6 pan jitter, N7 two-stage decay).
-- **Modular `main.rs`:** `crates/zylaxion/src/main.rs` MUST stay within 100–300 LOC.
-  Bootstrap and wiring only. Logic goes into specific modules. Current: ~273 LOC —
-  within the limit. The `run_check_update` function (~80 LOC) is a candidate
-  for extraction to `commands/update.rs` if main.rs grows further.
-- **File Bloat:** No single `.rs` file may exceed 800 LOC.
+- **LOC law (night-improve-18, the no-mercy era):** no single `.rs`
+  file anywhere in the tree may exceed 600 lines — no marker, no
+  mercy. `scripts/gates/check-loc.sh` walks the whole git index and
+  fails the gate on any over-cap file; over the cap means SPLIT, the
+  same hour, a pure move with gates green in between (the former
+  `// LOC_EXEMPT:` debt lane is retired — all six pre-gate files were
+  split). The same gate enforces the layout law: every crate's src/
+  root holds exactly its entry file (`main.rs` for the binary,
+  `lib.rs` for a library), every other module lives in its subsystem
+  directory (`dir/mod.rs` style), and every `*.rs` test file lives
+  under its crate's `test/` directory (the Pattern C `#[path]`
+  wiring, one theme per file) under the same cap.
+- **Modular `main.rs`:** `crates/zylaxion/src/main.rs` MUST stay within
+  100–300 LOC. Bootstrap and wiring only. Logic goes into specific
+  modules (the zelynic foundation shape, night-improve-14).
 - **Release Profile:** `[profile.release]` uses `lto = "thin"`, `codegen-units = 1`,
   `opt-level = 3`, `strip = true`, `panic = "unwind"`.
 
