@@ -38,7 +38,19 @@ zactrix-engine = { path = "../zactrix-engine" }
 zactrix-profiles = { path = "../zactrix-profiles" }
 clap = { version = "4", features = ["derive"] }
 log = "0.4"
-env_logger = "0.11"
+# night-improve-13: default-features = false — env_logger's default
+# "humantime" feature (a misleading name since 0.11.8: it maps to
+# `dep:jiff`, not humantime) and the env_filter "regex" feature both go.
+# The jiff + regex crate trees (~9 crates in the lock) existed ONLY to
+# format log timestamps and enable regex filter syntax — the zelynic
+# no-time-crate contract answers both: the timestamps render through
+# src/clock.rs (Hinnant civil_from_days, std clock), and RUST_LOG keeps
+# the standard comma-separated directive syntax (regex syntax was never
+# a documented zylaxion surface). auto-color stays: the TTY color
+# detection the daemon's journal output relies on.
+env_logger = { version = "0.11", default-features = false, features = [
+    "auto-color",
+] }
 nix = { version = "0.29", features = ["signal", "process", "user", "fs"] }
 cpal = "0.15"
 serde = { version = "1", features = ["derive"] }
