@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
+# OS: Linux only - zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 # Copyright (C) 2026 rezky_nightky
 #
 # Install zylaxion: binary + config.toml + systemd user service.

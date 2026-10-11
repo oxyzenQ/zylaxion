@@ -148,7 +148,8 @@ fn wrap_body_line(line: &str, body_open: &str) -> String {
 
 // ── verdict and tier helpers (the doctor/overview surface) ──────────────
 
-/// An affirmative verdict line (`✓ ...`) — status green.
+/// An affirmative verdict line (the caller supplies the word —
+/// `PASS: ...`) — status green.
 pub fn ok_line(text: &str) -> String {
     if !color_enabled() {
         return text.to_string();
@@ -156,7 +157,8 @@ pub fn ok_line(text: &str) -> String {
     format!("{OK_OPEN}{text}{RESET}")
 }
 
-/// A failed verdict line (`✗ ...`) — error red.
+/// A failed verdict line (the caller supplies the word — `FAIL: ...`)
+/// — error red.
 pub fn fail_line(text: &str) -> String {
     if !color_enabled() {
         return text.to_string();
