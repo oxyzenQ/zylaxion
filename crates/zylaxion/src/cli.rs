@@ -13,6 +13,12 @@
 //! in purple on a TTY via [`print_version_report`], and clap's own
 //! version rendering (every other path) carries the same lines through
 //! [`long_version`].
+//!
+//! The help surface is the zelynic single-tier law (night-improve-15):
+//! clap's auto help and its `help` subcommand are disabled — the only
+//! help surface is the curated reference in [`crate::commands::help`],
+//! dispatched from the [`Cli::help`] field. Subcommand-level `--help`
+//! is an unknown-argument error, never a second help wall.
 
 use clap::{Parser, Subcommand};
 use std::sync::OnceLock;
@@ -153,30 +159,45 @@ mod tests {
 /// The `styles` attribute wires the brand palette (purple headings,
 /// grey grammar tier for every flag spelling and command synopsis) into
 /// every surface clap renders — see `cli_styles` for the contract.
+/// The help flag is disabled here and re-declared as the [`Cli::help`]
+/// field below: one curated reference, the zelynic single-tier law.
 #[derive(Parser)]
 #[command(
     name = "zylaxion",
     version = long_version(),
     about = ABOUT,
-    long_about = ABOUT,
-    styles = crate::cli_styles::styles(),
-    after_help = "License: GPL-3.0-only | https://github.com/oxyzenQ/zylaxion"
+    long_about = None,
+    disable_help_flag = true,
+    disable_help_subcommand = true,
+    styles = crate::cli_styles::styles()
 )]
 pub struct Cli {
-    /// Check for upstream updates on GitHub.
-    #[arg(long, global = true)]
-    #[allow(dead_code)]
+    /// Print the end-to-end reference (commands, examples, flags)
+    ///
+    /// Single-tier help surface (night-improve-15): the former clap
+    /// auto-help and its `help` subcommand are disabled; this field is
+    /// the only help surface, intercepted in `main` to print the
+    /// curated reference from `commands::help`. At subcommand level
+    /// (`zylaxion start --help`) there is no help flag at all — clap
+    /// answers unknown-argument with a suggestion, exit 2.
+    #[arg(short = 'h', long = "help", global = false)]
+    pub help: bool,
+
+    /// Check the latest upstream GitHub release
+    ///
+    /// Network surface (night-improve-16): the check shells out to
+    /// curl, so it must never ride root privileges — `update::
+    /// run_check_update` refuses euid 0 with a "do not use sudo" tip
+    /// before any network I/O happens. Top-level only: under a
+    /// subcommand this spelling is an unknown-argument error, which is
+    /// the honest reading of `zylaxion start --check-update`.
+    #[arg(long = "check-update", global = false)]
     pub check_update: bool,
 
-    /// Enable verbose (debug-level) logging.
-    #[arg(short, long, global = true)]
-    pub verbose: bool,
-
-    /// Live mode: refresh the overview every 2 seconds (like `watch`).
+    /// Live mode: refresh the overview every 2 seconds (Ctrl+C to exit)
     ///
-    /// Only effective without a subcommand. Press Ctrl+C to exit.
-    /// (v10.2.0+ — user feedback)
-    #[arg(long, global = false)]
+    /// Only effective without a subcommand.
+    #[arg(long)]
     pub live: bool,
 
     /// Without a subcommand: show a quick status overview (daemon

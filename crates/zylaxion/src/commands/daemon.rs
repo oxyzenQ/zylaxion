@@ -94,7 +94,7 @@ pub fn cmd_start(cli_preset: Option<String>) {
         process::exit(1);
     }
 
-    init_logger(None);
+    init_logger(Some("info"));
 
     let _lock = instance_lock::acquire_or_exit();
 
