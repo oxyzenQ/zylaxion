@@ -3,15 +3,19 @@
 # OS: Linux only - zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 # Copyright (C) 2026 rezky_nightky
 #
-# Install zylaxion: binary + config.toml + systemd user service.
+# Install zylaxion: binary + systemd user service.
 # Supports --system (system-wide) and --user (default, ~/.local).
 # Run WITHOUT sudo: the script escalates via sudo ONLY for --system install steps.
+#
+# night-improve-22: no config file exists anymore. All presets are
+# compiled into the binary and selected with --preset or the
+# ZYLAXION_PRESET environment variable, so this script installs two
+# artifacts instead of three.
 
 set -euo pipefail
 
 PROJECT_NAME="zylaxion"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-CONFIG_SRC="${REPO_ROOT}/config.toml"
 SERVICE_SRC="${REPO_ROOT}/assets/zylaxion.service"
 
 usage() {
@@ -20,17 +24,16 @@ Usage: $0 [--system|--user]
 
   --system   Install system-wide:
                binary  → /usr/bin/${PROJECT_NAME}
-               config  → /etc/${PROJECT_NAME}/config.toml (FHS default)
                service → /etc/systemd/user/${PROJECT_NAME}.service
              (script invokes sudo for the install steps)
   --user     Install to user-local (default, no sudo):
                binary  → ~/.local/bin/${PROJECT_NAME}
-               config  → ~/.config/${PROJECT_NAME}/config.toml (only if not present)
                service → ~/.config/systemd/user/${PROJECT_NAME}.service
 
-The system config file is NEVER overwritten. If it already exists, a
-timestamped backup is created as config.bak.<epoch> and the new template
-is installed as config.new for manual review.
+Preset selection is compiled in: pass --preset <name> on the CLI or
+export ZYLAXION_PRESET=<name> (systemd units take Environment=).
+ZYLAXION_VOLUME overrides the master volume the same way. Run
+'${PROJECT_NAME} list-presets' to see the catalog.
 
 The build step (cargo build --release --locked) ALWAYS runs as the current user.
 EOF
@@ -80,14 +83,12 @@ if [[ ! -f Cargo.toml ]]; then
     exit 1
 fi
 
-for f in "${CONFIG_SRC}" "${SERVICE_SRC}"; do
-    if [[ ! -f "${f}" ]]; then
-        echo "error: required file not found: ${f}" >&2
-        exit 1
-    fi
-done
+if [[ ! -f "${SERVICE_SRC}" ]]; then
+    echo "error: required file not found: ${SERVICE_SRC}" >&2
+    exit 1
+fi
 
-echo ">> [1/4] Building ${PROJECT_NAME} (release, locked)"
+echo ">> [1/3] Building ${PROJECT_NAME} (release, locked)"
 cargo build --release --locked
 
 BINARY="target/release/${PROJECT_NAME}"
@@ -96,27 +97,18 @@ if [[ ! -f "${BINARY}" ]]; then
     exit 1
 fi
 
-echo ">> [2/4] Installing binary (${MODE})"
+echo ">> [2/3] Installing binary (${MODE})"
 case "${MODE}" in
     --system)
         # v10.2.0: if a user-local install exists, clean it up first
-        # so there are no stale binaries or config in ~ that would
+        # so there are no stale binaries or service in ~ that would
         # shadow the system-wide install.
         user_bin="${HOME}/.local/bin/${PROJECT_NAME}"
-        user_cfg="${HOME}/.config/${PROJECT_NAME}/config.toml"
         user_svc="${HOME}/.config/systemd/user/${PROJECT_NAME}.service"
-        if [[ -f "${user_bin}" ]] || [[ -f "${user_cfg}" ]] || [[ -f "${user_svc}" ]]; then
+        if [[ -f "${user_bin}" ]] || [[ -f "${user_svc}" ]]; then
             echo "   cleaning existing user-local binary + service..."
             rm -f "${user_bin}" "${user_svc}"
             echo "   cleaned: ${user_bin} + ${user_svc}"
-        fi
-        # v11.0.0: overwrite user-local config if it exists so both
-        # /etc/ and ~/.config/ have the fresh config. Don't delete —
-        # overwrite in place. This ensures stale presets/tuning from
-        # a previous version are replaced with the new template.
-        if [[ -f "${user_cfg}" ]]; then
-            install -Dm644 "${CONFIG_SRC}" "${user_cfg}"
-            echo "   overwritten: ${user_cfg} (fresh template)"
         fi
         "${SUDO}" install -Dm755 "${BINARY}" "/usr/bin/${PROJECT_NAME}"
         echo "   installed: /usr/bin/${PROJECT_NAME}"
@@ -129,28 +121,7 @@ case "${MODE}" in
         ;;
 esac
 
-echo ">> [3/4] Installing config.toml (${MODE})"
-case "${MODE}" in
-    --system)
-        # FHS default location — in zylaxion's config search path.
-        "${SUDO}" mkdir -p "/etc/${PROJECT_NAME}"
-        config_path="/etc/${PROJECT_NAME}/config.toml"
-        # v10.2.0: overwrite unconditionally — no .new or .bak bloat.
-        "${SUDO}" install -Dm644 "${CONFIG_SRC}" "${config_path}"
-        echo "   installed: ${config_path}"
-        echo "   (system-wide default; users can override at ~/.config/${PROJECT_NAME}/config.toml)"
-        ;;
-    --user)
-        user_cfg_dir="${HOME}/.config/${PROJECT_NAME}"
-        user_cfg="${user_cfg_dir}/config.toml"
-        mkdir -p "${user_cfg_dir}"
-        # v10.2.0: overwrite unconditionally — no .new or .bak bloat.
-        install -Dm644 "${CONFIG_SRC}" "${user_cfg}"
-        echo "   installed: ${user_cfg}"
-        ;;
-esac
-
-echo ">> [4/4] Installing systemd user unit (${MODE})"
+echo ">> [3/3] Installing systemd user unit (${MODE})"
 case "${MODE}" in
     --system)
         # System-wide user unit. Modify ExecStart to point to /usr/bin.
@@ -191,8 +162,9 @@ echo "  - Enable + start ${PROJECT_NAME}:"
 echo "      systemctl --user enable --now ${PROJECT_NAME}"
 echo "  - Live logs:"
 echo "      journalctl --user -u ${PROJECT_NAME} -f"
-echo "  - Verify config:"
-echo "      ${PROJECT_NAME} testconf"
+echo "  - Pick a preset (24 compiled in):"
+echo "      ${PROJECT_NAME} list-presets"
+echo "      export ZYLAXION_PRESET=ibm_model_m   # persistent selection"
 echo "  - Uninstall:"
 case "${MODE}" in
     --system) echo "      sudo ./scripts/package/uninstall.sh --system" ;;

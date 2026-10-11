@@ -3,12 +3,14 @@
 # OS: Linux only - zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 # Copyright (C) 2026 rezky_nightky
 #
-# Uninstall zylaxion: binary + config.toml + systemd user service.
+# Uninstall zylaxion: binary + systemd user service.
 # Auto-detects and removes from all known locations:
 #   binary:  /usr/bin/, ~/.local/bin/
-#   config:  /etc/zylaxion/, ~/.config/zylaxion/
 #   service: /etc/systemd/user/, ~/.config/systemd/user/
-# User config (~/.config/zylaxion/) is PRESERVED — pass --purge to remove.
+#   legacy:  /etc/zylaxion/, ~/.config/zylaxion/ (config-era leftovers;
+#            night-improve-22 retired the config file — the binary no
+#            longer reads either directory, uninstall still cleans them)
+# Legacy user dir (~/.config/zylaxion/) is PRESERVED — pass --purge to remove.
 # Sudo is used ONLY for system paths. Run WITHOUT sudo.
 
 set -uo pipefail
@@ -26,7 +28,7 @@ Usage: $0 [--system|--user|--all] [--purge]
   --user     Remove only user paths (~/.local/bin,
              ~/.config/systemd/user). No sudo.
   --all      Same as default.
-  --purge    Also remove user config at ~/.config/${PROJECT_NAME}/.
+  --purge    Also remove the legacy user dir at ~/.config/${PROJECT_NAME}/.
 
 Sudo is used only for system paths. Run WITHOUT sudo.
 EOF
@@ -83,22 +85,22 @@ case "${MODE}" in
         remove_at "${HOME}/.config/systemd/user/${PROJECT_NAME}.service" no
         if [[ ${PURGE} -eq 1 ]]; then
             remove_at "${HOME}/.config/${PROJECT_NAME}" no
-        elif [[ -f "${HOME}/.config/${PROJECT_NAME}/config.toml" ]]; then
-            echo "   NOTE: user config preserved at ~/.config/${PROJECT_NAME}/config.toml"
-            echo "         remove with: ./scripts/package/uninstall.sh --purge"
+        elif [[ -d "${HOME}/.config/${PROJECT_NAME}" ]]; then
+            echo "   NOTE: legacy config-era dir preserved at ~/.config/${PROJECT_NAME}/"
+            echo "         (the binary no longer reads it; remove with: ./scripts/package/uninstall.sh --purge)"
         fi
         ;;
     --all)
         # Binary
         remove_at "/usr/bin/${PROJECT_NAME}" yes
         remove_at "${HOME}/.local/bin/${PROJECT_NAME}" no
-        # Config (system paths removed; user config preserved unless --purge)
+        # Legacy config-era dirs (system removed; user preserved unless --purge)
         remove_at "/etc/${PROJECT_NAME}" yes
         if [[ ${PURGE} -eq 1 ]]; then
             remove_at "${HOME}/.config/${PROJECT_NAME}" no
-        elif [[ -f "${HOME}/.config/${PROJECT_NAME}/config.toml" ]]; then
-            echo "   NOTE: user config preserved at ~/.config/${PROJECT_NAME}/config.toml"
-            echo "         remove with: ./scripts/package/uninstall.sh --purge"
+        elif [[ -d "${HOME}/.config/${PROJECT_NAME}" ]]; then
+            echo "   NOTE: legacy config-era dir preserved at ~/.config/${PROJECT_NAME}/"
+            echo "         (the binary no longer reads it; remove with: ./scripts/package/uninstall.sh --purge)"
         fi
         # Service
         remove_at "/etc/systemd/user/${PROJECT_NAME}.service" yes
