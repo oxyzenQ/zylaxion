@@ -1,0 +1,498 @@
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: GPL-3.0-only
+
+//! Linux kernel keyboard input capture via libinput.
+//!
+//! This crate reads keyboard events directly from `/dev/input/event*`
+//! devices using `libinput` with a `udev` backend, completely bypassing
+//! X11 and Wayland display servers. Events are delivered to the caller
+//! through a [`crossbeam_channel::Receiver`] from a dedicated background
+//! thread, keeping the audio/render loop unblocked.
+//!
+//! # Architecture
+//!
+//! ```text
+//!  Kernel (/dev/input/event*)       Background thread          Caller
+//!  ──────────────────────           ────────────────          ──────
+//!  EV_KEY (scancode + state)
+//!         │
+//!         ▼
+//!  libinput (udev backend)
+//!         │
+//!         ▼
+//!  event_loop()  ──dispatch──►  KeyboardEvent
+//!                                     │
+//!                                     ▼
+//!                              crossbeam Sender  ──►  Receiver::recv()
+//!                                                           │
+//!                                                           ▼
+//!                                                    KeyEvent { scancode,
+//!                                                              pressed,
+//!                                                              timestamp }
+//! ```
+//!
+//! # Permissions
+//!
+//! Reading from `/dev/input/event*` requires membership in the `input`
+//! group. If permission is denied, [`InputError::PermissionDenied`]
+//! carries an actionable error message.
+//!
+//! ```bash
+//! sudo usermod -aG input $USER
+//! # Then log out and back in.
+//! ```
+
+use std::fmt;
+use std::fs::OpenOptions;
+use std::os::fd::{AsFd, OwnedFd};
+use std::os::unix::fs::OpenOptionsExt;
+use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+use std::time::Duration;
+
+use ::input::LibinputInterface;
+use ::input::event::keyboard::KeyboardEventTrait;
+use crossbeam_channel::{Receiver, Sender};
+use nix::poll::{PollFd, PollFlags, PollTimeout, poll};
+use nix::time::{ClockId, clock_gettime};
+
+// ── Constants ───────────────────────────────────────────────────────────
+
+/// `EACCES` errno on Linux (all architectures — asm-generic/errno.h).
+const LINUX_EACCES: i32 = 13;
+
+/// `EIO` errno on Linux (all architectures — asm-generic/errno.h).
+const LINUX_EIO: i32 = 5;
+
+/// Poll timeout when waiting for libinput events (v10.2.0+ — dragonzen
+/// audit B3/E1).
+///
+/// The previous implementation called `thread::sleep(1 ms)` after every
+/// dispatch+drain cycle, even when events had just been processed. This
+/// caused two problems:
+/// 1. **Latency floor**: events arriving during the sleep window had to
+///    wait up to 1 ms before being delivered.
+/// 2. **Battery drain**: 1000 wakes/sec on an otherwise-idle system
+///    prevented CPU deep C-states (~0.5–1 W on modern mobile chips).
+///
+/// The fix uses `poll(2)` on libinput's file descriptor. `poll` blocks
+/// the thread until the kernel signals data is available — zero CPU
+/// while idle, instant wake on event arrival. The 100 ms timeout is a
+/// safety net so the loop can periodically check the channel for
+/// receiver-drop (which terminates the thread cleanly). With a working
+/// `poll` wake, the timeout is hit only when no keys are pressed for
+/// 100 ms — a negligible cost.
+///
+/// 100 ms is chosen as a balance: short enough that receiver-drop is
+/// detected within 100 ms (invisible to the user), long enough that
+/// idle wake frequency is 10 Hz (100× reduction from the previous 1 kHz).
+const DISPATCH_POLL_TIMEOUT_MS: u16 = 100;
+
+/// Sleep duration after a libinput dispatch error before retrying.
+/// Errors are transient (device hot-unplug, brief fd unavailability)
+/// so we back off briefly instead of spinning.
+const DISPATCH_ERROR_BACKOFF_MS: u64 = 10;
+
+/// Number of consecutive dispatch errors before attempting suspend/resume
+/// recovery via `udev_assign_seat` (v10.2.0+ — dragonzen audit B17).
+///
+/// At 100ms poll timeout + 10ms backoff per iteration, 50 errors ≈ 5.5
+/// seconds of sustained failure — long enough to rule out transient
+/// glitches (device hot-unplug/replug takes <1s), short enough to recover
+/// within a few seconds of resume.
+const SUSPEND_RECOVERY_ERROR_THRESHOLD: u32 = 50;
+
+// ── KeyEvent ────────────────────────────────────────────────────────────
+
+/// A keyboard event captured from the Linux input subsystem.
+///
+/// The `scancode` is the evdev key code as defined in
+/// `<linux/input-event-codes.h>` (e.g. `KEY_A = 30`).
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct KeyEvent {
+    /// Linux evdev key code (e.g. 30 for `KEY_A`).
+    pub scancode: u32,
+    /// `true` when the key was pressed, `false` when released.
+    pub pressed: bool,
+    /// Timestamp in microseconds sourced from `CLOCK_MONOTONIC`.
+    pub timestamp: u64,
+}
+
+// ── InputError ──────────────────────────────────────────────────────────
+
+/// Errors that can occur when initialising the input source.
+#[derive(Debug)]
+pub enum InputError {
+    /// Failed to create a udev context (e.g. udev not running).
+    // night-improve-21: constructed by the input test tree only; the
+    // unified binary's non-test compilation never constructs it.
+    #[allow(dead_code)]
+    UdevInitFailed(String),
+    /// Permission denied when accessing `/dev/input/event*`.
+    PermissionDenied(String),
+    /// A libinput seat-assignment or dispatch error occurred.
+    LibinputError(String),
+}
+
+impl fmt::Display for InputError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UdevInitFailed(e) => write!(f, "udev init failed: {e}"),
+            Self::PermissionDenied(e) => write!(f, "{e}"),
+            Self::LibinputError(e) => write!(f, "libinput error: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for InputError {}
+
+// ── InputSource trait ───────────────────────────────────────────────────
+
+/// Trait for capturing keyboard input events from the OS.
+///
+/// Implementations typically spawn a background thread and return a
+/// channel [`Receiver`] that yields [`KeyEvent`]s as they arrive.
+/// The background thread shuts down automatically when the `Receiver`
+/// (and its corresponding `Sender`) is dropped.
+pub trait InputSource {
+    /// Start listening for keyboard events on a background thread.
+    ///
+    /// Returns a [`Receiver`] that yields [`KeyEvent`]s in real time.
+    /// Dropping the receiver terminates the background thread cleanly.
+    fn listen(&mut self) -> Result<Receiver<KeyEvent>, InputError>;
+}
+
+// ── UdevInterface (libinput device open/close callbacks) ───────────────
+
+/// libinput device open/close callbacks.
+///
+/// The `open_restricted` hook is called by libinput for every input
+/// device it discovers under the assigned seat.  If the open fails
+/// with `EACCES`, the shared `permission_denied` flag is set so that
+/// the init routine can return a precise, actionable error.
+struct UdevInterface {
+    /// Set to `true` when `open_restricted` encounters `EACCES`.
+    permission_denied: Arc<AtomicBool>,
+}
+
+impl LibinputInterface for UdevInterface {
+    fn open_restricted(&mut self, path: &Path, flags: i32) -> Result<OwnedFd, i32> {
+        OpenOptions::new()
+            .custom_flags(flags)
+            .read(true)
+            .write(true)
+            .open(path)
+            .map(|file| file.into())
+            .map_err(|e| {
+                if e.raw_os_error() == Some(LINUX_EACCES) {
+                    self.permission_denied.store(true, Ordering::Relaxed);
+                }
+                e.raw_os_error().unwrap_or(LINUX_EIO)
+            })
+    }
+
+    fn close_restricted(&mut self, fd: OwnedFd) {
+        // Dropping the OwnedFd closes the underlying file descriptor.
+        drop(fd);
+    }
+}
+
+// ── LibinputSource ──────────────────────────────────────────────────────
+
+/// libinput-based keyboard capture for Linux.
+///
+/// Reads directly from `/dev/input/event*` via the `udev` backend,
+/// completely bypassing display servers (X11 / Wayland).
+///
+/// # Privacy note
+///
+/// The `KeyEvent` returned by this source carries a raw hardware
+/// scancode (the physical key location, not an ASCII character). For
+/// privacy reasons, **never log the scancode field** in production
+/// code — a `journalctl` reader could reconstruct typed passwords by
+/// mapping scancodes back through the QWERTY layout. The struct exists
+/// to drive the DSP engine, not for human inspection.
+///
+/// # Example
+///
+/// ```no_run
+/// use crate::input::{InputSource, LibinputSource};
+///
+/// let mut source = LibinputSource::new();
+/// let rx = source.listen().unwrap();
+///
+/// for event in rx.iter() {
+///     // Do NOT log `event.scancode` in production code — see the
+///     // privacy note above. Feed it to the DSP engine instead.
+///     let _ = event; // suppress unused-variable warning
+/// }
+/// ```
+pub struct LibinputSource {
+    seat: String,
+}
+
+impl LibinputSource {
+    /// Create a new source that monitors the default `seat0`.
+    ///
+    /// On most single-seat Linux systems this is the correct choice.
+    pub fn new() -> Self {
+        Self {
+            seat: "seat0".to_string(),
+        }
+    }
+
+    /// Create a new source targeting a specific seat name.
+    // night-improve-21: exercised by the input test tree only; the
+    // unified binary's non-test compilation never calls it.
+    #[allow(dead_code)]
+    pub fn with_seat(seat: impl Into<String>) -> Self {
+        Self { seat: seat.into() }
+    }
+}
+
+impl Default for LibinputSource {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl InputSource for LibinputSource {
+    fn listen(&mut self) -> Result<Receiver<KeyEvent>, InputError> {
+        let (tx, rx) = crossbeam_channel::unbounded();
+        // Oneshot channel: the background thread sends exactly one
+        // init result (Ok or Err) before entering the event loop.
+        let (init_tx, init_rx) = crossbeam_channel::bounded::<Result<(), InputError>>(1);
+        let seat = self.seat.clone();
+
+        let permission_denied = Arc::new(AtomicBool::new(false));
+
+        let interface = UdevInterface {
+            permission_denied: Arc::clone(&permission_denied),
+        };
+
+        // The libinput context is created **inside** the thread because
+        // `::input::Libinput` is `!Send` (it contains `Rc` and a raw
+        // pointer).  The oneshot `init_tx` channel forwards any
+        // initialisation error back to the calling thread.
+        thread::Builder::new()
+            .name("zylaxion-input".to_string())
+            .spawn(move || {
+                // libinput (with the udev feature) creates its own
+                // internal udev context — we only supply callbacks.
+                let mut libinput = ::input::Libinput::new_with_udev(interface);
+
+                // Seat assignment triggers device enumeration, which
+                // calls `open_restricted` for every event device.
+                if let Err(()) = libinput.udev_assign_seat(&seat) {
+                    let err = if permission_denied.load(Ordering::Relaxed) {
+                        InputError::PermissionDenied(
+                            "Permission denied opening input devices. \
+                                 Please add your user to the 'input' group: \
+                                 `sudo usermod -aG input $USER`, then log out and back in."
+                                .to_string(),
+                        )
+                    } else {
+                        InputError::LibinputError(format!("failed to assign seat '{seat}'"))
+                    };
+                    let _ = init_tx.send(Err(err));
+                    return;
+                }
+
+                // Signal success — the caller's `listen()` unblocks.
+                let _ = init_tx.send(Ok(()));
+
+                // Enter the blocking event loop. The seat name is
+                // passed so the loop can re-assign it during
+                // suspend/resume recovery (v10.2.0 — B17).
+                event_loop(libinput, seat, tx);
+            })
+            .expect("failed to spawn input thread");
+
+        // Block until the background thread reports init result.
+        init_rx.recv().map_err(|_| {
+            InputError::LibinputError("input thread crashed during initialisation".to_string())
+        })??;
+
+        Ok(rx)
+    }
+}
+
+// ── Free functions ──────────────────────────────────────────────────────
+
+/// Read `CLOCK_MONOTONIC` as a microsecond counter.
+///
+/// This is the same clock source that libinput uses internally for
+/// its event timestamps, so the value returned here is directly
+/// comparable to the kernel event time (modulo the small dispatch
+/// latency between kernel delivery and userspace reading).
+fn monotonic_us() -> u64 {
+    clock_gettime(ClockId::CLOCK_MONOTONIC)
+        .map(|ts| ts.tv_sec() as u64 * 1_000_000 + ts.tv_nsec() as u64 / 1000)
+        .unwrap_or(0)
+}
+
+/// Background event loop: dispatches libinput events and forwards
+/// keyboard events through the channel.
+///
+/// This function does **not** panic. All errors from `libinput.dispatch()`
+/// are logged to stderr and the loop continues, making it resilient to
+/// transient device disconnects (EPERM / EACCES / ENODEV).
+///
+/// # I/O model (v10.2.0+ — dragonzen audit B3/E1)
+///
+/// The loop uses `poll(2)` on libinput's file descriptor to wait for
+/// kernel-signalled data availability. This is a strict improvement
+/// over the previous `thread::sleep(1 ms)` busy-yield:
+///
+/// - **Zero idle CPU**: `poll` blocks the thread in the kernel until
+///   data arrives. The previous code woke 1000 times/sec regardless
+///   of activity, preventing CPU deep C-states and draining ~0.5–1 W
+///   on battery-powered laptops.
+/// - **Instant wake on event**: `poll` returns the moment the kernel
+///   signals data on the fd. The previous code added up to 1 ms of
+///   artificial latency to every keystroke.
+/// - **100 ms safety timeout**: ensures the loop periodically checks
+///   whether the channel receiver has been dropped (which signals
+///   shutdown). 100 ms is invisible to the user.
+///
+/// # Suspend/resume recovery (v10.2.0+ — dragonzen audit B17)
+///
+/// On laptop lid close (suspend), libinput devices disconnect.
+/// `dispatch()` returns `Err` repeatedly. On resume, libinput does
+/// NOT re-enumerate devices automatically — the user would have to
+/// manually restart the daemon. The fix tracks consecutive dispatch
+/// errors; after `SUSPEND_RECOVERY_ERROR_THRESHOLD` (≈5 seconds of
+/// sustained failure), it re-calls `udev_assign_seat(&seat)` to
+/// trigger device re-enumeration. The `seat` parameter is the same
+/// seat name passed to the initial `udev_assign_seat` during `listen`.
+fn event_loop(mut libinput: ::input::Libinput, seat: String, tx: Sender<KeyEvent>) {
+    let mut consecutive_errors: u32 = 0;
+
+    loop {
+        // Block on poll() until libinput's fd is readable or the
+        // timeout expires. This is the key change vs the previous
+        // implementation — no CPU is consumed while idle.
+        //
+        // The `PollFd` borrows `libinput` immutably via `as_fd()`.
+        // We scope it inside a block so the immutable borrow ends
+        // before the mutable `libinput.dispatch()` / `libinput.by_ref()`
+        // calls below — otherwise the borrow checker complains.
+        {
+            let libinput_fd = libinput.as_fd();
+            let mut fds = [PollFd::new(libinput_fd, PollFlags::POLLIN)];
+            match poll(&mut fds, PollTimeout::from(DISPATCH_POLL_TIMEOUT_MS)) {
+                Ok(_) => {
+                    // Either data is available, or we hit the timeout.
+                    // Both cases call dispatch() — it's non-blocking and
+                    // returns immediately if no data is queued.
+                }
+                Err(nix::errno::Errno::EINTR) => {
+                    // Signal interruption — retry the poll. Common during
+                    // debugger attach/detach; not an error.
+                    continue;
+                }
+                Err(e) => {
+                    eprintln!("[zylaxion-input] poll() error on libinput fd: {e:?}");
+                    // Count poll errors toward the recovery threshold too —
+                    // a persistently broken fd is just as bad as dispatch
+                    // errors.
+                    consecutive_errors += 1;
+                    if consecutive_errors >= SUSPEND_RECOVERY_ERROR_THRESHOLD {
+                        try_suspend_recovery(&mut libinput, &seat, &mut consecutive_errors);
+                    }
+                    thread::sleep(Duration::from_millis(DISPATCH_ERROR_BACKOFF_MS));
+                    continue;
+                }
+            }
+        }
+
+        // `dispatch` reads from the libinput fd and queues internal
+        // events.  It is non-blocking — it returns immediately whether
+        // or not events were available.
+        if let Err(e) = libinput.dispatch() {
+            eprintln!("[zylaxion-input] libinput dispatch error: {e:?}");
+            consecutive_errors += 1;
+            if consecutive_errors >= SUSPEND_RECOVERY_ERROR_THRESHOLD {
+                try_suspend_recovery(&mut libinput, &seat, &mut consecutive_errors);
+            }
+            thread::sleep(Duration::from_millis(DISPATCH_ERROR_BACKOFF_MS));
+            continue;
+        }
+
+        // Dispatch succeeded — reset the error counter. A single
+        // successful dispatch after 49 errors means the device came
+        // back on its own (hot-replug, not suspend/resume).
+        consecutive_errors = 0;
+
+        // Drain all queued events and forward keyboard events.
+        for event in libinput.by_ref() {
+            if let ::input::event::Event::Keyboard(kb) = event {
+                let key_event = KeyEvent {
+                    scancode: kb.key(),
+                    pressed: kb.key_state() == ::input::event::keyboard::KeyState::Pressed,
+                    timestamp: monotonic_us(),
+                };
+
+                if tx.send(key_event).is_err() {
+                    // The Receiver has been dropped — shut down
+                    // the thread cleanly without panicking.
+                    return;
+                }
+            }
+        }
+
+        // No sleep here — poll() at the top of the loop will block
+        // until the next event arrives (or the timeout fires).
+    }
+}
+
+/// Attempt to recover from suspend/resume by re-assigning the libinput
+/// seat (v10.2.0+ — dragonzen audit B17).
+///
+/// Called when `consecutive_errors` reaches `SUSPEND_RECOVERY_ERROR_THRESHOLD`.
+/// Re-calls `udev_assign_seat` which triggers device re-enumeration —
+/// the `open_restricted` callback fires for every input device on the
+/// seat, effectively re-opening all the `/dev/input/event*` fds that
+/// were disconnected during suspend.
+///
+/// On success, resets `consecutive_errors` to 0 so the loop can resume
+/// normal operation. On failure, logs a warning and halves the counter
+/// (so the next recovery attempt happens after another 25 errors ≈ 2.5s
+/// — avoids tight retry loops if udev itself is broken).
+fn try_suspend_recovery(
+    libinput: &mut ::input::Libinput,
+    seat: &str,
+    consecutive_errors: &mut u32,
+) {
+    eprintln!(
+        "[zylaxion-input] {} consecutive dispatch errors — attempting suspend/resume recovery \
+         (re-assigning seat '{seat}')",
+        *consecutive_errors
+    );
+    match libinput.udev_assign_seat(seat) {
+        Ok(()) => {
+            eprintln!(
+                "[zylaxion-input] suspend/resume recovery successful — seat '{seat}' re-assigned, \
+                 devices should be re-enumerated"
+            );
+            *consecutive_errors = 0;
+        }
+        Err(()) => {
+            eprintln!(
+                "[zylaxion-input] suspend/resume recovery FAILED — udev_assign_seat('{seat}') \
+                 returned Err. Will retry in ~2.5s."
+            );
+            // Halve the counter so we don't immediately re-trigger
+            // (avoids tight retry loop if udev is broken).
+            *consecutive_errors /= 2;
+        }
+    }
+}
+
+// ── Tests ───────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+#[path = "../../test/input/input_tests.rs"]
+mod tests;
