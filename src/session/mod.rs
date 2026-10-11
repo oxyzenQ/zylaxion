@@ -7,8 +7,9 @@
 //! it writes belongs inside that session, and each module here guards
 //! one edge of that promise:
 //!
-//! - [`config`] — which config.toml governs (the session-scoped
-//!   search path: ~/.config, /etc, /usr/local/share, ./).
+//! - [`preset`] — WHICH sound governs (night-improve-22, the
+//!   no-config law: the CLI flag / `ZYLAXION_PRESET` env / compiled
+//!   registry resolution — no config file, no watcher).
 //! - [`instance_lock`] — at most one zylaxion per session (the flock).
 //! - [`pathguard`] — WHERE runtime state may live (the dangerous
 //!   XDG_RUNTIME_DIR verdicts).
@@ -16,8 +17,8 @@
 //!   night-improve-16 root-usage audit).
 //! - [`signals`] — how the session ends (graceful shutdown handlers).
 
-pub mod config;
 pub mod instance_lock;
 pub mod pathguard;
+pub mod preset;
 pub mod privilege;
 pub mod signals;
