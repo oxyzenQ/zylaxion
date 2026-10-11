@@ -298,65 +298,6 @@ fn default_housing_mix() -> f32 {
     0.4
 }
 
-/// Master output parameters (v10.2.0+ — dragonzen audit P1).
-///
-/// These control the final stereo output stage, independent of any
-/// individual key's acoustic profile. They live in a top-level
-/// `[master]` table in `config.toml` (not inside any `[preset.*]`
-/// block) because they apply to ALL presets — you don't want to have
-/// to re-set the headphone volume for every preset.
-///
-/// # Why this exists
-///
-/// Before v10.2.0, `VoicePool::new()` hardcoded `master_volume = 5.5`
-/// with no way to override it. 5.5× is tuned for laptop speakers whose
-/// higher impedance reproduces the synth at lower per-watt SPL. For
-/// headphones (especially IEMs at 16-32 ohm), 5.5× with hard-clamp
-/// produces severely compressed and loud audio — an ear-damaging
-/// surprise on the first keypress after plugging in.
-///
-/// # Example TOML
-///
-/// ```toml
-/// [master]
-/// # Linear gain multiplier. The hard clamp in process_sample prevents
-/// # digital clipping, so values > 1.0 produce loudness compression
-/// # rather than distortion.
-/// #   5.5  = laptop / PC speakers (default)
-/// #   1.5  = headphones (especially IEMs)
-/// #   3.0  = external monitor speakers
-/// #   0.5  = subtle background effect
-/// volume = 5.5
-/// ```
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct MasterParams {
-    /// Linear gain multiplier applied to the final stereo output.
-    /// Clamped to `[-100.0, 100.0]` on load — negative gains are
-    /// allowed (phase inversion) but unusual.
-    ///
-    /// Default: `5.5` (laptop-speaker tuned).
-    #[serde(default = "default_master_volume")]
-    pub volume: f32,
-}
-
-fn default_master_volume() -> f32 {
-    5.5
-}
-
-impl Default for MasterParams {
-    fn default() -> Self {
-        Self {
-            volume: default_master_volume(),
-        }
-    }
-}
-
-/// Complete acoustic profile for a single key event.
-///
-/// This struct aggregates all DSP parameters needed to synthesize one
-/// keystroke sound. Profiles can be created manually, loaded from TOML
-/// configuration files, or generated procedurally by an [`AcousticModel`]
-/// implementation based on the scancode.
 impl Default for ClickParams {
     fn default() -> Self {
         Self {

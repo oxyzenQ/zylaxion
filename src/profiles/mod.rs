@@ -30,7 +30,8 @@ mod tpt;
 // land, so the bridge carries the family-standard scoped allow.
 #[allow(unused_imports)]
 pub use registry::{
-    DEFAULT_PRESET, Preset, lookup as registry_lookup, names_sorted as registry_names,
+    DEFAULT_PRESET, Preset, all as registry_all, lookup as registry_lookup,
+    names_sorted as registry_names,
 };
 
 pub use mechanical::MechanicalClick;
@@ -46,8 +47,8 @@ pub use overrides::{
     ProfileWithOverrides,
 };
 pub use params::{
-    AmbientParams, ClickParams, DecayParams, HousingParams, KeyTrigger, MAX_POLYPHONY,
-    MasterParams, SAMPLE_RATE, SpringParams,
+    AmbientParams, ClickParams, DecayParams, HousingParams, KeyTrigger, MAX_POLYPHONY, SAMPLE_RATE,
+    SpringParams,
 };
 // night-improve-21: the `tpt::TptSvf` root re-export is retired —
 // zero consumers in the unified tree; the item stays available

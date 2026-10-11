@@ -7,16 +7,21 @@
 //!
 //!   1. Acquire the single-instance flock (prevents two zylaxion
 //!      processes from running concurrently and clashing on PipeWire).
-//!   2. Resolve the central `config.toml` from the search path.
+//!   2. Resolve the active preset from the registry via the session
+//!      resolver (CLI `--preset` > `ZYLAXION_PRESET` env > compiled
+//!      default; night-improve-22, the no-config law).
 //!   3. Construct a `MechanicalClick` and wrap it in `Arc<ArcSwap<>>`
-//!      for hot-reload support.
+//!      (the swap point survives the config era; preset changes are a
+//!      process restart, not a runtime swap).
 //!   4. Start the audio + input hardware.
-//!   5. Spawn the config-watcher thread (polls `config.toml` mtime
-//!      every 1 s; on change, re-reads, validates, and atomically
-//!      swaps the model).
-//!   6. (Daemon mode only) Spawn the IPC thread for `stop`/`status`.
-//!   7. Run the orchestrator loop until stop_flag is set or the input
+//!   5. (Daemon mode only) Spawn the IPC thread for `stop`/`status`.
+//!   6. Run the orchestrator loop until stop_flag is set or the input
 //!      channel disconnects.
+//!
+//! The former config-watcher thread (poll `config.toml` mtime every
+//! 1 s, re-read, validate, hot-swap the model) died with the config
+//! file in night-improve-22 — a sound switcher does not need a
+//! filesystem poller.
 
 use std::process;
 use std::sync::Arc;
@@ -24,12 +29,12 @@ use std::sync::atomic::AtomicBool;
 
 use crate::core::Orchestrator;
 use crate::input::{InputSource, LibinputSource};
-use crate::profiles::MechanicalClick;
+use crate::profiles::{MechanicalClick, ProfileWithOverrides};
 use arc_swap::ArcSwap;
 
 use crate::daemon;
-use crate::session::config;
 use crate::session::instance_lock;
+use crate::session::preset;
 
 /// Shared logger wiring (night-improve-13): one builder for both the
 /// foreground (`start`) and daemonized paths. The timestamp lane is a
@@ -68,12 +73,12 @@ fn init_logger(default_filter: Option<&str>) {
 
 /// Run zylaxion in the foreground (Ctrl+C to quit).
 ///
-/// Loads the active preset (from `--preset` CLI flag or `preset.tuning`
-/// in config.toml), spawns the config-watcher thread (auto-reload on
-/// file change), and runs the orchestrator loop until Ctrl+C.
+/// Resolves the active preset (from `--preset` CLI flag or the
+/// `ZYLAXION_PRESET` environment variable against the compiled
+/// registry) and runs the orchestrator loop until Ctrl+C.
 ///
-/// If the resolved preset does not exist in config.toml, prints a clear
-/// error and exits — there is NO silent fallback.
+/// If the resolved preset does not exist in the registry, prints a
+/// clear error and exits — there is NO silent fallback.
 pub fn cmd_start(cli_preset: Option<String>) {
     // Privilege guard first (night-improve-16): refuse euid 0 before
     // ANY state touch — `acquire_or_exit` below creates the lock file,
@@ -91,16 +96,15 @@ pub fn cmd_start(cli_preset: Option<String>) {
 
     let _lock = instance_lock::acquire_or_exit();
 
-    let (profiles, config_path, active_preset, master_params) =
-        match config::resolve_config(cli_preset.as_deref()) {
-            Ok(tuple) => tuple,
-            Err(e) => {
-                crate::output::error(e);
-                process::exit(1);
-            }
-        };
+    let (profile, active_preset, master_volume) = match preset::resolve(cli_preset.as_deref()) {
+        Ok(resolved) => resolved,
+        Err(e) => {
+            crate::output::error(e);
+            process::exit(1);
+        }
+    };
     log::info!("starting zylaxion in foreground mode (preset: {active_preset})");
-    log::info!("master volume: {}×", master_params.volume);
+    log::info!("master volume: {master_volume}×");
 
     // 1. Start input capture (background thread).
     let mut input_source = LibinputSource::new();
@@ -112,10 +116,10 @@ pub fn cmd_start(cli_preset: Option<String>) {
         }
     };
 
-    // 2. Create the orchestrator (audio + engine). v10.2.0 (P1): pass
-    //    the configured master volume instead of using the hardcoded
-    //    default.
-    let mut orchestrator = match Orchestrator::with_master_volume(master_params.volume) {
+    // 2. Create the orchestrator (audio + engine). night-improve-22:
+    //    pass the resolved master volume (ZYLAXION_VOLUME env or the
+    //    compiled default) instead of a config-file value.
+    let mut orchestrator = match Orchestrator::with_master_volume(master_volume) {
         Ok(o) => o,
         Err(e) => {
             crate::output::error(format!("audio error: {e}"));
@@ -128,12 +132,23 @@ pub fn cmd_start(cli_preset: Option<String>) {
     let sample_rate = orchestrator.sample_rate();
     log::info!("audio device sample rate: {sample_rate} Hz");
 
-    // 3. Wrap the model in Arc<ArcSwap<>> for hot-reload.
-    let model: Arc<ArcSwap<MechanicalClick>> = Arc::new(ArcSwap::from_pointee(
-        MechanicalClick::with_overrides(profiles, sample_rate),
-    ));
+    // 3. Wrap the model in Arc<ArcSwap<>> — the swap point that once
+    //    served the config-era hot reload. The registry profile is
+    //    compile-time data with no per-key overrides, so the wrapper
+    //    carries an empty override map until the override machinery
+    //    demolition lands later this night.
+    let model: Arc<ArcSwap<MechanicalClick>> =
+        Arc::new(ArcSwap::from_pointee(MechanicalClick::with_overrides(
+            ProfileWithOverrides {
+                default: profile,
+                overrides: std::collections::HashMap::new(),
+            },
+            sample_rate,
+        )));
 
-    // 5. Run the main loop.
+    // 4. Run the main loop. No watcher thread: night-improve-22
+    //    retired the config file, so there is nothing to poll — the
+    //    preset is chosen once at process start.
     let stop_flag = Arc::new(AtomicBool::new(false));
 
     // Install signal handlers so Ctrl+C / SIGTERM / SIGQUIT set the
@@ -145,30 +160,6 @@ pub fn cmd_start(cli_preset: Option<String>) {
     {
         log::warn!("failed to install signal handlers: {e}");
     }
-
-    // 4. Spawn the config-watcher thread. The watcher always reads
-    //    preset.tuning from the file on change — the --preset CLI flag
-    //    is for initial load only. We pass active_preset here just for
-    //    the startup log message.
-    //
-    //    v10.2.0 (S1): the watcher now takes a clone of stop_flag so
-    //    it can exit cleanly when the orchestrator is shutting down.
-    //    Must be spawned AFTER stop_flag is created.
-    //
-    //    v10.2.0 (B13): sample_rate is now an Arc<AtomicU32> shared
-    //    between the orchestrator and the watcher. The watcher reads
-    //    the current value before each reload instead of using a stale
-    //    captured value. If the audio device's rate ever changes
-    //    mid-run (future feature: device hot-swap), the watcher would
-    //    pick up the new rate automatically.
-    let shared_sample_rate = Arc::new(std::sync::atomic::AtomicU32::new(sample_rate));
-    let _watcher_handle = spawn_config_watcher(
-        Arc::clone(&model),
-        config_path,
-        active_preset.clone(),
-        Arc::clone(&shared_sample_rate),
-        Arc::clone(&stop_flag),
-    );
 
     log::info!("ready — press any key to hear it (Ctrl+C to quit)");
     orchestrator.run(&model, &event_rx, stop_flag);
@@ -211,11 +202,6 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
     }
 
     let _lock = instance_lock::acquire_or_exit();
-
-    // Stash the CLI preset in an Arc so the config-watcher thread can
-    // share it. If None, the watcher re-reads preset.tuning on each
-    // file change.
-    let cli_preset_arc = Arc::new(cli_preset);
 
     if daemon::is_daemon_running().is_ok() {
         crate::output::error("zylaxion daemon is already running");
@@ -277,19 +263,18 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
 
     init_logger(Some("info"));
 
-    let (profiles, config_path, active_preset, master_params) =
-        match config::resolve_config(cli_preset_arc.as_deref()) {
-            Ok(tuple) => tuple,
-            Err(e) => {
-                fail_init!(child_sync, e);
-            }
-        };
+    let (profile, active_preset, master_volume) = match preset::resolve(cli_preset.as_deref()) {
+        Ok(resolved) => resolved,
+        Err(e) => {
+            fail_init!(child_sync, e);
+        }
+    };
 
     log::info!(
         "daemon started (PID: {}, preset: {active_preset}, foreground: {foreground})",
         nix::unistd::getpid().as_raw()
     );
-    log::info!("master volume: {}×", master_params.volume);
+    log::info!("master volume: {master_volume}×");
 
     if let Err(e) = daemon::write_pid_file() {
         fail_init!(child_sync, format!("write_pid_file failed: {e}"));
@@ -332,9 +317,9 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
         }
     };
 
-    // v10.2.0 (P1): pass the configured master volume instead of using
+    // v10.2.0 (P1): pass the resolved master volume instead of using
     // the hardcoded default.
-    let mut orchestrator = match Orchestrator::with_master_volume(master_params.volume) {
+    let mut orchestrator = match Orchestrator::with_master_volume(master_volume) {
         Ok(o) => o,
         Err(e) => {
             fail_init!(child_sync, format!("audio error: {e}"));
@@ -344,9 +329,17 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
     let sample_rate = orchestrator.sample_rate();
     log::info!("audio device sample rate: {sample_rate} Hz");
 
-    let model: Arc<ArcSwap<MechanicalClick>> = Arc::new(ArcSwap::from_pointee(
-        MechanicalClick::with_overrides(profiles, sample_rate),
-    ));
+    // night-improve-22: the registry profile is compile-time data with
+    // no per-key overrides, so the wrapper carries an empty override
+    // map until the override machinery demolition lands later tonight.
+    let model: Arc<ArcSwap<MechanicalClick>> =
+        Arc::new(ArcSwap::from_pointee(MechanicalClick::with_overrides(
+            ProfileWithOverrides {
+                default: profile,
+                overrides: std::collections::HashMap::new(),
+            },
+            sample_rate,
+        )));
 
     // v10.2.0 (dragonzen audit B6): spawn_ipc_thread now returns Result.
     // A failure here is non-fatal — the daemon can still run without
@@ -359,23 +352,9 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
             None
         }
     };
-    // v10.2.0 (dragonzen audit S1): pass stop_flag to the config-watcher
-    // so it can exit cleanly when the orchestrator is shutting down.
-    // Previously the watcher thread leaked at shutdown — it kept polling
-    // every 1 s until process exit, holding a clone of the ArcSwap and
-    // preventing clean Drop of the model.
-    //
-    // v10.2.0 (B13): sample_rate is now Arc<AtomicU32> so the watcher
-    // reads the current value before each reload instead of using a
-    // stale captured value.
-    let shared_sample_rate = Arc::new(std::sync::atomic::AtomicU32::new(sample_rate));
-    let _watcher_handle = spawn_config_watcher(
-        Arc::clone(&model),
-        config_path,
-        active_preset.clone(),
-        Arc::clone(&shared_sample_rate),
-        Arc::clone(&stop_flag),
-    );
+    // v10.2.0 (dragonzen audit S1): the config-watcher stop_flag clone
+    // died with the watcher in night-improve-22 — the stop_flag now
+    // serves the signal handlers and the IPC thread only.
 
     // v10.2.0 (dragonzen audit B9): all init is complete. Signal
     // success to the parent (if any) so the parent can print the PID
@@ -397,7 +376,3 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
 pub fn cmd_stop() {
     daemon::client_send_and_print("stop");
 }
-
-mod watcher;
-
-use watcher::spawn_config_watcher;

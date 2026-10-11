@@ -1,15 +1,20 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Information subcommands: `doctor`, `testconf`, `list-presets`, `list-backends`,
+//! Information subcommands: `doctor`, `list-presets`, `list-backends`,
 //! and the no-subcommand `overview`.
+//!
+//! night-improve-22: the `testconf` subcommand died with `config.toml`
+//! — there is no file left to validate. The compiled preset registry
+//! is type-checked Rust data, proven in-range by the registry test
+//! tree; a validator command for it would validate nothing.
 
 use std::process;
 use std::sync::Arc;
 
 use cpal::traits::{DeviceTrait, HostTrait};
 
-use crate::session::config;
+use crate::session::preset;
 
 /// Print a system-health diagnostic report (build facts, input group,
 /// XDG, audio).
@@ -151,137 +156,36 @@ pub fn cmd_doctor() {
     }
 }
 
-/// Validate the central `config.toml`: find it via the search path,
-/// parse, and run all DSP parameter clamping checks.
+/// List every acoustic preset in the compiled registry and mark the
+/// one the session context would activate right now (the
+/// `ZYLAXION_PRESET` selection when it names a registered preset,
+/// the compiled default otherwise).
 ///
-/// If `file` is `Some(path)`, validates that specific file instead of
-/// searching the standard config paths.
-///
-/// Exits 0 with "Config OK: <path>" if everything parses and validates.
-/// Exits 1 with "Config Error in <path>: <error>" otherwise.
-///
-/// Equivalent in spirit to `nginx -t` or `sshd -t` — lets users catch
-/// TOML typos and out-of-bounds DSP values before restarting the daemon.
-pub fn cmd_testconf(file: Option<&str>) {
-    if let Some(path_str) = file {
-        let path = std::path::Path::new(path_str);
-
-        // v10.2.0: reject files without .toml extension.
-        if path.extension().and_then(|e| e.to_str()) != Some("toml") {
-            crate::output::error(format!("file must have .toml extension: {path_str}"));
-            process::exit(1);
-        }
-
-        // v10.2.0: only allow reading from the standard config
-        // directories — not arbitrary paths like /etc/unbound/.
-        let canonical = match path.canonicalize() {
-            Ok(c) => c,
-            Err(_) => {
-                crate::output::error(format!("file not found: {path_str}"));
-                process::exit(1);
-            }
-        };
-
-        let allowed_dirs: Vec<std::path::PathBuf> = {
-            let mut dirs = Vec::new();
-            // $XDG_CONFIG_HOME/zylaxion or ~/.config/zylaxion
-            if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME")
-                .filter(|v| !v.is_empty())
-                .map(std::path::PathBuf::from)
-                .filter(|p| p.is_absolute())
-            {
-                dirs.push(xdg.join("zylaxion"));
-            } else if let Some(home) = std::env::var_os("HOME") {
-                dirs.push(std::path::PathBuf::from(home).join(".config/zylaxion"));
-            }
-            dirs.push(std::path::PathBuf::from("/etc/zylaxion"));
-            dirs.push(std::path::PathBuf::from("/usr/local/share/zylaxion"));
-            // Also allow the current directory (for development).
-            if let Ok(cwd) = std::env::current_dir() {
-                dirs.push(cwd);
-            }
-            dirs
-        };
-
-        let is_allowed = allowed_dirs.iter().any(|dir| {
-            if let Ok(dir_canon) = dir.canonicalize() {
-                canonical.starts_with(&dir_canon)
-            } else {
-                canonical.starts_with(dir)
-            }
-        });
-
-        if !is_allowed {
-            crate::output::error(format!(
-                "file must be within a zylaxion config directory \
-                 (~/.config/zylaxion/, /etc/zylaxion/, /usr/local/share/zylaxion/, or CWD): {path_str}"
-            ));
-            process::exit(1);
-        }
-
-        match config::validate_config_file(&canonical) {
-            Ok(()) => {
-                println!(
-                    "{}",
-                    crate::output::ok_line(&format!("Config OK: {}", canonical.display()))
-                );
-            }
-            Err(err) => {
-                crate::output::error(format!("in {}: {err}", canonical.display()));
-                process::exit(1);
-            }
-        }
-    } else {
-        // Search the standard paths.
-        match config::validate_config() {
-            Ok(path) => {
-                println!(
-                    "{}",
-                    crate::output::ok_line(&format!("Config OK: {}", path.display()))
-                );
-            }
-            Err((Some(path), err)) => {
-                crate::output::error(format!("in {}: {err}", path.display()));
-                process::exit(1);
-            }
-            Err((None, err)) => {
-                crate::output::error(format!(
-                    "{err}\n\nSearched:\n  1. $XDG_CONFIG_HOME/zylaxion/config.toml\n     (or ~/.config/zylaxion/config.toml if unset)\n  2. /etc/zylaxion/config.toml\n  3. /usr/local/share/zylaxion/config.toml\n  4. ./config.toml (current directory)"
-                ));
-                process::exit(1);
-            }
-        }
-    }
-}
-
-/// List all acoustic presets defined in `config.toml` and mark the
-/// active one (based on the `preset.tuning` value in the file).
-///
-/// Exits 0 on success, 1 if no config file is found or parsing fails.
+/// Exits 0 always — the registry is compile-time data; there is no
+/// file to fail finding and no parse to fail.
 pub fn cmd_list_presets() {
-    match config::list_presets() {
-        Ok((path, active, names)) => {
-            println!("Available presets (from {}):\n", path.display());
-            for name in &names {
-                let marker = if name == &active {
-                    crate::output::ok_marker(" <- active")
-                } else {
-                    String::new()
-                };
-                println!("  {name}{marker}");
-            }
-            println!();
-            println!("Active preset: {active}");
-            println!();
-            println!("Switch preset:");
-            println!("  Edit `tuning = \"<name>\"` in config.toml, OR");
-            println!("  Run: zylaxion start --preset <name>");
-        }
-        Err(e) => {
-            crate::output::error(e);
-            process::exit(1);
-        }
+    let active = preset::context_preset_name();
+    println!("Available presets (compiled into this binary):\n");
+    for entry in crate::profiles::registry_all() {
+        let marker = if entry.name == active {
+            crate::output::ok_marker(" <- active")
+        } else {
+            String::new()
+        };
+        println!("  {}{marker}", entry.name);
+        println!("      {}", entry.description);
     }
+    println!();
+    println!("Active preset: {active}");
+    println!();
+    println!("Switch preset:");
+    println!("  export {}=\"<name>\", OR", preset::PRESET_ENV_VAR);
+    println!("  Run: zylaxion start --preset <name>");
+    println!();
+    println!(
+        "Volume (headphones want less): export {}=1.5",
+        preset::VOLUME_ENV_VAR
+    );
 }
 
 /// List available audio backends via cpal.
@@ -310,9 +214,9 @@ pub fn cmd_list_backends() {
 ///
 /// Prints a one-screen summary:
 /// - Daemon status (running/stopped, PID)
-/// - Active preset (from config.toml)
+/// - Active preset (the session context selection against the
+///   compiled registry — no config file since night-improve-22)
 /// - Audio device (name, sample rate, channels)
-/// - Config file path
 /// - Quick-start hint
 pub fn cmd_overview() {
     println!("=== zylaxion ===\n");
@@ -328,15 +232,14 @@ pub fn cmd_overview() {
             false
         }
     };
-    match config::list_presets() {
-        Ok((path, active, _names)) => {
-            println!("  preset:  {active}");
-            println!("  config:  {}", path.display());
-        }
-        Err(_) => {
-            println!("  preset:  <no config found>");
-        }
-    }
+    println!(
+        "  preset:  {} (compiled registry)",
+        preset::context_preset_name()
+    );
+    println!(
+        "  volume:  ZYLAXION_VOLUME={}",
+        std::env::var(preset::VOLUME_ENV_VAR).unwrap_or_else(|_| "default".into())
+    );
 
     // 3. Audio device.
     let host = cpal::default_host();
