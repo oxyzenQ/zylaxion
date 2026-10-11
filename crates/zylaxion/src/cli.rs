@@ -2,74 +2,150 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! CLI definitions: argument parsing, version output, flag wiring.
+//!
+//! The version report (night-improve-13) follows the zelynic reference
+//! contract: brand header (`zylaxion: v<ver>` + the one-line tagline),
+//! then the plain build-facts body — `Build:`, `Build-time:`,
+//! `Copyright:`, `License:`, `Source:`. The build facts come from
+//! [`crate::build_info`] (the Hinnant clock stamps them, no time
+//! crate). Two surfaces share ONE body so they cannot drift:
+//! `-V` / `--version` intercepted in `main.rs` renders the brand header
+//! in purple on a TTY via [`print_version_report`], and clap's own
+//! version rendering (every other path) carries the same lines through
+//! [`long_version`].
 
 use clap::{Parser, Subcommand};
 use std::sync::OnceLock;
 
-/// Dynamic build target: detects arch + libc env at compile time.
-/// Returns e.g. "linux-amd64-gnu" (glibc, dynamic) or "linux-amd64-musl"
-/// (static) for x86_64 Linux builds.
-const BUILD_TARGET: &str = {
-    #[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "musl"))]
-    {
-        "linux-amd64-musl"
-    }
-    #[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "gnu"))]
-    {
-        "linux-amd64-gnu"
-    }
-    #[cfg(all(
-        target_os = "linux",
-        target_arch = "x86_64",
-        not(any(target_env = "musl", target_env = "gnu"))
-    ))]
-    {
-        "linux-amd64"
-    }
-    #[cfg(all(target_os = "linux", target_arch = "aarch64", target_env = "musl"))]
-    {
-        "linux-aarch64-musl"
-    }
-    #[cfg(all(target_os = "linux", target_arch = "aarch64", target_env = "gnu"))]
-    {
-        "linux-aarch64-gnu"
-    }
-    #[cfg(all(
-        target_os = "linux",
-        target_arch = "aarch64",
-        not(any(target_env = "musl", target_env = "gnu"))
-    ))]
-    {
-        "linux-aarch64"
-    }
-    #[cfg(not(any(
-        all(target_os = "linux", target_arch = "x86_64"),
-        all(target_os = "linux", target_arch = "aarch64"),
-    )))]
-    {
-        "unknown"
-    }
-};
+/// The one-line tagline under the version header — the same string the
+/// clap `about` surface carries, kept as a const so the report header
+/// and the help header can never drift.
+const ABOUT: &str = "Real-time mechanical keyboard acoustic synthesizer for Linux";
 
-/// Multi-line version string emitted by `-V` / `--version`.
+/// The plain-text body of the version report (everything after the
+/// brand header). Separated from [`long_version`] /
+/// [`print_version_report`] so tests can assert the full line set
+/// without capturing output.
 ///
-/// `GIT_HASH` is injected at compile time by `build.rs` via
-/// `git rev-parse --short HEAD`. Falls back to `"unknown"` if git is
-/// unavailable or the crate is built outside a git work tree.
+/// `Build-time:` is stamped by `build.rs` via Howard Hinnant's
+/// civil_from_days algorithm — `M/D/YYYY HH:MM (UTC)` — so no time
+/// crate is needed anywhere in the dependency tree (night-improve-13).
+fn version_body() -> String {
+    format!(
+        "Build: {} ({})\n\
+         Build-time: {}\n\
+         Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
+         License: GPL-3.0-only\n\
+         Source: https://github.com/oxyzenQ/zylaxion",
+        crate::build_info::build_label(),
+        crate::build_info::build_hash(),
+        crate::build_info::build_time(),
+    )
+}
+
+/// The full multi-line version string clap renders for its own version
+/// path (e.g. a `--verbose -V` fallthrough): the brand header plus the
+/// shared body. Plain text — clap paints it through its own engine.
 ///
-/// Built lazily at first access because `BUILD_TARGET` is selected via
-/// `cfg!` at compile time but the full string needs runtime `format!`.
+/// Built lazily at first access because clap's `version` attribute wants
+/// a `&'static str` (clap's `Str` type optimizes for static strings and
+/// does not take an owned `String` here), while the body needs runtime
+/// `format!`.
 static LONG_VERSION_CELL: OnceLock<String> = OnceLock::new();
 
 fn long_version() -> &'static str {
-    LONG_VERSION_CELL.get_or_init(|| {
-        format!(
-            "Version: v{}\nBuild: {} ({})\nCopyright: (c) 2026 rezky_nightky (oxyzenQ)\nLicense: GPL-3.0-only\nSource: https://github.com/oxyzenQ/zylaxion",
-            env!("CARGO_PKG_VERSION"),
-            BUILD_TARGET,
-            option_env!("GIT_HASH").unwrap_or("unknown")
-        )
-    }).as_str()
+    LONG_VERSION_CELL
+        .get_or_init(|| {
+            format!(
+                "zylaxion: v{}\n{}\n{}",
+                crate::build_info::VERSION,
+                ABOUT,
+                version_body()
+            )
+        })
+        .as_str()
+}
+
+/// Print the full version report for `-V` / `--version`.
+///
+/// zelynic masterclass layout: brand header (name + version, then the
+/// one-line tagline), followed by the plain build-facts body. The header
+/// is rendered in brand purple `#A855F7` bold on a TTY (the same palette
+/// and capability gate the error lanes use, stdout-scoped); when piped
+/// (non-TTY) everything is plain text so ANSI codes never leak into
+/// scripts or log files. The body stays on plain lines so it is easy to
+/// grep from scripts (`zylaxion -V | grep Build-time`).
+pub fn print_version_report() {
+    let header = format!("zylaxion: v{}\n{}", crate::build_info::VERSION, ABOUT);
+    crate::error_format::print_stdout_brand(&header);
+    crate::error_format::print_stdout_line(&version_body());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// night-improve-13 contract: the version report carries every
+    /// documented line exactly once, in the zelynic reference order —
+    /// Build, then Build-time directly after it, then Copyright,
+    /// License, Source.
+    #[test]
+    fn version_report_carries_the_zelynic_line_contract() {
+        let body = version_body();
+        for line in [
+            "Copyright: (c) 2026 rezky_nightky (oxyzenQ)",
+            "License: GPL-3.0-only",
+            "Source: https://github.com/oxyzenQ/zylaxion",
+        ] {
+            let count = body.lines().filter(|l| l.contains(line)).count();
+            assert_eq!(count, 1, "line must appear exactly once: {line}");
+        }
+        // Ordering: Build-time sits directly after the Build line.
+        let lines: Vec<&str> = body.lines().collect();
+        let build_idx = lines
+            .iter()
+            .position(|l| l.starts_with("Build: "))
+            .expect("Build: line present");
+        assert!(
+            lines[build_idx + 1].starts_with("Build-time: "),
+            "Build-time must directly follow Build: {lines:?}"
+        );
+    }
+
+    /// The Build-time stamp carries the Hinnant shape
+    /// `M/D/YYYY HH:MM (UTC)` (or the documented "unknown" fallback) —
+    /// never an empty string or a foreign format.
+    #[test]
+    fn build_time_stamp_shape_is_m_d_yyyy_hh_mm_utc() {
+        let line = version_body()
+            .lines()
+            .find(|l| l.starts_with("Build-time: "))
+            .expect("Build-time line present")
+            .trim_start_matches("Build-time: ")
+            .to_string();
+        if line == "unknown" {
+            return; // degraded path, documented
+        }
+        assert!(line.ends_with(" (UTC)"), "shape: {line}");
+        let body = line.trim_end_matches(" (UTC)");
+        let (date, time) = body.split_once(' ').expect("M/D/YYYY HH:MM split");
+        assert_eq!(date.matches('/').count(), 2, "M/D/YYYY shape: {date}");
+        assert_eq!(time.matches(':').count(), 1, "HH:MM shape: {time}");
+    }
+
+    /// The clap surface and the intercepted surface share ONE body —
+    /// both carry the Build facts, so the two paths can never disagree
+    /// about provenance.
+    #[test]
+    fn long_version_embeds_the_shared_body() {
+        let body = version_body();
+        for line in body.lines() {
+            assert!(
+                long_version().contains(line),
+                "clap surface must embed the shared body line: {line}"
+            );
+        }
+    }
 }
 
 /// Zylaxion — real-time mechanical keyboard acoustic synthesizer for Linux.
@@ -81,7 +157,8 @@ fn long_version() -> &'static str {
 #[command(
     name = "zylaxion",
     version = long_version(),
-    about = "Real-time mechanical keyboard acoustic synthesizer for Linux",
+    about = ABOUT,
+    long_about = ABOUT,
     styles = crate::cli_styles::styles(),
     after_help = "License: GPL-3.0-only | https://github.com/oxyzenQ/zylaxion"
 )]

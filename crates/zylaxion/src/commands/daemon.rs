@@ -39,6 +39,41 @@ use crate::instance_lock;
 /// consumes negligible CPU (one `stat()` per second).
 const CONFIG_WATCH_INTERVAL: Duration = Duration::from_secs(1);
 
+/// Shared logger wiring (night-improve-13): one builder for both the
+/// foreground (`start`) and daemonized paths. The timestamp lane is a
+/// hand-rolled UTC stamp ([`crate::clock`] — the Hinnant civil_from_days
+/// core, std clock only) because env_logger's own timestamp lane (the
+/// `humantime` feature) transitively pulls the jiff crate tree — the
+/// exact dependency bloat the no-time-crate contract refuses. The
+/// rendered shape keeps env_logger's bracketed contract so journal
+/// consumers and log greps survive unchanged:
+/// `[2026-10-11T07:41:44.284Z INFO  zylaxion::daemon] message`.
+///
+/// `default_filter`: `None` = plain `Env::default()` (RUST_LOG only —
+/// `main.rs` seeds a default before parsing), `Some(f)` =
+/// `default_filter_or(f)` (the daemonized path where the parent may have
+/// died before seeding). Call exactly once per process, as before.
+fn init_logger(default_filter: Option<&str>) {
+    use std::io::Write as _;
+
+    let env = match default_filter {
+        Some(f) => env_logger::Env::default().default_filter_or(f),
+        None => env_logger::Env::default(),
+    };
+    env_logger::Builder::from_env(env)
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "[{} {:<5} {}] {}",
+                crate::clock::iso_utc_millis(),
+                record.level(),
+                record.target(),
+                record.args()
+            )
+        })
+        .init();
+}
+
 /// Run zylaxion in the foreground (Ctrl+C to quit).
 ///
 /// Loads the active preset (from `--preset` CLI flag or `preset.tuning`
@@ -48,7 +83,7 @@ const CONFIG_WATCH_INTERVAL: Duration = Duration::from_secs(1);
 /// If the resolved preset does not exist in config.toml, prints a clear
 /// error and exits — there is NO silent fallback.
 pub fn cmd_start(cli_preset: Option<String>) {
-    env_logger::init();
+    init_logger(None);
 
     let _lock = instance_lock::acquire_or_exit();
 
@@ -223,9 +258,7 @@ pub fn cmd_daemon(cli_preset: Option<String>, foreground: bool) {
         }};
     }
 
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
-        .init();
+    init_logger(Some("info"));
 
     let (profiles, config_path, active_preset, master_params) =
         match config::resolve_config(cli_preset_arc.as_deref()) {

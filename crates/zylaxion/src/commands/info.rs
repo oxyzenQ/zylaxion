@@ -11,7 +11,16 @@ use cpal::traits::{DeviceTrait, HostTrait};
 
 use crate::config;
 
-/// Print a system-health diagnostic report (input group, XDG, audio).
+/// Print a system-health diagnostic report (build facts, input group,
+/// XDG, audio).
+///
+/// The report leads with the BUILD facts block (night-improve-13, the
+/// zelynic night-improve-66 doctor completeness): version, commit,
+/// variant, build timestamp, rustc, profile — the binary answers "which
+/// exact artifact am I?" before anything about the host, because on a
+/// foreign build every host verdict below reads differently. Every fact
+/// is compile-time truth assembled by [`crate::build_info`] (the
+/// Hinnant clock stamps the build time, no time crate).
 pub fn cmd_doctor() {
     println!(
         "{}\n",
@@ -20,10 +29,21 @@ pub fn cmd_doctor() {
 
     let mut ok = true;
 
+    // 0. Build facts (compile-time truth — cannot fail, never counts
+    // against the ok verdict).
+    let build = crate::build_info::BuildInfo::collect();
+    println!("{}", crate::error_format::section("[1/4] Build facts..."));
+    println!("      Version:    v{}", build.version);
+    println!("      Commit:     {}", build.git_sha);
+    println!("      Variant:    {}", build.variant);
+    println!("      Built:      {}", build.build_time);
+    println!("      Rustc:      {}", build.rustc_version);
+    println!("      Profile:    {}", build.profile);
+
     // 1. Input group check.
     println!(
-        "{}",
-        crate::error_format::section("[1/3] Input group membership...")
+        "\n{}",
+        crate::error_format::section("[2/4] Input group membership...")
     );
     if check_input_group() {
         println!(
@@ -49,7 +69,7 @@ pub fn cmd_doctor() {
     // 2. XDG_RUNTIME_DIR check.
     println!(
         "\n{}",
-        crate::error_format::section("[2/3] XDG_RUNTIME_DIR...")
+        crate::error_format::section("[3/4] XDG_RUNTIME_DIR...")
     );
     match std::env::var("XDG_RUNTIME_DIR") {
         Ok(dir) => {
@@ -85,7 +105,7 @@ pub fn cmd_doctor() {
     // 3. Audio server check (best-effort).
     println!(
         "\n{}",
-        crate::error_format::section("[3/3] Audio server...")
+        crate::error_format::section("[4/4] Audio server...")
     );
     match cpal::default_host().default_output_device() {
         Some(device) => {

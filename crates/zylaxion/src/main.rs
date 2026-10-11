@@ -16,8 +16,10 @@
 
 use clap::Parser;
 
+mod build_info;
 mod cli;
 mod cli_styles;
+mod clock;
 mod commands;
 mod config;
 mod daemon;
@@ -89,6 +91,21 @@ fn main() {
     // subcommand) would otherwise error out before the flag is ever processed.
     if std::env::args().any(|a| a == "--check-update") {
         commands::update::run_check_update();
+        std::process::exit(0);
+    }
+
+    // -V / --version (night-improve-13): intercepted when it is the FIRST
+    // argument — the documented invocation shape (`zylaxion -V`) — so the
+    // version report renders through the brand lane (purple header on a
+    // TTY, the zelynic print_version_report parity) instead of clap's
+    // plain dump. Any other position falls through to clap, whose own
+    // version rendering carries the same report body (the two surfaces
+    // share one body via cli::version_body, they cannot drift on facts).
+    if std::env::args()
+        .nth(1)
+        .is_some_and(|a| a == "-V" || a == "--version")
+    {
+        cli::print_version_report();
         std::process::exit(0);
     }
 

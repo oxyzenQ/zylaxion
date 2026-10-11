@@ -164,7 +164,7 @@ pub fn fail_line(text: &str) -> String {
     format!("{ERROR_OPEN}{text}{RESET}")
 }
 
-/// A section header (`[1/3] ...`, `=== title ===`) — brand purple bold.
+/// A section header (`[1/4] ...`, `=== title ===`) — brand purple bold.
 pub fn section(text: &str) -> String {
     if !color_enabled() {
         return text.to_string();
@@ -183,6 +183,52 @@ pub fn tip_line(text: &str) -> String {
 /// An affirmative inline marker (` <- active`) — status green.
 pub fn ok_marker(text: &str) -> String {
     ok_line(text)
+}
+
+// ── the stdout report lane (night-improve-13, the zelynic
+//    print_version_report lineage) ────────────────────────────────────
+//
+// The version report writes to STDOUT (it is the command's product,
+// not a diagnostic). Same palette, same capability rule, one scope
+// change: the gate probes stdout instead of stderr.
+
+/// Whether stdout may carry color: a TTY, `NO_COLOR` unset, and
+/// `CLICOLOR != 0` (the exact stderr rule, stdout-scoped).
+fn stdout_color_enabled() -> bool {
+    if !std::io::stdout().is_terminal() {
+        return false;
+    }
+    if std::env::var_os("NO_COLOR").is_some() {
+        return false;
+    }
+    match std::env::var("CLICOLOR") {
+        Ok(v) => v != "0",
+        Err(_) => true,
+    }
+}
+
+/// Broken-pipe-safe stdout write + newline: a failed write is dropped,
+/// never a panic (the zelynic `println_safe` semantic — `zylaxion -V |
+/// head -1` must not kill the process with SIGPIPE-by-panic).
+pub fn print_stdout_line(text: &str) {
+    let mut out = std::io::stdout().lock();
+    let _ = out.write_all(text.as_bytes());
+    let _ = out.write_all(b"\n");
+}
+
+/// A stdout brand block — brand purple bold on a color-capable stdout,
+/// byte-identical plain text otherwise. Used by the version report's
+/// header (the signature IS the brand mark).
+pub fn print_stdout_brand(text: &str) {
+    if !stdout_color_enabled() {
+        print_stdout_line(text);
+        return;
+    }
+    let mut out = std::io::stdout().lock();
+    let _ = out.write_all(BRAND_OPEN.as_bytes());
+    let _ = out.write_all(text.as_bytes());
+    let _ = out.write_all(RESET.as_bytes());
+    let _ = out.write_all(b"\n");
 }
 
 #[cfg(test)]
