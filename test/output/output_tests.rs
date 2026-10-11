@@ -47,7 +47,7 @@ fn runnable_tips_promote_to_green_tier() {
 
 #[test]
 fn plain_continuation_rides_the_lane_color() {
-    let wrapped = wrap_body_line("in /etc/zylaxion/config.toml: bad value", ERROR_OPEN);
+    let wrapped = wrap_body_line("in /etc/zylaxion/zylaxion.lock: bad value", ERROR_OPEN);
     assert!(
         wrapped.starts_with(ERROR_OPEN) && wrapped.ends_with(RESET),
         "plain line rides the lane color: {wrapped}"

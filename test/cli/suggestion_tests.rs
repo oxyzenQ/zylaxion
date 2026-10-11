@@ -25,7 +25,7 @@ fn closest_value_match_catches_preset_typos() {
 fn closest_value_match_rescues_mixed_case_vocabulary() {
     // The cherryMX case: a lowercase typo must not pay the case
     // substitutions against a mixed-case candidate, and the tip
-    // quotes the ORIGINAL config spelling.
+    // quotes the ORIGINAL registry spelling.
     let candidates = ["cherryMX", "cherry_mx_black", "classic"];
     assert_eq!(
         closest_value_match("cherymx", &candidates),

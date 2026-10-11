@@ -236,10 +236,15 @@ pub fn cmd_overview() {
         "  preset:  {} (compiled registry)",
         preset::context_preset_name()
     );
-    println!(
-        "  volume:  ZYLAXION_VOLUME={}",
-        std::env::var(preset::VOLUME_ENV_VAR).unwrap_or_else(|_| "default".into())
-    );
+    match preset::master_volume() {
+        Ok(volume) => {
+            let source = std::env::var(preset::VOLUME_ENV_VAR)
+                .map(|_| "ZYLAXION_VOLUME")
+                .unwrap_or_else(|_| "default");
+            println!("  volume:  {volume} ({source})");
+        }
+        Err(_) => println!("  volume:  invalid ZYLAXION_VOLUME (start will refuse)"),
+    }
 
     // 3. Audio device.
     let host = cpal::default_host();
