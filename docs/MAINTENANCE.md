@@ -81,12 +81,13 @@ a gate that is not wired is a wish, not a gate.
 
 Two ledgers the maintainer owns and shrinks over time:
 
-1. **The LOC debt list** — the files carrying `// LOC_EXEMPT:`
-   markers (see `scripts/gates/check-loc.sh`'s output for the live
-   list). The endgame is zero markers. A split is a pure move: new
-   module files, byte-identical behavior, gates green before and
-   after. Schedule it like any version bump — deliberately, not
-   under pressure.
+1. **The LOC debt list — paid.** The six pre-gate files that carried
+   `// LOC_EXEMPT:` markers were split in night-improve-18 and the
+   marker lane is retired for Rust: over the cap means split, the
+   same hour (a pure move — new module files, byte-identical
+   behavior, gates green before and after). `scripts/gates/check-loc.sh`
+   also enforces the layout law: src roots hold only their entry
+   file, tests live under each crate's test/ tree.
 2. **The actions-pin estate** — the SHA-pinned third-party actions.
    `check-actions-pins.sh` self-heals drift in `auto` mode and warns
    otherwise; majors are NEVER auto-healed — a major move is a

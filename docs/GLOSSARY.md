@@ -27,10 +27,12 @@ drifts between docs is a bug.
 - **the 600-line law** — every tracked `.rs` file stays under 600
   lines (`scripts/gates/check-loc.sh`). Over the cap means split the
   file — a pure move into modules, gates green in between.
-- **LOC_EXEMPT marker** — `// LOC_EXEMPT: <justification>` (Rust) /
-  `# LOC_EXEMPT: <justification>` (scripts): the self-declared,
-  in-file migration debt a pre-gate file carries while it waits for
-  its Owner-sequenced split. The endgame is zero markers.
+- **LOC_EXEMPT marker (retired)** — the self-declared, in-file
+  migration debt a pre-gate file once carried while it waited for its
+  Owner-sequenced split. night-improve-18 paid the debt (all six
+  files split) and retired the lane: the Rust gate honors no marker —
+  over the cap means split, the same hour. The scripts cap (1000)
+  keeps the marker for its own debt lane.
 - **frozen record** — a file whose history is never rewritten
   (CHANGELOG.md, the v6.0.0-era audit docs). The gates exclude them
   by name; new facts get new entries.
