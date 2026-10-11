@@ -13,59 +13,112 @@ use crate::config;
 
 /// Print a system-health diagnostic report (input group, XDG, audio).
 pub fn cmd_doctor() {
-    println!("=== zylaxion doctor ===\n");
+    println!(
+        "{}\n",
+        crate::error_format::section("=== zylaxion doctor ===")
+    );
 
     let mut ok = true;
 
     // 1. Input group check.
-    println!("[1/3] Input group membership...");
+    println!(
+        "{}",
+        crate::error_format::section("[1/3] Input group membership...")
+    );
     if check_input_group() {
-        println!("      ✓ user is in the 'input' group");
+        println!(
+            "      {}",
+            crate::error_format::ok_line("✓ user is in the 'input' group")
+        );
     } else {
-        println!("      ✗ user is NOT in the 'input' group");
-        println!("        fix: sudo usermod -aG input $USER");
-        println!("        then log out and back in");
+        println!(
+            "      {}",
+            crate::error_format::fail_line("✗ user is NOT in the 'input' group")
+        );
+        println!(
+            "      {}",
+            crate::error_format::tip_line("fix: sudo usermod -aG input $USER")
+        );
+        println!(
+            "      {}",
+            crate::error_format::tip_line("then log out and back in")
+        );
         ok = false;
     }
 
     // 2. XDG_RUNTIME_DIR check.
-    println!("\n[2/3] XDG_RUNTIME_DIR...");
+    println!(
+        "\n{}",
+        crate::error_format::section("[2/3] XDG_RUNTIME_DIR...")
+    );
     match std::env::var("XDG_RUNTIME_DIR") {
         Ok(dir) => {
             let path = std::path::Path::new(&dir);
             if path.is_dir() {
-                println!("      ✓ $XDG_RUNTIME_DIR = {dir}");
+                println!(
+                    "      {}",
+                    crate::error_format::ok_line(&format!("✓ $XDG_RUNTIME_DIR = {dir}"))
+                );
             } else {
-                println!("      ✗ $XDG_RUNTIME_DIR = {dir} (not a directory)");
+                println!(
+                    "      {}",
+                    crate::error_format::fail_line(&format!(
+                        "✗ $XDG_RUNTIME_DIR = {dir} (not a directory)"
+                    ))
+                );
                 ok = false;
             }
         }
         Err(_) => {
-            println!("      ✗ $XDG_RUNTIME_DIR is not set");
-            println!("        fix: export XDG_RUNTIME_DIR=/run/user/$(id -u)");
+            println!(
+                "      {}",
+                crate::error_format::fail_line("✗ $XDG_RUNTIME_DIR is not set")
+            );
+            println!(
+                "      {}",
+                crate::error_format::tip_line("fix: export XDG_RUNTIME_DIR=/run/user/$(id -u)")
+            );
             ok = false;
         }
     }
 
     // 3. Audio server check (best-effort).
-    println!("\n[3/3] Audio server...");
+    println!(
+        "\n{}",
+        crate::error_format::section("[3/3] Audio server...")
+    );
     match cpal::default_host().default_output_device() {
         Some(device) => {
             let name = device.name().unwrap_or_else(|_| "<unknown>".into());
-            println!("      ✓ default output device: {name}");
+            println!(
+                "      {}",
+                crate::error_format::ok_line(&format!("✓ default output device: {name}"))
+            );
         }
         None => {
-            println!("      ✗ no audio output device found");
-            println!("        fix: start PipeWire or PulseAudio");
+            println!(
+                "      {}",
+                crate::error_format::fail_line("✗ no audio output device found")
+            );
+            println!(
+                "      {}",
+                crate::error_format::tip_line("fix: start PipeWire or PulseAudio")
+            );
             ok = false;
         }
     }
 
     println!();
     if ok {
-        println!("All checks passed — zylaxion is ready to run.");
+        println!(
+            "{}",
+            crate::error_format::ok_line("All checks passed — zylaxion is ready to run.")
+        );
     } else {
-        println!("Some checks failed — see above for fixes.");
+        println!(
+            "{}",
+            crate::error_format::fail_line("Some checks failed — see above for fixes.")
+        );
         process::exit(1);
     }
 }
@@ -140,7 +193,10 @@ pub fn cmd_testconf(file: Option<&str>) {
 
         match config::validate_config_file(&canonical) {
             Ok(()) => {
-                println!("Config OK: {}", canonical.display());
+                println!(
+                    "{}",
+                    crate::error_format::ok_line(&format!("Config OK: {}", canonical.display()))
+                );
             }
             Err(err) => {
                 crate::error_format::error(format!("in {}: {err}", canonical.display()));
@@ -151,21 +207,19 @@ pub fn cmd_testconf(file: Option<&str>) {
         // Search the standard paths.
         match config::validate_config() {
             Ok(path) => {
-                println!("Config OK: {}", path.display());
+                println!(
+                    "{}",
+                    crate::error_format::ok_line(&format!("Config OK: {}", path.display()))
+                );
             }
             Err((Some(path), err)) => {
                 crate::error_format::error(format!("in {}: {err}", path.display()));
                 process::exit(1);
             }
             Err((None, err)) => {
-                crate::error_format::error(err);
-                eprintln!();
-                eprintln!("Searched:");
-                eprintln!("  1. $XDG_CONFIG_HOME/zylaxion/config.toml");
-                eprintln!("     (or ~/.config/zylaxion/config.toml if unset)");
-                eprintln!("  2. /etc/zylaxion/config.toml");
-                eprintln!("  3. /usr/local/share/zylaxion/config.toml");
-                eprintln!("  4. ./config.toml (current directory)");
+                crate::error_format::error(format!(
+                    "{err}\n\nSearched:\n  1. $XDG_CONFIG_HOME/zylaxion/config.toml\n     (or ~/.config/zylaxion/config.toml if unset)\n  2. /etc/zylaxion/config.toml\n  3. /usr/local/share/zylaxion/config.toml\n  4. ./config.toml (current directory)"
+                ));
                 process::exit(1);
             }
         }
@@ -181,7 +235,11 @@ pub fn cmd_list_presets() {
         Ok((path, active, names)) => {
             println!("Available presets (from {}):\n", path.display());
             for name in &names {
-                let marker = if name == &active { " <- active" } else { "" };
+                let marker = if name == &active {
+                    crate::error_format::ok_marker(" <- active")
+                } else {
+                    String::new()
+                };
                 println!("  {name}{marker}");
             }
             println!();

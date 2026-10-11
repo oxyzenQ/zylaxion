@@ -339,13 +339,17 @@ mod tests {
                     }
                     Ok(_guard) => {
                         // BUG: child acquired the lock while parent held it.
-                        eprintln!(
-                            "BUG: child acquired lock that parent holds — single-instance lock is broken"
+                        // night-improve-6: internal-failure lanes ride the
+                        // labeled red lane like every other error.
+                        crate::error_format::error(
+                            "BUG: child acquired lock that parent holds — single-instance lock is broken",
                         );
                         std::process::exit(42);
                     }
                     Err((_, e)) => {
-                        eprintln!("Unexpected error from child flock: {e}");
+                        crate::error_format::error(format!(
+                            "unexpected error from child flock: {e}"
+                        ));
                         std::process::exit(43);
                     }
                 }

@@ -21,6 +21,25 @@ The brand conveys precision, acoustics, craftsmanship, and zero-leakage privacy.
 
 The zylaxion logo lives in `assets/`. Width: **260px**.
 
+## Color Palette
+
+The zelynic family color contract (night-improve-6). Purple is the branding
+color; the semantic tiers below are shared across the toolchain so the clap
+surface (`crates/zylaxion/src/cli_styles.rs`) and the application-rendered
+output (`crates/zylaxion/src/error_format.rs`) read as one tool:
+
+| Tier | Value | Used for |
+|---|---|---|
+| Brand purple | `#A855F7` (bold) | Section headers (`Usage:`, doctor sections) |
+| Error red | `#FF5A5A` | The labeled error lane (`zylaxion: error:`) |
+| Warning yellow | `#FFEB3C` | The labeled warning lane (`zylaxion: warning:`) |
+| Calm grey | `#8B8B8B` | Grammar tier: passive suggestions (`tip:`, `hint:`, `fix:`) |
+| Status green | `#50FA7B` | Affirmative verdicts and runnable tips |
+
+Color renders only on a terminal (`NO_COLOR` and `CLICOLOR=0` strip it);
+pipes and captures get plain text, byte-identical to the historical
+uncolored prefixes so `grep 'zylaxion: error:'` keeps working.
+
 ## Badges
 
 Only the Ko-fi badge is permitted on the README:
