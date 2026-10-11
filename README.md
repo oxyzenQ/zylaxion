@@ -44,8 +44,8 @@ zylaxion transforms every keystroke into a spatially accurate mechanical keyboar
 Instead of replaying recorded samples, every sound is **synthesized mathematically** using noise excitation, TPT State Variable Filters, resonance modeling, and exponential decay envelopes. This pure procedural approach means:
 
 - **Zero audio samples** — no wavetables, no recorded clips, no sample libraries. The entire sound engine is mathematical computation.
-- **Ultra-lightweight** — the binary is self-contained; no audio assets to load, store, or manage.
-- **Infinitely tunable** — every parameter (filter frequencies, resonance Q, decay coefficients, spring mix) is a number in `config.toml`, adjustable in real time.
+- **Ultra-lightweight** — the binary is self-contained; no audio assets, no config files, nothing to load, store, or manage.
+- **24 hand-tuned presets compiled in** — filter frequencies, resonance Q, decay coefficients, spring mix: every value is validated Rust data baked into the binary at build time.
 - **Micro-randomized** — every keypress gets a unique noise seed, ±1.5% pitch
   drift, ±5% amplitude drift, ±3% stereo pan jitter, and inter-keystroke
   timing variation. The same key never sounds identical twice — just like a
@@ -66,12 +66,13 @@ No audio files. No sample libraries. No wavetable playback. Just math.
   stealing, stereo panning based on key position, per-keypress pan jitter,
   two-stage decay envelope (fast transient + slow tail), and a ~2 ms soft
   release ramp that eliminates the "click off" artifact on key-up.
-- **Central `config.toml`** — single source of truth for all acoustic
-  DSP parameters (click frequency, resonance, spring mix, decay
-  coefficient, per-key overrides). Edit, save, and the running daemon
-  auto-reloads within 1 second — no restart needed. Presets for 5 sound
-  characters (`technical`, `classic`, `studio`, `elegant`, `whisper`)
-  are documented as copy-paste blocks at the top of the file.
+- **Compiled preset registry** — 24 acoustic presets are compile-time
+  data inside the binary: type-checked Rust, proven in-range by the
+  test tree, zero parse errors possible, zero I/O at startup. Select
+  with `--preset <name>` or the `ZYLAXION_PRESET` environment
+  variable; tune loudness with `ZYLAXION_VOLUME`. No config file, no
+  watcher thread, no validation subcommand — a sound switcher does
+  not need them (night-improve-22).
 - **Daemon mode** — POSIX-compliant daemonization with signal handling,
   PID file with recycling protection, and Unix Domain Socket IPC for
   remote stop/status commands.
@@ -99,17 +100,17 @@ cd zylaxion
 # Build the release binary
 cargo build --release --locked
 
-# Install (binary + config.toml go to ~/.local by default)
+# Install (binary goes to ~/.local by default)
 ./scripts/package/install.sh
 ```
 
-To install system-wide (binary → `/usr/bin/`, config → `/etc/zylaxion/`):
+To install system-wide (binary → `/usr/bin/`):
 
 ```bash
 ./scripts/package/install.sh --system
 ```
 
-The installer copies the binary, config, and systemd user service. Use
+The installer copies the binary and systemd user service. Use
 `--user` (default) for `~/.local/bin/` or `--system` for `/usr/bin/`.
 It runs `cargo build --release --locked` automatically.
 
@@ -161,59 +162,43 @@ EXPECTED=$(awk '{print $1}' zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz.shake256)
 ```
 zylaxion                         # Quick status overview (daemon, preset, audio)
 zylaxion --live                  # Live overview (refreshes every 2s, like watch)
-zylaxion start                    # Foreground mode (Ctrl+C to quit)
-zylaxion start --preset cherryMX  # Override active preset from CLI
-zylaxion daemon                   # Background daemon mode
-zylaxion daemon --foreground      # Foreground daemon (for systemd)
-zylaxion stop                     # Stop a running daemon
-zylaxion status                   # Check if daemon is running
-zylaxion doctor                   # System health diagnostic
-zylaxion testconf                 # Validate config.toml (search path)
-zylaxion testconf -f ./my.toml    # Validate a specific config file
-zylaxion list-presets             # List available presets + active one
-zylaxion list-backends            # Show available audio backends
-zylaxion --check-update           # Check for latest GitHub release
-zylaxion -V                       # Show version + build info
+zylaxion start                   # Foreground mode (Ctrl+C to quit)
+zylaxion start --preset cherryMX # Select a preset from the compiled registry
+zylaxion daemon                  # Background daemon mode
+zylaxion daemon --foreground     # Foreground daemon (for systemd)
+zylaxion stop                    # Stop a running daemon
+zylaxion status                  # Check if daemon is running
+zylaxion doctor                  # System health diagnostic
+zylaxion list-presets            # List the 24 compiled presets + active one
+zylaxion list-backends           # Show available audio backends
+zylaxion --check-update          # Check for latest GitHub release
+zylaxion -V                      # Show version + build info
 ```
 
 ### Configuration
 
-The central `config.toml` controls every aspect of the click sound:
-filter frequencies, resonance (Q), spring mix level, decay rate, and
-amplitude, plus optional `[[keys]]` per-scancode overrides. The file
-is loaded from (first found wins):
+There is no configuration file — night-improve-22 deleted
+`config.toml` and its whole support stack (search paths, TOML
+parsing, the mtime watcher, the `testconf` validator). The owner's
+verdict: a file format, a parser, and a background poller are absurd
+maintenance weight for switching between 24 sounds. The masterclass
+replacement is the Unix configuration surface itself:
 
-1. `$XDG_CONFIG_HOME/zylaxion/config.toml` — user-local override
-   (falls back to `~/.config/zylaxion/config.toml` if `$XDG_CONFIG_HOME` is unset)
-2. `/etc/zylaxion/config.toml` — system config
-3. `/usr/local/share/zylaxion/config.toml` — installed default
-4. `./config.toml` — relative to CWD (development)
-5. Hardcoded default — always available
+1. `--preset <name>` on the CLI (highest priority)
+2. `ZYLAXION_PRESET=<name>` in the environment (persistent selection —
+   shell profile, systemd `Environment=`, wrapper script)
+3. the compiled default preset (`technical`) if neither names one
 
-#### Active preset selection
+The master output volume follows the same law:
+`ZYLAXION_VOLUME=1.5` (headphones) overrides the compiled
+laptop-speaker default of 5.5. An invalid value is a hard error —
+there is no silent fallback, and an unknown preset name prints the
+full catalog plus a did-you-mean tip.
 
-The file defines multiple named `[preset.NAME]` tables. The active
-preset is determined by:
-
-1. `--preset <name>` on the CLI (highest priority — overrides everything)
-2. `tuning = "<name>"` in the `[preset]` table of `config.toml`
-3. `"technical"` (hardcoded last-resort fallback) if neither is set
-
-If the resolved preset does NOT exist in `config.toml`, the program
-prints a clear error listing the available presets and exits — there
-is **no silent fallback**. This prevents accidental misconfiguration.
-
-#### Auto-reload
-
-The running daemon polls `config.toml`'s mtime every 1 second and
-auto-reloads on change. If you started without `--preset`, changing
-`tuning = "cherryMX"` and saving causes an immediate swap to the
-cherryMX preset — no restart needed. If you started with `--preset`,
-the CLI value wins and `tuning` changes are ignored (you'd need to
-restart with a different `--preset`).
-
-Run `zylaxion testconf` after editing to catch TOML typos and
-out-of-bounds DSP values before they affect the running daemon.
+A preset is chosen once at process start. To change it, restart the
+daemon (`systemctl --user restart zylaxion`, or `zylaxion stop` +
+`zylaxion start`). For a sound switcher that is the honest
+lifecycle — there is nothing to hot-reload.
 
 ### Built-in sound presets
 
@@ -231,7 +216,7 @@ drift, unique noise seed) so the same key never sounds identical twice
 
 | Preset    | Description                                      |
 |-----------|--------------------------------------------------|
-| technical | Crisp, loud, punchy. Cherry MX Blue click style. |
+| technical | Crisp, loud, punchy. Cherry MX Blue click style. **Compiled default.** |
 | cherryMX  | Balanced reference. General MX Blue/Brown.       |
 | classic   | Deeper, resonant. Warm bucklespring tone.        |
 | studio    | Softer attack, longer decay. Office-friendly.     |
@@ -252,7 +237,7 @@ Model M ring, deeper ALPS housing.
 
 | Preset             | Switch Type         | Character                                              |
 |--------------------|---------------------|--------------------------------------------------------|
-| `ibm_model_m`      | Buckling spring     | Deep, very resonant, long ring. **Default since v4.0.0.** |
+| `ibm_model_m`      | Buckling spring     | Deep, very resonant, long ring. The showcase legend. |
 | `topre`            | Electrocapacitive   | Deep "thock", smooth, low resonance. Realforce/HHKB.  |
 | `cherry_mx_black`  | Linear (heavy)      | Smooth thud, faint spring ping. ~80g actuation.       |
 | `cherry_mx_clear`  | Tactile (heavy)     | Pronounced bump, louder than Brown. ~65g actuation.   |

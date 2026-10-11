@@ -14,8 +14,8 @@ the tree English-only and header-complete).
 ### ...run zylaxion
 
 The [README](../README.md) is the user manual: install, the
-service setup, the command surface, config.toml, presets. Start
-there; come back here when you want depth.
+service setup, the command surface, the compiled preset registry,
+presets. Start there; come back here when you want depth.
 
 ### ...verify a downloaded binary
 

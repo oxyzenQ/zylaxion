@@ -239,10 +239,8 @@ impl<S: AudioSink> Orchestrator<S> {
         }
     }
 
-    /// Update the master volume at runtime (v10.2.0+ — dragonzen audit
-    /// P1). Useful for hot-reload when the user edits `[master]` in
-    /// `config.toml`. The value is clamped to a sane range — see
-    /// [`VoicePool::set_master_volume`].
+    /// Update the master volume at runtime. The value is clamped to a
+    /// sane range — see [`VoicePool::set_master_volume`].
     // night-improve-21: unwired in the unified tree (the hot-reload
     // lane applies params, not volume, today); expect() self-retires
     // when the volume hot-reload lands.

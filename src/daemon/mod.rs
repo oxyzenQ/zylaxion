@@ -285,10 +285,10 @@ pub fn is_daemon_running() -> Result<Pid, String> {
 /// thread. The main-thread orchestrator loop checks this flag and breaks
 /// cleanly, dropping `CpalSink` and releasing audio.
 ///
-/// As of v0.3.1, config reloading is handled by the separate
-/// `config-watcher` thread (see `commands::daemon::spawn_config_watcher`)
-/// which polls `config.toml`'s mtime. The `reload` IPC command has been
-/// removed — users just edit and save the config file.
+/// Night-improve-22: the config-watcher thread and the `reload` IPC
+/// command are gone with `config.toml` — the preset is chosen at
+/// process start from the compiled registry, and the IPC surface is
+/// `stop` only.
 ///
 /// # Robustness (v10.2.0+ — dragonzen audit B6/B10/S2)
 ///
