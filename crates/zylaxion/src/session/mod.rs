@@ -3,7 +3,7 @@
 
 //! The session contract (night-improve-14, the zelynic concern-folder
 //! discipline): everything that binds zylaxion to the invoking user's
-//! session. Zylaxion is a user-session program — every byte of state
+//! session. zylaxion is a user-session program — every byte of state
 //! it writes belongs inside that session, and each module here guards
 //! one edge of that promise:
 //!

@@ -240,7 +240,7 @@ impl CpalSink {
         let sample_format = default_config.sample_format();
 
         // v10.2.0 (dragonzen audit B15): warn if the device reports
-        // more than 2 channels. Zylaxion is stereo-only — the cpal
+        // more than 2 channels. zylaxion is stereo-only — the cpal
         // callback writes frame[0] (L) and frame[1] (R), leaving the
         // remaining channels silent. For a 5.1/7.1 user this means
         // stereo + N silent channels with no warning. The log line

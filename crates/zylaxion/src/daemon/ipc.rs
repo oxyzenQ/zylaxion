@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Unix Domain Socket IPC for the Zylaxion daemon.
+//! Unix Domain Socket IPC for the zylaxion daemon.
 //!
 //! Uses only `std::os::unix::net` — no nix socket API, no trait import
 //! headaches.  The daemon listens on `$XDG_RUNTIME_DIR/zylaxion.sock`.

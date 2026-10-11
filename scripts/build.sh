@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # OS: Linux only - zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 #
-# Zylaxion build gatekeeper — local CI before commit/push.
+# zylaxion build gatekeeper — local CI before commit/push.
 # Usage: ./scripts/build.sh check-all [-q]
 #
 # Runs four checks in order:

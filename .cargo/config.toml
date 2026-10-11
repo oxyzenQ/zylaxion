@@ -1,10 +1,10 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
-# Zylaxion cargo configuration — the zelynic alias lineage, sized to
+# zylaxion cargo configuration — the zelynic alias lineage, sized to
 # this project's real build shapes (night-improve-11).
 #
-# Zylaxion ships ONE release target: x86_64-unknown-linux-gnu (see
+# zylaxion ships ONE release target: x86_64-unknown-linux-gnu (see
 # release.yml — the musl lane is permanently absent because cpal's
 # alsa-sys needs pkg-config against glibc's libasound2-dev, and a
 # "static" binary still linking libasound would not be static anyway).

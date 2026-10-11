@@ -156,7 +156,7 @@ mod tests {
     }
 }
 
-/// Zylaxion — real-time mechanical keyboard acoustic synthesizer for Linux.
+/// zylaxion — real-time mechanical keyboard acoustic synthesizer for Linux.
 ///
 /// The `styles` attribute wires the brand palette (purple headings,
 /// grey grammar tier for every flag spelling and command synopsis) into

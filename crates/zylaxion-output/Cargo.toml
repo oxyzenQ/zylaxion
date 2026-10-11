@@ -9,7 +9,7 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-description = "Real-time audio output for the Zylaxion engine via cpal"
+description = "Real-time audio output for the zylaxion engine via cpal"
 
 # night-improve-10: explicit auto-discovery controls, the zelynic
 # Pattern-C discipline — a stray tests/ or benches/ directory can
