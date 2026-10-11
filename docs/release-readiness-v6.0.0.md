@@ -84,7 +84,7 @@
 | Version | `6.0.0` |
 | SemVer rationale | MAJOR: `panic=abort` is a breaking ABI change |
 | Recommended tag | `v6.0.0` |
-| Tag message | See `CHANGELOG-v6.0.0.md` |
+| Tag message | See `docs/archive/CHANGELOG-v6.0.0.md` |
 
 ---
 
