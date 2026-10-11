@@ -8,5 +8,14 @@ authors.workspace = true
 repository.workspace = true
 description = "Polyphonic voice pool and DSP orchestration for the Zactrix engine"
 
+# night-improve-10: explicit auto-discovery controls, the zelynic
+# Pattern-C discipline — a stray tests/, benches/ or examples/
+# directory can never silently become a target the gate lane did not
+# vet. None of the three directories exist in this crate; in-tree
+# #[cfg(test)] modules are unaffected by autotests.
+autotests = false
+autobenches = false
+autoexamples = false
+
 [dependencies]
 zactrix-profiles = { path = "../zactrix-profiles" }

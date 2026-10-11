@@ -27,7 +27,10 @@ edition = "2024"
 rust-version = "1.98.1"
 version = "11.0.0"
 license = "GPL-3.0-only"
-authors = ["rezky_nightky (oxyzenQ)"]
+# night-improve-10: the zelynic author format — one obfuscated contact
+# string, family-wide. Keeps the registry-facing author row identical
+# across the toolchain while the address itself stays un-spiderable.
+authors = ["rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>"]
 repository = "https://github.com/oxyzenQ/zylaxion"
 
 [profile.release]
