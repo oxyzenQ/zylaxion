@@ -18,6 +18,22 @@
   </a>
 </p>
 
+## Demo
+
+<!-- Screenshot asset: the rendered help is the real `zylaxion -h` output
+     of the v11 build with the brand-styled CLI (purple headings, grey
+     grammar tier — night-improve-2). The help surface touches no audio
+     or input hardware, so a capture host renders it byte-identical to
+     a desktop. A typing-sound video demo needs real audio hardware, so
+     it follows at the next owner-host capture session. -->
+
+<p align="center">
+  <img src="assets/zylaxion-help-demo.png"
+       alt="zylaxion help - brand-styled CLI with purple headings and grey flags"
+       width="800"
+       style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
+</p>
+
 ---
 
 Zylaxion transforms every keystroke into a spatially accurate mechanical keyboard sound using Linux's `evdev` interface and real-time audio output through `cpal` and PipeWire.
