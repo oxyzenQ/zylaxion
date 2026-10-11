@@ -1439,22 +1439,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "zactrix-engine"
-version = "11.0.0"
-dependencies = [
- "zactrix-profiles",
-]
-
-[[package]]
-name = "zactrix-profiles"
-version = "11.0.0"
-dependencies = [
- "log",
- "serde",
- "toml",
-]
-
-[[package]]
 name = "zmij"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1467,51 +1451,15 @@ dependencies = [
  "arc-swap",
  "clap",
  "cpal",
+ "crossbeam-channel",
  "env_logger",
+ "input",
  "libc",
  "log",
  "nix",
+ "ringbuf",
  "serde",
  "serde_json",
  "signal-hook",
  "toml",
- "zactrix-engine",
- "zactrix-profiles",
- "zylaxion-core",
- "zylaxion-input",
- "zylaxion-output",
-]
-
-[[package]]
-name = "zylaxion-core"
-version = "11.0.0"
-dependencies = [
- "arc-swap",
- "crossbeam-channel",
- "log",
- "ringbuf",
- "zactrix-engine",
- "zactrix-profiles",
- "zylaxion-input",
- "zylaxion-output",
-]
-
-[[package]]
-name = "zylaxion-input"
-version = "11.0.0"
-dependencies = [
- "crossbeam-channel",
- "input",
- "nix",
-]
-
-[[package]]
-name = "zylaxion-output"
-version = "11.0.0"
-dependencies = [
- "cpal",
- "log",
- "ringbuf",
- "zactrix-engine",
- "zactrix-profiles",
 ]

@@ -41,9 +41,12 @@ FOUND=0
 
 # ── src-root single-file policy (night-improve-18) ─────────────────────
 # Checked FIRST: a stray root module is a layout failure, not a size
-# one. Every crate directory under crates/ (plus a repo-root src/ if
-# one ever appears) may hold exactly one .rs file at its src/ root —
+# one. The repo-root src/ holds exactly one .rs file at its root —
 # the entry point (main.rs or lib.rs).
+# night-improve-21: the six-crate workspace is gone — the cosmic
+# dragon unification moved every former crate into the repo-root src/
+# module tree, so the per-crate loop over crates/*/src is retired.
+# The policy now has exactly one subject: the unified crate at src/.
 ROOT_VIOLATIONS=0
 check_src_root() {
         local src_dir="$1"
@@ -66,22 +69,14 @@ check_src_root() {
 }
 
 if [ -d src ]; then
-        # repo-root src (the zelynic shape; zylaxion is a workspace but the
-        # policy holds if a root crate ever appears)
+        # the unified crate (night-improve-21): one repo-root src/, one
+        # entry file, the cosmic dragon shape
         if [ -f src/main.rs ]; then
                 check_src_root src main.rs
         else
                 check_src_root src lib.rs
         fi
 fi
-for crate_src in crates/*/src; do
-        [ -d "$crate_src" ] || continue
-        if [ -f "$crate_src/main.rs" ]; then
-                check_src_root "$crate_src" main.rs
-        else
-                check_src_root "$crate_src" lib.rs
-        fi
-done
 
 if [ "$ROOT_VIOLATIONS" -gt 0 ]; then
         exit 1

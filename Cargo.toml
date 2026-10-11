@@ -1,37 +1,104 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
-[workspace]
-members = [
-    "crates/zactrix-engine",
-    "crates/zactrix-profiles",
-    "crates/zylaxion-output",
-    "crates/zylaxion-input",
-    "crates/zylaxion-core",
-    "crates/zylaxion",
-]
-resolver = "2"
+# night-improve-21: the cosmic dragon unification. The six-crate
+# workspace (zactrix-engine, zactrix-profiles, zylaxion-core,
+# zylaxion-input, zylaxion-output, zylaxion) is now ONE package at the
+# repo root — the cosmic dragon engine and architecture. The former
+# crate boundaries survive as the unified module tree:
+#
+#   src/engine/    <- zactrix-engine   (the voice pool and its voices)
+#   src/profiles/  <- zactrix-profiles (params, model, mechanical, tpt)
+#   src/core/      <- zylaxion-core    (the Orchestrator, the dragon's spine)
+#   src/input/     <- zylaxion-input   (libinput keyboard capture)
+#   src/audio/     <- zylaxion-output  (cpal sink, SPSC ring bridge)
+#   src/{cli,commands,daemon,info,output,session}/ <- the former binary crate
+#
+# One target, one lock graph, one build: the same public surfaces and
+# the same behavior, minus the path-dependency ceremony. The version
+# contract is untouched (11.0.0 lineage, owner-decided bumps only).
 
-[workspace.package]
-# night-improve-4: edition 2024 across ALL packages so the repo speaks
-# one edition (the zelynic lineage). Migration verified clean: the 2024
-# hard errors (unsafe attributes, unsafe extern blocks, static mut
-# refs) have zero call sites in this tree — every unsafe block is a
-# plain nix/libc FFI wrapper. The 2024 floor is Rust 1.85; the pinned
-# toolchain below (1.98.1) rides far above it.
+[package]
+name = "zylaxion"
+version = "11.0.0"
+# night-improve-4: edition 2024 across the whole tree so the repo speaks
+# one edition (the zelynic lineage). The 2024 floor is Rust 1.85; the
+# pinned toolchain below (1.98.1) rides far above it.
 edition = "2024"
 # night-improve-4: the MSRV contract, pinned to the exact toolchain
 # rust-toolchain.toml installs (1.98.1). Bumping either half of the
 # pair is a two-file change: this field and that channel — never one
 # alone, or the declared floor and the tested floor drift apart.
 rust-version = "1.98.1"
-version = "11.0.0"
 license = "GPL-3.0-only"
 # night-improve-10: the zelynic author format — one obfuscated contact
 # string, family-wide. Keeps the registry-facing author row identical
 # across the toolchain while the address itself stays un-spiderable.
 authors = ["rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>"]
 repository = "https://github.com/oxyzenQ/zylaxion"
+description = "Real-time mechanical keyboard acoustic synthesizer for Linux. Pure procedural synthesis, zero audio samples, the boring and stealth."
+build = "build.rs"
+# night-improve-4: registry-grade manifest completeness, the zelynic
+# package-data pattern. The documentation field is the version-less
+# docs.rs base URL so it always tracks the newest hosted build the
+# moment the owner publishes to the registry. Keyword and category
+# slugs use only live registry buckets: command-line-utilities (the
+# primary terminal-binary bucket), multimedia::audio (the DSP engine
+# surface), os::linux-apis (the honest bucket for an evdev/libinput,
+# Linux-only tool).
+documentation = "https://docs.rs/zylaxion"
+readme = "README.md"
+keywords = ["keyboard", "audio", "sound", "linux", "real-time"]
+categories = ["command-line-utilities", "multimedia::audio", "os::linux-apis"]
+
+# night-improve-10: explicit auto-discovery controls, the zelynic
+# Pattern-C discipline — a stray tests/ or benches/ directory can
+# never silently become a target the gate lane did not vet. Neither
+# exists in this package; in-tree #[cfg(test)] modules are unaffected
+# by autotests, and the test/ tree is wired by #[path] (Pattern C).
+# autoexamples stays default-ON deliberately (the former lib crates'
+# contract, carried over by night-improve-21): this package ships the
+# same five vetted examples/ targets the gate lane linked before the
+# unification — switching it off would retire vetted targets, the
+# opposite of the discipline.
+autotests = false
+autobenches = false
+
+[dependencies]
+# The unified dependency table — the exact union of the six former
+# crate manifests, versions untouched (the owner owns version bumps).
+arc-swap = "1.7"
+clap = { version = "4", features = ["derive"] }
+cpal = "0.15"
+crossbeam-channel = "0.5"
+# night-improve-13: default-features = false — env_logger's default
+# "humantime" feature (a misleading name since 0.11.8: it maps to
+# `dep:jiff`, not humantime) and the env_filter "regex" feature both go.
+# The jiff + regex crate trees (~9 crates in the lock) existed ONLY to
+# format log timestamps and enable regex filter syntax — the zelynic
+# no-time-crate contract answers both: the timestamps render through
+# src/info/clock.rs (Hinnant civil_from_days, std clock), and RUST_LOG keeps
+# the standard comma-separated directive syntax (regex syntax was never
+# a documented zylaxion surface). auto-color stays: the TTY color
+# detection the daemon's journal output relies on.
+env_logger = { version = "0.11", default-features = false, features = [
+    "auto-color",
+] }
+# nix feature merge (night-improve-21): the union of the former binary
+# manifest (signal, process, user, fs) and the former zylaxion-input
+# manifest (time, poll) — the socket/file lanes and the input event
+# loop share one table now.
+input = { version = "0.9", features = ["udev"] }
+libc = "0.2"
+# libc is used for `umask(2)` in `daemon::ipc::create_listener` to
+# guarantee the IPC socket file is created with mode 0o600.
+log = "0.4"
+nix = { version = "0.29", features = ["signal", "process", "user", "fs", "time", "poll"] }
+ringbuf = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+signal-hook = "0.3"
+toml = "0.8"
 
 [profile.release]
 opt-level = 3
