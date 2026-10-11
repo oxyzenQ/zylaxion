@@ -19,11 +19,17 @@
 //! help surface is the curated reference in [`crate::commands::help`],
 //! dispatched from the [`Cli::help`] field. Subcommand-level `--help`
 //! is an unknown-argument error, never a second help wall.
+//!
+//! Fatal parse errors render through [`ux`] (night-improve-19, the
+//! zelynic UX bridge lineage): brand-styled, one canonical footer,
+//! the case-insensitive typo rescue behind clap's own engine.
 
 use clap::{Parser, Subcommand};
 use std::sync::OnceLock;
 
 pub mod styles;
+pub mod suggestion;
+pub mod ux;
 
 /// The one-line tagline under the version header — the same string the
 /// clap `about` surface carries, kept as a const so the report header

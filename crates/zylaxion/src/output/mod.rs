@@ -61,7 +61,9 @@ pub(crate) const RESET: &str = "\x1b[0m";
 
 /// Whether stderr may carry color: a TTY, `NO_COLOR` unset, and
 /// `CLICOLOR != 0` (checked once per call — these paths are cold).
-fn color_enabled() -> bool {
+/// Exposed crate-wide so the clap error bridge ([`crate::cli::ux`])
+/// routes its rendered bytes through the SAME gate — one color law.
+pub(crate) fn color_enabled() -> bool {
     if !std::io::stderr().is_terminal() {
         return false;
     }
@@ -76,10 +78,25 @@ fn color_enabled() -> bool {
 
 /// Broken-pipe-safe stderr write: a failed write is dropped, never a
 /// panic (the zelynic `eprintln_safe` semantic).
-fn emit(text: &str) {
+pub(crate) fn emit(text: &str) {
     let mut err = std::io::stderr().lock();
     let _ = err.write_all(text.as_bytes());
     let _ = err.write_all(b"\n");
+}
+
+/// A raw clap-rendered error block on stderr, through the SAME
+/// capability gate as every other surface: plain bytes when the gate
+/// is off, clap's ANSI bytes otherwise. Broken-pipe-safe; no newline
+/// added — the caller owns the block's exact tail (the canonical
+/// footer spacing).
+pub(crate) fn print_stderr_render(rendered: &clap::builder::StyledStr) {
+    let text = if color_enabled() {
+        rendered.ansi().to_string()
+    } else {
+        rendered.to_string()
+    };
+    let mut err = std::io::stderr().lock();
+    let _ = err.write_all(text.as_bytes());
 }
 
 /// Print an error message to stderr in the standard format.

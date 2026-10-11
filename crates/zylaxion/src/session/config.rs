@@ -117,13 +117,10 @@ pub fn resolve_config(
         let active = determine_active_preset(cli_preset, &parsed);
 
         // Look up the preset table.
-        let entry = parsed.presets.get(&active).ok_or_else(|| {
-            format!(
-                "Preset '{}' not found in config.toml. Available: {}",
-                active,
-                format_preset_list(&parsed.presets)
-            )
-        })?;
+        let entry = parsed
+            .presets
+            .get(&active)
+            .ok_or_else(|| preset_not_found_error(&active, &parsed.presets))?;
 
         let profiles = build_profile_from_entry(entry);
         log::info!("loaded preset '{}' from {}", active, candidate.display());
@@ -180,13 +177,10 @@ pub fn reload_preset(
     // was only for the initial load.
     let active = determine_active_preset(None, &parsed);
 
-    let entry = parsed.presets.get(&active).ok_or_else(|| {
-        format!(
-            "Preset '{}' not found in config.toml. Available: {}",
-            active,
-            format_preset_list(&parsed.presets)
-        )
-    })?;
+    let entry = parsed
+        .presets
+        .get(&active)
+        .ok_or_else(|| preset_not_found_error(&active, &parsed.presets))?;
 
     // v10.2.0 (P1): return the master params so the watcher can
     // update the VoicePool's volume on hot-reload.
@@ -524,6 +518,24 @@ fn format_preset_list(map: &HashMap<String, PresetEntry>) -> String {
         .join(", ")
 }
 
+/// The canonical preset-not-found error: the GNU-shaped message plus
+/// the did-you-mean tip when a preset within edit distance 2 exists
+/// (night-improve-19, the zelynic value-suggestion lineage). Both
+/// lookup sites share this constructor so the tip cannot drift from
+/// the list.
+fn preset_not_found_error(active: &str, presets: &HashMap<String, PresetEntry>) -> String {
+    let mut msg = format!(
+        "Preset '{}' not found in config.toml. Available: {}",
+        active,
+        format_preset_list(presets)
+    );
+    let names: Vec<&str> = presets.keys().map(String::as_str).collect();
+    if let Some(best) = crate::cli::suggestion::closest_value_match(active, &names) {
+        msg.push_str(&format!("\ntip: did you mean '{best}'?"));
+    }
+    msg
+}
+
 /// Build the ordered list of candidate `config.toml` paths.
 ///
 /// v10.2.0 (dragonzen audit P2): honor `$XDG_CONFIG_HOME` per the XDG
@@ -721,6 +733,25 @@ voice_off_threshold = 0.00001
         let err = result.unwrap_err();
         assert!(err.contains("Preset 'nonexistent' not found"));
         assert!(err.contains("Available:"));
+        // "nonexistent" is beyond edit distance 2 of every real preset
+        // name — the did-you-mean tip must stay silent for distant
+        // values (the suggestion contract, night-improve-19).
+        assert!(!err.contains("did you mean"));
+    }
+
+    #[test]
+    fn preset_not_found_error_carries_the_did_you_mean_tip() {
+        use std::collections::HashMap;
+        let mut presets = HashMap::new();
+        presets.insert("thocky".to_string(), PresetEntry::default());
+        presets.insert("clacky".to_string(), PresetEntry::default());
+        let err = preset_not_found_error("thock", &presets);
+        assert!(err.contains("Preset 'thock' not found"), "head: {err}");
+        assert!(err.contains("Available: clacky, thocky"), "list: {err}");
+        assert!(err.contains("tip: did you mean 'thocky'?"), "tip: {err}");
+        // Exact-list names are not re-suggested for a distant typo.
+        let err2 = preset_not_found_error("fortnights", &presets);
+        assert!(!err2.contains("did you mean"), "distant: {err2}");
     }
 
     #[test]
