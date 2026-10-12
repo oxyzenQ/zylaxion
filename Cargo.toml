@@ -66,8 +66,17 @@ autobenches = false
 
 [dependencies]
 # The unified dependency table — the exact union of the six former
-# crate manifests, versions untouched (the owner owns version bumps).
+# crate manifests, versions untouched (the owner owns version bumps),
+# plus the night-improve-23 addition: the aya userspace loader
+# (optional, behind the default `ebpf` feature — the zelynic shape:
+# a plain cargo install lands the full-featured binary).
 arc-swap = "1.7"
+# night-improve-23: the userspace half of the pure-Rust eBPF stack.
+# aya 0.14 is the upstream pairing of aya-ebpf 0.2.1 (the ebpf/ crate
+# pin — the same pairing the zelynic lineage validated on the same
+# bpf-linker 0.11.1 toolchain). Optional so --no-default-features
+# builds a dormant binary on hosts that never attach.
+aya = { version = "0.14", optional = true }
 clap = { version = "4", features = ["derive"] }
 cpal = "0.15"
 crossbeam-channel = "0.5"
@@ -133,3 +142,15 @@ inherits = "release"
 
 [profile.pro-linux-amd64-v4-gnu]
 inherits = "release"
+
+[features]
+# night-improve-23 (the zelynic NIGHT-ask-2 shape): `ebpf` is the
+# DEFAULT — a plain `cargo install zylaxion` must land the full-featured
+# binary, not a dormant one. On a git checkout the loader embeds the
+# source-built object (the nested nightly build build.rs drives); on a
+# registry tarball it embeds the maintainer-built object staged from
+# ebpf-prebuilt/ — either way the install needs NO nightly toolchain.
+# The dormant lane (a stable binary whose eBPF surfaces answer with
+# their honest refusal) is the OPT-IN: --no-default-features.
+default = ["ebpf"]
+ebpf = ["dep:aya"]
