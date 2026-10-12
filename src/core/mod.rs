@@ -126,7 +126,7 @@ pub struct KeyEvent {
 /// # Lifecycle
 ///
 /// 1. Construct with [`Orchestrator::new`] (creates `CpalSink` + `VoicePool`).
-/// 2. Call [`run`] with a channel receiver and an acoustic model.
+/// 2. Call [`Orchestrator::run`] with a channel receiver and an acoustic model.
 /// 3. The loop runs until the receiver is disconnected (Ctrl+C / SIGINT).
 ///
 /// # Type Parameters

@@ -171,7 +171,7 @@ pub fn exit_clap_error(e: clap::Error) -> ! {
     std::process::exit(2);
 }
 
-/// The process argv minus argv[0] — the walk the pool resolver scores
+/// The process argv minus `argv[0]` — the walk the pool resolver scores
 /// (production entry; the test harness passes synthetic argv instead).
 fn env_argv() -> Vec<std::ffi::OsString> {
     std::env::args_os().skip(1).collect()

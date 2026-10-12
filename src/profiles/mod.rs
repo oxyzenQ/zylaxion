@@ -15,7 +15,9 @@
 //!   no-config law: every shipped preset is compile-time data here).
 //! - [`SynthState`] — zero-alloc per-voice state passed through the render path.
 //! - [`MechanicalClick`] — the reference implementation for mechanical switches.
-//! - [`TptSvf`] — topology-preserving SVF for numerically stable filtering.
+//! - `TptSvf` — topology-preserving SVF for numerically stable filtering
+//!   (the `tpt` module is internal; its filter rides the registry's
+//!   compiled presets).
 mod mechanical;
 mod model;
 mod params;
