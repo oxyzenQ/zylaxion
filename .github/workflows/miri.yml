@@ -138,6 +138,13 @@ jobs:
       - name: Run Miri over the workspace test suite
         run: |
           set -euo pipefail
+          # tee opens its output the moment the pipeline starts, before
+          # cargo has materialized target/ on a cold cache - so on a
+          # cache miss tee cannot open the log, streams to stdout only,
+          # and exits 1 at EOF owning the pipeline status (the red run
+          # pattern: every suite interpreted clean, the job red anyway,
+          # and the artifact upload found nothing).
+          mkdir -p target
           cargo +nightly miri test --workspace 2>&1 | tee target/miri-log.txt
           echo ""
           echo "=== Miri verdict: all suites interpreted clean ==="
