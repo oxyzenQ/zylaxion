@@ -4,18 +4,20 @@
 # zylaxion prebuilt eBPF object manifest (night-improve-23, the
 # zelynic NIGHT-ask-2 shape). Generated after the ebpf/ tree build
 # — regenerate after any change under ebpf/ so the embedded object
-# never drifts from the source. ebpf_tree_sha256 pins the exact
-# ebpf/ source tree the object was built from: the sha256 over the
-# byte-order-sorted (LC_ALL=C) git-tracked ebpf/ file hashes. These
+# never drifts from the source (scripts/dev/regenerate-ebpf-prebuilt.sh
+# is the generator). ebpf_tree_sha256 pins the exact ebpf/ source tree
+# the object was built from: the sha256 over the byte-order-sorted
+# (LC_ALL=C) per-file sha256 content digests of the git-tracked ebpf/
+# files — one digest per line, list hashed as a whole. These
 # are the same bytes the registry-install binaries embed.
 
 schema = 1
-generated = "2026-10-12T06:48:13Z"
+generated = "2026-10-12T19:24:19Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_sha256 = "8c69fb6f067f05036529d46f31a1f14ce19f1343676cf38e5507034ac7b8c828"
+ebpf_tree_sha256 = "03d0aea92e1a54fc12b6af47da2aa2a69e546f4cc25a9e0aefb8dcaa34ac5e85"
 
 [[object]]
 name = "zylaxion-tap"
-sha256 = "38a0e93ad06f3357b21b0372edeb1c5f9a4fe3970a9fb2aa944612515d6c8fcd"
-size = 2528
+sha256 = "55d63fb68e56c17c3c144b9e85303879b2a69721a626cea29cf42aca85c9ea03"
+size = 2936

@@ -22,6 +22,8 @@
 //! pretending.
 
 #[cfg(feature = "ebpf")]
+pub mod args;
+#[cfg(feature = "ebpf")]
 pub mod bpf_syscall;
 #[cfg(feature = "ebpf")]
 pub mod embedded;

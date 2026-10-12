@@ -2,20 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //
 // zylaxion eBPF tap, the pure-Rust BPF source (night-improve-23;
-// there is no C twin — the aya-ebpf program IS the production
-// source, the zelynic lineage precedent).
+// night-improve-25 restores the approved plan: a passive kernel-side
+// probe on the exported input_event() function — there is no C twin,
+// the aya-ebpf program IS the production source, the zelynic lineage
+// precedent).
 //
-// One program, one job: watch the kernel's input core deliver
-// keyboard events and — ONLY while the sound is enabled and the key
-// is mapped — publish a 16-byte record to a ring buffer the
-// stateless player drains. Everything the old daemon did in
+// One body, two attach programs, one job: watch the kernel's input
+// core deliver keyboard events and — ONLY while the sound is enabled
+// and the key is mapped — publish a 16-byte record to a ring buffer
+// the stateless player drains. Everything the old daemon did in
 // userspace (config watching, PID files, IPC, seat capture) is
 // replaced by three pinned maps and this tap:
 //
 //   control  (Array<u32>)   — the control plane: enabled flag,
 //                             preset id, volume percent, player pid,
-//                             player state. The kernel reads slot
-//                             enabled; the player and the CLI
+//                             player state, tap kind. The kernel reads
+//                             slot enabled; the player and the CLI
 //                             read/write the rest. Introspectable
 //                             with stock bpftool.
 //   keymap   (HashMap<u32,u32>) — the sound intent: keycode → sound
@@ -31,19 +33,35 @@
 //                             at zero userspace cost (the typing
 //                             telemetry lane).
 //
-// The tap is PASSIVE by construction: attaching a tracepoint program
-// takes nothing away from the input path — no evdev grab, no
-// /dev/input access, no udev rules, no interference with libinput or
-// the compositor, and device hotplug/suspend/resume never matter
-// because no device fd exists.
+// The tap is PASSIVE by construction: a probe on the exported
+// input_event() function takes nothing away from the input path — no
+// evdev grab, no /dev/input access, no udev rules, no interference
+// with libinput or the compositor, and device hotplug/suspend/resume
+// never matter because no device fd exists.
 //
-// Tracepoint: input:input_event (include/trace/events/input.h,
-// stable since 5.2, present on the verified 5.15 floor). Entry
-// layout (the contract this program reads):
-//   [0]  u32 __data_loc dev_name   (dynamic string, unused here)
-//   [4]  u32 type                  (EV_KEY = 0x01 sounds)
-//   [8]  u32 code                  (the keycode)
-//   [12] i32 value                 (1 press, 0 release, 2 autorepeat)
+// The two programs (the loader picks, in order — see
+// src/ebpf/loader.rs, the attach chain):
+//
+//   fentry/input_event   BPF_PROG_TYPE_TRACING on input_event() via
+//                        the BTF trampoline. Zero-overhead. Requires
+//                        CONFIG_DEBUG_INFO_BTF=y and input_event
+//                        present in vmlinux BTF (aya resolves the
+//                        attach_btf_id at load time from
+//                        /sys/kernel/btf/vmlinux).
+//   kprobe/input_event   BPF_PROG_TYPE_KPROBE on the same symbol via
+//                        pt_regs. Works without BTF. The same program
+//                        also serves the kprobe/input_handle_event
+//                        fallback (the loader passes the symbol at
+//                        attach time).
+//
+// Both wrappers read the same four arguments through the one shim
+// (src/ebpf/args.rs, included below via #[path] — single source,
+// userspace-tested) and funnel into the one tap() body. The argument
+// ABI is the function's own prototype, drivers/input/input.c, stable
+// across the verified 5.15 floor and every kernel since:
+//
+//   void input_event(struct input_dev *dev, unsigned int type,
+//                    unsigned int code, int value)
 //
 // Deliberate behavioral deltas versus the old libinput capture
 // (documented, not accidents):
@@ -72,10 +90,19 @@ use core::sync::atomic::{AtomicU64, Ordering};
 
 use aya_ebpf::{
     helpers::bpf_ktime_get_ns,
-    macros::{map, tracepoint},
+    macros::{fentry, kprobe, map},
     maps::{Array, HashMap, RingBuf},
-    programs::TracePointContext,
+    programs::{FEntryContext, ProbeContext},
 };
+
+// The argument shim, single-sourced: the userspace crate owns the
+// file (so its tests run in every gate lane) and this crate compiles
+// the very same bytes via #[path]. See src/ebpf/args.rs for the
+// contract and the discipline.
+#[path = "../../src/ebpf/args.rs"]
+mod args;
+
+use args::InputEventArgs;
 
 /// EV_KEY from linux/input-event-codes.h — the only event type that
 /// sounds.
@@ -95,6 +122,12 @@ pub mod control_slots {
     pub const PLAYER_PID: u32 = 3;
     /// Player lifecycle: 0 idle, 1 starting, 2 running, 3 failed.
     pub const STATE: u32 = 4;
+    /// Which attach-chain step owns the live tap (night-improve-25):
+    /// 0 fentry:input_event, 1 kprobe:input_event,
+    /// 2 kprobe:input_handle_event. Written once by the loader at
+    /// attach; the kernel never reads it (userspace-only slot, the
+    /// same posture as PRESET_ID and VOLUME_PCT).
+    pub const TAP_KIND: u32 = 5;
 }
 
 /// The stats slot that counts every press (per-keycode counters ride
@@ -142,39 +175,72 @@ static events: RingBuf = RingBuf::with_byte_size(65536, 0);
 #[map]
 static stats: Array<AtomicU64> = Array::with_max_entries(257, 0);
 
-#[tracepoint]
-fn input_event(ctx: TracePointContext) -> i32 {
-    // The one unsafe block lives inside `tap` — see its contract note.
-    // The verifier re-proves the whole body at load time.
-    tap(&ctx)
+/// The fentry program (the chain's primary step): the BTF trampoline
+/// calls this at input_event()'s entry with the arguments exposed as
+/// register-width slots. Section `fentry/input_event` — the loader
+/// resolves the attach_btf_id from vmlinux BTF at load time.
+#[fentry(function = "input_event")]
+fn fentry_input_event(ctx: FEntryContext) -> i32 {
+    // The one unsafe block lives inside `tap` — see its contract
+    // note. The verifier re-proves the whole body at load time.
+    tap(fentry_args(&ctx))
 }
 
-/// The tap body. Every aya-ebpf call inside (map reads, the ktime
-/// helper) is an `unsafe fn` — the unsafe block below is that API
-/// contract, nothing more: every operation is bounds-checked (map
-/// lookups return Option, tracepoint reads bounds-check) and the
-/// verifier re-proves the whole thing at load time anyway.
-fn tap(ctx: &TracePointContext) -> i32 {
+/// The kprobe program (the chain's fallback steps): the kernel calls
+/// this at the probe point with a pt_regs carrying the same four
+/// arguments in PARM1..PARM4. Section `kprobe/input_event` — the
+/// attach symbol is a loader-side parameter, so the same program
+/// also serves the kprobe:input_handle_event alternate.
+#[kprobe(function = "input_event")]
+fn kprobe_input_event(ctx: ProbeContext) -> i32 {
+    // Extraction failure (a pt_regs with fewer than 4 argument
+    // registers — impossible on every supported arch, but the read
+    // is an Option) drops the event: never fail the input path.
+    match kprobe_args(&ctx) {
+        Some(a) => tap(a),
+        None => 0,
+    }
+}
+
+/// The fentry lane's extraction: the trampoline's typed argument
+/// slots, read through the same shim the kprobe lane uses. The reads
+/// are the aya-ebpf API contract (slot array in, value out — the
+/// trampoline guarantees the slot count matches the function's
+/// prototype, which the BTF that loaded this program vouches for).
+fn fentry_args(ctx: &FEntryContext) -> InputEventArgs {
+    InputEventArgs::from_btf_slots(ctx.arg(0), ctx.arg(1), ctx.arg(2), ctx.arg(3))
+}
+
+/// The kprobe lane's extraction: PT_REGS_PARM1..PARM4, read through
+/// the same shim. `None` means the register bank was short (a
+/// contract violation this program cannot recover from — drop the
+/// event, return 0).
+fn kprobe_args(ctx: &ProbeContext) -> Option<InputEventArgs> {
+    Some(InputEventArgs::from_pt_regs(
+        ctx.arg::<u64>(0)?,
+        ctx.arg::<u64>(1)?,
+        ctx.arg::<u64>(2)?,
+        ctx.arg::<u64>(3)?,
+    ))
+}
+
+/// The tap body — written once, called by both programs. Every
+/// aya-ebpf call inside (map reads, the ktime helper) is an `unsafe
+/// fn` — the unsafe block below is that API contract, nothing more:
+/// every operation is bounds-checked (map lookups return Option) and
+/// the verifier re-proves the whole thing at load time anyway.
+fn tap(a: InputEventArgs) -> i32 {
     unsafe {
-        // Read the tracepoint entry (layout documented in the crate
-        // header). Any read failure means the record is shorter than
-        // the contract — ignore the event, never fail the input path.
-        let Ok(kind) = ctx.read_at::<u32>(4) else {
-            return 0;
-        };
-        if kind != EV_KEY {
+        // EV_KEY (0x01) is the only event type that sounds; the
+        // shim already narrowed the register values to the C
+        // argument widths.
+        if a.kind != EV_KEY {
             return 0;
         }
-        let Ok(code) = ctx.read_at::<u32>(8) else {
-            return 0;
-        };
-        let Ok(value) = ctx.read_at::<i32>(12) else {
-            return 0;
-        };
 
         // Press (1) and release (0) sound; autorepeat (2) never did —
         // the libinput parity rule, now enforced in the kernel.
-        if value > 1 {
+        if a.value > 1 {
             return 0;
         }
 
@@ -191,16 +257,16 @@ fn tap(ctx: &TracePointContext) -> i32 {
         // The keymap is the sound intent: only mapped keycodes
         // produce events (keyboard keys are written at preset load;
         // mouse buttons and everything else die here).
-        let Some(&slot) = keymap.get(&code) else {
+        let Some(&slot) = keymap.get(&a.code) else {
             return 0;
         };
 
-        if value == 1 {
+        if a.value == 1 {
             // Press counters — 64-bit BPF_ATOMIC fetch-add (SMP-safe;
             // the repo-local target spec enables atomic-cas at cpu
             // v3). Array::get bounds-checks, so a keycode past the
             // table is simply uncounted, never a fault.
-            if let Some(counter) = stats.get(code) {
+            if let Some(counter) = stats.get(a.code) {
                 counter.fetch_add(1, Ordering::Relaxed);
             }
             if let Some(counter) = stats.get(STATS_TOTAL) {
@@ -217,8 +283,8 @@ fn tap(ctx: &TracePointContext) -> i32 {
         if let Some(mut entry) = events.reserve::<KeyRingEvent>(0) {
             entry.write(KeyRingEvent {
                 ts_us: bpf_ktime_get_ns() / 1000,
-                keycode: code,
-                value: value as u32,
+                keycode: a.code,
+                value: a.value as u32,
                 slot,
             });
             entry.submit(0);

@@ -1,15 +1,18 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
-# The pure-Rust eBPF crate (night-improve-23): ONE binary, the tap.
+# The pure-Rust eBPF crate (night-improve-23; night-improve-25 restores
+# the approved plan): ONE binary, the tap.
 #
-# zylaxion-tap — an input:input_event tracepoint program that gates
-# keyboard events against pinned maps and publishes presses and
-# releases to a pinned ring buffer. It is the entire kernel side of
-# the daemonless architecture: the tap is passive (no evdev grab, no
-# /dev/input access, no udev rules), the control plane lives in the
-# pinned maps the userspace loader opens by name, and the player is
-# woken only for mapped keys while the sound is enabled.
+# zylaxion-tap — a passive kernel-side probe on the exported
+# input_event() function (fentry when vmlinux BTF is present, kprobe
+# otherwise) that gates keyboard events against pinned maps and
+# publishes presses and releases to a pinned ring buffer. It is the
+# entire kernel side of the daemonless architecture: the tap is
+# passive (no evdev grab, no /dev/input access, no udev rules), the
+# control plane lives in the pinned maps the userspace loader opens by
+# name, and the player is woken only for mapped keys while the sound
+# is enabled.
 #
 # The crate is a DETACHED WORKSPACE on purpose (the zelynic
 # discipline): the empty [workspace] table keeps it outside the root
@@ -33,7 +36,7 @@ edition = "2024"
 publish = false
 license = "GPL-3.0-only"
 repository = "https://github.com/oxyzenQ/zylaxion"
-description = "Pure-Rust eBPF tap (input_event tracepoint) for zylaxion, cross-compiled with aya-ebpf and embedded by the userspace loader."
+description = "Pure-Rust eBPF tap (fentry/kprobe on input_event) for zylaxion, cross-compiled with aya-ebpf and embedded by the userspace loader."
 
 [dependencies]
 aya-ebpf = "0.2.1"
