@@ -52,7 +52,7 @@ In scope:
   write your sound state, and any weakening of the attach-time
   ownership hand-off is a vulnerability.
 - The input tap lane (`ebpf/src/`, `src/ebpf/`) — the kernel-side
-  tracepoint program and its loader. Keyboard event data must stay in
+  probe on input_event() and its loader. Keyboard event data must stay in
   the synthesis path only: it is never written to disk, never sent
   anywhere, and never logged with key content. Any persistence or
   transmission of keystroke content is critical by definition.
@@ -118,9 +118,9 @@ critical-severity by default, regardless of exploit complexity.
   slot is the single-instance marker (a live pid means already
   playing; a dead one is taken over) — no lock file to go stale.
 - The tap is gated in the kernel: with the enabled slot clear, the
-  tracepoint program writes nothing, wakes nobody, and counts nothing.
+  probe writes nothing, wakes nobody, and counts nothing.
 - The doctor surfaces the trust-relevant facts (kernel version
-  verdict, bpffs mount, lockdown mode, tracepoint visibility, audio
+  verdict, bpffs mount, lockdown mode, input-tap verdict, audio
   server reachability) so an operator can verify the environment
   instead of guessing.
 - Release artifacts ship with sha256 checksums and cryptographic

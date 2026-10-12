@@ -24,6 +24,19 @@ Absolute source of truth for maintaining consistency, efficiency, and quality.
 - **Release Profile:** `[profile.release]` uses `lto = "thin"`, `codegen-units = 1`,
   `opt-level = 3`, `strip = true`, `panic = "unwind"`.
 
+## Kernel Surfaces (night-improve-25)
+
+Kernel surfaces (tracepoints, symbols, BTF names) are claims. Verify
+against mainline before coding to them. Cite the file and line, or do
+not claim it. The `input_event` tracepoint shipped as load-bearing
+fiction for a full revision because a research doc's fallback note
+was copied forward without checking `include/trace/events/` — the
+exported `input_event()` function was the approved plan all along,
+and a five-minute source check would have caught the drift before
+any code existed. The same law applies to kprobe blacklist
+assumptions, BTF symbol availability, and every `CONFIG_*` fact a
+refusal message states as certain.
+
 ## Version & Update Command
 
 All `-V` / `--version` output MUST follow this exact format:
