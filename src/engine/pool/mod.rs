@@ -374,3 +374,10 @@ fn write_wav_f32(path: &str, samples: &[f32], sample_rate: u32) {
 #[cfg(test)]
 #[path = "../../../test/engine/pool_tests.rs"]
 mod tests;
+
+// night-improve-24: the render-output pins live in their own file
+// (the 600-line no-mercy cap split pool_tests by theme; a pure move,
+// same module position so super::* still resolves).
+#[cfg(test)]
+#[path = "../../../test/engine/render_tests.rs"]
+mod render_tests;
