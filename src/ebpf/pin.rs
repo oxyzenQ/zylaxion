@@ -29,6 +29,16 @@ pub const PIN_MAP_KEYMAP: &str = "/sys/fs/bpf/zylaxion/keymap";
 pub const PIN_MAP_EVENTS: &str = "/sys/fs/bpf/zylaxion/events";
 pub const PIN_MAP_STATS: &str = "/sys/fs/bpf/zylaxion/stats";
 
+/// The attach-failure marker pin (night-improve-25): a one-entry
+/// array map holding the [`crate::ebpf::attach_error::AttachError`]
+/// code of the LAST failed attach, planted ONLY on failure so the
+/// doctor can name the cause after the process is gone. It is NOT
+/// part of [`ALL_PINS`] — a complete attach never carries it (a
+/// pin-set-completeness check that demanded the failure marker would
+/// be a lie). The next attach's self-heal pass and `detach` both
+/// remove it.
+pub const PIN_MAP_ERROR: &str = "/sys/fs/bpf/zylaxion/attach_error";
+
 /// Every pin the attach lane plants, in removal order (link first —
 /// unlinking the link detaches the tap; maps and program last).
 pub const ALL_PINS: [&str; 6] = [
@@ -50,14 +60,24 @@ pub fn all_pins_present() -> bool {
 
 /// True when at least one pin exists — the "zylaxion left something in
 /// the kernel" signal `attach` uses to offer cleanup and `detach` uses
-/// to report idempotence.
+/// to report idempotence. The failure marker counts: it IS something
+/// left in the kernel.
 pub fn any_pin_present() -> bool {
-    ALL_PINS.iter().any(|p| Path::new(p).exists())
+    ALL_PINS.iter().any(|p| Path::new(p).exists()) || error_marker_present()
+}
+
+/// True when the attach-failure marker is planted — the doctor's cue
+/// to name the last attach failure (and the operator's hint that the
+/// tap is NOT attached despite the directory being non-empty).
+pub fn error_marker_present() -> bool {
+    Path::new(PIN_MAP_ERROR).exists()
 }
 
 /// Unpin everything (best-effort, idempotent). Returns the names that
-/// were actually removed so `detach` can report honestly. The pin
-/// directory is removed last.
+/// were actually removed so `detach` can report honestly. The failure
+/// marker is removed with the rest (link first — unlinking the link
+/// detaches the tap; maps, program and marker last); the pin directory
+/// goes last of all.
 pub fn clear_pins() -> Vec<&'static str> {
     let mut removed = Vec::new();
     for p in ALL_PINS {
@@ -67,6 +87,10 @@ pub fn clear_pins() -> Vec<&'static str> {
         if std::fs::remove_file(p).is_ok() {
             removed.push(p);
         }
+    }
+    // The failure marker rides the same directory discipline.
+    if std::fs::remove_file(PIN_MAP_ERROR).is_ok() {
+        removed.push(PIN_MAP_ERROR);
     }
     let _ = std::fs::remove_dir(PIN_DIR);
     removed

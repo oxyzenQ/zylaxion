@@ -44,6 +44,10 @@ const PRESET_ID_SLOT: u32 = 1;
 const VOLUME_PCT_SLOT: u32 = 2;
 const PLAYER_PID_SLOT: u32 = 3;
 const STATE_SLOT: u32 = 4;
+/// The attach-chain step that owns the live tap (night-improve-25):
+/// the mirror of `control::TAP_KIND` in the loader (and, behind it,
+/// control_slots::TAP_KIND on the ebpf side).
+const TAP_KIND_SLOT: u32 = 5;
 const STATE_IDLE: u32 = 0;
 const STATE_RUNNING: u32 = 2;
 
@@ -374,13 +378,31 @@ pub fn cmd_status(verbose: bool) {
             "the pin set is partial (a crashed attach?) — sudo zylaxion attach replants it",
         );
     }
+    // Open the control map once: the tap line below reads the chain
+    // step from it, the posture block reads the rest.
+    let control = open_control();
+
+    // Which chain step owns the live tap (night-improve-25): the
+    // TAP_KIND control slot records fentry:input_event /
+    // kprobe:input_event / kprobe:input_handle_event at attach. A slot
+    // this build cannot parse (a newer binary attached this tap?)
+    // renders honestly as unknown instead of guessing.
+    let tap_word = match control
+        .as_ref()
+        .ok()
+        .and_then(|c| c.get(&TAP_KIND_SLOT, 0).ok())
+        .and_then(crate::ebpf::loader::TapKind::from_slot)
+    {
+        Some(kind) => kind.label().to_string(),
+        None => "an unknown chain step (a newer binary attached this tap?)".to_string(),
+    };
     println!(
-        "tap:      attached ({} pins under {})",
+        "tap:      attached via {tap_word} ({} pins under {})",
         pin::ALL_PINS.len(),
         pin::PIN_DIR
     );
 
-    let Ok(control) = open_control() else {
+    let Ok(control) = control else {
         crate::output::warning("the pinned control map is not openable by this user");
         return;
     };

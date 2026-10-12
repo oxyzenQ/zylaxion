@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# OS: Linux only — zylaxion is a Linux eBPF tool; no other OS is supported.
+#
 # regenerate-ebpf-prebuilt.sh (night-improve-25) — rebuild the tap
 # object and refresh ebpf-prebuilt/ after any change under ebpf/.
 #

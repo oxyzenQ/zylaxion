@@ -139,6 +139,18 @@ pub fn cmd_doctor() {
                 "      note: input_event tracepoint not visible from this session (tracefs may be restricted) — the attach attempt is the authoritative verdict"
             );
         }
+        // The last attach failure, if one left its marker (night-improve-25):
+        // a failed attach plants a small pinned map carrying the classified
+        // error code; naming it here is the doctor's honesty duty — the tap
+        // is not attached, and this line says exactly why the last attempt
+        // failed.
+        #[cfg(feature = "ebpf")]
+        if let Some(err) = crate::ebpf::loader::last_attach_error() {
+            println!(
+                "      note: last attach failed: {err} — `sudo zylaxion attach` prints the \
+                 per-step log"
+            );
+        }
         if kernel.lockdown_readable && kernel.lockdown_blocks_bpf {
             println!(
                 "      {}",
