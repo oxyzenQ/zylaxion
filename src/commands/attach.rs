@@ -20,9 +20,13 @@ use std::process;
 pub fn cmd_attach() {
     // The privilege verdict (night-improve-16's audit table, the
     // night-improve-23 REQUIRE row): attach is the one surface that
-    // must run as root.
+    // must run as root. night-badas-1: this gate once passed the
+    // NEGATED euid fact — root was refused ("attach must run as root"
+    // under sudo) while non-root sailed through. The polarity below
+    // must stay positive, matching the sibling gates in player.rs
+    // and update.rs, and the tests pin it both ways.
     if let Some(refusal) =
-        crate::session::privilege::attach_requirement(!crate::session::privilege::euid_is_root())
+        crate::session::privilege::attach_requirement(crate::session::privilege::euid_is_root())
     {
         crate::output::error(refusal);
         process::exit(1);

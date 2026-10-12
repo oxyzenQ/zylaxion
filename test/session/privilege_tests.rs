@@ -66,3 +66,39 @@ fn session_refusal_allows_non_root() {
         "non-root must pass the guard"
     );
 }
+
+/// Drift pin for the attach surface (night-badas-1): the ONE surface
+/// that must run privileged. Non-root is refused with the requirement
+/// (CAP_BPF/CAP_PERFMON), the sudo tip, and the promise that every
+/// other surface stays unprivileged.
+#[test]
+fn attach_requirement_refuses_non_root() {
+    let msg = attach_requirement(false).expect("non-root must be refused");
+    assert!(
+        msg.contains("attach must run as root"),
+        "requirement must state the root requirement, got: {msg}"
+    );
+    assert!(
+        msg.contains("CAP_BPF/CAP_PERFMON"),
+        "requirement must name the capabilities, got: {msg}"
+    );
+    assert!(
+        msg.contains("tip: sudo zylaxion attach"),
+        "requirement must carry the sudo tip, got: {msg}"
+    );
+    assert!(
+        msg.contains("unprivileged"),
+        "requirement must promise the other surfaces stay unprivileged, got: {msg}"
+    );
+}
+
+/// The polarity pin the wiring once inverted (night-badas-1): under
+/// root the gate must OPEN — `sudo zylaxion attach` is the intended
+/// entry into the one privileged surface.
+#[test]
+fn attach_requirement_allows_root() {
+    assert!(
+        attach_requirement(true).is_none(),
+        "root must pass the gate — the sudo lane is the intended entry"
+    );
+}

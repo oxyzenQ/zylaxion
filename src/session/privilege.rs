@@ -81,10 +81,15 @@ pub fn session_refusal(euid_is_root: bool) -> Option<&'static str> {
 /// The inverse lane of the refusals above (night-improve-23): attach is
 /// the ONE surface that must run privileged — loading a BPF program and
 /// pinning it needs CAP_BPF/CAP_PERFMON, and sudo is the honest way in.
-/// The requirement is phrased as a refusal of the NON-root case: the
-/// caller passes `!euid_is_root()`. The pins are chowned to the invoking
-/// sudo user inside attach, so this is the only privileged invocation
-/// the whole architecture needs.
+/// The requirement is phrased as a refusal of the NON-root case: it
+/// returns the refusal wording exactly when the passed fact is false,
+/// and `None` under root — the caller passes the plain `euid_is_root()`
+/// fact, the same positive polarity as the sibling refusals (this doc
+/// once described the negated call as the contract; night-badas-1 fixed
+/// the wiring that matched it and the tests now pin both polarities).
+/// The pins are chowned to the invoking sudo user inside attach, so
+/// this is the only privileged invocation the whole architecture
+/// needs.
 pub fn attach_requirement(euid_is_root: bool) -> Option<&'static str> {
     if !euid_is_root {
         Some(
