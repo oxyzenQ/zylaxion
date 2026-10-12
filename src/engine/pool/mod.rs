@@ -329,7 +329,10 @@ impl Default for VoicePool {
 /// Write an interleaved stereo f32 buffer as a 32-bit float WAV file.
 ///
 /// Only intended for test/output verification — not part of the public API.
+/// Under the miri interpreter its only caller is compiled out (the
+/// interpreter refuses host file writes), hence the scoped allow.
 #[cfg(test)]
+#[cfg_attr(miri, allow(dead_code))]
 fn write_wav_f32(path: &str, samples: &[f32], sample_rate: u32) {
     use std::io::Write;
 

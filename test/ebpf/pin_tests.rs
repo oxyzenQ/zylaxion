@@ -49,9 +49,15 @@ fn pins_are_distinct_paths() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)]
 fn presence_checks_agree_with_the_filesystem() {
-    // Pure consistency: all-present implies any-present (on hosts with
-    // real pins this reads the LIVE state and must still hold).
+    // Pure consistency: all-present implies any-present. The check
+    // reads the LIVE pin state (statx on bpffs paths), so the miri
+    // interpreter refuses it by design — isolation forbids host file
+    // probes, and on pin-less hosts (CI) the conditional is vacuous
+    // anyway; the assertion earns its keep on dev hosts where a live
+    // tap exists. Fenced from the interpreter lane, kept everywhere
+    // else.
     if all_pins_present() {
         assert!(any_pin_present());
     }
