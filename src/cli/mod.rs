@@ -103,7 +103,7 @@ mod tests;
 /// The `styles` attribute wires the brand palette (purple headings,
 /// grey grammar tier for every flag spelling and command synopsis) into
 /// every surface clap renders — see `cli_styles` for the contract.
-/// The help flag is disabled here and re-declared as the [`Cli::help`]
+/// The help flag is disabled here and redeclared as the [`Cli::help`]
 /// field below: one curated reference, the zelynic single-tier law.
 #[derive(Parser)]
 #[command(

@@ -34,7 +34,7 @@ pub struct KernelReport {
     /// when unreadable.
     pub release: String,
     /// `(major, minor)` parsed from `release`; `None` when
-    /// unparseable.
+    /// unparsable.
     pub parsed: Option<(u32, u32)>,
     /// `/sys/kernel/btf/vmlinux` exists. Optional for the tracepoint
     /// tap (no CO-RE introspection needed) — reported for
@@ -86,7 +86,7 @@ pub fn is_supported(parsed: Option<(u32, u32)>) -> bool {
 ///
 /// Handles the real-world shapes: "6.8.0-45-generic",
 /// "5.15.167.4-microsoft-standard-WSL2", "6.12.1". The major must
-/// parse; a missing minor reads as 0; a present-but-unparseable
+/// parse; a missing minor reads as 0; a present-but-unparsable
 /// minor is a hard `None` (never guess a version the kernel did not
 /// state).
 pub fn parse_kernel_release(release: &str) -> Option<(u32, u32)> {
