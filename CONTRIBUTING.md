@@ -23,10 +23,14 @@ and the acceptance options live in [CLA.md](CLA.md).
 
 - Rust 1.98.1 (pinned in `rust-toolchain.toml` — rustup picks it up on
   the first command inside the checkout; no manual install).
-- Linux build headers for the hardware lanes, from your distro:
-  `libasound2-dev` (ALSA), `libudev-dev`, `libinput-dev` (plus its
-  runtime libraries). A container-less Debian/Ubuntu one-liner:
-  `sudo apt install libasound2-dev libudev-dev libinput-dev`.
+- Linux build headers for the audio lane, from your distro:
+  `libasound2-dev` (ALSA — cpal's backend). night-improve-23 removed
+  the input-half headers: the eBPF tap needs no input libraries, and
+  the BPF object ships embedded. A container-less Debian/Ubuntu
+  one-liner: `sudo apt install libasound2-dev`.
+  Developing the tap itself (changing ebpf/src) additionally needs the
+  dated nightly toolchain and the pinned bpf-linker prebuilt — one
+  command: `./scripts/dev/bootstrap-ebpf.sh`.
 - A Linux desktop session with an audio server (PipeWire or ALSA) for
   actually running the binary — building needs none of that, and the
   pure-computation test surface runs headless.
@@ -43,13 +47,14 @@ runs).
 
 ```
 src/                   — one package, the cosmic dragon engine
-  core/                — the orchestrator: wires input events to synthesis
-  input/               — evdev/libinput capture lane
+  core/                — the orchestrator: wires key events to synthesis
+  ebpf/                — the userspace eBPF loader: attach/pin/detach
+                         (night-improve-23; the kernel-side source is ebpf/src)
   audio/               — audio backend lane (cpal / PipeWire / ALSA)
   engine/              — the real-time synthesis engine (voice pool)
   profiles/            — the acoustic preset tables and tuning model
-  cli|commands|daemon|info|output|session/ — the shell: CLI, config
-                         system, daemonization, commands
+  cli|commands|info|output|session/ — the shell: CLI, commands,
+                         diagnostics, output lanes, session contract
 docs/                  — architecture, branding, verification, audits
 scripts/
   build.sh             — the local gate entry point

@@ -3,10 +3,12 @@
 # OS: Linux only - zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 # Copyright (C) 2026 rezky_nightky
 #
-# Uninstall zylaxion: binary + systemd user service.
+# Uninstall zylaxion: binary + the tap's boot oneshot (night-improve-23:
+# there is no daemon user service anymore) + a kernel-side sweep.
 # Auto-detects and removes from all known locations:
 #   binary:  /usr/bin/, ~/.local/bin/
-#   service: /etc/systemd/user/, ~/.config/systemd/user/
+#   oneshot: /etc/systemd/system/zylaxion-attach.service
+#   kernel:  the pinned tap (sudo zylaxion detach)
 #   legacy:  /etc/zylaxion/, ~/.config/zylaxion/ (config-era leftovers;
 #            night-improve-22 retired the config file — the binary no
 #            longer reads either directory, uninstall still cleans them)
@@ -50,9 +52,9 @@ done
 # Best-effort: disable systemd user unit first (only if running as non-root
 # and a user service is detected).
 if [[ "${MODE}" != "--system" ]] && [[ "$(id -u)" -ne 0 ]]; then
-    if systemctl --user is-enabled "${PROJECT_NAME}.service" >/dev/null 2>&1; then
+    if systemctl is-enabled "${PROJECT_NAME}-attach" >/dev/null 2>&1; then
         echo ">> Disabling systemd user unit..."
-        systemctl --user disable --now "${PROJECT_NAME}.service" 2>/dev/null || true
+        systemctl disable --now "${PROJECT_NAME}-attach" 2>/dev/null || true
     fi
 fi
 
@@ -74,15 +76,23 @@ remove_at() {
 
 echo ">> Uninstalling ${PROJECT_NAME}"
 
+# Kernel-side sweep FIRST (the binary must still exist to run it): the
+# pinned tap outlives the binary otherwise — night-improve-23's detach
+# is the only clean unpinner. Best-effort: a host without the tap (or
+# without sudo) skips this and bpftool remains the manual escape hatch.
+if command -v "${PROJECT_NAME}" >/dev/null 2>&1; then
+    echo ">> detaching the kernel-side tap (best effort)"
+    sudo "${PROJECT_NAME}" detach 2>/dev/null ||         echo "   (detach skipped — no tap attached, or no sudo; manual: sudo bpftool path delete, or ignore: a reboot clears bpffs)"
+fi
+
 case "${MODE}" in
     --system)
         remove_at "/usr/bin/${PROJECT_NAME}" yes
         remove_at "/etc/${PROJECT_NAME}" yes
-        remove_at "/etc/systemd/user/${PROJECT_NAME}.service" yes
+        remove_at "/etc/systemd/system/${PROJECT_NAME}-attach.service" yes
         ;;
     --user)
         remove_at "${HOME}/.local/bin/${PROJECT_NAME}" no
-        remove_at "${HOME}/.config/systemd/user/${PROJECT_NAME}.service" no
         if [[ ${PURGE} -eq 1 ]]; then
             remove_at "${HOME}/.config/${PROJECT_NAME}" no
         elif [[ -d "${HOME}/.config/${PROJECT_NAME}" ]]; then
@@ -103,8 +113,7 @@ case "${MODE}" in
             echo "         (the binary no longer reads it; remove with: ./scripts/package/uninstall.sh --purge)"
         fi
         # Service
-        remove_at "/etc/systemd/user/${PROJECT_NAME}.service" yes
-        remove_at "${HOME}/.config/systemd/user/${PROJECT_NAME}.service" no
+        remove_at "/etc/systemd/system/${PROJECT_NAME}-attach.service" yes
         ;;
 esac
 
@@ -116,4 +125,4 @@ fi
 echo
 echo ">> Done. Removed ${removed} artifact(s)."
 echo "   Reload systemd to reflect changes:"
-echo "     systemctl --user daemon-reload"
+echo "     systemctl daemon-reload"

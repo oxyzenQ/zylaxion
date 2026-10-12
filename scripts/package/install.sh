@@ -3,20 +3,24 @@
 # OS: Linux only - zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 # Copyright (C) 2026 rezky_nightky
 #
-# Install zylaxion: binary + systemd user service.
+# Install zylaxion: binary + the kernel-side tap's boot oneshot.
 # Supports --system (system-wide) and --user (default, ~/.local).
 # Run WITHOUT sudo: the script escalates via sudo ONLY for --system install steps.
 #
 # night-improve-22: no config file exists anymore. All presets are
 # compiled into the binary and selected with --preset or the
-# ZYLAXION_PRESET environment variable, so this script installs two
-# artifacts instead of three.
+# ZYLAXION_PRESET environment variable.
+# night-improve-23: there is NO daemon and NO user service. The
+# kernel-side tap is planted once per boot by the SYSTEM oneshot unit
+# (zylaxion-attach.service, --system mode) or by hand with
+# `sudo zylaxion attach` (--user mode) — a oneshot that exits, not a
+# supervised process.
 
 set -euo pipefail
 
 PROJECT_NAME="zylaxion"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SERVICE_SRC="${REPO_ROOT}/assets/zylaxion.service"
+ATTACH_UNIT_SRC="${REPO_ROOT}/assets/zylaxion-attach.service"
 
 usage() {
     cat <<EOF
@@ -24,11 +28,12 @@ Usage: $0 [--system|--user]
 
   --system   Install system-wide:
                binary  → /usr/bin/${PROJECT_NAME}
-               service → /etc/systemd/user/${PROJECT_NAME}.service
+               oneshot → /etc/systemd/system/${PROJECT_NAME}-attach.service
+                         (enabled: plants the tap at every boot)
              (script invokes sudo for the install steps)
   --user     Install to user-local (default, no sudo):
                binary  → ~/.local/bin/${PROJECT_NAME}
-               service → ~/.config/systemd/user/${PROJECT_NAME}.service
+               no unit — plant the tap by hand: sudo zylaxion attach
 
 Preset selection is compiled in: pass --preset <name> on the CLI or
 export ZYLAXION_PRESET=<name> (systemd units take Environment=).
@@ -83,8 +88,8 @@ if [[ ! -f Cargo.toml ]]; then
     exit 1
 fi
 
-if [[ ! -f "${SERVICE_SRC}" ]]; then
-    echo "error: required file not found: ${SERVICE_SRC}" >&2
+if [[ ! -f "${ATTACH_UNIT_SRC}" ]]; then
+    echo "error: required file not found: ${ATTACH_UNIT_SRC}" >&2
     exit 1
 fi
 
@@ -101,14 +106,13 @@ echo ">> [2/3] Installing binary (${MODE})"
 case "${MODE}" in
     --system)
         # v10.2.0: if a user-local install exists, clean it up first
-        # so there are no stale binaries or service in ~ that would
-        # shadow the system-wide install.
+        # so there are no stale binaries in ~ that would shadow the
+        # system-wide install.
         user_bin="${HOME}/.local/bin/${PROJECT_NAME}"
-        user_svc="${HOME}/.config/systemd/user/${PROJECT_NAME}.service"
-        if [[ -f "${user_bin}" ]] || [[ -f "${user_svc}" ]]; then
-            echo "   cleaning existing user-local binary + service..."
-            rm -f "${user_bin}" "${user_svc}"
-            echo "   cleaned: ${user_bin} + ${user_svc}"
+        if [[ -f "${user_bin}" ]]; then
+            echo "   cleaning existing user-local binary..."
+            rm -f "${user_bin}"
+            echo "   cleaned: ${user_bin}"
         fi
         "${SUDO}" install -Dm755 "${BINARY}" "/usr/bin/${PROJECT_NAME}"
         echo "   installed: /usr/bin/${PROJECT_NAME}"
@@ -121,50 +125,46 @@ case "${MODE}" in
         ;;
 esac
 
-echo ">> [3/3] Installing systemd user unit (${MODE})"
+echo ">> [3/3] Kernel-side tap posture (${MODE})"
 case "${MODE}" in
     --system)
-        # System-wide user unit. Modify ExecStart to point to /usr/bin.
-        "${SUDO}" mkdir -p "/etc/systemd/user"
-        sed 's|%h/.local/bin/'"${PROJECT_NAME}"'|/usr/bin/'"${PROJECT_NAME}"'|g' \
-            "${SERVICE_SRC}" | "${SUDO}" tee "/etc/systemd/user/${PROJECT_NAME}.service" >/dev/null
-        "${SUDO}" chmod 644 "/etc/systemd/user/${PROJECT_NAME}.service"
-        echo "   installed: /etc/systemd/user/${PROJECT_NAME}.service"
+        # The system oneshot: plants the tap at every boot (bpffs pins
+        # do not survive a reboot). A ONESHOT, not a daemon — it exits
+        # and stays dead; the kernel side remains.
+        "${SUDO}" install -Dm644 "${ATTACH_UNIT_SRC}" \
+            "/etc/systemd/system/${PROJECT_NAME}-attach.service"
+        "${SUDO}" systemctl daemon-reload
+        "${SUDO}" systemctl enable "${PROJECT_NAME}-attach" >/dev/null 2>&1 && \
+            echo "   enabled: ${PROJECT_NAME}-attach (plants the tap at every boot)" ||
+            echo "   (enable manually: sudo systemctl enable ${PROJECT_NAME}-attach)"
+        echo "   start it now: sudo systemctl start ${PROJECT_NAME}-attach"
         ;;
     --user)
-        user_svc_dir="${HOME}/.config/systemd/user"
-        mkdir -p "${user_svc_dir}"
-        install -Dm644 "${SERVICE_SRC}" \
-            "${user_svc_dir}/${PROJECT_NAME}.service"
-        echo "   installed: ${user_svc_dir}/${PROJECT_NAME}.service"
+        echo "   no unit in user mode — plant the tap by hand (once per boot):"
+        echo "     sudo zylaxion attach"
+        echo "   or install the system oneshot: $0 --system"
         ;;
 esac
 
-# ── Post-install checks ─────────────────────────────────────────────
-echo
-echo ">> Post-install checks"
-if id -nG "${USER}" 2>/dev/null | tr ' ' '\n' | grep -qx "input"; then
-    echo "   OK  User '${USER}' is in the 'input' group."
-else
-    echo "   WARNING  User '${USER}' is NOT in the 'input' group."
-    echo "            ${PROJECT_NAME} needs raw keyboard access via evdev."
-    echo "            Add '${USER}' to the 'input' group, then log out and back in:"
-    echo "              sudo usermod -aG input ${USER}"
-fi
-
-echo
 echo ">> Done."
 echo
 echo "Next steps:"
-echo "  - Reload systemd user units:"
-echo "      systemctl --user daemon-reload"
-echo "  - Enable + start ${PROJECT_NAME}:"
-echo "      systemctl --user enable --now ${PROJECT_NAME}"
-echo "  - Live logs:"
-echo "      journalctl --user -u ${PROJECT_NAME} -f"
+if [[ "${MODE}" == "--system" ]]; then
+echo "  - Plant the tap now (the oneshot is enabled for future boots):"
+echo "      sudo systemctl start ${PROJECT_NAME}-attach"
+echo "  - Then, as your user:"
+echo "      ${PROJECT_NAME} on"
+else
+echo "  - Plant the tap (once per boot):"
+echo "      sudo ${PROJECT_NAME} attach"
+echo "  - Then:"
+echo "      ${PROJECT_NAME} on"
+fi
 echo "  - Pick a preset (24 compiled in):"
 echo "      ${PROJECT_NAME} list-presets"
-echo "      export ZYLAXION_PRESET=ibm_model_m   # persistent selection"
+echo "      ${PROJECT_NAME} preset --name ibm_model_m   # live switch"
+echo "  - Turn it off:"
+echo "      ${PROJECT_NAME} off"
 echo "  - Uninstall:"
 case "${MODE}" in
     --system) echo "      sudo ./scripts/package/uninstall.sh --system" ;;

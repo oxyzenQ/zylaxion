@@ -73,20 +73,35 @@ No audio files. No sample libraries. No wavetable playback. Just math.
   variable; tune loudness with `ZYLAXION_VOLUME`. No config file, no
   watcher thread, no validation subcommand — a sound switcher does
   not need them (night-improve-22).
-- **Daemon mode** — POSIX-compliant daemonization with signal handling,
-  PID file with recycling protection, and Unix Domain Socket IPC for
-  remote stop/status commands.
+- **Kernel-side eBPF tap, zero daemons** (night-improve-23) — the input
+  tap is a pure-Rust eBPF program pinned to the input_event tracepoint,
+  the state store is pinned BPF maps on bpffs, and the player is a
+  stateless process that owns nothing: no PID file, no Unix socket, no
+  IPC protocol, no flock, no supervision. `sudo zylaxion attach` once
+  per boot, then every verb is unprivileged and instant.
+- **Passive tap, zero interference** — no `/dev/input` access, no evdev
+  grab, no udev rules, no `input` group membership. Device hotplug,
+  suspend/resume, and other input consumers (libinput, the compositor)
+  are untouched by construction.
+- **Kernel-side typing telemetry** — the tap accumulates per-key
+  counters in the kernel at zero userspace cost; `zylaxion stats`
+  renders them (a feature no userspace sound tool can offer for free).
 - **Zero system dependencies** — only requires a C compiler for linking.
-  Audio via PipeWire/PulseAudio (system), input via libinput (kernel evdev).
-- **Linux-first** — built for the Linux kernel's evdev subsystem.
-  No X11 or Wayland dependency; input capture works everywhere.
+  Audio via PipeWire/PulseAudio (system); the input half lives in the
+  kernel.
+- **Linux-first** — built for the Linux kernel (5.15 minimum, verified
+  by `zylaxion doctor`: "verified supported" / "verified unsupported").
+  No X11 or Wayland dependency; the tap works everywhere the kernel
+  does.
 
 ## Installation
 
 ### From source
 
 Requires: Rust toolchain ([rustup.rs](https://rustup.rs/)),
-`pkg-config`, `libasound2-dev`, `libinput-dev`, `libudev-dev`.
+`pkg-config`, `libasound2-dev`. (The libinput/libudev headers died with
+the libinput capture in night-improve-23 — the tap needs none of them;
+the eBPF object ships embedded in the binary.)
 
 > zylaxion plays audio through `cpal`, which talks to PipeWire /
 > PulseAudio / ALSA via the OS's default audio bridge. No PipeWire
@@ -110,21 +125,23 @@ To install system-wide (binary → `/usr/bin/`):
 ./scripts/package/install.sh --system
 ```
 
-The installer copies the binary and systemd user service. Use
-`--user` (default) for `~/.local/bin/` or `--system` for `/usr/bin/`.
-It runs `cargo build --release --locked` automatically.
+The installer copies the binary; with `--system` it also installs and
+enables the **boot oneshot** (`/etc/systemd/system/zylaxion-attach.service`)
+that plants the kernel-side tap at every boot. It is a `Type=oneshot`
+unit, not a daemon: it runs `zylaxion attach`, exits, and stays dead —
+what remains resident is the kernel side only (one passive BPF program
+plus pinned maps, zero processes).
 
-Since v3.0.0 the installer also deploys a **systemd user service** to
-`~/.config/systemd/user/zylaxion.service`. To enable auto-start on login:
+Without the oneshot (--user installs), plant the tap by hand, once per
+boot:
 
 ```bash
-systemctl --user enable --now zylaxion
-systemctl --user status  zylaxion
-journalctl --user -u zylaxion -f   # live logs
+sudo zylaxion attach
 ```
 
-> **Note:** your user must be in the `input` group for keyboard access:
-> `sudo usermod -aG input $USER && log out/in`
+> **Note:** no `input` group, no udev rules — the tap is a passive
+> kernel-side probe, and the attach hands the pins to your user so every
+> other verb stays unprivileged.
 
 ### Download a release binary
 
@@ -160,15 +177,18 @@ EXPECTED=$(awk '{print $1}' zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz.shake256)
 ## Usage
 
 ```
-zylaxion                         # Quick status overview (daemon, preset, audio)
+sudo zylaxion attach             # Plant the kernel-side tap (once per boot)
+zylaxion on                      # Sound on (spawns the stateless player)
+zylaxion on --preset cherryMX    # Sound on with a compiled-registry preset
+zylaxion preset --name tpt       # Switch the preset live while playing
+zylaxion volume --percent 60     # Retune the master volume live
+zylaxion off                     # Sound off (player self-exits, zero processes)
+zylaxion stats                   # Kernel-side typing telemetry
+zylaxion status                  # Kernel verdict, tap residency, player state
+sudo zylaxion detach             # Unpin everything — nothing left in the kernel
+zylaxion                         # Quick status overview
 zylaxion --live                  # Live overview (refreshes every 2s, like watch)
-zylaxion start                   # Foreground mode (Ctrl+C to quit)
-zylaxion start --preset cherryMX # Select a preset from the compiled registry
-zylaxion daemon                  # Background daemon mode
-zylaxion daemon --foreground     # Foreground daemon (for systemd)
-zylaxion stop                    # Stop a running daemon
-zylaxion status                  # Check if daemon is running
-zylaxion doctor                  # System health diagnostic
+zylaxion doctor                  # System health diagnostic (kernel verdict included)
 zylaxion list-presets            # List the 24 compiled presets + active one
 zylaxion list-backends           # Show available audio backends
 zylaxion --check-update          # Check for latest GitHub release
@@ -195,10 +215,10 @@ laptop-speaker default of 5.5. An invalid value is a hard error —
 there is no silent fallback, and an unknown preset name prints the
 full catalog plus a did-you-mean tip.
 
-A preset is chosen once at process start. To change it, restart the
-daemon (`systemctl --user restart zylaxion`, or `zylaxion stop` +
-`zylaxion start`). For a sound switcher that is the honest
-lifecycle — there is nothing to hot-reload.
+A preset is chosen when the sound starts; while playing, switch it
+live with `zylaxion preset --name <name>` (one map write — the player's
+watcher thread swaps the DSP model in place). For a sound switcher
+that is the honest lifecycle — there is nothing to hot-reload.
 
 ### Built-in sound presets
 
@@ -291,8 +311,9 @@ is codified in [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md).
   scancodes into letters, symbols, or text. It feeds them straight
   into the DSP engine to choose a stereo pan position and trigger a
   click sound.
-- The kernel's `evdev` interface via `libinput` — same data any
-  keyboard-aware Linux program can read.
+- The kernel's input core via the eBPF tap on the `input_event`
+  tracepoint — the same key events the kernel itself dispatches,
+  observed passively (night-improve-23).
 
 ### What zylaxion does NOT do
 
@@ -302,24 +323,27 @@ is codified in [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md).
   src/ | grep -E 'log::|println!|eprintln!'` returns zero hits
   in production paths.
 - **Does not store keystrokes** — there is no on-disk log, no
-  history file, no analytics. The only thing zylaxion writes to disk
-  is its PID file (`$XDG_RUNTIME_DIR/zylaxion.pid`) and the daemon's
-  Unix socket (`$XDG_RUNTIME_DIR/zylaxion.sock`).
+  history file, no analytics. Nothing is written to any filesystem:
+  the state store is pinned BPF maps on bpffs, and the per-key press
+  counters in the stats map are aggregate counts (which keycode, how
+  many times), never sequences — a frequency histogram cannot be
+  replayed into typed text.
 - **Does not transmit keystrokes** — no telemetry, no analytics, no
   crash reports. The only outbound network call is the explicit
   `zylaxion --check-update` subcommand, which fetches the latest
   GitHub release tag and exits. No background phone-home. Under
   root (`sudo`, `su`, a root shell) that check refuses with a
-  "do not use sudo" error before any network I/O, and `start` /
-  `daemon` refuse too — a root daemon would plant root-owned lock,
-  socket, and PID files inside your session, breaking the next
-  user-mode run. `zylaxion doctor` warns when run as root because
-  its verdicts describe root's session, not yours.
+  "do not use sudo" error before any network I/O, and the player
+  refuses root the same way — a root player would open audio in
+  root's session, which no user desktop shares. `zylaxion doctor`
+  warns when run as root because its verdicts describe root's
+  session, not yours.
 - **Does not accept inbound network connections** — there is no TCP
-  listener, no HTTP server. The only IPC channel is a Unix domain
-  socket bound to `$XDG_RUNTIME_DIR/zylaxion.sock` with file mode
-  `0o600` (owner-only read/write). Other users on the system cannot
-  send `stop` / `status` commands to your daemon.
+  listener, no HTTP server, no Unix socket, no IPC protocol. The
+  control plane is pinned BPF maps on bpffs: the only writers are the
+  attach process (root, once) and your own user's CLI verbs
+  (bpffs file permissions govern access — the attach hands the pins
+  to your user, so other users cannot touch your sound).
 
 ### Why this matters
 
@@ -340,9 +364,9 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
     grep -E 'log::|println!|eprintln!' | \
     grep -v 'examples/'
 
-# Verify the IPC socket has mode 0o600 after starting the daemon:
-ls -l "$XDG_RUNTIME_DIR/zylaxion.sock"
-# Expected: srw------- 1 user user 0 ... zylaxion.sock
+# Introspect the entire control plane with stock kernel tooling:
+bpftool map dump pinned /sys/fs/bpf/zylaxion/control
+# The kernel IS the config, the config IS introspectable.
 ```
 
 ## Building
@@ -390,9 +414,9 @@ detached signature (`.asc`):
   dynamic glibc
 
 Pick v3 when in doubt: every CPU that runs v4 runs v3. The musl lane
-is documented dormant (the C input/audio stack — libinput/udev/alsa —
-has no static musl answer yet; the evidence and the unlock paths live
-in the release workflow's matrix header). Verification walkthrough:
+is documented dormant (the alsa C library — cpal's backend — has no
+static musl answer yet; the evidence and the unlock paths live in the
+release workflow's matrix header). Verification walkthrough:
 [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md).
 
 ## Uninstall
@@ -403,22 +427,34 @@ in the release workflow's matrix header). Verification walkthrough:
 
 ## Architecture
 
+The daemonless control plane (night-improve-23) — the kernel owns the
+state, the tap is passive, the player is disposable:
+
 ```
-input (The Ears)         core (The Brain)       engine (The Voice)      audio (The Mouth)
-───────────             ──────────             ───────────────         ─────────────
-LibinputSource ──►      recv_timeout()
-   InputKeyEvent          │
-                     trigger / release
-                           │
-                           ▼
-                     VoicePool::process()
-                           │
-                     [[f32; 2]] batch
-                           │
-                           ▼
-                     AudioSink::write_batch()
-                                          ringbuf ──►  cpal callback
-```
+                 KERNEL (resident, ~1-2us per keystroke)
+ ┌────────────────────────────────────────────────────────────┐
+ │  eBPF tap: input_event tracepoint (the ears)               │
+ │    │  filter: EV_KEY, press/release, mapped keys only,     │
+ │    │  enabled gate, per-key stats (BPF_ATOMIC fetch-add)   │
+ │    ▼                                                       │
+ │  pinned maps on /sys/fs/bpf/zylaxion/ (the brain):         │
+ │    control (enabled, preset, volume, player pid)           │
+ │    keymap  (keycode -> sound class)                        │
+ │    events  (ring buffer)      stats (per-key counters)     │
+ └────────────────────────────┬───────────────────────────────┘
+                              │ epoll (zero idle CPU)
+                              ▼
+                 PLAYER (alive only while sound plays)
+ ┌────────────────────────────────────────────────────────────┐
+ │  zylaxion _play — stateless, owns nothing (the mouth):     │
+ │  drain ring buffer -> core Orchestrator -> VoicePool ->    │
+ │  ringbuf -> cpal callback -> PipeWire/ALSA -> speakers     │
+ └────────────────────────────────────────────────────────────┘
+
+ CLI (lives < 5 ms, then exits):
+   zylaxion on | off | preset | volume | stats | status  -> map writes/reads
+   sudo zylaxion attach | detach                         -> plant / remove
+
 
 ## Stability
 

@@ -1,0 +1,53 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# systemd SYSTEM oneshot unit for zylaxion's kernel-side tap
+# (night-improve-23, the daemonless architecture).
+#
+# This is NOT a daemon: Type=oneshot stays the boot sequence only while
+# it runs `zylaxion attach` — loading the tap, attaching it to the
+# input_event tracepoint, and pinning the control plane to bpffs — then
+# exits and stays dead. What remains resident is the kernel side only:
+# one passive BPF program and a handful of pinned maps, zero processes.
+#
+# Install to:
+#   /etc/systemd/system/zylaxion-attach.service
+#
+# Enable (runs once at every boot, because bpffs pins do not survive
+# a reboot):
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now zylaxion-attach
+#
+# After it runs, every zylaxion verb is unprivileged:
+#   zylaxion on --preset cherryMX
+#
+# The attach hands the pins to the invoking sudo user; this unit runs
+# as plain root, so the pins stay root-owned — the player and CLI then
+# read them as root too? No: this unit exists for the SYSTEM-WIDE
+# posture. For a per-user hand-off run `sudo zylaxion attach` from your
+# session instead (the pins are chowned to $SUDO_USER), or set User=
+# below to your user so the chown lane picks it up.
+
+[Unit]
+Description=zylaxion eBPF tap attach (oneshot, not a daemon)
+Documentation=https://github.com/oxyzenQ/zylaxion
+# The tap needs bpffs mounted and the input subsystem up.
+After=systemd-remount-fs.service
+Wants=systemd-remount-fs.service
+# A oneshot never restarts into a daemon shape; failures are loud.
+RemainAfterExit=no
+
+[Service]
+Type=oneshot
+# Change this to your username to get the pin ownership hand-off
+# (the attach chowns the pins to the invoking user when it can).
+#User=youruser
+ExecStart=/usr/bin/zylaxion attach
+# A failed attach (locked-down kernel, missing bpffs) must be visible,
+# never silently retried into a loop.
+RemainAfterExit=no
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
