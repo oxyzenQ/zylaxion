@@ -16,7 +16,7 @@
 //! ```text
 //! sudo zylaxion attach     ONCE per boot: tap + pins live in the kernel
 //! zylaxion on [preset]     spawn the stateless player, enable the gate
-//! zylaxion preset tpt      one map write — the playing preset swaps live
+//! zylaxion preset --switch topre   one map write — the playing preset swaps live
 //! zylaxion volume 60       one map write — the gain retunes live
 //! zylaxion off             clear the gate: player self-exits, ZERO processes
 //! zylaxion detach          (sudo) unpin everything: nothing in the kernel
@@ -302,7 +302,9 @@ pub fn cmd_off() {
     println!("sound off (no processes remain; the tap stays attached)");
 }
 
-/// Handle `zylaxion preset <name>` — one map write, live swap.
+/// Handle `zylaxion preset --switch <name>` — one map write, live
+/// swap (night-improve-24: the flag is `--switch`, renamed from the
+/// silent `--name`).
 #[cfg(feature = "ebpf")]
 pub fn cmd_preset(name: &str) {
     init_logger();

@@ -178,7 +178,7 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   the same law via `ZYLAXION_VOLUME` (default 5.5, invalid values are
   hard errors — no silent fallback anywhere).
 - A preset is chosen when the sound starts; while playing,
-  `zylaxion preset --name <name>` swaps it live (one control-map
+  `zylaxion preset --switch <name>` swaps it live (one control-map
   write). The former 1-second mtime poller and the `testconf`
   validator died with the config file — a validator for compile-time
   data would validate nothing.

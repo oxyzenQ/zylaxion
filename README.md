@@ -181,7 +181,7 @@ EXPECTED=$(awk '{print $1}' zylaxion-vX.Y.Z-linux-amd64-gnu.tar.gz.shake256)
 sudo zylaxion attach             # Plant the kernel-side tap (once per boot)
 zylaxion on                      # Sound on (spawns the stateless player)
 zylaxion on --preset cherryMX    # Sound on with a compiled-registry preset
-zylaxion preset --name tpt       # Switch the preset live while playing
+zylaxion preset --switch topre    # Switch the preset live while playing
 zylaxion volume --percent 60     # Retune the master volume live
 zylaxion off                     # Sound off (player self-exits, zero processes)
 zylaxion status                  # Kernel verdict, tap residency, player state
@@ -216,9 +216,10 @@ there is no silent fallback, and an unknown preset name prints the
 full catalog plus a did-you-mean tip.
 
 A preset is chosen when the sound starts; while playing, switch it
-live with `zylaxion preset --name <name>` (one map write — the player's
-watcher thread swaps the DSP model in place). For a sound switcher
-that is the honest lifecycle — there is nothing to hot-reload.
+live with `zylaxion preset --switch <name>` (one map write — the
+player's watcher thread swaps the DSP model in place). For a sound
+switcher that is the honest lifecycle — there is nothing to
+hot-reload.
 
 ### Built-in sound presets
 

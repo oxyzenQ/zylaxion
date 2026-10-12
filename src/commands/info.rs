@@ -250,9 +250,9 @@ pub fn cmd_list_presets() {
     println!("Active preset: {active}");
     println!();
     println!("Switch preset:");
-    println!("  zylaxion preset --name <name> (while playing)");
+    println!("  zylaxion on --preset <name>        # when starting");
+    println!("  zylaxion preset --switch <name>    # live, while playing");
     println!("  or export {}=\"<name>\"", preset::PRESET_ENV_VAR);
-    println!("  Run: zylaxion on --preset <name>, or switch live with:");
     println!();
     println!(
         "Volume (headphones want less): export {}=1.5",
@@ -348,7 +348,7 @@ pub fn cmd_overview() {
 
     println!();
     println!("  zylaxion on             # start the sound");
-    println!("  zylaxion preset <name>  # switch sound live");
+    println!("  zylaxion preset --switch <name>  # switch sound live");
     println!("  zylaxion status         # the full truth");
     println!();
 }
