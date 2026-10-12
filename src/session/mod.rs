@@ -10,6 +10,9 @@
 //! - [`preset`] — WHICH sound governs (night-improve-22, the
 //!   no-config law: the CLI flag / `ZYLAXION_PRESET` env / compiled
 //!   registry resolution — no config file, no watcher).
+//! - [`kernel`] — WHETHER the host kernel can carry the eBPF-only
+//!   architecture at all (night-improve-23: the 5.15 floor, the
+//!   "verified supported" / "verified unsupported" verdicts).
 //! - [`instance_lock`] — at most one zylaxion per session (the flock).
 //! - [`pathguard`] — WHERE runtime state may live (the dangerous
 //!   XDG_RUNTIME_DIR verdicts).
@@ -18,6 +21,7 @@
 //! - [`signals`] — how the session ends (graceful shutdown handlers).
 
 pub mod instance_lock;
+pub mod kernel;
 pub mod pathguard;
 pub mod preset;
 pub mod privilege;

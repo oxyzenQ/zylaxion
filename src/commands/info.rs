@@ -59,10 +59,106 @@ pub fn cmd_doctor() {
     println!("      Rustc:      {}", build.rustc_version);
     println!("      Profile:    {}", build.profile);
 
-    // 1. Input group check.
+    // 1. Kernel / eBPF capability (night-improve-23, the eBPF-only
+    //    floor): the input tap is a BPF tracepoint program and the
+    //    state store is pinned maps on bpffs — the kernel IS the
+    //    platform now. The owner's minimum is 5.15; below it the
+    //    verdict is "verified unsupported" and nothing else in this
+    //    report can save the run. One probe feeds both this report
+    //    and the attach path, so the two surfaces can never drift.
+    let kernel = crate::session::kernel::probe();
     println!(
         "\n{}",
-        crate::output::section("[2/4] Input group membership...")
+        crate::output::section("[2/5] Kernel / eBPF capability...")
+    );
+    if kernel.release.is_empty() {
+        println!(
+            "      {}",
+            crate::output::fail_line(
+                "FAIL: kernel release unreadable (/proc/sys/kernel/osrelease)"
+            )
+        );
+        ok = false;
+    } else {
+        println!("      Kernel:   {}", kernel.release);
+        if kernel.supported() {
+            println!(
+                "      {}",
+                crate::output::ok_line(&format!(
+                    "PASS: eBPF: {} ({} meets the 5.15 minimum)",
+                    kernel.verdict(),
+                    kernel.release
+                ))
+            );
+        } else {
+            println!(
+                "      {}",
+                crate::output::fail_line(&format!(
+                    "FAIL: eBPF: {} ({} is below the 5.15 minimum — zylaxion is eBPF-only, upgrade the kernel)",
+                    kernel.verdict(),
+                    kernel.release
+                ))
+            );
+            ok = false;
+        }
+        // BTF is optional for the tracepoint tap (no CO-RE
+        // introspection needed) — reported for completeness, never
+        // fatal.
+        println!(
+            "      BTF:      {} (not required for the tracepoint tap)",
+            if kernel.btf { "present" } else { "absent" }
+        );
+        if kernel.bpffs {
+            println!(
+                "      {}",
+                crate::output::ok_line("PASS: bpffs: mounted at /sys/fs/bpf")
+            );
+        } else {
+            println!(
+                "      {}",
+                crate::output::fail_line(
+                    "FAIL: bpffs: not mounted at /sys/fs/bpf — the pinned state store has nowhere to live"
+                )
+            );
+            println!(
+                "      {}",
+                crate::output::tip_line(
+                    "fix: sudo mount -t bpf bpf /sys/fs/bpf (normally automatic)"
+                )
+            );
+            ok = false;
+        }
+        if kernel.tracepoint_visible {
+            println!(
+                "      {}",
+                crate::output::ok_line("PASS: tap: input_event tracepoint visible")
+            );
+        } else {
+            println!(
+                "      note: input_event tracepoint not visible from this session (tracefs may be restricted) — the attach attempt is the authoritative verdict"
+            );
+        }
+        if kernel.lockdown_readable && kernel.lockdown_blocks_bpf {
+            println!(
+                "      {}",
+                crate::output::fail_line(
+                    "FAIL: lockdown: 'confidentiality' active — the kernel withdraws BPF"
+                )
+            );
+            println!(
+                "      {}",
+                crate::output::tip_line(
+                    "fix: choose a kernel lockdown mode that allows BPF (integrity or none)"
+                )
+            );
+            ok = false;
+        }
+    }
+
+    // 2. Input group check.
+    println!(
+        "\n{}",
+        crate::output::section("[3/5] Input group membership...")
     );
     if check_input_group() {
         println!(
@@ -85,8 +181,8 @@ pub fn cmd_doctor() {
         ok = false;
     }
 
-    // 2. XDG_RUNTIME_DIR check.
-    println!("\n{}", crate::output::section("[3/4] XDG_RUNTIME_DIR..."));
+    // 3. XDG_RUNTIME_DIR check.
+    println!("\n{}", crate::output::section("[4/5] XDG_RUNTIME_DIR..."));
     match std::env::var("XDG_RUNTIME_DIR") {
         Ok(dir) => {
             let path = std::path::Path::new(&dir);
@@ -118,8 +214,8 @@ pub fn cmd_doctor() {
         }
     }
 
-    // 3. Audio server check (best-effort).
-    println!("\n{}", crate::output::section("[4/4] Audio server..."));
+    // 4. Audio server check (best-effort).
+    println!("\n{}", crate::output::section("[5/5] Audio server..."));
     match cpal::default_host().default_output_device() {
         Some(device) => {
             let name = device.name().unwrap_or_else(|_| "<unknown>".into());
