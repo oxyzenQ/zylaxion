@@ -327,7 +327,11 @@ jobs:
             exit 0
           fi
           export GNUPGHOME="$RUNNER_TEMP/gnupg-sign"
-          mkdir -p -m 700 "$GNUPGHOME"
+          # SC2174 split: with -p, mkdir's -m only applies to the deepest
+          # directory — create first, then pin the mode, so every level
+          # that materializes lands at 700 regardless.
+          mkdir -p "$GNUPGHOME"
+          chmod 700 "$GNUPGHOME"
           if [ -n "${GPG_PASSPHRASE}" ]; then
             echo "${GPG_PASSPHRASE}" | gpg --import --batch --yes \
               --pinentry-mode loopback --passphrase-fd 0 \
