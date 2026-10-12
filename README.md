@@ -187,7 +187,6 @@ zylaxion stats                   # Kernel-side typing telemetry
 zylaxion status                  # Kernel verdict, tap residency, player state
 sudo zylaxion detach             # Unpin everything — nothing left in the kernel
 zylaxion                         # Quick status overview
-zylaxion --live                  # Live overview (refreshes every 2s, like watch)
 zylaxion doctor                  # System health diagnostic (kernel verdict included)
 zylaxion list-presets            # List the 24 compiled presets + active one
 zylaxion list-backends           # Show available audio backends

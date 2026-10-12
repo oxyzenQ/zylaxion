@@ -10,7 +10,6 @@
 //! tree; a validator command for it would validate nothing.
 
 use std::process;
-use std::sync::Arc;
 
 use cpal::traits::{DeviceTrait, HostTrait};
 
@@ -352,57 +351,4 @@ pub fn cmd_overview() {
     println!("  zylaxion preset <name>  # switch sound live");
     println!("  zylaxion status         # the full truth");
     println!();
-}
-
-/// Live overview: refresh the status every 2 seconds (like `watch`).
-/// Clears the screen + reprints the overview. Press Ctrl+C to exit.
-/// (v10.2.0+ — user feedback: `--live` flag)
-pub fn cmd_live_overview() {
-    use std::io::{self, Write};
-
-    // Install SIGINT + SIGTERM handler so Ctrl+C exits cleanly.
-    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let stop_clone = Arc::clone(&stop);
-    let _ = signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&stop_clone));
-    let _ = signal_hook::flag::register(signal_hook::consts::SIGTERM, stop_clone);
-
-    // Enter alternate screen — like vim/less. On exit we restore the
-    // original screen, so the terminal looks clean (no scrollback
-    // pollution from repeated overwrites).
-    // ESC[?1049h = save cursor + switch to alternate screen
-    // ESC[?1049l = restore cursor + switch back to main screen
-    print!("\x1b[?1049h");
-    // Hide cursor while in live mode.
-    print!("\x1b[?25l");
-    let _ = io::stdout().flush();
-
-    loop {
-        if stop.load(std::sync::atomic::Ordering::Relaxed) {
-            break;
-        }
-
-        // Move cursor to top-left + clear from cursor down.
-        // (Don't clear the whole screen — that causes flicker.)
-        print!("\x1b[H\x1b[J");
-        let _ = io::stdout().flush();
-
-        // Print the overview.
-        cmd_overview();
-
-        // Footer with refresh hint.
-        println!("  (refreshing every 2s — Ctrl+C to exit)");
-        let _ = io::stdout().flush();
-
-        // Sleep 2s, checking stop flag every 100ms for fast exit.
-        for _ in 0..20 {
-            if stop.load(std::sync::atomic::Ordering::Relaxed) {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        }
-    }
-
-    // Restore: show cursor + leave alternate screen.
-    print!("\x1b[?25h\x1b[?1049l");
-    let _ = io::stdout().flush();
 }
