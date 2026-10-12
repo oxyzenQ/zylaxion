@@ -198,6 +198,12 @@ zylaxion --check-update          # Check for latest GitHub release
 zylaxion -V                      # Show version + build info
 ```
 
+The hidden and advanced vocabulary — the short aliases (`-s`, `-p`,
+`-v`), the environment surface (`ZYLAXION_PRESET`, `ZYLAXION_VOLUME`,
+`NO_COLOR`, `RUST_LOG`), and the internal `_play` verb — is
+documented completely in the Pro mode section of `zylaxion --help`,
+the one reference surface.
+
 ### Configuration
 
 There is no configuration file — night-improve-22 deleted

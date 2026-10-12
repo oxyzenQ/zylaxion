@@ -19,11 +19,17 @@
 //! runnable example rides status green (the "this is what you type"
 //! tier); prose stays default. Under a pipe or `NO_COLOR` everything
 //! degrades to byte-exact plain text (the stdout capability gate).
+//! The Pro mode section (night-improve-25, the zelynic
+//! NIGHT-improve-45 lineage) extends the same law to the hidden
+//! estate: one computed description column, flag spellings grey,
+//! environment rows default prose (an environment variable is not a
+//! flag), examples green.
 
 use crate::output::{BRAND_OPEN, GREY_OPEN, OK_OPEN, RESET};
 
 /// Render the end-to-end reference: usage, commands grouped by role,
-/// examples, global flags, and the no-subcommand contract.
+/// examples, global flags, the Pro mode estate (short aliases, the
+/// environment law, the hidden verb), and the no-subcommand contract.
 ///
 /// Pure function of the color decision so tests can pin the plain
 /// text byte-for-byte ([`print_reference`] computes the gate from the
@@ -122,6 +128,106 @@ pub(crate) fn render_reference(color: bool) -> String {
     ] {
         let pad = 19usize.saturating_sub(spelling.len()).max(1);
         push(format!("  {}{}{}", grey(spelling), " ".repeat(pad), desc));
+    }
+    push(String::new());
+
+    // night-improve-25 (the zelynic NIGHT-improve-45 lineage): the
+    // Pro mode estate — every hidden and advanced spelling documented
+    // COMPLETELY on the one reference surface, grouped by the lane
+    // that owns it. Geometry (the hunt-35 law, adapted): ONE
+    // description column across every group and its continuations,
+    // COMPUTED from the estate's longest spelling so it cannot drift
+    // per row. Tier law: flag spellings and the verb synopsis ride
+    // grey (grammar); the environment rows ride default prose — an
+    // environment variable is not a flag (the hunt-39 boundary);
+    // runnable examples ride green, and every example spelling is new
+    // to the surface (the no-duplicate law — the Run section owns the
+    // long spellings, Pro mode owns the short ones).
+    let aliases: &[(&str, &str)] = &[
+        (
+            "-s, --switch <NAME>",
+            "preset's live switch, the short spelling",
+        ),
+        (
+            "-p, --percent <0-100>",
+            "volume's live retune, the short spelling",
+        ),
+        ("-v, --verbose", "status's deep read, the short spelling"),
+    ];
+    let environment: &[(&str, &str)] = &[
+        (
+            "ZYLAXION_PRESET=<name>",
+            "the persistent preset behind every start",
+        ),
+        (
+            "ZYLAXION_VOLUME=<gain>",
+            "the persistent output gain, linear — 5.5 laptop\nspeakers, 1.5 headphones; a different scale\nthan the percent lane",
+        ),
+        ("NO_COLOR=1", "plain bytes on every surface, always"),
+        (
+            "RUST_LOG=<filter>",
+            "the log lane: info on attach and the\nplayer, warn on the rest",
+        ),
+    ];
+    let hidden_verbs: &[(&str, &str)] = &[(
+        "zylaxion _play",
+        "the internal stateless player behind the\non verb; it owns no flags of its own —\nrun it in the foreground for the full\nerror when it dies at startup",
+    )];
+    let pro_col = aliases
+        .iter()
+        .chain(environment)
+        .chain(hidden_verbs)
+        .map(|(spelling, _)| spelling.len())
+        .max()
+        .unwrap_or(0)
+        + 2;
+    // A plain fn over `push` (the span precedent — no closure
+    // captures, so the section's direct pushes interleave freely).
+    fn pro_row(
+        push: &mut dyn FnMut(String),
+        pro_col: usize,
+        painted: &str,
+        spelling: &str,
+        desc: &str,
+    ) {
+        let pad = pro_col.saturating_sub(spelling.len()).max(1);
+        let mut lines = desc.split('\n');
+        let first = lines.next().unwrap_or("");
+        push(format!("    {painted}{}{}", " ".repeat(pad), first));
+        let cont = " ".repeat(4 + pro_col);
+        for line in lines {
+            push(format!("{cont}{line}"));
+        }
+    }
+    push(brand("Pro mode:"));
+    push(String::new());
+    push("  The hidden and advanced vocabulary, complete — grouped by".into());
+    push("  the lane that owns it.".into());
+    push(String::new());
+    push("  Short aliases:".into());
+    push(String::new());
+    for (spelling, desc) in aliases {
+        pro_row(&mut push, pro_col, &grey(spelling), spelling, desc);
+    }
+    push(String::new());
+    push("      # the short spellings in action".into());
+    push(ok("      zylaxion preset -s topre"));
+    push(ok("      zylaxion volume -p 60"));
+    push(ok("      zylaxion status -v"));
+    push(String::new());
+    push("  Environment (the no-config law):".into());
+    push(String::new());
+    for (spelling, desc) in environment {
+        pro_row(&mut push, pro_col, spelling, spelling, desc);
+    }
+    push(String::new());
+    push("      # the headphones gain, every start".into());
+    push(ok("      ZYLAXION_VOLUME=1.5 zylaxion on"));
+    push(String::new());
+    push("  The hidden verb:".into());
+    push(String::new());
+    for (spelling, desc) in hidden_verbs {
+        pro_row(&mut push, pro_col, &grey(spelling), spelling, desc);
     }
     push(String::new());
     push("Without a subcommand: a quick status overview.".into());

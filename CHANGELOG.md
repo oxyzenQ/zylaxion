@@ -20,6 +20,20 @@ and the pre-v10 release notes live next to it in
 
 ### Fixed
 
+- **night-improve-25** — the hidden player verb parses again: clap
+  derives `play` from the bare `Commands::Play` variant, but every
+  call site spells the verb with the underscore (sound.rs spawns
+  `.arg("_play")`, both startup-error strings teach `zylaxion _play`,
+  player.rs's module doc names it, README's architecture diagram shows
+  it — eight references to `_play`, zero to `play`). Before the
+  explicit `name = "_play"` pin the spawn argument was a verb clap
+  rejects, so `zylaxion on` could never start the player — masked
+  until now because the broken attach path (the tracepoint fiction,
+  fixed earlier this night) sat upstream of the spawn and the
+  failure never got reached. The parse pin in test/cli/ux_tests.rs
+  holds both directions: the spawned spelling parses and dispatches,
+  and the derived bare spelling stays an unknown subcommand.
+
 - **night-improve-25** — the input tap returns to the plan the
   night-private research doc already approved: a passive kernel-side
   probe on the exported `input_event()` function. The
@@ -179,6 +193,30 @@ and the pre-v10 release notes live next to it in
 
 ### Added
 
+- **night-improve-25** — the Pro mode section on the one help
+  reference (the zelynic NIGHT-improve-45 lineage): every hidden and
+  advanced spelling documented COMPLETELY, grouped by the lane that
+  owns it — the three short aliases (`-s, --switch <NAME>`,
+  `-p, --percent <0-100>`, `-v, --verbose`) with their runnable
+  examples (the short spellings are new to the surface; the Run
+  section keeps the long ones, the no-duplicate law), the four
+  environment spellings of the no-config law (`ZYLAXION_PRESET`,
+  `ZYLAXION_VOLUME` with its linear-scale warning — 5.5 laptop
+  speakers, 1.5 headphones, a different unit than the percent lane —
+  `NO_COLOR=1`, `RUST_LOG` with the log lane's split defaults), and
+  the one hidden verb (`zylaxion _play`, the internal stateless
+  player, with the foreground-debug teaching its own error strings
+  already hand users). One computed description column across every
+  group and its continuations (the hunt-35 geometry law, adapted:
+  the column derives from the estate's longest spelling and cannot
+  drift per row); tier law holds — flags and the verb synopsis grey,
+  environment rows default prose (an environment variable is not a
+  flag, the hunt-39 boundary), examples green. The drift pin in
+  test/commands/help_tests.rs fails the suite if any spelling silently
+  thins back to hidden, and its negative arm fails it if the bare
+  `play` spelling is ever taught as a verb. README's usage section
+  gains the pointer paragraph; the help demo screenshot refresh
+  follows at the next owner-host capture session.
 - **night-improve-25** — the classified attach failure surface:
   the `AttachError` taxonomy (nine locked variants —
   FentryUnavailable, KprobeBlacklisted, SymbolMissing,
