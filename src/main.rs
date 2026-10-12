@@ -38,9 +38,9 @@
 //! - [`info`]      — the binary's self-knowledge: build facts, Hinnant clock
 //! - [`session`]   — the session contract: preset resolution, kernel probe,
 //!   instance lock, pathguard, privilege, signals
-//! - [`commands`]  — subcommand handlers (`attach`, `doctor`, …)
-//! - [`daemon`]    — POSIX daemonization, PID file, IPC (night-improve-23
-//!   retires this module — the pinned maps replace it)
+//! - `commands`    — subcommand handlers (`attach`, `doctor`, …)
+//! - `daemon`      — retired with the daemon era (night-improve-23 — the
+//!   pinned maps replace it; see CHANGELOG)
 
 use clap::Parser;
 

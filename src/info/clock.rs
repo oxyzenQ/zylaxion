@@ -5,7 +5,7 @@
 //!
 //! The zelynic clock contract (night-improve-13): any wall-clock need is
 //! answered by the std clock plus Howard Hinnant's `civil_from_days`
-//! algorithm (http://howardhinnant.github.io/date_algorithms.html) —
+//! algorithm (<http://howardhinnant.github.io/date_algorithms.html>) —
 //! never by a time crate. env_logger's own timestamp lane (the
 //! `humantime` feature) transitively pulls the jiff crate tree, which is
 //! the exact dependency bloat this module exists to refuse: the logger

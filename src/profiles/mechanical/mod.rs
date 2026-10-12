@@ -37,9 +37,9 @@
 //! variation, synthesized keyboard sound falls into the "uncanny valley"
 //! of perceptible determinism (the brain notices the repeats).
 //!
-//! Since v5.0.0, [`MechanicalClick::init_state`] applies three forms of
-//! per-keystroke randomness, all resolved ONCE at trigger time (never in
-//! the real-time audio callback):
+//! Since v5.0.0, [`AcousticModel::init_state`](crate::profiles::model::AcousticModel::init_state)
+//! applies three forms of per-keystroke randomness, all resolved ONCE at
+//! trigger time (never in the real-time audio callback):
 //!
 //! - **Noise seed variation**: the xorshift32 PRNG seed is derived from
 //!   a per-instance monotonic counter, so the noise burst is never
@@ -150,8 +150,9 @@ fn splitmix64(x: u64) -> u64 {
 /// A `MechanicalClick` holds one [`KeyProfile`] — the active preset's
 /// validated DSP table (night-improve-22: compile-time registry data,
 /// no per-key override map). Every key press returns this profile from
-/// [`get_profile`](AcousticModel::get_profile); per-key variation comes
-/// from the micro-randomization below, not from a lookup table.
+/// [`get_profile`](crate::profiles::model::AcousticModel::get_profile);
+/// per-key variation comes from the micro-randomization below, not
+/// from a lookup table.
 ///
 /// # Hot-reload
 ///

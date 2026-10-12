@@ -13,7 +13,7 @@
 //!
 //! The edit-distance family serves value suggestions (preset names);
 //! the Jaro family serves the always-compiled clap flag rescue
-//! ([`crate::cli::ux::enrich_unknown_arg_suggestion`]).
+//! (`crate::cli::ux::enrich_unknown_arg_suggestion`, internal).
 
 /// Levenshtein edit distance (shared engine for value suggestions).
 fn edit_distance(a: &str, b: &str) -> usize {
@@ -80,7 +80,7 @@ pub(crate) fn closest_value_match(input: &str, candidates: &[&str]) -> Option<St
 /// tip-less. Lowercasing both sides first lets a case-variant prefix
 /// of a known flag still score; for already-lowercase input the score
 /// is IDENTICAL to clap's own engine, which is what makes the fallback
-/// in [`crate::cli::ux::enrich_unknown_arg_suggestion`] safe: it only
+/// in `crate::cli::ux::enrich_unknown_arg_suggestion` safe: it only
 /// fires where clap was silent, and can never suggest a flag clap
 /// itself would have rejected for the same lowercase input.
 pub(crate) fn jaro_ci(a: &str, b: &str) -> f64 {

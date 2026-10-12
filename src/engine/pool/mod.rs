@@ -78,7 +78,7 @@ impl VoicePool {
     /// clamp produces severely compressed and loud audio. Headphone
     /// users should override this to ~1.5× via ZYLAXION_VOLUME=1.5 in
     /// the environment (night-improve-22 — the env var replaced the
-    /// config-era [master] table).
+    /// config-era `master` table).
     pub const DEFAULT_MASTER_VOLUME: f32 = 5.5;
 
     /// Create a new voice pool with all voices initialized to inactive

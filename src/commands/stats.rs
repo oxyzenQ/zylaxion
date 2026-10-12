@@ -66,7 +66,7 @@ pub fn cmd_stats() {
 }
 
 /// A compact evdev key name for the stats render. The common keyboard
-/// keys carry real names; everything else renders as key<N> — the raw
+/// keys carry real names; everything else renders as `key<N>` — the raw
 /// count is the truth, the name is a courtesy.
 fn key_name(code: u32) -> String {
     let common: &[(u32, &str)] = &[

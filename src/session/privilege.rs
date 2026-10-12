@@ -3,12 +3,14 @@
 
 //! Privilege guard — the root-usage audit (night-improve-16).
 //!
-//! The sibling of [`crate::session::pathguard`]: pathguard pins WHERE runtime
-//! state may live, this module pins WHO may run the privileged
-//! surfaces. Both exist because zylaxion is a user-session program —
-//! every byte of state it writes (lock, socket, PID) belongs inside
-//! the invoking user's session, and every hazard it guards (input
-//! grab, audio device) is per-session.
+//! The sibling of the retired pathguard (the daemon-era module that
+//! pinned WHERE runtime state might live — night-improve-23 deleted it
+//! with the session files it guarded): this module pins WHO may run the
+//! privileged surfaces. It exists because zylaxion is a user-session
+//! program — every byte of state it touches belongs to the kernel-side
+//! pinned maps or the invoking user's environment, and every hazard it
+//! guards (the BPF load, the audio device) is per-machine or
+//! per-session.
 //!
 //! # The audit verdict, surface by surface
 //!
