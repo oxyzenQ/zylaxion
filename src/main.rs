@@ -132,7 +132,7 @@ fn main() {
             cli::Commands::Off => commands::sound::cmd_off(),
             cli::Commands::Preset { name } => commands::sound::cmd_preset(&name),
             cli::Commands::Volume { percent } => commands::sound::cmd_volume(percent),
-            cli::Commands::Stats => commands::sound::cmd_stats(),
+            cli::Commands::Stats => commands::stats::cmd_stats(),
             cli::Commands::Status => commands::sound::cmd_status(),
             cli::Commands::Doctor => commands::info::cmd_doctor(),
             cli::Commands::Attach => commands::attach::cmd_attach(),
