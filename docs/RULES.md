@@ -62,10 +62,13 @@ headers are needed.
 
 CI installs them in `.github/workflows/ci.yml` via `apt-get install`:
 
-- `pkg-config` — needed to locate `alsa.pc`, `libudev.pc`, `libinput.pc`.
+- `pkg-config` — needed to locate `alsa.pc`.
 - `libasound2-dev` — ALSA C headers (consumed by `cpal`'s ALSA backend).
-- `libinput-dev`, `libudev-dev` — required by the input lane (`src/input/`)
-  for evdev.
+- night-improve-23: the `libinput-dev`/`libudev-dev` rows are gone — the
+  input lane is the kernel-side eBPF tap, which needs no input
+  libraries, and the BPF object ships embedded (developing `ebpf/`
+  additionally needs the dated nightly + bpf-linker:
+  `./scripts/dev/bootstrap-ebpf.sh`).
 
 A CI runner missing any of these will fail at `cargo clippy` with
 `pkg-config` exiting non-zero.
@@ -77,26 +80,26 @@ A CI runner missing any of these will fail at `cargo clippy` with
 > 1.0+ systems. The ALSA bridge used since v1.0.x has near-zero overhead
 > and is rock-solid.
 
-## systemd User Service (v3.0.0+)
+## Kernel-side Boot Oneshot (night-improve-23)
 
-- `assets/zylaxion.service` is a systemd **user** unit (not system —
-  zylaxion runs per-user so it inherits the user's PulseAudio/PipeWire
-  cookie and `XDG_RUNTIME_DIR`).
-- `scripts/package/install.sh` deploys the unit to:
-  - `~/.config/systemd/user/zylaxion.service` when run as a normal user.
-  - `/etc/systemd/user/zylaxion.service` when run as root (system-wide
-    default for all users).
-- `scripts/package/uninstall.sh` removes the unit and prints a reminder to run
-  `systemctl --user disable zylaxion` first.
-- The unit uses `Type=simple`, `Restart=on-failure`, `RestartSec=3`,
-  and `After=pipewire.service sound.target` so it always starts after
-  the audio stack is ready.
+- `assets/zylaxion-attach.service` is a systemd **system** ONESHOT unit
+  (`Type=oneshot`, `RemainAfterExit=no`) — NOT a daemon: it runs
+  `zylaxion attach`, exits, and stays dead. What remains resident is
+  the kernel side only (one passive BPF program + pinned maps).
+- `scripts/package/install.sh --system` deploys it to
+  `/etc/systemd/system/zylaxion-attach.service` and enables it; bpffs
+  pins do not survive a reboot, so the oneshot replants the tap at
+  every boot.
+- `--user` installs print the manual alternative: `sudo zylaxion attach`
+  (which also hands the pin ownership to the invoking user).
+- The user service of the daemon era is gone with the daemon — there is
+  nothing to supervise anymore.
 
 ## Security & Privacy (v3.1.0+)
 
 zylaxion has a **zero-leakage** posture. Hard rules:
 
-- **Never log scancodes.** The `KeyEvent` struct (in `src/input/`)
+- **Never log scancodes.** The `KeyEvent` struct (in `src/core/`)
   carries a raw hardware scancode that can be mapped back to typed
   text via the user's keyboard layout. Logging it — even at `debug`
   or `trace` level — would create a side-channel leak exploitable by
@@ -105,16 +108,13 @@ zylaxion has a **zero-leakage** posture. Hard rules:
     `println!("key: {:?}", event)`, `eprintln!("got {}", event.scancode)`.
   - **Allowed**: `log::debug!("input event received")` (generic,
     no scancode, no key identity).
-  - The only place scancodes may be printed is `examples/` binaries
-    that gate output behind an explicit `--dump-scancodes` CLI flag
-    (see `examples/listen_keys.rs`).
-- **IPC socket MUST be `0o600`.** `daemon::ipc::create_listener`
-  sets the umask to `0o077` during `bind()` AND `chmod`s the file to
-  `0o600` afterward. This blocks other users on the system from
-  sending `stop` / `status` commands to the daemon.
+- **The control plane has no protocol.** night-improve-23 deleted the
+  IPC socket (and its `0o600` law died with it — there is no socket).
+  The pinned BPF maps are the only control surface; bpffs file
+  permissions decide who can write them, and the attach hands the
+  pins to the invoking sudo user.
 - **No inbound network.** zylaxion opens no TCP listener, no HTTP
-  server, no gRPC port. The only IPC channel is the Unix domain
-  socket described above.
+  server, no gRPC port, no Unix socket.
 - **No outbound telemetry.** The only network call is the explicit
   `zylaxion --check-update` subcommand, which fetches one GitHub
   release tag and exits. There is no background phone-home, no
@@ -177,10 +177,11 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   the compiled default (`technical`). The master output volume follows
   the same law via `ZYLAXION_VOLUME` (default 5.5, invalid values are
   hard errors — no silent fallback anywhere).
-- A preset is chosen once at process start; changing it means
-  restarting the daemon. The former 1-second mtime poller and the
-  `testconf` validator died with the config file — a validator for
-  compile-time data would validate nothing.
+- A preset is chosen when the sound starts; while playing,
+  `zylaxion preset --name <name>` swaps it live (one control-map
+  write). The former 1-second mtime poller and the `testconf`
+  validator died with the config file — a validator for compile-time
+  data would validate nothing.
 - Unknown preset names produce the canonical error with the full
   catalog plus the did-you-mean tip (the suggestion engine, edit
   distance 2).

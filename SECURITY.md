@@ -47,12 +47,13 @@ acts in good faith.
 In scope:
 
 - The Rust CLI and everything it executes (`src/`),
-  including the update-check surface and the IPC daemon control
-  socket — the socket file is created with mode `0o600` by design,
-  and any weakening of that contract is a vulnerability.
-- The input capture lane (`src/input/`) — evdev and
-  libinput event reading. Keyboard event data must stay in the
-  synthesis path only: it is never written to disk, never sent
+  including the update-check surface and the pinned control plane
+  (`/sys/fs/bpf/zylaxion/`) — bpffs file permissions govern who can
+  write your sound state, and any weakening of the attach-time
+  ownership hand-off is a vulnerability.
+- The input tap lane (`ebpf/src/`, `src/ebpf/`) — the kernel-side
+  tracepoint program and its loader. Keyboard event data must stay in
+  the synthesis path only: it is never written to disk, never sent
   anywhere, and never logged with key content. Any persistence or
   transmission of keystroke content is critical by definition.
 - The audio engine lanes (`src/engine/`, `src/profiles/`,
@@ -65,9 +66,11 @@ In scope:
   config-era filesystem watcher and TOML parser were removed with
   night-improve-22 and with them their TOCTOU and path-traversal
   surface.
-- The daemon lifecycle (`src/daemon/`) —
-  daemonization, the PID file, the instance lock, and signal
-  handling.
+- The player lifecycle (`src/commands/player.rs`) — the stateless
+  player, its control-map registration, and signal handling. (The
+  daemon lifecycle died in night-improve-23: no daemonization, no PID
+  file, no instance lock, no IPC socket — and none of their attack
+  surface.)
 - The release pipeline and artifacts: workflows
   (`.github/workflows/`), tarballs, checksums, signatures, install
   scripts.
@@ -89,7 +92,8 @@ Out of scope (by design, not neglect):
 
 ## The input-data discipline (the product's core security promise)
 
-zylaxion consumes evdev/libinput events in real time to trigger
+zylaxion consumes kernel key events (the eBPF tap) in real time to
+trigger
 synthesis. The standing contract, enforced by review and by the
 gate-keepers:
 
@@ -99,22 +103,26 @@ gate-keepers:
 2. **No network in the audio path.** The synthesis engine has no
    outbound connections; the only network surface is the explicit
    `--check-update` query and the `log`/`env_logger` stderr stream.
-3. **The IPC socket answers only the documented verbs** (`stop`,
-   `status`) and speaks a length-prefixed protocol on a `0o600`
-   socket inside `XDG_RUNTIME_DIR` — not a world-writable path.
+3. **The control plane has no protocol at all** (night-improve-23):
+   there is no socket, no daemon, no IPC. The pinned BPF maps are the
+   only control surface, and bpffs file permissions decide who can
+   write them — the attach hands ownership to the invoking sudo user,
+   so other users can neither steer nor stop your sound.
 
 Reports that show a violation of any of the three above are
 critical-severity by default, regardless of exploit complexity.
 
 ## Hardening surface (what the binary already does)
 
-- The daemon refuses to double-run: the instance lock is an flock on
-  a `0o600` lock file, not a stale-pid check.
-- The config watcher validates every reload through the same parser
-  as startup — a malformed hot-reload cannot bypass validation.
-- The doctor surfaces the trust-relevant facts (input group
-  membership, `XDG_RUNTIME_DIR`, audio server reachability) so an
-  operator can verify the environment instead of guessing.
+- The player refuses to double-run: the control map's player-pid
+  slot is the single-instance marker (a live pid means already
+  playing; a dead one is taken over) — no lock file to go stale.
+- The tap is gated in the kernel: with the enabled slot clear, the
+  tracepoint program writes nothing, wakes nobody, and counts nothing.
+- The doctor surfaces the trust-relevant facts (kernel version
+  verdict, bpffs mount, lockdown mode, tracepoint visibility, audio
+  server reachability) so an operator can verify the environment
+  instead of guessing.
 - Release artifacts ship with sha256 checksums and cryptographic
   signatures — see [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md)
   for the verification walkthrough.

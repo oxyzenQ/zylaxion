@@ -24,7 +24,7 @@ that every one of them earns its place:
 
 - **No time crates.** Any wall-clock need is answered by the std clock
   plus Howard Hinnant's `civil_from_days` algorithm — the runtime twin
-  lives in `src/info/clock.rs` (daemon log stamps) and the
+  lives in `src/info/clock.rs` (log stamps) and the
   compile-time twin in `build.rs` (the `Build-time:`
   stamp). env_logger runs with `default-features = false` because its
   default timestamp feature transitively pulled the jiff tree
@@ -33,7 +33,7 @@ that every one of them earns its place:
   went with the same change; RUST_LOG keeps the standard
   comma-separated directive syntax, which was always the documented
   surface.
-- **No mock, no async runtime, no HTTP framework.** The daemon is
+- **No mock, no async runtime, no HTTP framework.** The player is
   threads + a Unix socket; the update check is the one deliberate
   network surface.
 
@@ -111,11 +111,12 @@ Build facts that match the release page's declared platform label).
 The release lane builds `x86_64` gnu binaries at the x86-64-v3 and v4
 optimization baselines — pick the artifact whose label matches your
 CPU (v3: AVX2-era; v4: AVX-512-era); when in doubt, v3 runs
-everywhere v4 does. The musl lane is documented dormant: the C input
-and audio stack (libinput, libudev, alsa-lib) has no static musl
-answer yet — alsa-lib alone was proven solvable (the static musl .a
-builds), the blocker is `libudev-sys`/libinput, and the unlock paths
+everywhere v4 does. The musl lane is documented dormant: the C audio
+stack (alsa-lib) has no static musl answer yet — alsa-lib alone was
+proven solvable (the static musl .a builds), and the unlock paths
 live in the release workflow's matrix header (`release.yml`, the
-night-improve-12c evidence block). Every artifact self-reports its
+night-improve-12c evidence block). night-improve-23 removed the
+libinput/libudev half of that blocker (the eBPF tap needs no input
+libraries); alsa remains the gate. Every artifact self-reports its
 platform id through the `ZYLAXION_BUILD` stamp, and the local alias
 parity is gate-enforced (`scripts/gates/check-release-parity.sh`).

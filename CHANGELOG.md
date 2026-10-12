@@ -20,6 +20,84 @@ and the pre-v10 release notes live next to it in
 
 ### Removed
 
+- **night-improve-23** — the daemon dies. The entire POSIX daemonization
+  stack is deleted: fork/setsid with the init-sync pipe, the PID file
+  (with its /proc/exe identity forensics), the Unix-domain-socket IPC
+  layer (the JSON protocol, the poll-thread hardening, the umask dance),
+  the flock instance lock, and the libinput seat capture (the
+  `input` crate with it, plus the `input` group requirement). The two
+  libinput-era examples (listen_keys, zylaxion_live) retire with their
+  subject. serde and serde_json leave the dependency table — there is
+  no protocol left to serialize. Eight of the eleven v10.2.0 audit
+  findings (B4, B6, B7, B9, B10, B17, S1, S2, P7) were daemon-induced;
+  those bug classes are structurally impossible now.
+
+### Added
+
+- **night-improve-23** — the daemonless eBPF control plane, the world
+  first: a keyboard-sound tool whose input tap lives in the kernel, whose
+  state store is pinned BPF maps, and whose player is a stateless,
+  own-nothing process.
+  - `ebpf/` — the pure-Rust BPF crate (aya-ebpf 0.2.1, detached
+    workspace, dated nightly pin, repo-local bpfel target spec with
+    atomic-cas): one tracepoint program (`zylaxion-tap`) on
+    `input:input_event` that gates against pinned maps and publishes
+    press/release records to a ring buffer. Autorepeat and mouse
+    buttons filter in the kernel (documented deltas).
+  - `src/ebpf/` — the userspace loader: `attach` (load, raw-syscall
+    link pin, control-plane init, pin everything, chown to the sudo
+    user), `detach` (unpin everything — afterwards NOTHING of zylaxion
+    exists in the kernel), and the aligned embedding (the zelynic
+    NIGHT-hunt-30 AlignedElf lesson).
+  - build.rs — three object lanes: source-built (nested nightly
+    cross-compile with the prerequisite preflight, RUSTFLAGS poison
+    strip, v3 force, structural ELF validation, self-heal),
+    registry-prebuilt (ebpf-prebuilt/ + provenance manifest), and
+    dormant (`--no-default-features` builds a binary whose eBPF
+    surfaces answer with the honest refusal).
+  - `src/commands/sound.rs` — the CLI verbs: `on` (write the control
+    plane, spawn the player), `off` (clear the gate — the player
+    self-exits within 100 ms, zero processes remain), `preset` /
+    `volume` (live map writes), `stats` (kernel-side per-key telemetry
+    accumulated as BPF_ATOMIC fetch-adds at zero userspace cost),
+    `status` (kernel verdict + tap residency + player state).
+  - `src/commands/player.rs` — the hidden `_play` internal verb: the
+    stateless player that reads every byte of state from the pinned
+    maps, registers its pid in the control map (the pidfile lives in
+    the kernel now), drains the ring buffer through an epoll bridge,
+    and applies preset/volume changes live (the ArcSwap model swap and
+    the new atomic volume cell in the voice pool).
+  - `src/session/kernel.rs` — the kernel capability probe: release
+    parsing, bpffs mount check, BTF presence, tracepoint visibility,
+    lockdown mode, and the canonical verdicts against the 5.15 owner
+    minimum ("verified supported" / "verified unsupported") wired into
+    the doctor and the attach gate.
+  - assets/zylaxion-attach.service — the boot ONESHOT (Type=oneshot,
+    not a daemon) that plants the tap once per boot; bpffs pins do not
+    survive a reboot, the oneshot replants them.
+  - scripts/dev/bootstrap-ebpf.sh — the host bootstrap for developing
+    the tap (dated nightly + the pinned bpf-linker prebuilt).
+  - packaging — install.sh/uninstall.sh teach the oneshot posture and
+    sweep the kernel side (best-effort `detach`) on removal.
+
+### Changed
+
+- **night-improve-23** — the CLI surface speaks the daemonless world:
+  `start`/`daemon`/`stop` are gone; `on`/`off`/`preset`/`volume`/
+  `stats`/`status` are one-map-write verbs that live under 5 ms. The
+  doctor reports the kernel/eBPF verdict instead of the input group
+  (the group died with the seat capture — the passive tap needs no
+  device permissions). The volume retune rides a new atomic cell in
+  the voice pool (`set_master_volume` takes `&self` now, wired through
+  the orchestrator's `volume_factor` handle). nix trims to
+  signal/process/user/poll; libc survives solely for the raw
+  BPF/perf syscall lane in src/ebpf/bpf_syscall.rs (aya's typed
+  TracePointLink wraps a pub(crate) inner, so its link cannot be
+  pinned through the public API — the zelynic bpf_syscall precedent).
+
+### Removed
+
+
 - **night-improve-22** — the no-config law. `config.toml` (1672 lines)
   and its entire support stack are deleted: the session search-path
   module (src/session/config/), the TOML parse/validate surface, the
