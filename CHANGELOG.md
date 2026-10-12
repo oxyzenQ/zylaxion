@@ -18,6 +18,64 @@ and the pre-v10 release notes live next to it in
 
 ## [Unreleased]
 
+### Fixed
+
+- **night-improve-24** — the Dragon Guard estate is green again. All
+  four red lanes diagnosed on real ground and repaired:
+  - the `check` and `Miri` lanes died inside the build script's eBPF
+    preflight: the ebpf feature went default in night-improve-23, so
+    every git-checkout build source-builds the kernel object and
+    hard-requires the dated nightly pin + bpf-linker — neither lane
+    had them. Both now run `scripts/dev/bootstrap-ebpf.sh` (the
+    canonical installer) behind a shared `ebpf/target` cache keyed on
+    the toolchain pin, and drop the daemon-era `libinput-dev` /
+    `libudev-dev` packages (only the cpal ALSA headers remain a build
+    prerequisite).
+  - the `Workflow lint + codespell` lane: eight codespell dictionary
+    hits repaired or allow-listed (`retuned` is a false positive on
+    the deliberate past tense of retune), yamllint comment-spacing
+    compliance across all five workflows, and three release.yml
+    shell lines back under the 120-character cap with byte-identical
+    behavior.
+  - the `Supply-chain CVE scan` lane: RUSTSEC-2026-0293 (ringbuf
+    0.4.8 double free / use-after-free in `Consumer::skip`/`clear` on
+    a panicking `Drop`). The audio bridge never calls either
+    function, so the exposure was the advisory, not an exploitable
+    path; ringbuf is bumped to 0.5.3 (>= the 0.5.2 fix), an
+    API-compatible move for every call site.
+  - `scripts/dev/bootstrap-ebpf.sh`: the python zstandard fallback
+    installed the raw tar as the linker binary (the release asset is
+    a zstd stream wrapping a POSIX tar; only the `tar --zstd` branch
+    unpacked both layers). Reproduced on a zstd-less host; the
+    fallback now untars and refuses to stage anything without ELF
+    magic.
+  - the miri-interpreted suite, once it finally ran, found five real
+    test bugs plus one interpreter-physics mismatch, all fixed with
+    the evidence in the commit: a tracepoint-id test that read /sys
+    (split into the pure path-order + parser contract and the root-run
+    IO shell), a pin test statx-ing live bpffs paths (fenced from the
+    interpreter lane), an alignment fixture that assumed stack
+    alignment by luck (bare `[u8; N]` locals carry alignment 1 — now
+    `#[repr(align(8))]`, the exact law the file pins), a wall-clock
+    probe (fenced), and a batch-vs-per-sample tolerance that ignored
+    the interpreter's non-deterministic libm transcendentals
+    (1e-10 -> 1e-4, four orders of magnitude below any real
+    divergence, with the tan-on-identical-bits experiment recorded).
+- **night-improve-24** — the changes job's detector now matches the
+  `.github/` tree too: workflow edits are build surface (the check
+  lane carries the eBPF prerequisites) and used to ship unvalidated.
+
+### Added
+
+- **night-improve-24** — the kernel-side CI lane: `eBPF tap build`
+  proves the detached ebpf/ workspace standalone on its own dated
+  nightly — `cargo fmt --check` inside ebpf/, the locked
+  `bpfel-unknown-none` release build with `-Z build-std=core` through
+  bpf-linker, and ELF structural validation of the object (real ELF
+  magic; the tracepoint, maps and license sections aya's loader
+  demands). No system packages: aya-ebpf is pure Rust. The check lane
+  remains the embedding half's proof; this lane is the kernel half's.
+
 ### Removed
 
 - **night-improve-23** — the daemon dies. The entire POSIX daemonization
