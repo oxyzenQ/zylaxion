@@ -342,7 +342,7 @@ pub fn cmd_play() {
 
 // ── Control slot constants ──────────────────────────────────────────────
 // The userspace mirror of control_slots in ebpf/src/main.rs (and
-// ebpf::loader::control). Re-declared here as private aliases so the
+// ebpf::loader::control). Redeclared here as private aliases so the
 // player reads without a module path hop; the loader's test tree pins
 // the cross-side contract.
 

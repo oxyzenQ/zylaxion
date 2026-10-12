@@ -40,7 +40,7 @@ fn floor_law_is_the_owner_minimum() {
     // Below it: unsupported — including the adjacent minor.
     assert!(!is_supported(Some((5, 14))));
     assert!(!is_supported(Some((4, 19))));
-    // Unparseable is unsupported (never guess).
+    // Unparsable is unsupported (never guess).
     assert!(!is_supported(None));
 }
 

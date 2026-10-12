@@ -56,7 +56,7 @@ pub const VOLUME_ENV_VAR: &str = "ZYLAXION_VOLUME";
 /// # Errors
 ///
 /// Unknown preset name (from the flag or the environment) or an
-/// unparseable `ZYLAXION_VOLUME` — both are hard errors. The caller
+/// unparsable `ZYLAXION_VOLUME` — both are hard errors. The caller
 /// (`cmd_start` / `cmd_daemon`) prints the message and exits; there
 /// is **no silent fallback** to a different preset or volume.
 pub fn resolve(cli_preset: Option<&str>) -> Result<(KeyProfile, &'static str, f32), String> {
