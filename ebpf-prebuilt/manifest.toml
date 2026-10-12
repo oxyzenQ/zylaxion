@@ -1,0 +1,21 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# zylaxion prebuilt eBPF object manifest (night-improve-23, the
+# zelynic NIGHT-ask-2 shape). Generated after the ebpf/ tree build
+# — regenerate after any change under ebpf/ so the embedded object
+# never drifts from the source. ebpf_tree_sha256 pins the exact
+# ebpf/ source tree the object was built from: the sha256 over the
+# byte-order-sorted (LC_ALL=C) git-tracked ebpf/ file hashes. These
+# are the same bytes the registry-install binaries embed.
+
+schema = 1
+generated = "2026-10-12T06:34:54Z"
+toolchain = "nightly-2026-09-18"
+bpf_linker = "0.11.1"
+ebpf_tree_sha256 = "7a176142a1ca872bf6ea6b0dead2cd6b089f9e97cdc79b6f0717c2cccc5fe6e6"
+
+[[object]]
+name = "zylaxion-tap"
+sha256 = "8201efde809b0065a90728fef563a7bffd9d3ab28abca6eda13ff0d1e762ddb8"
+size = 2528
