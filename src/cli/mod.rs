@@ -153,8 +153,13 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Run in the foreground (press Ctrl+C to quit)
-    Start {
+    /// Turn the keyboard sound on (spawns the stateless player).
+    ///
+    /// Requires the tap attached (`sudo zylaxion attach`, once per
+    /// boot). The preset resolves from this flag, the ZYLAXION_PRESET
+    /// environment variable, then the compiled default (night-improve-22,
+    /// the no-config law).
+    On {
         /// Select the acoustic preset by name (from the compiled
         /// registry). If omitted, the ZYLAXION_PRESET environment
         /// variable is used, then the compiled default.
@@ -162,39 +167,32 @@ pub enum Commands {
         preset: Option<String>,
     },
 
-    /// Run as a background daemon (controlled via Unix socket).
-    Daemon {
-        /// Select the acoustic preset by name (from the compiled
-        /// registry). If omitted, the ZYLAXION_PRESET environment
-        /// variable is used, then the compiled default.
-        #[arg(long)]
-        preset: Option<String>,
+    /// Turn the keyboard sound off — the player self-exits, zero
+    /// processes remain (the tap stays attached; `detach` removes it).
+    Off,
 
-        /// Skip the fork/setsid daemonization and run the daemon logic
-        /// in the foreground (block the main thread).
-        ///
-        /// This is intended for process supervisors like systemd, which
-        /// expect the launched process to stay in the foreground and be
-        /// supervised by the manager. The `zylaxion.service` unit uses
-        /// `Type=simple` + `zylaxion daemon --foreground` so systemd
-        /// can track the live PID directly. Without this flag, the
-        /// `daemon` subcommand forks to the background and the parent
-        /// exits — which makes systemd think the service died.
-        ///
-        /// When `--foreground` is set:
-        /// - `daemonize()` (fork + setsid) is skipped.
-        /// - `close_std_fds()` is skipped so logs still reach journald
-        ///   via the standard streams systemd wires up.
-        /// - PID file, IPC socket, signal handlers, config-watcher, and
-        ///   the orchestrator loop all run inline on the main thread.
-        #[arg(long, default_value_t = false)]
-        foreground: bool,
+    /// Switch the acoustic preset live (one map write against the
+    /// pinned control plane).
+    Preset {
+        /// The preset name (see `zylaxion list-presets`).
+        #[arg(long, short)]
+        name: String,
     },
 
-    /// Stop a running daemon
-    Stop,
+    /// Set the master volume as a percent of the compiled default
+    /// (100 = the laptop-speaker-tuned 5.5x gain).
+    Volume {
+        /// Volume percent, 0 (silence) to any sane ceiling.
+        #[arg(long, short)]
+        percent: u32,
+    },
 
-    /// Show daemon status
+    /// Show the kernel-side typing telemetry (per-key counters the tap
+    /// accumulated since attach, at zero userspace cost).
+    Stats,
+
+    /// Show the one-screen truth: kernel verdict, tap residency, player
+    /// state, active posture.
     Status,
 
     /// Print system health diagnostic

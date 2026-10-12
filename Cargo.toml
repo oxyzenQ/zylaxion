@@ -93,23 +93,19 @@ crossbeam-channel = "0.5"
 env_logger = { version = "0.11", default-features = false, features = [
     "auto-color",
 ] }
-# nix feature merge (night-improve-21): the union of the former binary
-# manifest (signal, process, user, fs) and the former zylaxion-input
-# manifest (time, poll) — the socket/file lanes and the input event
-# loop share one table now.
-input = { version = "0.9", features = ["udev"] }
-libc = "0.2"
-# libc is used for `umask(2)` in `daemon::ipc::create_listener` to
-# guarantee the IPC socket file is created with mode 0o600.
 log = "0.4"
-nix = { version = "0.29", features = ["signal", "process", "user", "fs", "time", "poll"] }
+nix = { version = "0.29", features = ["signal", "process", "user", "poll"] }
 ringbuf = "0.4"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+# night-improve-23: libc survives for the raw BPF/perf syscalls in
+# src/ebpf/bpf_syscall.rs (the tracepoint link pin lane) — the one
+# place the typed API surface of aya cannot reach.
+libc = "0.2"
 signal-hook = "0.3"
 # night-improve-22: the `toml` dependency died with config.toml — the
-# preset registry is compile-time data and serde lives on only for the
-# daemon IPC protocol.
+# preset registry is compile-time data. night-improve-23: serde and
+# serde_json died with the daemon IPC (there is no protocol left to
+# serialize), and the libinput `input` crate died with the seat capture —
+# the kernel-side eBPF tap replaced it.
 
 [profile.release]
 opt-level = 3

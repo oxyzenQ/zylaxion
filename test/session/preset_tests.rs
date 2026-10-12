@@ -16,7 +16,10 @@
 
 use super::*;
 
-use crate::session::pathguard::ENV_LOCK;
+// The ENV_LOCK moved here when pathguard died with the daemon
+// (night-improve-23): the mutex exists only for this suite's single
+// env-reading integration test.
+static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
 fn resolve_cli_flag_wins_over_everything() {

@@ -13,11 +13,11 @@ const FOOTER: &str = "For more information, try '--help'.";
 #[test]
 fn every_fatal_path_ends_with_exactly_one_footer() {
     for argv in [
-        vec!["zylaxion", "start", "--pres"],
-        vec!["zylaxion", "start", "--help"],
+        vec!["zylaxion", "on", "--pres"],
+        vec!["zylaxion", "on", "--help"],
         vec!["zylaxion", "--CHECK-UPDATE"],
         vec!["zylaxion", "startt"],
-        vec!["zylaxion", "start", "--PRESET", "x"],
+        vec!["zylaxion", "on", "--PRESET", "x"],
     ] {
         let rendered = render_via_bridge(&argv);
         let count = rendered.matches(FOOTER).count();
@@ -31,7 +31,7 @@ fn every_fatal_path_ends_with_exactly_one_footer() {
 
 #[test]
 fn caps_typo_at_subcommand_level_rescues_from_the_failing_pool() {
-    let rendered = render_via_bridge(&["zylaxion", "start", "--PRESET", "x"]);
+    let rendered = render_via_bridge(&["zylaxion", "on", "--PRESET", "x"]);
     assert!(
         rendered.contains("a similar argument exists: '--preset'"),
         "caps typo must rescue from the subcommand pool: {rendered}"
@@ -40,14 +40,14 @@ fn caps_typo_at_subcommand_level_rescues_from_the_failing_pool() {
 
 #[test]
 fn clap_own_tip_is_never_duplicated() {
-    let rendered = render_via_bridge(&["zylaxion", "start", "--pres"]);
+    let rendered = render_via_bridge(&["zylaxion", "on", "--pres"]);
     let count = rendered.matches("a similar argument exists").count();
     assert_eq!(count, 1, "one tip, clap's own: {rendered}");
 }
 
 #[test]
 fn root_only_flag_typed_at_subcommand_position_tips_the_authority() {
-    let rendered = render_via_bridge(&["zylaxion", "start", "--help"]);
+    let rendered = render_via_bridge(&["zylaxion", "on", "--help"]);
     assert!(
         rendered.contains("'zylaxion --help'"),
         "help must redirect to the top-level surface: {rendered}"

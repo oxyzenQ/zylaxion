@@ -76,7 +76,7 @@ fn orchestrator_error_display() {
 
 #[test]
 fn orchestrator_error_is_error() {
-    let e = OrchestratorError::Input(crate::input::InputError::LibinputError("test".into()));
+    let e = OrchestratorError::Audio(crate::audio::AudioError::NoDeviceAvailable);
     let _: &dyn std::error::Error = &e;
 }
 
@@ -145,7 +145,7 @@ fn run_with_single_keypress(scancode: u32, wait_ms: u64) -> Vec<[f32; 2]> {
         .expect("spawn test thread");
 
     // Send a keypress event with a monotonic timestamp.
-    tx.send(InputKeyEvent {
+    tx.send(KeyEvent {
         scancode,
         pressed: true,
         timestamp: 1_000_000, // 1s in us
@@ -222,7 +222,7 @@ fn stop_flag_exits_run_cleanly() {
     let mut orchestrator = Orchestrator::new_with(sink);
 
     let model = Arc::new(ArcSwap::from_pointee(MechanicalClick::new(sr)));
-    let (_tx, rx) = crossbeam_channel::unbounded::<InputKeyEvent>();
+    let (_tx, rx) = crossbeam_channel::unbounded::<KeyEvent>();
     let stop_flag = Arc::new(AtomicBool::new(false));
 
     let stop_clone = Arc::clone(&stop_flag);
@@ -253,7 +253,7 @@ fn channel_disconnect_exits_run_cleanly() {
     let mut orchestrator = Orchestrator::new_with(sink);
 
     let model = Arc::new(ArcSwap::from_pointee(MechanicalClick::new(sr)));
-    let (tx, rx) = crossbeam_channel::unbounded::<InputKeyEvent>();
+    let (tx, rx) = crossbeam_channel::unbounded::<KeyEvent>();
     let stop_flag = Arc::new(AtomicBool::new(false));
 
     let handle = std::thread::Builder::new()
@@ -297,7 +297,7 @@ fn hot_reload_model_swap_mid_render() {
         .expect("spawn");
 
     // First keypress with the original model.
-    tx.send(InputKeyEvent {
+    tx.send(KeyEvent {
         scancode: 30,
         pressed: true,
         timestamp: 1_000_000,
@@ -311,7 +311,7 @@ fn hot_reload_model_swap_mid_render() {
     std::thread::sleep(Duration::from_millis(10));
 
     // Second keypress with the new model.
-    tx.send(InputKeyEvent {
+    tx.send(KeyEvent {
         scancode: 31,
         pressed: true,
         timestamp: 2_000_000,
@@ -350,7 +350,7 @@ fn master_volume_affects_output_amplitude() {
         orch_lo.run(&model_lo, &rx_lo, stop_lo);
     });
     tx_lo
-        .send(InputKeyEvent {
+        .send(KeyEvent {
             scancode: 30,
             pressed: true,
             timestamp: 1_000_000,
@@ -370,7 +370,7 @@ fn master_volume_affects_output_amplitude() {
         orch_hi.run(&model_hi, &rx_hi, stop_hi);
     });
     tx_hi
-        .send(InputKeyEvent {
+        .send(KeyEvent {
             scancode: 30,
             pressed: true,
             timestamp: 1_000_000,

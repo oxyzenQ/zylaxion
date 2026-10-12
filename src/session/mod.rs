@@ -13,16 +13,17 @@
 //! - [`kernel`] — WHETHER the host kernel can carry the eBPF-only
 //!   architecture at all (night-improve-23: the 5.15 floor, the
 //!   "verified supported" / "verified unsupported" verdicts).
-//! - [`instance_lock`] — at most one zylaxion per session (the flock).
-//! - [`pathguard`] — WHERE runtime state may live (the dangerous
-//!   XDG_RUNTIME_DIR verdicts).
 //! - [`privilege`] — WHO may run the privileged surfaces (the
-//!   night-improve-16 root-usage audit).
+//!   night-improve-16 root-usage audit, extended with the night-improve-23
+//!   attach REQUIRE row).
 //! - [`signals`] — how the session ends (graceful shutdown handlers).
+//!
+//! night-improve-23: the flock (`instance_lock`) died with the daemon —
+//! the single-instance marker is the pinned control map's player pid
+//! (see `crate::commands::player`), read and written in one place, with
+//! no file to go stale.
 
-pub mod instance_lock;
 pub mod kernel;
-pub mod pathguard;
 pub mod preset;
 pub mod privilege;
 pub mod signals;

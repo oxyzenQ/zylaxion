@@ -14,10 +14,12 @@ use std::sync::Arc;
 
 use cpal::traits::{DeviceTrait, HostTrait};
 
+#[cfg(feature = "ebpf")]
+use crate::ebpf::pin;
 use crate::session::preset;
 
-/// Print a system-health diagnostic report (build facts, input group,
-/// XDG, audio).
+/// Print a system-health diagnostic report (build facts, kernel/eBPF
+/// verdict, audio).
 ///
 /// The report leads with the BUILD facts block (night-improve-13, the
 /// zelynic night-improve-66 doctor completeness): version, commit,
@@ -155,34 +157,8 @@ pub fn cmd_doctor() {
         }
     }
 
-    // 2. Input group check.
-    println!(
-        "\n{}",
-        crate::output::section("[3/5] Input group membership...")
-    );
-    if check_input_group() {
-        println!(
-            "      {}",
-            crate::output::ok_line("PASS: user is in the 'input' group")
-        );
-    } else {
-        println!(
-            "      {}",
-            crate::output::fail_line("FAIL: user is NOT in the 'input' group")
-        );
-        println!(
-            "      {}",
-            crate::output::tip_line("fix: sudo usermod -aG input $USER")
-        );
-        println!(
-            "      {}",
-            crate::output::tip_line("then log out and back in")
-        );
-        ok = false;
-    }
-
     // 3. XDG_RUNTIME_DIR check.
-    println!("\n{}", crate::output::section("[4/5] XDG_RUNTIME_DIR..."));
+    println!("\n{}", crate::output::section("[3/4] XDG_RUNTIME_DIR..."));
     match std::env::var("XDG_RUNTIME_DIR") {
         Ok(dir) => {
             let path = std::path::Path::new(&dir);
@@ -215,7 +191,7 @@ pub fn cmd_doctor() {
     }
 
     // 4. Audio server check (best-effort).
-    println!("\n{}", crate::output::section("[5/5] Audio server..."));
+    println!("\n{}", crate::output::section("[4/4] Audio server..."));
     match cpal::default_host().default_output_device() {
         Some(device) => {
             let name = device.name().unwrap_or_else(|_| "<unknown>".into());
@@ -275,8 +251,9 @@ pub fn cmd_list_presets() {
     println!("Active preset: {active}");
     println!();
     println!("Switch preset:");
-    println!("  export {}=\"<name>\", OR", preset::PRESET_ENV_VAR);
-    println!("  Run: zylaxion start --preset <name>");
+    println!("  zylaxion preset --name <name> (while playing)");
+    println!("  or export {}=\"<name>\"", preset::PRESET_ENV_VAR);
+    println!("  Run: zylaxion on --preset <name>, or switch live with:");
     println!();
     println!(
         "Volume (headphones want less): export {}=1.5",
@@ -304,43 +281,50 @@ pub fn cmd_list_backends() {
 }
 
 /// Quick status overview shown when `zylaxion` is run with no
-/// subcommand (v10.2.0+ — user feedback: "should zylaxion can use
-/// verbose because user can see the daemon running, info, other
-/// metrics").
-///
-/// Prints a one-screen summary:
-/// - Daemon status (running/stopped, PID)
-/// - Active preset (the session context selection against the
-///   compiled registry — no config file since night-improve-22)
-/// - Audio device (name, sample rate, channels)
-/// - Quick-start hint
+/// subcommand (v10.2.0+ — user feedback). night-improve-23 rewrite:
+/// the daemon lines are gone; the tap residency, the player state, and
+/// the active posture replace them — the same facts `status` prints,
+/// in the compact no-subcommand shape.
 pub fn cmd_overview() {
     println!("=== zylaxion ===\n");
 
-    // 1. Daemon status.
-    let daemon_running = match crate::daemon::is_daemon_running() {
-        Ok(pid) => {
-            println!("  daemon:  running (PID: {})", pid.as_raw());
-            true
+    // 1. Kernel verdict (both lanes — the kernel probe has no deps).
+    let kernel = crate::session::kernel::probe();
+    println!("  kernel:  {} ({})", kernel.release, kernel.verdict());
+
+    // 2. Tap residency + active posture (feature lane only; the dormant
+    //    binary says so below).
+    #[cfg(feature = "ebpf")]
+    {
+        if !pin::any_pin_present() {
+            println!("  tap:     not attached (sudo zylaxion attach)");
+        } else if pin::all_pins_present() {
+            println!("  tap:     attached");
+        } else {
+            println!("  tap:     PARTIAL pin set (sudo zylaxion attach replants it)");
         }
-        Err(_) => {
-            println!("  daemon:  not running");
-            false
+        if let Ok(control) = crate::commands::sound::open_control() {
+            let enabled = control.get(&0u32, 0).unwrap_or(0) == 1;
+            let preset_index = control.get(&1u32, 0).unwrap_or(0);
+            let preset_name = crate::profiles::registry_all()
+                .get(preset_index as usize)
+                .map(|e| e.name)
+                .unwrap_or("<unknown>");
+            let volume = control.get(&2u32, 0).unwrap_or(100);
+            let pid = control.get(&3u32, 0).unwrap_or(0);
+            println!("  sound:   {}", if enabled { "on" } else { "off" });
+            println!("  preset:  {preset_name}");
+            println!("  volume:  {volume}% (100 = the compiled default)");
+            match pid {
+                0 => println!("  player:  not running"),
+                p => println!("  player:  pid {p}"),
+            }
+        } else if pin::any_pin_present() {
+            println!("  control: not openable by this user (pin ownership?)");
         }
-    };
-    println!(
-        "  preset:  {} (compiled registry)",
-        preset::context_preset_name()
-    );
-    match preset::master_volume() {
-        Ok(volume) => {
-            let source = std::env::var(preset::VOLUME_ENV_VAR)
-                .map(|_| "ZYLAXION_VOLUME")
-                .unwrap_or_else(|_| "default");
-            println!("  volume:  {volume} ({source})");
-        }
-        Err(_) => println!("  volume:  invalid ZYLAXION_VOLUME (start will refuse)"),
     }
+    #[cfg(not(feature = "ebpf"))]
+    println!("  ebpf:    dormant build (--no-default-features) — no tap surface");
 
     // 3. Audio device.
     let host = cpal::default_host();
@@ -363,23 +347,10 @@ pub fn cmd_overview() {
         }
     }
 
-    // 4. Input group.
-    if check_input_group() {
-        println!("  input:   in 'input' group");
-    } else {
-        println!("  input:   NOT in 'input' group (fix: sudo usermod -aG input $USER)");
-    }
-
     println!();
-    if daemon_running {
-        println!("  zylaxion stop          # stop daemon");
-        println!("  zylaxion start         # foreground mode");
-        println!("  zylaxion list-presets  # switch sound");
-    } else {
-        println!("  zylaxion daemon        # start background daemon");
-        println!("  zylaxion start         # foreground mode");
-        println!("  zylaxion doctor        # system check");
-    }
+    println!("  zylaxion on             # start the sound");
+    println!("  zylaxion preset <name>  # switch sound live");
+    println!("  zylaxion status         # the full truth");
     println!();
 }
 
@@ -434,26 +405,4 @@ pub fn cmd_live_overview() {
     // Restore: show cursor + leave alternate screen.
     print!("\x1b[?25h\x1b[?1049l");
     let _ = io::stdout().flush();
-}
-
-/// Check if the current user is in the 'input' group by parsing
-/// `/etc/group` (no unsafe FFI needed).
-fn check_input_group() -> bool {
-    let user_groups: Vec<u32> = nix::unistd::getgroups()
-        .map(|g| g.iter().map(|gid| gid.as_raw()).collect())
-        .unwrap_or_default();
-
-    if let Ok(content) = std::fs::read_to_string("/etc/group") {
-        for line in content.lines() {
-            // night-improve-4 (edition 2024): let-chains collapse the
-            // nested guards clippy flagged as collapsible_if.
-            if let Some(rest) = line.strip_prefix("input:x:")
-                && let Some(gid_str) = rest.split(':').next()
-                && let Ok(input_gid) = gid_str.parse::<u32>()
-            {
-                return user_groups.contains(&input_gid);
-            }
-        }
-    }
-    false
 }

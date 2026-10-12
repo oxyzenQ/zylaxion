@@ -14,21 +14,18 @@ use std::fmt;
 /// Errors from the orchestrator.
 #[derive(Debug)]
 pub enum OrchestratorError {
-    /// Audio output device could not be opened.
+    /// Audio output device could not be opened. The input half of this
+    /// error contract (the former Input variant) died with the libinput
+    /// capture in night-improve-23 — the kernel-side tap cannot fail at
+    /// runtime from the orchestrator's perspective; a dead tap simply
+    /// rings nothing, and the tap's own failures surface at attach.
     Audio(crate::audio::AudioError),
-    /// Input source could not be started.
-    // night-improve-21: production surfaces input errors from listen()
-    // directly; the variant stays as the designed error contract and
-    // the core test tree constructs it, hence the allow.
-    #[allow(dead_code)]
-    Input(crate::input::InputError),
 }
 
 impl fmt::Display for OrchestratorError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Audio(e) => write!(f, "audio: {e}"),
-            Self::Input(e) => write!(f, "input: {e}"),
         }
     }
 }
@@ -37,7 +34,6 @@ impl std::error::Error for OrchestratorError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Audio(e) => Some(e),
-            Self::Input(e) => Some(e),
         }
     }
 }
