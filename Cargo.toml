@@ -95,7 +95,7 @@ env_logger = { version = "0.11", default-features = false, features = [
 ] }
 log = "0.4"
 nix = { version = "0.29", features = ["signal", "process", "user", "poll"] }
-ringbuf = "0.4"
+ringbuf = "0.5"
 # night-improve-23: libc survives for the raw BPF/perf syscalls in
 # src/ebpf/bpf_syscall.rs (the tracepoint link pin lane) — the one
 # place the typed API surface of aya cannot reach.
