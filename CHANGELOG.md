@@ -20,6 +20,39 @@ and the pre-v10 release notes live next to it in
 
 ### Fixed
 
+- **night-badas-1** — the estate green on push and schedule, and the
+  one privileged surface actually usable:
+  - the `Workflow lint + codespell` lane: the release GPG step's
+    `mkdir -p -m 700` split into `mkdir -p` + `chmod 700` (SC2174 —
+    with `-p`, `-m` only applies to the deepest directory;
+    byte-identical outcome, shellcheck-clean).
+  - the `Miri` lane: `tee target/miri-log.txt` opened its output
+    before cargo materialized `target/` on a cold cache, so the job
+    went red with zero failing tests (143/143 interpreted clean) and
+    the failure artifact never existed. A `mkdir -p target` ahead of
+    the pipeline returns the exit code to cargo and makes the
+    artifact contract honest. The bug was masked until
+    night-improve-24 landed the eBPF bootstrap the same job needed.
+  - `sudo zylaxion attach` refused root: the privilege gate was
+    wired with the negated euid fact — root got "attach must run as
+    root" while non-root sailed through into the loader's failure.
+    The polarity is corrected to match the sibling gates, the doc
+    that described the negated call as the contract is fixed, and
+    `attach_requirement` gains its missing test pins (the non-root
+    refusal wording, and the root-opens-the-gate polarity).
+  - the Supermassive and Dependency Maintenance lanes: both were fed
+    the eBPF source-build prerequisites (the canonical bootstrap
+    behind the shared `ebpf/target` cache), and the daemon-era
+    `libinput-dev` / `libudev-dev` packages leave with them.
+  - the Release lane latent gap: the build job never had the eBPF
+    prerequisites either — the first tag push after night-improve-23
+    would have died in the build script's preflight (the last green
+    release, v11.0.0, predates the turn by 70 commits). The same
+    bootstrap pair rides the matrix now.
+  - `scripts/dev/bootstrap-ebpf.sh` header comment: it still claimed
+    the default stable build never needs the prerequisites; since
+    night-improve-23 every git-checkout build hard-requires them, and
+    the comment now says so.
 - **night-improve-24** — the Dragon Guard estate is green again. All
   four red lanes diagnosed on real ground and repaired:
   - the `check` and `Miri` lanes died inside the build script's eBPF
