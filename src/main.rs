@@ -24,11 +24,10 @@
 //!   zactrix-engine)
 //! - [`audio`]     — the cpal sink and the SPSC ring bridge (the former
 //!   zylaxion-output)
-//! - [`input`]     — libinput keyboard capture (the former
-//!   zylaxion-input; night-improve-23 retires it — the eBPF tap in
-//!   [`ebpf`] replaces the seat capture)
-//! - [`core`]      — the Orchestrator, the dragon's spine: input ->
-//!   engine -> audio (the former zylaxion-core)
+//! - [`core`]      — the Orchestrator, the dragon's spine: events ->
+//!   engine -> audio (the former zylaxion-core; since night-improve-23
+//!   the events come from the kernel-side eBPF tap, and the KeyEvent
+//!   contract lives here)
 //! - [`ebpf`]      — the eBPF tap loader: attach, pin, detach
 //!   (night-improve-23, the daemonless control plane)
 //!
@@ -50,12 +49,10 @@ mod audio;
 mod core;
 mod ebpf;
 mod engine;
-mod input;
 mod profiles;
 // the shell
 mod cli;
 mod commands;
-mod daemon;
 mod info;
 mod output;
 mod session;
@@ -131,12 +128,12 @@ fn main() {
 
     match cli.command {
         Some(cmd) => match cmd {
-            cli::Commands::Start { preset } => commands::daemon::cmd_start(preset),
-            cli::Commands::Daemon { preset, foreground } => {
-                commands::daemon::cmd_daemon(preset, foreground)
-            }
-            cli::Commands::Stop => commands::daemon::cmd_stop(),
-            cli::Commands::Status => daemon::cmd_status(),
+            cli::Commands::On { preset } => commands::sound::cmd_on(preset),
+            cli::Commands::Off => commands::sound::cmd_off(),
+            cli::Commands::Preset { name } => commands::sound::cmd_preset(&name),
+            cli::Commands::Volume { percent } => commands::sound::cmd_volume(percent),
+            cli::Commands::Stats => commands::sound::cmd_stats(),
+            cli::Commands::Status => commands::sound::cmd_status(),
             cli::Commands::Doctor => commands::info::cmd_doctor(),
             cli::Commands::Attach => commands::attach::cmd_attach(),
             cli::Commands::Detach => commands::attach::cmd_detach(),

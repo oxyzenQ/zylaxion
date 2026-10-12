@@ -32,7 +32,7 @@ use std::time::Duration;
 
 use crate::audio::AudioSink;
 use crate::engine::VoicePool;
-use crate::input::KeyEvent as InputKeyEvent;
+
 use crate::profiles::{AcousticModel, KeyTrigger};
 use arc_swap::ArcSwap;
 use crossbeam_channel::Receiver;
@@ -147,6 +147,33 @@ mod error;
 pub use error::OrchestratorError;
 
 // ── Orchestrator ────────────────────────────────────────────────────────
+
+/// A keyboard event delivered to the render loop (night-improve-23:
+/// relocated here from the retired libinput module — the shape is the
+/// contract between the kernel-side tap and the engine, and the engine
+/// owns that contract now).
+///
+/// The `scancode` is the evdev key code as defined in
+/// `<linux/input-event-codes.h>` (e.g. `KEY_A = 30`).
+///
+/// # Privacy note (carried from the libinput era)
+///
+/// The raw hardware scancode is the physical key location, not an ASCII
+/// character. For privacy reasons, **never log the scancode field** in
+/// production code — a journal reader could reconstruct typed passwords
+/// by mapping scancodes back through the QWERTY layout. The struct
+/// exists to drive the DSP engine, not for human inspection.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct KeyEvent {
+    /// Linux evdev key code (e.g. 30 for `KEY_A`).
+    pub scancode: u32,
+    /// `true` when the key was pressed, `false` when released.
+    pub pressed: bool,
+    /// Timestamp in microseconds sourced from `CLOCK_MONOTONIC` (the
+    /// tap stamps it with bpf_ktime_get_ns / 1000 — the same clock and
+    /// unit the old libinput path used).
+    pub timestamp: u64,
+}
 
 /// Wires keyboard input → DSP engine → audio output in a real-time loop.
 ///
@@ -306,14 +333,14 @@ impl<S: AudioSink> Orchestrator<S> {
     /// # Arguments
     ///
     /// * `model` — Hot-swappable acoustic model behind an `ArcSwap`.
-    /// * `event_rx` — Channel receiver yielding [`InputKeyEvent`]s from
+    /// * `event_rx` — Channel receiver yielding [`KeyEvent`]s from
     ///   the input layer.
     /// * `stop_flag` — Shared flag checked each loop iteration; when
     ///   `true`, the loop breaks and the audio device is released.
     pub fn run<M: AcousticModel>(
         &mut self,
         model: &Arc<ArcSwap<M>>,
-        event_rx: &Receiver<InputKeyEvent>,
+        event_rx: &Receiver<KeyEvent>,
         stop_flag: Arc<AtomicBool>,
     ) {
         // ── Pre-fill ring buffer with minimal silence ─────────────
@@ -493,11 +520,7 @@ impl<S: AudioSink> Orchestrator<S> {
 
     /// Process a single input event: trigger on press, release on release.
     #[inline]
-    fn handle_input_event<M: AcousticModel>(
-        pool: &mut VoicePool,
-        model: &M,
-        event: &InputKeyEvent,
-    ) {
+    fn handle_input_event<M: AcousticModel>(pool: &mut VoicePool, model: &M, event: &KeyEvent) {
         if event.pressed {
             // v10.2.0 (dragonzen audit N5): record the keypress timestamp
             // BEFORE init_state so the model can compute the inter-

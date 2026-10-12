@@ -23,15 +23,22 @@
 //! there is nothing to inherit.
 
 use std::process;
+
+#[cfg(feature = "ebpf")]
 use std::sync::Arc;
+#[cfg(feature = "ebpf")]
 use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(feature = "ebpf")]
 use std::time::Duration;
 
+#[cfg(feature = "ebpf")]
 use arc_swap::ArcSwap;
+#[cfg(feature = "ebpf")]
 use aya::maps::MapData;
 use nix::poll::{PollFd, PollFlags, PollTimeout, poll};
 
 use crate::core::Orchestrator;
+#[cfg(feature = "ebpf")]
 use crate::ebpf::pin;
 use crate::profiles::MechanicalClick;
 
@@ -68,6 +75,7 @@ fn preset_by_index(index: u32) -> crate::profiles::KeyProfile {
     }
 }
 
+#[cfg(feature = "ebpf")]
 /// Open the pinned control map twice-shaped: one owned Map per handle.
 /// Main thread and watcher each get their own fd — no shared borrow, no
 /// Clone requirement, the same map underneath.
@@ -83,6 +91,7 @@ fn open_control_array() -> Result<aya::maps::Array<MapData, u32>, String> {
 }
 
 /// Open the pinned events ring buffer for consuming.
+#[cfg(feature = "ebpf")]
 fn open_events_ring() -> Result<aya::maps::RingBuf<MapData>, String> {
     let data = MapData::from_pin(pin::PIN_MAP_EVENTS)
         .map_err(|e| format!("cannot open the pinned events ring buffer: {e}"))?;
@@ -94,6 +103,7 @@ fn open_events_ring() -> Result<aya::maps::RingBuf<MapData>, String> {
 /// Run the internal player. Exits when the control map's enabled slot
 /// clears (the CLI's off/exit), a termination signal arrives, or the
 /// audio/input machinery fails.
+#[cfg(feature = "ebpf")]
 pub fn cmd_play() {
     // The privilege verdict (night-improve-16's audit): a root player
     // opens audio in root's session, which no user desktop shares.
@@ -210,7 +220,7 @@ pub fn cmd_play() {
                             continue;
                         }
                         let raw = unsafe { &*(item.as_ptr() as *const KeyRingEventRaw) };
-                        let event = crate::input::KeyEvent {
+                        let event = crate::core::KeyEvent {
                             scancode: raw.keycode,
                             pressed: raw.value == 1,
                             timestamp: raw.ts_us,
@@ -345,6 +355,7 @@ const STATE_RUNNING: u32 = 2;
 /// ebpf/src/main.rs (24 bytes; the loader's test tree pins the layout
 /// and this alias reads the same bytes). A local mirror keeps the hot
 /// parse a plain pointer cast.
+#[cfg(feature = "ebpf")]
 #[repr(C)]
 struct KeyRingEventRaw {
     ts_us: u64,
@@ -362,6 +373,7 @@ fn pid_alive(pid: i32) -> bool {
 /// A fatal player error: mark the control map FAILED, unregister, and
 /// exit. The stderr message is all the user sees (the player runs
 /// detached), so it carries the fix.
+#[cfg(feature = "ebpf")]
 fn fail(control: &mut aya::maps::Array<MapData, u32>, message: String) -> ! {
     let _ = control.set(STATE_SLOT, 3, 0);
     let _ = control.set(PLAYER_PID_SLOT, 0, 0);
@@ -384,4 +396,12 @@ fn init_logger() {
             )
         })
         .init();
+}
+
+/// Dormant lane (_play): a binary built without the eBPF loader cannot
+/// play — the honest refusal.
+#[cfg(not(feature = "ebpf"))]
+pub fn cmd_play() {
+    crate::output::error(crate::ebpf::dormant::DORMANT_REFUSAL);
+    process::exit(1);
 }

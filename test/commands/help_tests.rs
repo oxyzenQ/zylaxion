@@ -16,9 +16,13 @@ use super::*;
 fn reference_carries_every_subcommand_and_group() {
     let text = render_reference(false);
     for command in [
-        "start",
-        "daemon",
-        "stop",
+        "attach",
+        "on",
+        "preset",
+        "volume",
+        "off",
+        "detach",
+        "stats",
         "status",
         "doctor",
         "list-presets",
@@ -29,7 +33,12 @@ fn reference_carries_every_subcommand_and_group() {
             "reference must teach the command: {command}"
         );
     }
-    for heading in ["Run:", "Diagnostics:", "Discover:", "Global flags:"] {
+    for heading in [
+        "Run (the eBPF control plane, night-improve-23):",
+        "Diagnostics:",
+        "Discover:",
+        "Global flags:",
+    ] {
         assert!(
             text.contains(heading),
             "reference must carry the group heading: {heading}"

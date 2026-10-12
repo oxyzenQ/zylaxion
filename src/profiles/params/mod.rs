@@ -18,7 +18,7 @@ pub const MAX_POLYPHONY: usize = 16;
 /// `KeyTrigger` is the DSP-side concept: it carries the scancode,
 /// press/release state, pre-computed stereo position, and optional
 /// velocity for analog switches. The orchestrator translates
-/// `crate::input::KeyEvent` → `KeyTrigger` by computing the stereo
+/// `crate::core::KeyEvent` → `KeyTrigger` by computing the stereo
 /// position from the scancode.
 ///
 /// # Velocity (v11.0.0+ — analog switch support)
