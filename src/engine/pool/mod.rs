@@ -21,6 +21,9 @@
 //! for the new key. This is a simple but effective strategy that prioritizes
 //! the most recently pressed keys.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use crate::profiles::{AcousticModel, KeyTrigger, MAX_POLYPHONY};
 
 use crate::engine::Voice;
@@ -53,8 +56,12 @@ pub struct VoicePool {
     trigger_counter: u64,
     /// Master volume multiplier applied to the final stereo output.
     /// Combined with a hard clamp to prevent clipping when multiple
-    /// voices sum above unity.
-    master_volume: f32,
+    /// voices sum above unity. night-improve-23: the volume rides an
+    /// atomic (f32 bits) so the daemonless player's watcher thread can
+    /// retune it live while the render loop runs — the control plane
+    /// lives in a pinned BPF map now, and volume changes arrive from a
+    /// different thread than the pool.
+    master_volume: Arc<AtomicU32>,
 }
 
 impl VoicePool {
@@ -103,37 +110,48 @@ impl VoicePool {
             // Clamp to a sane range to prevent NaN/Infinity from
             // reaching the render path. Negative gains are allowed
             // (phase inversion) but unusual.
-            master_volume: if master_volume.is_finite() {
-                master_volume.clamp(-100.0, 100.0)
-            } else {
-                Self::DEFAULT_MASTER_VOLUME
-            },
+            master_volume: Arc::new(AtomicU32::new(Self::volume_bits(master_volume))),
         }
     }
 
     /// Returns the current master volume (linear gain multiplier).
-    // night-improve-21: unwired in the unified tree (the pool volume
-    // flows through with_volume at construction); expect() fires the
-    // moment a reader appears.
-    #[expect(dead_code)]
+    // night-improve-23: wired — the player's control-plane watcher reads
+    // the volume percent out of the pinned control map and stores the
+    // retuned gain through [`Self::set_master_volume`].
     #[inline]
     pub fn master_volume(&self) -> f32 {
-        self.master_volume
+        f32::from_bits(self.master_volume.load(Ordering::Relaxed))
     }
 
-    /// Update the master volume at runtime. The value is clamped to a
-    /// sane range — see [`Self::with_volume`].
-    // night-improve-21: unwired in the unified tree (hot-reload
-    // applies params, not volume, today); expect() self-retires when
-    // the volume hot-reload lane lands.
-    #[expect(dead_code)]
-    #[inline]
-    pub fn set_master_volume(&mut self, volume: f32) {
-        self.master_volume = if volume.is_finite() {
+    /// The shared volume factor handle (night-improve-23): a clone of
+    /// the pool's volume cell, so a thread that is NOT the render loop
+    /// (the player's watcher) can retune the volume live while the
+    /// orchestrator owns `&mut self`.
+    pub fn volume_factor(&self) -> Arc<AtomicU32> {
+        Arc::clone(&self.master_volume)
+    }
+
+    /// The pure volume clamp: finite values clamp to [-100, 100],
+    /// everything else falls back to the compiled default. Stored as
+    /// f32 bits for the atomic cell.
+    fn volume_bits(volume: f32) -> u32 {
+        let clamped = if volume.is_finite() {
             volume.clamp(-100.0, 100.0)
         } else {
             Self::DEFAULT_MASTER_VOLUME
         };
+        clamped.to_bits()
+    }
+
+    /// Update the master volume at runtime. The value is clamped to a
+    /// sane range — see [`Self::with_volume`]. Takes `&self` (the
+    /// atomic cell makes the retune thread-safe) so the player's
+    /// watcher thread can call it while the render loop owns the pool
+    /// mutably.
+    #[inline]
+    pub fn set_master_volume(&self, volume: f32) {
+        self.master_volume
+            .store(Self::volume_bits(volume), Ordering::Relaxed);
     }
 
     /// Trigger a new voice for a key press event.
@@ -228,9 +246,11 @@ impl VoicePool {
                 out[1] += right;
             }
         }
-        // Apply master volume.
-        let l = out[0] * self.master_volume;
-        let r = out[1] * self.master_volume;
+        // Apply master volume (the atomic cell — one relaxed load per
+        // render call, negligible against the DSP work).
+        let gain = f32::from_bits(self.master_volume.load(Ordering::Relaxed));
+        let l = out[0] * gain;
+        let r = out[1] * gain;
 
         // Hard-clamp to [-1.0, 1.0], replacing NaN/Infinity with 0.0.
         // NaN.clamp() returns NaN (NaN comparisons are always false), so

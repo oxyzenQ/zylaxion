@@ -209,6 +209,13 @@ pub enum Commands {
     /// the kernel (night-improve-23).
     Detach,
 
+    /// The internal stateless player (night-improve-23). Hidden: users
+    /// start sound with `on`; this verb is the process `on` execs. It
+    /// reads every byte of state from the pinned maps and stops itself
+    /// when the control map clears the enabled flag.
+    #[command(hide = true)]
+    Play,
+
     /// List available acoustic presets from the compiled registry
     /// (night-improve-22: no config file — the registry is the source).
     ListPresets,

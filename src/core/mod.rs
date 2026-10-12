@@ -268,6 +268,15 @@ impl<S: AudioSink> Orchestrator<S> {
         self.sink.sample_rate()
     }
 
+    /// The shared volume factor handle (night-improve-23): a clone of
+    /// the voice pool's atomic volume cell, taken BEFORE `run` holds
+    /// `&mut self` — the daemonless player's control-plane watcher
+    /// stores retuned gains into it live while the render loop runs.
+    #[inline]
+    pub fn volume_factor(&self) -> Arc<std::sync::atomic::AtomicU32> {
+        self.pool.volume_factor()
+    }
+
     /// Run the main input → render → output loop.
     ///
     /// Blocks the calling thread until one of three conditions:
