@@ -1,0 +1,46 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# Build defaults for the pure-Rust eBPF crate (night-improve-23).
+# With this file in place the dedicated build is simply:
+#
+#   cd ebpf && cargo build --release
+#
+# How the pieces fit (verified empirically by the zelynic lineage,
+# see zelynic docs/PURE_RUST_EVALUATION.md — the validated
+# toolchain/target pair carries over unchanged):
+#   - [build].target selects the repo-local bpfel-unknown-none.json
+#     spec clone: identical to the tier-3 builtin except
+#     `atomic-cas: true`, which unblocks core's 64-bit atomic RMW
+#     (fetch_add) for the SMP-safe stats counters in main.rs. The
+#     builtin spec still carries the pre-5.12 `atomic-cas: false`
+#     even though the ISA (BPF_ATOMIC, Linux 5.12+) and the verified
+#     floor (5.15) both support it. The file stem keeps the artifact
+#     directory at target/bpfel-unknown-none/.
+#   - [unstable].build-std compiles core from source; nightly only.
+#   - The target spec pins linker-flavor "bpf", so rustc invokes
+#     bpf-linker from PATH as the default linker. Hiding bpf-linker
+#     from PATH fails the build with "error: linker 'bpf-linker' not
+#     found" — no silent fallback.
+#
+# BTF / debug info (aya-build parity flags) are NOT enabled by
+# default: the tap uses legacy map definitions and needs no CO-RE
+# introspection. To build with BTF:
+#   RUSTFLAGS='-Cdebuginfo=2 -Clink-arg=--btf' cargo build --release
+
+[build]
+target = "bpfel-unknown-none.json"
+# The LLVM BPF backend selects the atomic RMW instructions
+# (BPF_ATOMIC fetch-add, what the SMP-safe stats counters need) only
+# at cpu v3 — and v3 bytecode (alu32, kernel 5.1+) sits well inside
+# the 5.15 verified floor. This applies to direct builds with a clean
+# environment (cd ebpf && cargo build); when the parent build.rs
+# drives this build with an inherited RUSTFLAGS env (CI's "-D
+# warnings"), env shadows config — that path force-merges the same
+# flag in build.rs (the zelynic force_bpf_v3_rustflags pattern), so
+# both routes agree.
+rustflags = ["-C", "target-cpu=v3"]
+
+[unstable]
+build-std = ["core"]
+json-target-spec = true
