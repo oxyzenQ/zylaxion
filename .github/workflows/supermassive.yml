@@ -66,10 +66,30 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            libasound2-dev libinput-dev libudev-dev pkg-config
+            libasound2-dev pkg-config
 
       - name: Install pinned toolchain (rust-toolchain.toml governs)
         run: rustup show active-toolchain
+
+      # night-badas-1: the ebpf feature went default in night-improve-23,
+      # so every git-checkout build (test, doc, release shape) source-builds
+      # the kernel object through build.rs and hard-requires the dated
+      # nightly pin + bpf-linker — this lane never had them and died in
+      # the build script's preflight. The bootstrap is the canonical
+      # installer, the same pair the ci.yml check lane runs.
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
@@ -105,10 +125,27 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            libasound2-dev libinput-dev libudev-dev pkg-config
+            libasound2-dev pkg-config
 
       - name: Install pinned toolchain (rust-toolchain.toml governs)
         run: rustup show active-toolchain
+
+      # night-badas-1: the release shape proof builds the same default
+      # feature set, so the eBPF source-build prerequisites ride here
+      # too — the same cache + bootstrap pair as the battery job.
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin

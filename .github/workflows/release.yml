@@ -149,7 +149,31 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            libasound2-dev libinput-dev libudev-dev pkg-config
+            libasound2-dev pkg-config
+
+      # night-badas-1: the ebpf feature went default in night-improve-23,
+      # so every release build source-builds the kernel object through
+      # build.rs and hard-requires the dated nightly pin + bpf-linker —
+      # the release lane never had them, so the first tag push after
+      # that turn would have died in the build script's preflight. The
+      # last green release (v11.0.0) predates the turn by 70 commits;
+      # this closes the latent gap before the next tag. The same
+      # cache + bootstrap pair as the ci.yml check lane, and the
+      # daemon-era libinput-dev / libudev-dev packages go (only the
+      # cpal ALSA headers remain a build prerequisite).
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       # Cache keyed per platform id. The v3/v4 builds of one triple
       # share the triple but differ in RUSTFLAGS — cargo's fingerprints
