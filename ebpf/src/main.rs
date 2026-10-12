@@ -102,10 +102,16 @@ pub mod control_slots {
 pub const STATS_TOTAL: u32 = 256;
 
 /// The ring buffer record — layout contract with the userspace
-/// player (src/ebpf/loader.rs KeyRingEvent). 16 bytes, 8-aligned.
+/// player (src/ebpf/loader.rs KeyRingEvent). 24 bytes, 8-aligned:
+/// repr(C) puts ts_us at 0 and the three u32s at 8/12/16, with four
+/// trailing pad bytes — the identical shape on both sides is the
+/// contract (same repr, same field order, same Rust ABI).
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct KeyRingEvent {
+    /// CLOCK_MONOTONIC microseconds (bpf_ktime_get_ns / 1000) — the
+    /// same clock and unit the old libinput path stamped.
+    pub ts_us: u64,
     /// The evdev keycode (e.g. KEY_A = 30).
     pub keycode: u32,
     /// 1 = press, 0 = release (autorepeat is filtered in-kernel).
@@ -113,9 +119,6 @@ pub struct KeyRingEvent {
     /// The keymap sound class (0 = the default class for now — the
     /// per-key tuning lane is reserved, not wired).
     pub slot: u32,
-    /// CLOCK_MONOTONIC microseconds (bpf_ktime_get_ns / 1000) — the
-    /// same clock and unit the old libinput path stamped.
-    pub ts_us: u64,
 }
 
 // The static names ARE the userspace contract (the loader opens each
@@ -213,10 +216,10 @@ fn tap(ctx: &TracePointContext) -> i32 {
         // submit().
         if let Some(mut entry) = events.reserve::<KeyRingEvent>(0) {
             entry.write(KeyRingEvent {
+                ts_us: bpf_ktime_get_ns() / 1000,
                 keycode: code,
                 value: value as u32,
                 slot,
-                ts_us: bpf_ktime_get_ns() / 1000,
             });
             entry.submit(0);
         }

@@ -200,6 +200,15 @@ pub enum Commands {
     /// Print system health diagnostic
     Doctor,
 
+    /// Load and pin the eBPF tap (the kernel-side control plane).
+    /// Run under sudo — the one privileged surface; the pins are handed
+    /// to your user afterwards (night-improve-23).
+    Attach,
+
+    /// Unpin everything — after this, nothing of zylaxion remains in
+    /// the kernel (night-improve-23).
+    Detach,
+
     /// List available acoustic presets from the compiled registry
     /// (night-improve-22: no config file — the registry is the source).
     ListPresets,

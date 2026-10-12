@@ -16,6 +16,7 @@
 //! |------------------|----------------------|-----|
 //! | `--check-update` | REFUSE               | privileged network round-trip that buys nothing; root-owned files if a download step ever joins |
 //! | `start`, `daemon`| REFUSE               | plants root-owned lock/socket/PID inside the user's runtime dir — the next user-mode run then fails on flock/bind (the fatal pollution), plus a root input grab and a root audio session no user desktop mixes with |
+//! | `attach`         | REQUIRE              | the inverse lane (night-improve-23): loading and pinning the tap needs CAP_BPF/CAP_PERFMON — root is the honest way in, and the pins are chowned to the invoking sudo user so every other surface stays unprivileged |
 //! | `stop`, `status` | allowed              | the rescue path — must stay reachable to stop a foreign-session daemon; read-only against session state |
 //! | `doctor`         | warn                 | the verdicts describe root's session (root is always "in" the input group, root's audio is a different server) — diagnosed as misleading, not fatal |
 //! | everything else  | allowed              | read-only config/preset surfaces, no state, no network |
@@ -69,6 +70,28 @@ pub fn session_refusal(euid_is_root: bool) -> Option<&'static str> {
             "root refused — the daemon plants root-owned session state (lock, socket, PID) \
              and grabs input devices as root, do not use sudo\n  \
              tip: re-run without sudo",
+        )
+    } else {
+        None
+    }
+}
+
+/// Requirement wording for the attach surface (`attach`).
+///
+/// The inverse lane of the refusals above (night-improve-23): attach is
+/// the ONE surface that must run privileged — loading a BPF program and
+/// pinning it needs CAP_BPF/CAP_PERFMON, and sudo is the honest way in.
+/// The requirement is phrased as a refusal of the NON-root case: the
+/// caller passes `!euid_is_root()`. The pins are chowned to the invoking
+/// sudo user inside attach, so this is the only privileged invocation
+/// the whole architecture needs.
+pub fn attach_requirement(euid_is_root: bool) -> Option<&'static str> {
+    if !euid_is_root {
+        Some(
+            "attach must run as root — loading and pinning the eBPF tap needs \
+             CAP_BPF/CAP_PERFMON\n  \
+             tip: sudo zylaxion attach (the pins are handed to your user; every other \
+             zylaxion command stays unprivileged)",
         )
     } else {
         None
