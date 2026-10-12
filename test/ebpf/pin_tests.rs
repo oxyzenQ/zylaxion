@@ -49,6 +49,23 @@ fn pins_are_distinct_paths() {
 }
 
 #[test]
+fn the_failure_marker_is_not_part_of_a_complete_attach() {
+    // night-improve-25: the marker is planted ONLY by a failed attach
+    // — a complete pin set never includes it, and a completeness check
+    // that demanded it would read failure as success. It IS removed by
+    // clear_pins (with the real pins), so detach leaves the directory
+    // empty either way.
+    assert!(!ALL_PINS.contains(&PIN_MAP_ERROR));
+    assert!(PIN_MAP_ERROR.starts_with(PIN_DIR));
+    // The marker path is distinct from every real pin.
+    let mut paths = ALL_PINS.to_vec();
+    paths.push(PIN_MAP_ERROR);
+    paths.sort_unstable();
+    paths.dedup();
+    assert_eq!(paths.len(), ALL_PINS.len() + 1);
+}
+
+#[test]
 #[cfg_attr(miri, ignore)]
 fn presence_checks_agree_with_the_filesystem() {
     // Pure consistency: all-present implies any-present. The check

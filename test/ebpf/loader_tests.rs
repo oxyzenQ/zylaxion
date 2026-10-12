@@ -20,6 +20,30 @@ fn control_slot_table_matches_the_bpf_side() {
     assert_eq!(control::VOLUME_PCT, 2);
     assert_eq!(control::PLAYER_PID, 3);
     assert_eq!(control::STATE, 4);
+    // night-improve-25: the chain-step slot — the wire format every
+    // surface (attach summary, status tap line, doctor) reads back.
+    assert_eq!(control::TAP_KIND, 5);
+}
+
+#[test]
+fn tap_kind_is_the_chain_vocabulary_and_the_slot_round_trips() {
+    // The three chain steps, their labels (the strings the attach
+    // summary MUST print), and the control-slot wire format — pinned
+    // so a renumbered slot or a relabeled lane fails here before it
+    // can confuse a status report.
+    let steps = [
+        (TapKind::Fentry, "fentry:input_event", 0u32),
+        (TapKind::Kprobe, "kprobe:input_event", 1),
+        (TapKind::KprobeAlt, "kprobe:input_handle_event", 2),
+    ];
+    for (kind, label, slot) in steps {
+        assert_eq!(kind.label(), label);
+        assert_eq!(kind.slot(), slot);
+        assert_eq!(TapKind::from_slot(slot), Some(kind));
+    }
+    // Anything else is not a chain step — never guess, never wrap.
+    assert_eq!(TapKind::from_slot(3), None);
+    assert_eq!(TapKind::from_slot(u32::MAX), None);
 }
 
 #[test]
