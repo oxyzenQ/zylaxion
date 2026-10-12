@@ -140,6 +140,7 @@ fn main() {
             cli::Commands::Doctor => commands::info::cmd_doctor(),
             cli::Commands::Attach => commands::attach::cmd_attach(),
             cli::Commands::Detach => commands::attach::cmd_detach(),
+            cli::Commands::Play => commands::player::cmd_play(),
             cli::Commands::ListPresets => commands::info::cmd_list_presets(),
             cli::Commands::ListBackends => commands::info::cmd_list_backends(),
         },

@@ -15,4 +15,5 @@ pub mod attach;
 pub mod daemon;
 pub(crate) mod help;
 pub mod info;
+pub(crate) mod player;
 pub mod update;
