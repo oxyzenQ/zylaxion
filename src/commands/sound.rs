@@ -1,8 +1,10 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! The sound verbs: `on`, `off`, `preset`, `volume`, `stats`, `status`
-//! (night-improve-23, the daemonless control plane).
+//! The sound verbs: `on`, `off`, `preset`, `volume`, `status`
+//! (night-improve-23, the daemonless control plane; night-improve-24
+//! merged the `stats` verb into `status --verbose` — one master
+//! status report, the deep read a flag away).
 //!
 //! Every verb here is a short-lived CLI invocation: it opens the pinned
 //! control map, reads or writes a few slots, prints, and exits. The
@@ -350,10 +352,14 @@ pub fn cmd_volume(percent: u32) {
     println!("volume set to {percent}% (100 = the compiled default)");
 }
 
-/// Handle `zylaxion status` — the one-screen truth: kernel verdict, tap
-/// residency, player liveness, and the active posture.
+/// Handle `zylaxion status [--verbose]` — the one-screen truth:
+/// kernel verdict, tap residency, player liveness, and the active
+/// posture. The verbose flag appends the kernel-side typing
+/// telemetry (the merged `stats` surface, night-improve-24) — a
+/// static print-once deep read, never a live refresh: the deleted
+/// `--live` loop was the wrong shape for a status surface.
 #[cfg(feature = "ebpf")]
-pub fn cmd_status() {
+pub fn cmd_status(verbose: bool) {
     let kernel = crate::session::kernel::probe();
     println!("kernel:   {} ({})", kernel.release, kernel.verdict());
 
@@ -402,6 +408,9 @@ pub fn cmd_status() {
             println!("player:   running (pid {p}, state: {state_word})");
         }
         (p, false) => println!("player:   stale pid {p} in the map (next `on` takes over)"),
+    }
+    if verbose {
+        crate::commands::stats::print_telemetry();
     }
     println!();
     println!(
@@ -463,7 +472,7 @@ pub fn cmd_volume(_percent: u32) {
 /// Dormant lane (cmd_status): this binary was built without the eBPF
 /// loader (--no-default-features) — the honest refusal, every time.
 #[cfg(not(feature = "ebpf"))]
-pub fn cmd_status() {
+pub fn cmd_status(_verbose: bool) {
     crate::output::error(crate::ebpf::dormant::DORMANT_REFUSAL);
     process::exit(1);
 }

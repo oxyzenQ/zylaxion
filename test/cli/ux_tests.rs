@@ -68,7 +68,13 @@ fn caps_typo_of_root_flag_rescues_the_authority() {
 
 #[test]
 fn unknown_subcommand_keeps_clap_own_suggestions() {
-    let rendered = render_via_bridge(&["zylaxion", "startt"]);
+    // night-improve-24: the token was "startt" — a typo of the `stats`
+    // verb that merged into `status --verbose`; with that target gone
+    // the token fell to a singular tip, and the pin now typos a live
+    // pair instead: "presets" rescues both `preset` and
+    // `list-presets`, keeping the plural-engine contract the test
+    // guards.
+    let rendered = render_via_bridge(&["zylaxion", "presets"]);
     assert!(
         rendered.contains("some similar subcommands exist"),
         "clap's subcommand engine stands: {rendered}"

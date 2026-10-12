@@ -84,11 +84,10 @@ pub(crate) fn render_reference(color: bool) -> String {
     push(grey("  sudo zylaxion detach"));
     push("      Unpin everything — nothing of zylaxion remains in the kernel.".into());
     push(String::new());
-    push(grey("  zylaxion stats"));
-    push("      Kernel-side typing telemetry: per-key counters, zero userspace cost.".into());
-    push(String::new());
-    push(grey("  zylaxion status"));
+    push(grey("  zylaxion status [--verbose]"));
     push("      The one-screen truth: kernel verdict, tap residency, player state.".into());
+    push("      # the deep read appends the kernel-side typing telemetry".into());
+    push(ok("      zylaxion status --verbose"));
     push(String::new());
 
     push(brand("Diagnostics:"));

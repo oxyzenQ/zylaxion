@@ -84,8 +84,9 @@ No audio files. No sample libraries. No wavetable playback. Just math.
   suspend/resume, and other input consumers (libinput, the compositor)
   are untouched by construction.
 - **Kernel-side typing telemetry** — the tap accumulates per-key
-  counters in the kernel at zero userspace cost; `zylaxion stats`
-  renders them (a feature no userspace sound tool can offer for free).
+  counters in the kernel at zero userspace cost; `zylaxion status
+  --verbose` renders them (a feature no userspace sound tool can
+  offer for free).
 - **Zero system dependencies** — only requires a C compiler for linking.
   Audio via PipeWire/PulseAudio (system); the input half lives in the
   kernel.
@@ -183,8 +184,8 @@ zylaxion on --preset cherryMX    # Sound on with a compiled-registry preset
 zylaxion preset --name tpt       # Switch the preset live while playing
 zylaxion volume --percent 60     # Retune the master volume live
 zylaxion off                     # Sound off (player self-exits, zero processes)
-zylaxion stats                   # Kernel-side typing telemetry
 zylaxion status                  # Kernel verdict, tap residency, player state
+zylaxion status --verbose        # + kernel-side typing telemetry (static, print once)
 sudo zylaxion detach             # Unpin everything — nothing left in the kernel
 zylaxion                         # Quick status overview
 zylaxion doctor                  # System health diagnostic (kernel verdict included)

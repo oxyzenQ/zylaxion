@@ -1,12 +1,12 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! The `stats` verb (night-improve-23): the kernel-side typing
-//! telemetry render. Split out of sound.rs per the 600-LOC no-mercy
-//! cap — the stats surface is its own concern (a read-only map dump
-//! with a human render), not a control-plane write.
-
-use std::process;
+//! The typing-telemetry render (night-improve-23 birthed it as the
+//! standalone `stats` verb; night-improve-24 merged that verb into
+//! `status --verbose` — one master status report, the deep read a
+//! flag away). Split out of sound.rs per the 600-LOC no-mercy cap —
+//! the telemetry render is its own concern (a read-only stats-map
+//! dump with a human render), not a control-plane write.
 
 #[cfg(feature = "ebpf")]
 use aya::maps::{Array, MapData};
@@ -14,31 +14,35 @@ use aya::maps::{Array, MapData};
 #[cfg(feature = "ebpf")]
 use crate::ebpf::pin;
 
-#[cfg(feature = "ebpf")]
-/// Handle `zylaxion stats` — the kernel-side typing telemetry.
+/// Append the kernel-side typing telemetry section to the status
+/// report (`zylaxion status --verbose`, night-improve-24).
 ///
-/// The tap accumulated per-keycode press counters in the stats map at
-/// zero userspace cost; this reads them and renders the top keys with
-/// their evdev names.
+/// The tap accumulated per-keycode press counters in the stats map
+/// at zero userspace cost; this reads them and renders the top keys
+/// with their evdev names. A section, not a verdict: when the stats
+/// map cannot be opened, the rest of the report is already on
+/// screen, so this warns and lets the report finish instead of
+/// hard-exiting — the standalone `stats` verb used to die here
+/// because the map was its whole purpose; as a section it is a gap
+/// to name, not a failure to own.
 #[cfg(feature = "ebpf")]
-pub fn cmd_stats() {
+pub(crate) fn print_telemetry() {
     let data = match MapData::from_pin(pin::PIN_MAP_STATS) {
         Ok(d) => d,
         Err(e) => {
-            crate::output::error(format!(
-                "the tap is not attached (cannot open {}): {e}\n  \
-                 tip: sudo zylaxion attach",
+            crate::output::warning(format!(
+                "the telemetry map is not readable (cannot open {}): {e}",
                 pin::PIN_MAP_STATS
             ));
-            process::exit(1);
+            return;
         }
     };
     let owned = aya::maps::Map::Array(data);
     let stats: Array<MapData, u64> = match Array::try_from(owned) {
         Ok(s) => s,
         Err(e) => {
-            crate::output::error(format!("the pinned stats map is not an array: {e}"));
-            process::exit(1);
+            crate::output::warning(format!("the pinned stats map is not an array: {e}"));
+            return;
         }
     };
 
@@ -53,21 +57,23 @@ pub fn cmd_stats() {
     }
     rows.sort_unstable_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
 
-    println!("Keyboard stats (accumulated in the kernel since attach):\n");
+    println!();
+    println!("telemetry (accumulated in the kernel since attach):");
     println!("  total presses: {total}");
     if rows.is_empty() {
         println!("  no presses recorded yet — type something!");
         return;
     }
-    println!("\n  top keys:");
+    println!();
+    println!("  top keys:");
     for (code, count) in rows.iter().take(10) {
-        println!("  {:>8}  keycode {code:>3} ({})", count, key_name(*code));
+        println!("    {:>8}  keycode {code:>3} ({})", count, key_name(*code));
     }
 }
 
-/// A compact evdev key name for the stats render. The common keyboard
-/// keys carry real names; everything else renders as `key<N>` — the raw
-/// count is the truth, the name is a courtesy.
+/// A compact evdev key name for the telemetry render. The common
+/// keyboard keys carry real names; everything else renders as
+/// `key<N>` — the raw count is the truth, the name is a courtesy.
 fn key_name(code: u32) -> String {
     let common: &[(u32, &str)] = &[
         (1, "ESC"),
@@ -161,12 +167,4 @@ fn key_name(code: u32) -> String {
         .find(|(c, _)| *c == code)
         .map(|(_, n)| n.to_string())
         .unwrap_or_else(|| format!("key{code}"))
-}
-
-/// Dormant lane (stats): this binary was built without the eBPF
-/// loader (--no-default-features) — the honest refusal.
-#[cfg(not(feature = "ebpf"))]
-pub fn cmd_stats() {
-    crate::output::error(crate::ebpf::dormant::DORMANT_REFUSAL);
-    process::exit(1);
 }
