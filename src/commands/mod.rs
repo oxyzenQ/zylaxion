@@ -15,6 +15,7 @@
 
 pub mod attach;
 pub mod sound;
+pub mod stats;
 
 pub(crate) mod help;
 pub mod info;

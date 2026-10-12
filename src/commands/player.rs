@@ -32,14 +32,18 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 #[cfg(feature = "ebpf")]
+#[cfg(feature = "ebpf")]
 use arc_swap::ArcSwap;
 #[cfg(feature = "ebpf")]
 use aya::maps::MapData;
+#[cfg(feature = "ebpf")]
 use nix::poll::{PollFd, PollFlags, PollTimeout, poll};
 
+#[cfg(feature = "ebpf")]
 use crate::core::Orchestrator;
 #[cfg(feature = "ebpf")]
 use crate::ebpf::pin;
+#[cfg(feature = "ebpf")]
 use crate::profiles::MechanicalClick;
 
 /// The control watcher's poll cadence: the worst-case latency of an
