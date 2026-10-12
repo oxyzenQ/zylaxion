@@ -40,7 +40,7 @@ name: Dragon Guard - Supermassive
 "on":
   workflow_dispatch:
   schedule:
-    - cron: "0 5 * * 1" # Monday 05:00 UTC — ahead of the maintenance lane
+    - cron: "0 5 * * 1"  # Monday 05:00 UTC — ahead of the maintenance lane
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -60,7 +60,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
 
       - name: Install system dependencies
         run: |
@@ -72,7 +72,7 @@ jobs:
         run: rustup show active-toolchain
 
       - name: Cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6, night-improve-8 SHA pin
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
         with:
           path: |
             ~/.cargo/registry
@@ -99,7 +99,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
 
       - name: Install system dependencies
         run: |
@@ -111,7 +111,7 @@ jobs:
         run: rustup show active-toolchain
 
       - name: Cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6, night-improve-8 SHA pin
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
         with:
           path: |
             ~/.cargo/registry

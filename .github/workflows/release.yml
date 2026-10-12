@@ -135,7 +135,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
         with:
           # The release build needs exactly one commit — the one the tag
           # points at. Nothing in this job reads git metadata (the
@@ -145,7 +145,7 @@ jobs:
           fetch-depth: 1
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # @stable, the zelynic estate SHA
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, the zelynic estate SHA
         with:
           toolchain: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.target }}
@@ -162,7 +162,7 @@ jobs:
       # mis-served); the platform id keeps the two legs' saves disjoint
       # (the zelynic cache-collision lesson).
       - name: Cache cargo registry & build
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6, night-improve-8 SHA pin
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
         with:
           path: |
             ~/.cargo/registry
@@ -398,7 +398,7 @@ jobs:
           echo "--- All signatures verified ---"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7, the zelynic estate SHA pin
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7, the zelynic estate SHA pin
         with:
           # One artifact per platform; the release job merges them
           # (merge-multiple) so signing stays in the build-class jobs
@@ -425,12 +425,12 @@ jobs:
       # zelynic NIGHT-dinner-3 live incident). Checkout first, download
       # second, tripwire third.
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
         with:
           fetch-depth: 1
 
       - name: Download artifacts
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8, the zelynic estate SHA pin
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, the zelynic estate SHA pin
         with:
           pattern: release-artifacts-*
           merge-multiple: true
@@ -462,13 +462,13 @@ jobs:
           done
           SIGS=$(find dist -maxdepth 1 -type f -name '*.tar.gz.asc' | wc -l)
           if [ "${SIGS}" -ne 0 ] && [ "${SIGS}" -ne "${TARBALLS}" ]; then
-            echo "::error::Partial GPG coverage: ${SIGS} signatures for ${TARBALLS} tarballs (signing is all-or-nothing)"
+            echo "::error::Partial GPG coverage: ${SIGS} of ${TARBALLS} tarballs signed (all-or-nothing)"
             BROKEN=1
           fi
           if [ "${BROKEN}" -ne 0 ]; then
             exit 1
           fi
-          echo "dist/ inventory verified: ${TARBALLS} tarballs, ${SIGS} GPG signatures, $(( TARBALLS * 3 )) checksum files"
+          echo "dist/ verified: ${TARBALLS} tarballs, ${SIGS} GPG signatures, $(( TARBALLS * 3 )) checksum files"
 
       - name: Generate release body
         env:
@@ -481,7 +481,9 @@ jobs:
           {
             echo "## zylaxion ${TAG}"
             echo ""
-            echo "Real-time mechanical keyboard acoustic synthesizer for Linux. Pure procedural synthesis, zero audio samples."
+            TAGLINE="Real-time mechanical keyboard acoustic synthesizer for Linux."
+            TAGLINE+=" Pure procedural synthesis, zero audio samples."
+            echo "${TAGLINE}"
             echo ""
             echo "### Artifacts"
             echo ""
@@ -523,7 +525,7 @@ jobs:
           cat release-body.md
 
       - name: Publish the GitHub release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3, night-improve-8 SHA pin
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3, night-improve-8 SHA pin
         with:
           tag_name: ${{ needs.validate.outputs.tag }}
           name: ${{ needs.validate.outputs.tag }}
