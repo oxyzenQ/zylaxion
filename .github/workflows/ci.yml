@@ -100,6 +100,59 @@ jobs:
       - name: Run tests
         run: cargo test
 
+  # night-improve-24: the kernel-side lane. The tap is a detached
+  # workspace on its own dated nightly (ebpf/rust-toolchain.toml),
+  # cross-compiled to bpfel-unknown-none with -Z build-std=core and
+  # linked by bpf-linker. The check job proves the EMBEDDING half (the
+  # root crate building with the object staged into the binary); this
+  # lane proves the KERNEL half standalone: formatting, the release
+  # build with the committed lock, and the ELF structure aya's loader
+  # demands (tracepoint, maps, license sections). No system packages:
+  # aya-ebpf is pure Rust and the object needs no host headers.
+  ebpf:
+    name: eBPF tap build
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Check eBPF crate formatting
+        run: cargo fmt --all -- --check
+        working-directory: ebpf
+
+      - name: Build the tap (bpfel-unknown-none, build-std core)
+        run: cargo build --release --locked
+        working-directory: ebpf
+
+      - name: Validate the ELF object structure
+        run: |
+          set -euo pipefail
+          OBJECT="ebpf/target/bpfel-unknown-none/release/zylaxion-tap"
+          test -s "$OBJECT"
+          MAGIC=$(dd if="$OBJECT" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')
+          test "$MAGIC" = "7f454c46"
+          SECTIONS=$(readelf -S "$OBJECT")
+          echo "$SECTIONS" | grep -qw tracepoint
+          echo "$SECTIONS" | grep -qw maps
+          echo "$SECTIONS" | grep -qw license
+          echo "eBPF object structural validation: OK"
+
   workflow_quality:
     name: Workflow lint + codespell
     runs-on: ubuntu-latest
