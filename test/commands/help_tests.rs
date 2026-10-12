@@ -112,3 +112,26 @@ fn reference_teaches_the_merged_status_and_no_dead_verbs() {
         "the --live flag is deleted — the reference must not teach it"
     );
 }
+
+/// night-improve-25: the reference must never teach the tracepoint
+/// fiction again. The tap is a passive kernel-side probe on the
+/// exported input_event() function (fentry when BTF is present,
+/// kprobe otherwise) — the `input_event tracepoint` string is the
+/// drift marker for a hook that never existed in mainline Linux, and
+/// seeing it here means the help surface regressed to the removed
+/// wrong path. This is the gate that keeps the drift from returning.
+#[test]
+fn reference_never_teaches_the_tracepoint_fiction() {
+    let text = render_reference(false);
+    assert!(
+        !text.contains("input_event tracepoint"),
+        "the reference must never teach the input_event tracepoint — \
+         it does not exist in mainline Linux (night-improve-25)"
+    );
+    // Belt to the suspenders: no tracepoint teaching at all, under
+    // either color mode (a painted string the plain pin cannot see).
+    assert!(
+        !render_reference(true).contains("input_event tracepoint"),
+        "the colored reference must never teach it either"
+    );
+}
