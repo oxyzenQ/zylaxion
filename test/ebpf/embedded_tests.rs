@@ -8,6 +8,16 @@
 
 use super::*;
 
+/// An 8-aligned byte buffer for the misalignment fixtures. A bare
+/// `[u8; N]` local only carries alignment 1 — native ABIs happen to
+/// land such locals on 8-aligned stack slots, but that is luck, not a
+/// guarantee, and the miri interpreter lays locals out differently
+/// (verified: a bare local read as 5 bytes past the boundary under
+/// miri). Alignment is a property of the type — the very law this
+/// file pins — so the fixtures ask the TYPE for it.
+#[repr(align(8))]
+struct Aligned<const N: usize>([u8; N]);
+
 #[test]
 fn aligned_elf_bytes_are_eight_byte_aligned() {
     // A real allocation, static so it rides .rodata like the embed.
@@ -23,24 +33,25 @@ fn aligned_elf_bytes_are_eight_byte_aligned() {
 
 #[test]
 fn misalignment_detector_reports_shifted_slices() {
-    let data = [0u8; 32];
-    assert_eq!(misalignment(&data), None);
+    let data = Aligned([0u8; 32]);
+    assert_eq!(misalignment(&data.0), None);
     // A 1-byte shift (the exact include_bytes! luck the wrapper fences
-    // out) must be visible: the base array is 8-aligned, so +1 reads as
-    // exactly one byte past the boundary.
-    let shifted = &data[1..];
+    // out) must be visible: the base array is 8-aligned BY TYPE, so +1
+    // reads as exactly one byte past the boundary — on every host and
+    // under the interpreter too.
+    let shifted = &data.0[1..];
     assert_eq!(misalignment(shifted), Some(1));
 }
 
 #[test]
 fn alignment_violation_names_object_and_offset() {
-    let data = [0u8; 16];
-    let shifted = &data[1..];
+    let data = Aligned([0u8; 16]);
+    let shifted = &data.0[1..];
     let msg = alignment_violation(shifted, "zylaxion-tap").expect("shifted must violate");
     assert!(msg.contains("zylaxion-tap"), "names the object: {msg}");
     assert!(msg.contains("8-byte boundary"), "names the law: {msg}");
     assert!(msg.contains("build regression"), "names the blame: {msg}");
-    assert!(alignment_violation(&data, "zylaxion-tap").is_none());
+    assert!(alignment_violation(&data.0, "zylaxion-tap").is_none());
 }
 
 #[test]

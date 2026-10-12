@@ -43,9 +43,14 @@ fn iso_format_handles_negative_seconds_gracefully() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)]
 fn live_clock_shape_is_parseable() {
     // The live lane must render the exact 24-char stamp shape so
-    // downstream log greps stay stable.
+    // downstream log greps stay stable. The call reads the real wall
+    // clock (clock_gettime REALTIME), which the miri interpreter
+    // refuses under isolation by design — the pure Hinnant math and
+    // the ISO shaping are pinned by the two epoch tests above, which
+    // run everywhere; this live probe keeps its post on native lanes.
     let stamp = iso_utc_millis();
     if stamp == "unknown" {
         return; // pre-epoch host clock: documented degraded lane

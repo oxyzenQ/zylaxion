@@ -116,22 +116,38 @@ impl Default for PerfEventAttr {
     }
 }
 
+/// The candidate id-file paths of one tracepoint, in probe order: the
+/// canonical tracefs location first, then the debugfs mirror (attach
+/// runs as root, so both mounts work when present).
+fn tracepoint_id_paths(category: &str, name: &str) -> [String; 2] {
+    [
+        format!("/sys/kernel/tracing/events/{category}/{name}/id"),
+        format!("/sys/kernel/debug/tracing/events/{category}/{name}/id"),
+    ]
+}
+
+/// Parse one id file's content into the numeric id the perf event
+/// opens. Pure string work: the caller owns the read.
+fn parse_tracepoint_id(path: &str, content: &str) -> Result<u64, String> {
+    content
+        .trim()
+        .parse::<u64>()
+        .map_err(|e| format!("tracepoint id at {path} is not a number: {e}"))
+}
+
 /// The `id` file of one tracepoint: the numeric id the perf event
 /// opens. Reads `/sys/kernel/tracing/events/<category>/<name>/id` (the
 /// canonical tracefs location; the debugfs mirror needs root anyway —
 /// and attach runs as root, so both mounts work: try tracefs first,
-/// then the debugfs fallback).
+/// then the debugfs fallback). The read is the root-run integration
+/// surface; the path order and the content parser are pure and tested
+/// without touching the host filesystem (the miri contract — the
+/// interpreter refuses host file access, and a test needing it would
+/// be a test bug).
 pub fn tracepoint_id(category: &str, name: &str) -> Result<u64, String> {
-    let candidates = [
-        format!("/sys/kernel/tracing/events/{category}/{name}/id"),
-        format!("/sys/kernel/debug/tracing/events/{category}/{name}/id"),
-    ];
-    for path in candidates {
+    for path in tracepoint_id_paths(category, name) {
         if let Ok(content) = std::fs::read_to_string(&path) {
-            return content
-                .trim()
-                .parse::<u64>()
-                .map_err(|e| format!("tracepoint id at {path} is not a number: {e}"));
+            return parse_tracepoint_id(&path, &content);
         }
     }
     Err(
