@@ -10,12 +10,12 @@
 # are the same bytes the registry-install binaries embed.
 
 schema = 1
-generated = "2026-10-12T06:34:54Z"
+generated = "2026-10-12T06:48:13Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_sha256 = "7a176142a1ca872bf6ea6b0dead2cd6b089f9e97cdc79b6f0717c2cccc5fe6e6"
+ebpf_tree_sha256 = "8c69fb6f067f05036529d46f31a1f14ce19f1343676cf38e5507034ac7b8c828"
 
 [[object]]
 name = "zylaxion-tap"
-sha256 = "8201efde809b0065a90728fef563a7bffd9d3ab28abca6eda13ff0d1e762ddb8"
+sha256 = "38a0e93ad06f3357b21b0372edeb1c5f9a4fe3970a9fb2aa944612515d6c8fcd"
 size = 2528

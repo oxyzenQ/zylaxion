@@ -25,28 +25,30 @@
 //! - [`audio`]     — the cpal sink and the SPSC ring bridge (the former
 //!   zylaxion-output)
 //! - [`input`]     — libinput keyboard capture (the former
-//!   zylaxion-input)
+//!   zylaxion-input; night-improve-23 retires it — the eBPF tap in
+//!   [`ebpf`] replaces the seat capture)
 //! - [`core`]      — the Orchestrator, the dragon's spine: input ->
 //!   engine -> audio (the former zylaxion-core)
+//! - [`ebpf`]      — the eBPF tap loader: attach, pin, detach
+//!   (night-improve-23, the daemonless control plane)
 //!
 //! the shell (CLI, session, system):
 //!
 //! - [`cli`]       — clap definitions, the version report, clap styles
 //! - [`output`]    — the color/lane system (errors, warnings, brand tiers)
 //! - [`info`]      — the binary's self-knowledge: build facts, Hinnant clock
-//! - [`session`]   — the session contract: config, instance lock,
-//!   pathguard, privilege, signals
-//! - [`commands`]  — subcommand handlers (`start`, `daemon`, `stop`, `doctor`, …)
-//! - [`daemon`]    — POSIX daemonization, PID file, IPC
-//!
-//! The signal path is unchanged: kernel -> libinput -> Orchestrator ->
-//! VoicePool -> ring buffer -> cpal -> speakers.
+//! - [`session`]   — the session contract: preset resolution, kernel probe,
+//!   instance lock, pathguard, privilege, signals
+//! - [`commands`]  — subcommand handlers (`attach`, `doctor`, …)
+//! - [`daemon`]    — POSIX daemonization, PID file, IPC (night-improve-23
+//!   retires this module — the pinned maps replace it)
 
 use clap::Parser;
 
 // the engine body
 mod audio;
 mod core;
+mod ebpf;
 mod engine;
 mod input;
 mod profiles;
@@ -136,6 +138,8 @@ fn main() {
             cli::Commands::Stop => commands::daemon::cmd_stop(),
             cli::Commands::Status => daemon::cmd_status(),
             cli::Commands::Doctor => commands::info::cmd_doctor(),
+            cli::Commands::Attach => commands::attach::cmd_attach(),
+            cli::Commands::Detach => commands::attach::cmd_detach(),
             cli::Commands::ListPresets => commands::info::cmd_list_presets(),
             cli::Commands::ListBackends => commands::info::cmd_list_backends(),
         },
