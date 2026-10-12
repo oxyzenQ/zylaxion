@@ -216,7 +216,18 @@ pub enum Commands {
     /// start sound with `on`; this verb is the process `on` execs. It
     /// reads every byte of state from the pinned maps and stops itself
     /// when the control map clears the enabled flag.
-    #[command(hide = true)]
+    ///
+    /// The explicit `name = "_play"` is load-bearing (night-improve-25,
+    /// the hunt find under the Pro mode work): clap derives `play` from
+    /// the bare variant, but every call site spells the verb with the
+    /// underscore — sound.rs spawns `.arg("_play")`, its startup-error
+    /// strings teach `zylaxion _play`, and player.rs names it the same.
+    /// Before the pin the spawn was a verb clap rejects ("unrecognized
+    /// subcommand '_play'"), so `zylaxion on` could never start the
+    /// player — masked until now because the broken attach path sat
+    /// upstream of the spawn. The underscore prefix is the internal-verb
+    /// convention; the parse pin in test/cli/ux_tests.rs holds it shut.
+    #[command(hide = true, name = "_play")]
     Play,
 
     /// List available acoustic presets from the compiled registry

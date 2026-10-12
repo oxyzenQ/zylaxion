@@ -80,3 +80,31 @@ fn unknown_subcommand_keeps_clap_own_suggestions() {
         "clap's subcommand engine stands: {rendered}"
     );
 }
+
+/// night-improve-25 (the hunt find under the Pro mode work): the hidden
+/// player verb must parse as `_play` — the exact spelling sound.rs
+/// spawns and its error strings teach. clap derives `play` from the
+/// bare variant name, so before the explicit `name = "_play"` pin the
+/// spawn argument was a verb clap rejects, and `zylaxion on` could
+/// never start the player (masked until now: the broken attach path
+/// sat upstream of the spawn). This pin holds both directions: the
+/// spawned spelling parses, and the derived one is the error it must
+/// remain.
+#[test]
+fn hidden_player_verb_parses_as_the_spawned_spelling() {
+    use clap::Parser as _;
+
+    let parsed = super::super::Cli::try_parse_from(["zylaxion", "_play"])
+        .expect("the spawned spelling '_play' must parse");
+    assert!(
+        matches!(parsed.command, Some(super::super::Commands::Play)),
+        "the '_play' verb must dispatch to the Play variant"
+    );
+
+    let bare = super::super::Cli::try_parse_from(["zylaxion", "play"]);
+    assert!(
+        bare.is_err(),
+        "the derived spelling 'play' must stay an unknown subcommand — \
+         the verb is internal and only '_play' is the contract"
+    );
+}
