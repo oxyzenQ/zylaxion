@@ -98,6 +98,40 @@ and the pre-v10 release notes live next to it in
   `.github/` tree too: workflow edits are build surface (the check
   lane carries the eBPF prerequisites) and used to ship unvalidated.
 
+### Changed
+
+- **night-improve-24** — the CLI surface revision, three owner
+  verdicts on the flag grammar:
+  - `--live` dies totally. The 2-second alternate-screen refresh
+    loop was the wrong shape for a status surface — a signal
+    handler, a cursor hider, and a terminal restore protocol
+    attached to what should be a static read. Six surfaces carried
+    the flag (the Cli field, the dispatch branch, the 52-line live
+    loop, the top-level rescue table, the help reference, the
+    README usage line); all six are cleaned, and `zylaxion --live`
+    now answers with the honest unknown-argument error, exit 2.
+  - `stats` and `status` are one verb: `zylaxion status
+    [--verbose]`. The verbose flag appends the kernel-side typing
+    telemetry (the merged stats surface, the zelynic `-v`
+    vocabulary) to the one-screen truth — a static print-once deep
+    read, never a live refresh. The telemetry renderer keeps its own
+    module per the 600-LOC cap, and a section of a delivered report
+    warns where the standalone verb hard-exited (the map was the
+    verb's whole purpose then; as a section it is a gap to name).
+    The stale-teaching pin is new law: the reference must not teach
+    a dead verb or a dead flag, and the typo-rescue test token
+    moved from the merged `startt` (a stats typo, now singular-tip)
+    to `presets` (rescues both `preset` and `list-presets`, keeping
+    the plural-engine contract).
+  - `preset --name <NAME>` becomes `preset --switch <NAME>` (short
+    `-n` becomes `-s`): the verb switches, the flag names the
+    action, not the value's type. The rename hunt also found the
+    curated help teaching a dead example — `tpt` was never in the
+    registry (the author had reached for the TPT waveshaping
+    module's name); every teaching surface now says `--switch
+    topre`, which smoke-runs through the registry into the honest
+    tap-not-attached verdict instead of a not-found error.
+
 ### Added
 
 - **night-improve-24** — the kernel-side CI lane: `eBPF tap build`
