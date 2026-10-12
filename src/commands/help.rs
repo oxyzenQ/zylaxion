@@ -107,11 +107,6 @@ pub(crate) fn render_reference(color: bool) -> String {
     push(grey("  zylaxion list-backends"));
     push("      List available audio backends.".into());
     push(String::new());
-    push(grey("  zylaxion --live"));
-    push("      Refresh the status overview every 2 seconds (Ctrl+C to exit).".into());
-    push("      # the overview, self-refreshing".into());
-    push(ok("      zylaxion --live"));
-    push(String::new());
 
     push(brand("Global flags:"));
     push(String::new());

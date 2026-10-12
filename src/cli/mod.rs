@@ -138,15 +138,13 @@ pub struct Cli {
     #[arg(long = "check-update", global = false)]
     pub check_update: bool,
 
-    /// Live mode: refresh the overview every 2 seconds (Ctrl+C to exit)
-    ///
-    /// Only effective without a subcommand.
-    #[arg(long)]
-    pub live: bool,
-
-    /// Without a subcommand: show a quick status overview (daemon
-    /// state, active preset, audio device). With a subcommand: run
-    /// that subcommand. (v10.2.0+ — user feedback)
+    /// Without a subcommand: print the quick overview (kernel
+    /// verdict, tap residency, active posture, audio device) — a
+    /// static print-once render; the deep read is `status --verbose`.
+    /// With a subcommand: run that subcommand. (v10.2.0+ — user
+    /// feedback; night-improve-24: the `--live` refresh loop is
+    /// deleted — live output was the wrong shape for a status
+    /// surface).
     #[command(subcommand)]
     pub command: Option<Commands>,
 }

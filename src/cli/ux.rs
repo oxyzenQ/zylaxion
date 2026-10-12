@@ -48,11 +48,11 @@ fn help_footer() -> &'static str {
 /// Top-level-authority flags (the zelynic NIGHT-boost-12 lineage):
 /// names whose subcommand-position appearance must tip the top-level
 /// spelling instead of the fuzzy rescue. `--help` is the single-tier
-/// help surface (root only, night-improve-15); `--check-update` and
-/// `--live` are deliberately root-only (`global = false`); `--version`
-/// is the intercepted brand report. The fuzzy engine is intent-blind
-/// on these (`jaro_ci("V", "live")` clears the bar); this table is
-/// not.
+/// help surface (root only, night-improve-15); `--check-update` is
+/// deliberately root-only (`global = false`); `--version` is the
+/// intercepted brand report. The fuzzy engine is intent-blind on
+/// these (a bare `V` scores jaro_ci("V", "version") = 0.714 and
+/// clears the bar); this table is not.
 const TOP_LEVEL_FLAG_RESCUES: &[(&str, &str)] = &[
     ("help", "zylaxion --help"),
     ("h", "zylaxion --help"),
@@ -60,7 +60,6 @@ const TOP_LEVEL_FLAG_RESCUES: &[(&str, &str)] = &[
     ("V", "zylaxion -V"),
     ("check-update", "zylaxion --check-update"),
     ("check-updated", "zylaxion --check-update"),
-    ("live", "zylaxion --live"),
 ];
 
 /// The top-level spelling a typed flag name must be redirected to,
