@@ -185,13 +185,18 @@ pub enum Commands {
         percent: u32,
     },
 
-    /// Show the kernel-side typing telemetry (per-key counters the tap
-    /// accumulated since attach, at zero userspace cost).
-    Stats,
-
-    /// Show the one-screen truth: kernel verdict, tap residency, player
-    /// state, active posture.
-    Status,
+    /// Show the one-screen truth: kernel verdict, tap residency,
+    /// player state, active posture — the master status report
+    /// (night-improve-24: the former `stats` verb merged in; the
+    /// deep read is `--verbose`).
+    Status {
+        /// Also print the kernel-side typing telemetry — the per-key
+        /// counters the tap accumulated since attach, at zero
+        /// userspace cost (the merged `stats` surface). Static by
+        /// design: prints once and exits, never a live refresh.
+        #[arg(short, long)]
+        verbose: bool,
+    },
 
     /// Print system health diagnostic
     Doctor,

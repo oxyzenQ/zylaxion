@@ -22,7 +22,6 @@ fn reference_carries_every_subcommand_and_group() {
         "volume",
         "off",
         "detach",
-        "stats",
         "status",
         "doctor",
         "list-presets",
@@ -89,5 +88,27 @@ fn reference_closes_with_contract_and_license() {
     assert!(
         text.contains("License: GPL-3.0-only | https://github.com/oxyzenQ/zylaxion"),
         "the license footer must close the reference"
+    );
+}
+
+/// night-improve-24: the merged status surface — the `stats` verb
+/// died inside `status --verbose`, and `--live` died totally. The
+/// reference must teach the deep-read spelling and must not teach
+/// either dead one (a stale teaching would send users into an
+/// unknown-argument error).
+#[test]
+fn reference_teaches_the_merged_status_and_no_dead_verbs() {
+    let text = render_reference(false);
+    assert!(
+        text.contains("zylaxion status [--verbose]"),
+        "the status synopsis must teach the verbose deep read"
+    );
+    assert!(
+        !text.contains("zylaxion stats"),
+        "the stats verb is merged into status --verbose — the reference must not teach it"
+    );
+    assert!(
+        !text.contains("zylaxion --live"),
+        "the --live flag is deleted — the reference must not teach it"
     );
 }
