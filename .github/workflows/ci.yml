@@ -35,7 +35,8 @@ jobs:
             HEAD="${{ github.sha }}"
           fi
           FILES=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null || git ls-files)
-          if echo "$FILES" | grep -qE '\.(rs|toml)$|Cargo\.lock$|^build\.rs$|^rust-toolchain|^scripts/|^\.cargo/'; then
+          PATTERN='\.(rs|toml)$|Cargo\.lock$|^build\.rs$|^rust-toolchain|^scripts/|^\.cargo/|^\.github/'
+          if echo "$FILES" | grep -qE "$PATTERN"; then
             echo "core=true" >> "$GITHUB_OUTPUT"
           else
             echo "core=false" >> "$GITHUB_OUTPUT"
