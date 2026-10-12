@@ -61,8 +61,9 @@ pub fn cmd_doctor() {
     println!("      Profile:    {}", build.profile);
 
     // 1. Kernel / eBPF capability (night-improve-23, the eBPF-only
-    //    floor): the input tap is a BPF tracepoint program and the
-    //    state store is pinned maps on bpffs — the kernel IS the
+    //    floor): the input tap is a passive kernel-side probe on the
+    //    exported input_event() function and the state store is pinned
+    //    maps on bpffs — the kernel IS the
     //    platform now. The owner's minimum is 5.15; below it the
     //    verdict is "verified unsupported" and nothing else in this
     //    report can save the run. One probe feeds both this report
@@ -70,7 +71,7 @@ pub fn cmd_doctor() {
     let kernel = crate::session::kernel::probe();
     println!(
         "\n{}",
-        crate::output::section("[2/5] Kernel / eBPF capability...")
+        crate::output::section("[2/4] Kernel / eBPF capability...")
     );
     if kernel.release.is_empty() {
         println!(
@@ -102,12 +103,17 @@ pub fn cmd_doctor() {
             );
             ok = false;
         }
-        // BTF is optional for the tracepoint tap (no CO-RE
-        // introspection needed) — reported for completeness, never
-        // fatal.
+        // BTF: the fentry lane's enabler (night-improve-25). The chain
+        // does not NEED it — the kprobe steps run without BTF — so it
+        // is reported for completeness, never fatal.
         println!(
-            "      BTF:      {} (not required for the tracepoint tap)",
-            if kernel.btf { "present" } else { "absent" }
+            "      BTF:      {} ({})",
+            if kernel.btf { "present" } else { "absent" },
+            if kernel.btf {
+                "enables the fentry lane"
+            } else {
+                "the chain falls back to the kprobe lanes"
+            }
         );
         if kernel.bpffs {
             println!(
@@ -129,21 +135,18 @@ pub fn cmd_doctor() {
             );
             ok = false;
         }
-        if kernel.tracepoint_visible {
-            println!(
-                "      {}",
-                crate::output::ok_line("PASS: tap: input_event tracepoint visible")
-            );
-        } else {
-            println!(
-                "      note: input_event tracepoint not visible from this session (tracefs may be restricted) — the attach attempt is the authoritative verdict"
-            );
-        }
-        // The last attach failure, if one left its marker (night-improve-25):
-        // a failed attach plants a small pinned map carrying the classified
-        // error code; naming it here is the doctor's honesty duty — the tap
-        // is not attached, and this line says exactly why the last attempt
-        // failed.
+        // The input-tap verdict, rendered VERBATIM (night-improve-25):
+        // the probe's preflight of the fentry → kprobe chain — one of
+        // the four canonical strings, self-explaining, and the doctor
+        // adds nothing to it (the attach attempt stays the
+        // authoritative verdict).
+        println!("      {}", kernel.input_tap);
+        // The last attach failure, if one left its marker
+        // (night-improve-25): a failed attach plants a small pinned map
+        // carrying the classified error code; naming it here is the
+        // doctor's honesty duty — the tap is not attached, and this
+        // line says exactly which step of the chain failed and how it
+        // was classified.
         #[cfg(feature = "ebpf")]
         if let Some(err) = crate::ebpf::loader::last_attach_error() {
             println!(
@@ -310,7 +313,15 @@ pub fn cmd_overview() {
         if !pin::any_pin_present() {
             println!("  tap:     not attached (sudo zylaxion attach)");
         } else if pin::all_pins_present() {
-            println!("  tap:     attached");
+            // The chain step that owns the tap (night-improve-25) —
+            // the same TAP_KIND read the status line carries.
+            let step = crate::commands::sound::open_control()
+                .ok()
+                .and_then(|c| c.get(&5u32, 0).ok())
+                .and_then(crate::ebpf::loader::TapKind::from_slot)
+                .map(|k| k.label().to_string())
+                .unwrap_or_else(|| "unknown step".to_string());
+            println!("  tap:     attached ({step})");
         } else {
             println!("  tap:     PARTIAL pin set (sudo zylaxion attach replants it)");
         }
