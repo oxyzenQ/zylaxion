@@ -74,8 +74,11 @@ No audio files. No sample libraries. No wavetable playback. Just math.
   watcher thread, no validation subcommand — a sound switcher does
   not need them (night-improve-22).
 - **Kernel-side eBPF tap, zero daemons** (night-improve-23) — the input
-  tap is a pure-Rust eBPF program pinned to the input_event tracepoint,
-  the state store is pinned BPF maps on bpffs, and the player is a
+  tap is a passive kernel-side probe on the exported input_event()
+  function, attached through a three-step chain the loader walks on
+  its own (fentry when vmlinux BTF is present, then kprobe on
+  input_event, then kprobe on input_handle_event); the
+  state store is pinned BPF maps on bpffs, and the player is a
   stateless process that owns nothing: no PID file, no Unix socket, no
   IPC protocol, no flock, no supervision. `sudo zylaxion attach` once
   per boot, then every verb is unprivileged and instant.
@@ -312,9 +315,9 @@ is codified in [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md).
   scancodes into letters, symbols, or text. It feeds them straight
   into the DSP engine to choose a stereo pan position and trigger a
   click sound.
-- The kernel's input core via the eBPF tap on the `input_event`
-  tracepoint — the same key events the kernel itself dispatches,
-  observed passively (night-improve-23).
+- The kernel's input core via a passive eBPF probe on the kernel's
+  input_event() function — the same key events the kernel itself
+  dispatches, observed passively (night-improve-23).
 
 ### What zylaxion does NOT do
 
@@ -434,7 +437,7 @@ state, the tap is passive, the player is disposable:
 ```
                  KERNEL (resident, ~1-2us per keystroke)
  ┌────────────────────────────────────────────────────────────┐
- │  eBPF tap: input_event tracepoint (the ears)               │
+ │  eBPF tap: fentry/kprobe input_event() (the ears)          │
  │    │  filter: EV_KEY, press/release, mapped keys only,     │
  │    │  enabled gate, per-key stats (BPF_ATOMIC fetch-add)   │
  │    ▼                                                       │

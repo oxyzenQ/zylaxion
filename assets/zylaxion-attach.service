@@ -5,9 +5,9 @@
 # (night-improve-23, the daemonless architecture).
 #
 # This is NOT a daemon: Type=oneshot stays the boot sequence only while
-# it runs `zylaxion attach` — loading the tap, attaching it to the
-# input_event tracepoint, and pinning the control plane to bpffs — then
-# exits and stays dead. What remains resident is the kernel side only:
+# it runs `zylaxion attach` — loading the tap, probing input_event()
+# (fentry when BTF is present, kprobe otherwise), and pinning the
+# control plane to bpffs — then exits and stays dead. What remains resident is the kernel side only:
 # one passive BPF program and a handful of pinned maps, zero processes.
 #
 # Install to:
