@@ -162,7 +162,7 @@ echo "      ${PROJECT_NAME} on"
 fi
 echo "  - Pick a preset (24 compiled in):"
 echo "      ${PROJECT_NAME} list-presets"
-echo "      ${PROJECT_NAME} preset --name ibm_model_m   # live switch"
+echo "      ${PROJECT_NAME} preset --switch ibm_model_m   # live switch"
 echo "  - Turn it off:"
 echo "      ${PROJECT_NAME} off"
 echo "  - Uninstall:"

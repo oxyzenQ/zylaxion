@@ -172,9 +172,11 @@ pub enum Commands {
     /// Switch the acoustic preset live (one map write against the
     /// pinned control plane).
     Preset {
-        /// The preset name (see `zylaxion list-presets`).
+        /// The preset name to switch to (see `zylaxion list-presets`).
+        /// night-improve-24: renamed from `--name` — the verb switches,
+        /// the flag should say so.
         #[arg(long, short)]
-        name: String,
+        switch: String,
     },
 
     /// Set the master volume as a percent of the compiled default

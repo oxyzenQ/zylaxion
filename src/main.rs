@@ -130,7 +130,7 @@ fn main() {
         Some(cmd) => match cmd {
             cli::Commands::On { preset } => commands::sound::cmd_on(preset),
             cli::Commands::Off => commands::sound::cmd_off(),
-            cli::Commands::Preset { name } => commands::sound::cmd_preset(&name),
+            cli::Commands::Preset { switch } => commands::sound::cmd_preset(&switch),
             cli::Commands::Volume { percent } => commands::sound::cmd_volume(percent),
             cli::Commands::Status { verbose } => commands::sound::cmd_status(verbose),
             cli::Commands::Doctor => commands::info::cmd_doctor(),

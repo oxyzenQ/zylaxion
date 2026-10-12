@@ -69,9 +69,9 @@ pub(crate) fn render_reference(color: bool) -> String {
     push("      # a specific preset from the compiled registry".into());
     push(ok("      zylaxion on --preset cherryMX"));
     push(String::new());
-    push(grey("  zylaxion preset --name <NAME>"));
+    push(grey("  zylaxion preset --switch <NAME>"));
     push("      Switch the acoustic preset live while playing.".into());
-    push(ok("      zylaxion preset --name tpt"));
+    push(ok("      zylaxion preset --switch topre"));
     push(String::new());
     push(grey("  zylaxion volume --percent <0-100>"));
     push("      Retune the master volume live (100 = the compiled default).".into());
