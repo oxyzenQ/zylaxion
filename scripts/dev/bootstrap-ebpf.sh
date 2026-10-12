@@ -182,8 +182,12 @@ install_bpf_linker() {
 		ok "extracting (tar --zstd)..."
 		tar --zstd -xf "$archive" -C "$extracted"
 	elif command -v python3 >/dev/null 2>&1 && python3 -c 'import zstandard' >/dev/null 2>&1; then
-		ok "extracting (python3 zstandard)..."
-		python3 - "$archive" "$extracted/bpf-linker" <<'PYEOF'
+		ok "extracting (python3 zstandard, then tar)..."
+		# The release asset is a zstd stream wrapping a POSIX tar that
+		# contains the binary — two layers, so decompress first and unpack
+		# the tar second (writing the raw stream straight to the binary
+		# name installs a tar, not an ELF).
+		python3 - "$archive" "${TMP_DIR}/payload.tar" <<'PYEOF'
 import sys
 
 import zstandard
@@ -191,11 +195,18 @@ import zstandard
 with open(sys.argv[1], "rb") as src, open(sys.argv[2], "wb") as dst:
     zstandard.ZstdDecompressor().copy_stream(src, dst)
 PYEOF
+		tar -xf "${TMP_DIR}/payload.tar" -C "$extracted"
 	else
 		die "no zstd-capable extractor on this host (zstd binary, or python3 with the zstandard module) — extract ${archive} by hand into ${extracted}"
 	fi
 	[[ -f "${extracted}/bpf-linker" ]] ||
 		die "the archive did not contain a top-level bpf-linker binary — inspect ${archive}"
+	# The staged name must be an ELF executable before it lands on PATH:
+	# a corrupt extraction would otherwise survive this script and only
+	# explode later, far from the cause.
+	elf_magic="$(dd if="${extracted}/bpf-linker" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')"
+	[[ "${elf_magic}" == "7f454c46" ]] ||
+		die "extracted bpf-linker is not an ELF executable (file magic: ${elf_magic:-none}) — the extraction is corrupt; remove it and retry"
 
 	mkdir -p "${LOCAL_BIN}"
 	install -m755 "${extracted}/bpf-linker" "${LOCAL_BIN}/bpf-linker"
