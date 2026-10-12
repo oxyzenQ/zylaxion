@@ -37,6 +37,7 @@ fn reference_carries_every_subcommand_and_group() {
         "Diagnostics:",
         "Discover:",
         "Global flags:",
+        "Pro mode:",
     ] {
         assert!(
             text.contains(heading),
@@ -133,5 +134,57 @@ fn reference_never_teaches_the_tracepoint_fiction() {
     assert!(
         !render_reference(true).contains("input_event tracepoint"),
         "the colored reference must never teach it either"
+    );
+}
+
+/// night-improve-25 (the zelynic NIGHT-improve-45 lineage): the Pro
+/// mode drift pin — every hidden and advanced spelling the estate
+/// owns must be documented COMPLETELY on the one reference surface,
+/// or the section has silently thinned back to hidden. The estate:
+/// the three short aliases, the four environment spellings of the
+/// no-config law, and the one hidden verb — pinned to the exact
+/// `_play` spelling clap accepts (task 5 fixed the drift; the bare
+/// derived `play` must never be taught back).
+#[test]
+fn pro_mode_documents_every_hidden_and_advanced_spelling() {
+    let text = render_reference(false);
+    assert!(
+        text.contains("Pro mode:"),
+        "the Pro mode section heading must be present"
+    );
+    for spelling in [
+        "-s, --switch <NAME>",
+        "-p, --percent <0-100>",
+        "-v, --verbose",
+        "ZYLAXION_PRESET=<name>",
+        "ZYLAXION_VOLUME=<gain>",
+        "NO_COLOR=1",
+        "RUST_LOG=<filter>",
+        "zylaxion _play",
+    ] {
+        assert!(
+            text.contains(spelling),
+            "Pro mode must document the spelling '{spelling}'"
+        );
+    }
+    // The discovery path a user copies from (NIGHT-improve-52's
+    // lesson): every short alias carries a runnable example.
+    for example in [
+        "zylaxion preset -s topre",
+        "zylaxion volume -p 60",
+        "zylaxion status -v",
+    ] {
+        assert!(
+            text.contains(example),
+            "Pro mode must carry the example '{example}'"
+        );
+    }
+    // The drift guard: the hidden verb is `_play` (the spelling the
+    // spawn argument and the startup-error strings use); the bare
+    // derived spelling must not be taught as a verb.
+    assert!(
+        !text.contains("zylaxion play"),
+        "the hidden verb is 'zylaxion _play' — the bare 'zylaxion play' \
+         spelling is an unknown subcommand and must never be taught"
     );
 }
