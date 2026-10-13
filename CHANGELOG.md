@@ -292,6 +292,45 @@ and the pre-v10 release notes live next to it in
 
 ### Added
 
+- **night-master-1** — the world-first claims battery: the
+  extraordinary claims get their own independent, statically-verifiable
+  proof lane (`scripts/supermassive/sm_static.py`), wired into both
+  supermassive lanes and given its own rootless CI job. The battery
+  proves, with numbers and bytes rather than adjectives:
+  - **pure math** — beyond the existing RIFF/WAVE scan, the binary's
+    ELF64 DT_NEEDED table is parsed by a hand-rolled stdlib parser (no
+    readelf/ldd dependency — the micro-VM guest has neither) and must
+    link zero audio decoders: without sndfile/avcodec/mpg123/vorbis/
+    FLAC/opus and their kin in the process image, a sample physically
+    cannot be played — synthesis is the only path the binary owns. The
+    positive control cross-checks `list-presets` against the compiled
+    registry source: the binary declares exactly the 24 authored
+    presets, byte-for-byte, no drift.
+  - **eBPF, embedded** — the binary is scanned for ELF magic with
+    e_machine 247: a real BPF object ships inside the image, and the
+    `input_event` target string rides with it (the fentry/kprobe chain
+    the tap attaches through); `ebpf-prebuilt/`'s staged object is
+    verified to be the same species and to carry zero audio magic.
+    Against a dormant binary the probe reports an honest SKIP; the
+    full lane (which always holds the release shape) makes absence
+    fatal.
+  - **no daemon, no bloat config** — the binary carries zero
+    daemon-era strings: no config.toml, no pidfile, no socket, no
+    libinput, and — the night-hunt-1 regression guard — no stale
+    `systemctl --user restart` advice; Cargo.lock is swept
+    transitively for the whole deleted stack (toml, notify, daemonize,
+    dbus/zbus, libinput, the xdg/directories config families): 135
+    locked crates, zero hits. The pin surface
+    (`/sys/fs/bpf/zylaxion`) remains the only state the architecture
+    owns.
+  The engine's `--self-test` lane and its docstring now name the
+  claims battery, and `.github/workflows/supermassive.yml` grows the
+  `claims` job: the exact release shape built with the same cache +
+  bootstrap pair as the release-shape job, the rootless battery run
+  against it, the MASS-RESULT ledger relayed into the step summary.
+  The battery is pure stdlib on purpose — the same code runs rootless
+  on a runner, inside the KVM guest, and on the owner's bench.
+
 - **night-master-3** — the supermassive E2E: the whole zero-to-hero
   chain on the KVM micro-VM floor, the zelynic lineage's crown job
   ported to zylaxion's claims. The engine
