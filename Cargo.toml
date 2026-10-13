@@ -94,13 +94,25 @@ env_logger = { version = "0.11", default-features = false, features = [
     "auto-color",
 ] }
 log = "0.4"
-nix = { version = "0.29", features = ["signal", "process", "user", "poll"] }
+# night-security-1: the audited nix API surface is sys::signal::kill,
+# poll::{PollFd, PollFlags, PollTimeout, poll}, unistd::{getpid, geteuid,
+# Pid, User::from_name} and errno::Errno. Only signal, poll and user are
+# real gates: signal = ["process"] in nix's own feature map, so the
+# explicit "process" was a redundant key; errno and the unistd basics
+# compile ungated. feature list = exactly the used gates.
+nix = { version = "0.29", features = ["signal", "poll", "user"] }
 ringbuf = "0.5"
 # night-improve-23: libc survives for the raw BPF/perf syscalls in
 # src/ebpf/bpf_syscall.rs (the tracepoint link pin lane) — the one
 # place the typed API surface of aya cannot reach.
 libc = "0.2"
-signal-hook = "0.3"
+# night-security-1: default-features = false — the default "channel"
+# and "iterator" features compile the signal-delivery channel and the
+# Signals iterator module trees; this crate uses only flag::register
+# and the consts (both ungated), so the default modules are dead
+# weight in every build. flag and consts stay available with no
+# default features — verified against signal-hook 0.3's lib.rs gates.
+signal-hook = { version = "0.3", default-features = false }
 # night-improve-22: the `toml` dependency died with config.toml — the
 # preset registry is compile-time data. night-improve-23: serde and
 # serde_json died with the daemon IPC (there is no protocol left to

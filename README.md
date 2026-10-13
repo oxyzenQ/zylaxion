@@ -78,7 +78,7 @@ doctor's verdicts come from the binary itself.
 | **Low latency, zero idle cost** | Interrupt-driven ring buffer rendering through cpal: typical latency under 3 ms, and the player's epoll loop costs nothing between keystrokes. |
 | **Stateless player** | The player process is born on `on`, reads every byte of state from the pinned maps, and self-exits on `off` — zero processes remain. What stays resident is the kernel side only: one passive BPF program plus pinned maps, ~1-2 µs per keystroke. |
 | **Kernel-side typing telemetry** | The tap accumulates per-key counters in the kernel at zero userspace cost; `zylaxion status --verbose` renders them. A feature no userspace sound tool can offer for free. |
-| **Strict dependency diet** | 11 direct dependencies, 135 lockfile crates, features trimmed to what is used (env_logger's timestamp and regex feature trees are gone — the build stamp is computed in `build.rs` via Hinnant's civil_from_days, so no time crate rides the tree). |
+| **Strict dependency diet** | 11 direct dependencies, 150 lockfile crates, features trimmed to what is used (env_logger's timestamp and regex feature trees are gone — the build stamp is computed in `build.rs` via Hinnant's civil_from_days, so no time crate rides the tree; night-security-1 audited the rest gate-by-gate — signal-hook's channel/iterator modules and nix's redundant process key are trimmed too). |
 | **Zero-leakage posture** | Hardware scancodes drive a pan position and a sound class — never letters. Not logged, not stored as sequences, not transmitted. The audit greps are in [Security & Privacy](#security--privacy). |
 
 ### Dependency policy (supply chain)
@@ -88,8 +88,11 @@ removed the entire libinput/udev capture stack from the tree; the
 no-config law (night-improve-22) removed the TOML parser and its
 watcher; the log-crate trim removed the timestamp and regex feature
 trees. The claims battery sweeps the transitive lockfile for daemon-era
-crates on every run, the supply-chain CVE scan lane runs in CI (it
-caught and fixed the ringbuf advisory, night-improve-24), and
+crates on every run, and the supply-chain CVE scan lane runs in CI (it
+caught and fixed the ringbuf advisory, night-improve-24).
+night-security-1 then walked every remaining feature gate against the
+audited API surface (signal-hook's channel/iterator modules and nix's
+redundant process key went; every surviving gate maps to a call site).
 `cargo install zylaxion --locked` verifies the published tarball against
 the registry index before extraction.
 
@@ -533,7 +536,7 @@ slightly more stable, slightly faster, slightly easier to maintain.
 - **Single CLI binary** — no daemon, no resident service, no config file
 - **Pure math synthesis** — no audio samples, no wavetables, no decoders
 - **Pure eBPF input** — no `/dev/input`, no evdev grab, no udev rules
-- **Small codebase** — 11 direct dependencies, 135 lockfile crates, easy to audit
+- **Small codebase** — 11 direct dependencies, 150 lockfile crates, easy to audit
 - **Predictable behavior** — same input → same sound, every time (with
   the designed micro-randomization on top)
 - **Linux-only at runtime** — the `ebpf` feature is a no-op elsewhere;
@@ -629,7 +632,7 @@ real kernel. The full-chaos engine and its ledger live in
 | [supermassive rootless self-test](scripts/supermassive/supermassive-test.sh) | The env probes, the CLI/UX battery, and the world-first static claims — no root, no hardware needed | `./scripts/supermassive/supermassive-test.sh --self-test` |
 | [supermassive full battery](scripts/supermassive/supermassive-test.sh) | The whole chaos: the tap lifecycle (attach, pin handover, idempotency, foreign entries, detach), a real user with no `input` group typing through uinput, the kernel-side telemetry, the PCM witness, live preset/volume map writes | `sudo ./scripts/supermassive/supermassive-test.sh --full` |
 | KVM micro-VM E2E (CI) | The zero-to-hero chain inside a real kernel, two legs: the documented 5.15 floor and the newest kernel the archive serves — verdicts relayed as `MASS-RESULT` / `MASS-VERDICT` rows on the serial console | `.github/workflows/supermassive.yml`, on every push touching the code surface |
-| [the workspace test tree](scripts/build.sh) | Unit + doc tests across the crates (140 in the dormant lane alone), plus fmt and clippy | `./scripts/build.sh check-all -q` |
+| [the workspace test tree](scripts/build.sh) | Unit + doc tests across the crates (147 in the dormant lane alone), plus fmt and clippy | `./scripts/build.sh check-all -q` |
 | [the gate suite](scripts/gate-keepers.sh) | Permissions, SPDX headers, LOC caps, language, emoji, action pins, release parity, the name-case rule | `./scripts/gate-keepers.sh` |
 
 ### The world-first claims battery
