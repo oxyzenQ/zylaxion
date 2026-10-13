@@ -499,3 +499,36 @@ fn test_velocity_none_equals_full() {
         "None and Some(1.0) should produce similar amplitude: ratio={ratio:.4}"
     );
 }
+
+/// The signed-mapping law (night-hunter-1): u32_to_signed_f32 maps the
+/// full u32 domain into a symmetric [-1.0, +1.0] — the endpoints exact,
+/// the domain's center at 0.0, and no input ever leaving the range.
+/// Pinned after the hunt found the divisor riding 2²³ − 1 under the
+/// `* 2.0 - 1.0` tail, which pushed the top of the range to +3.0 and
+/// biased every consumer (excitation noise, drift, pan jitter) +1.0.
+#[test]
+fn u32_to_signed_f32_maps_to_symmetric_unit_range() {
+    // Endpoints: the domain's floor and ceiling land on ±1.0 exactly.
+    assert_eq!(u32_to_signed_f32(0), -1.0);
+    assert_eq!(u32_to_signed_f32(u32::MAX), 1.0);
+    // The domain's center maps to 0.0 (the noise's DC reference).
+    let mid = u32_to_signed_f32(1 << 31);
+    assert!(mid.abs() < 1e-6, "domain center maps to ~0.0, got {mid}");
+    // A sweep across the domain never leaves [-1.0, 1.0].
+    for x in [
+        0u32,
+        1,
+        0xFF,
+        1 << 23,
+        (1 << 31) - 1,
+        1 << 31,
+        u32::MAX - 1,
+        u32::MAX,
+    ] {
+        let v = u32_to_signed_f32(x);
+        assert!(
+            (-1.0..=1.0).contains(&v),
+            "x={x:#010x} mapped to {v} — outside [-1.0, 1.0]"
+        );
+    }
+}
