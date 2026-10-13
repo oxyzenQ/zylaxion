@@ -1,5 +1,49 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+# CI Pipeline — the code-push build estate
+# =============================================================================
+#
+# night-badas-6 (the zelynic NIGHT-improve-13 + boost-10 doctrine): the
+# `paths:` filter is the single trigger gate — the former `changes` job
+# (a full fetch-depth: 0 clone plus a git-diff regex re-implementing
+# what GitHub's native path filter already knows) is gone. Every push
+# to main spent a depth-0 clone detecting what the event itself
+# carries; now the filter costs nothing and the estate reads one
+# spelling: the shared surface globs — '**/*.rs', '**/*.toml',
+# '**/Cargo.lock', '.cargo/**', 'ebpf/**', 'scripts/**' — plus this
+# file's own name (the hunt-34 law: a workflow that can change its own
+# contract owes itself a run). The same spelling on pull_request (the
+# no-drift law).
+#
+# Coverage facts (the zelynic boost-10 header, sized to zylaxion):
+# '**/*.rs' spans src/, ebpf/, test/, and build.rs; '**/*.toml' spans
+# both Cargo manifests, the root cargo config, and both toolchain
+# pins; '**/Cargo.lock' spans the root and ebpf locks; 'ebpf/**' keeps
+# the target-spec JSON no extension glob reaches; 'scripts/**' is ONE
+# directory glob (the boost-9 one-glob law — never a list of script
+# filenames; every new script a lane consumes is covered on landing).
+#
+# A docs-only change matches nothing here: the wholesale non-code
+# gates live in gate-keepers.yml, which runs on EVERY push unfiltered —
+# a docs-only change never skips the gates that police it, and this
+# workflow buys zero minutes on a docs-only push. The supply-chain
+# scan lives in audit.yml (the scanner rule: a scanner workflow
+# carries the surface it scans — manifests and locks, plus the weekly
+# advisory-DB clock).
+#
+# The former "Workflow lint + codespell" job moved to gate-keepers.yml
+# (night-badas-6): under this file's path-filtered shape a
+# workflow-file-only change matched no glob and skipped the very gates
+# that could catch it; the unfiltered wholesale home closes that hole.
+#
+# Toolchain: no rustup override anywhere — rust-toolchain.toml's pin
+# governs every cargo invocation, so every lane tests the exact
+# toolchain the MSRV contract promises.
+#
+# Action pins: release-commit SHAs with version tokens, the
+# night-improve-8 estate — kept current by
+# scripts/gates/check-actions-pins.sh.
 
 ---
 name: Dragon Guard - CI
@@ -7,44 +51,45 @@ name: Dragon Guard - CI
 "on":
   push:
     branches: [main]
+    paths:
+      # night-badas-6: the estate-wide trigger spelling (the zelynic
+      # boost-10 one-spelling law) — the shared surface globs plus
+      # this file's own name. A docs-only change matches nothing here.
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - 'ebpf/**'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches: [main]
+    paths:
+      # Same spelling as push (the no-drift law).
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - 'ebpf/**'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
 
-jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      core: ${{ steps.detect.outputs.core }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
-        with:
-          fetch-depth: 0
-      - name: Detect core file changes
-        id: detect
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
-            HEAD="${{ github.event.pull_request.head.sha }}"
-          else
-            BASE=$(git rev-parse HEAD~1 2>/dev/null || git rev-list --max-parents=0 HEAD)
-            HEAD="${{ github.sha }}"
-          fi
-          FILES=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null || git ls-files)
-          PATTERN='\.(rs|toml)$|Cargo\.lock$|^build\.rs$|^rust-toolchain|^scripts/|^\.cargo/|^\.github/'
-          if echo "$FILES" | grep -qE "$PATTERN"; then
-            echo "core=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "core=false" >> "$GITHUB_OUTPUT"
-          fi
+permissions:
+  contents: read
 
+# Rapid pushes to the same ref cancel the superseded run instead of
+# queueing a duplicate full build (the cosmostrix stability pattern
+# every push workflow carries).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
   check:
-    needs: changes
-    if: needs.changes.outputs.core == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -116,8 +161,6 @@ jobs:
   # aya-ebpf is pure Rust and the object needs no host headers.
   ebpf:
     name: eBPF tap build
-    needs: changes
-    if: needs.changes.outputs.core == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -176,52 +219,3 @@ jobs:
             exit 1
           }
           echo "eBPF object structural validation: OK"
-
-  workflow_quality:
-    name: Workflow lint + codespell
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
-
-      - name: Install workflow lint tools
-        run: |
-          python3 -m pip install --user yamllint codespell
-          go install github.com/rhysd/actionlint/cmd/actionlint@latest
-          echo "${HOME}/go/bin" >> "${GITHUB_PATH}"
-
-      - name: Run actionlint
-        run: actionlint .github/workflows/*.yml
-
-      - name: Run yamllint
-        run: yamllint .github/workflows
-
-      - name: Run codespell
-        run: |
-          if [ -f .codespellrc ]; then
-            codespell --config .codespellrc .
-          else
-            codespell --skip './.git,./target,./assets,./dist,./node_modules' .
-          fi
-
-  # v10.2.0 (dragonzen audit I5): supply-chain CVE scan via cargo-audit.
-  # Runs weekly (Mon 07:00 UTC) AND on every push/PR that touches Cargo.lock
-  # or any Cargo.toml. The local gatekeeper skips cargo-audit per policy —
-  # this job is the canonical source for vulnerability scanning.
-  audit:
-    name: Supply-chain CVE scan
-    needs: changes
-    if: needs.changes.outputs.core == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
-
-      - name: Install Rust toolchain
-        run: rustup default stable
-
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
-
-      - name: Run cargo audit
-        run: cargo audit --deny warnings
