@@ -20,6 +20,36 @@ and the pre-v10 release notes live next to it in
 
 ### Fixed
 
+- **night-master-4** — the presets stopped being sample-rate-
+  dependent. Every decay coefficient in the registry (the main
+  envelope, the two-stage fast lane, the ambient rattle envelope) was
+  applied raw per sample, so the same preset rang a different length
+  per audio device: retention per second is coeff^sr, which made a
+  96 kHz device decay voices twice as fast as a 44.1 kHz one. The
+  headless render audit of all 24 presets at 44.1/48/96 kHz measured
+  the damage — tail spread 54.1% on every single preset
+  (technical 426 → 196 ms, ibm_model_m 1237 → 568 ms,
+  glass_tactile 2113 → 971 ms, oceanic 1516 → 696 ms): a studio-rate
+  user was hearing half of every preset's tail. `init_state` now
+  renormalizes each coefficient to the device rate with the
+  `c_S = c_R^(R/S)` law — the same law the release ramp (v10.2.0 N2)
+  already followed — anchored at the crate's canonical 44.1 kHz
+  reference (params::SAMPLE_RATE, the rate every decay sentence in
+  the docs is written at). Re-measured after the fix: the spread is
+  0.0% on all 24 presets (tails agree within float noise), and at
+  44.1 kHz the factor is powf(1.0) = 1.0 — bit-identical to before,
+  so the owner's tuning and the whole test tree are untouched. The
+  audit also verified, with numbers, what needed no change: zero NaN
+  across 24×3 renders, DC offset ≤ 5e-3 (-46 dBFS), the authored
+  preset descriptions match their measured tails (whisper 75 ms
+  "short", oceanic 1516 ms "long bass sustain", glass_tactile 2113 ms
+  "almost musical"), and the 8 loudest presets riding the documented
+  unity ceiling engage the designed hard-clamp compressor exactly as
+  documented — no gain-structure change, the peak is the design. The
+  decay-parameter doc contracts now state the 44.1 kHz authoring
+  reference and the normalization law so future presets stay
+  rate-honest.
+
 - **night-hunt-1** — the 300-second idle warning spoke for a dead
   architecture. The heartbeat that fires after five minutes without
   key events read "input thread may be stuck — restart it

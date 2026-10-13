@@ -182,8 +182,26 @@ impl AcousticModel for MechanicalClick {
             .max(housing_excitation_fundamental)
             .max(1);
 
-        // Pre-compute decay and threshold from profile
-        state.decay_coeff = profile.decay.coefficient;
+        // Pre-compute decay and threshold from profile.
+        //
+        // night-master-4: sample-rate-normalized decay. The profile
+        // coefficients are per-sample values documented at the crate's
+        // canonical 44.1 kHz reference (params::SAMPLE_RATE — the same
+        // reference every decay sentence in this tree is written at).
+        // Applying them raw made the same preset ring a different
+        // length per device rate: the retention-per-second is
+        // coeff^sr, so a 96 kHz device decayed the envelope twice as
+        // fast as a 44.1 kHz one. Measured before the fix:
+        // ibm_model_m tail 1237 ms @ 44.1k vs 568 ms @ 96k;
+        // glass_tactile 2113 ms vs 971 ms; technical 426 ms vs 196 ms.
+        // The law c_S = c_R^(R/S) preserves the per-second retention
+        // exactly: powf(R/S) re-derives the per-sample factor for the
+        // device rate. At the 44.1 kHz reference the factor is
+        // powf(1.0) = 1.0 — every preset is bit-identical to before.
+        // The release ramp (N2) already followed this law; the main
+        // and ambient envelopes now do too.
+        let decay_rate_norm = crate::profiles::SAMPLE_RATE / sr.max(1.0);
+        state.decay_coeff = profile.decay.coefficient.powf(decay_rate_norm);
         state.voice_off_threshold = profile.decay.voice_off_threshold;
 
         // v10.2.0 (dragonzen audit N7): two-stage decay. Pre-compute
@@ -193,7 +211,10 @@ impl AcousticModel for MechanicalClick {
         // single-stage `decay_coeff` for the entire voice. This keeps
         // the feature opt-in: existing configs that don't set the new
         // fields behave identically to pre-v10.2.0.
-        state.decay_coeff_fast = profile.decay.coefficient_fast;
+        // night-master-4: the fast-stage coefficient is normalized by
+        // the same c^(R/S) law as the slow stage (0.0 powf stays 0.0,
+        // so the disabled lane is untouched).
+        state.decay_coeff_fast = profile.decay.coefficient_fast.powf(decay_rate_norm);
         state.fast_samples_count =
             if profile.decay.coefficient_fast > 0.0 && profile.decay.fast_samples_ms > 0.0 {
                 (profile.decay.fast_samples_ms * 0.001 * sr) as u32
@@ -266,7 +287,11 @@ impl AcousticModel for MechanicalClick {
         // render path skips all ambient computation (zero cost).
         state.ambient_enabled = profile.ambient.enabled;
         state.ambient_level = profile.ambient.noise_level;
-        state.ambient_decay = profile.ambient.noise_decay;
+        // night-master-4: the ambient rattle envelope follows the same
+        // c^(R/S) sample-rate law as the main decay — the rattle is a
+        // ~1 ms burst at the reference rate and must stay one at every
+        // device rate, not four times longer at 96 kHz.
+        state.ambient_decay = profile.ambient.noise_decay.powf(decay_rate_norm);
         // Start the ambient envelope at full level — it decays from
         // here via ambient_decay each sample.
         state.ambient_envelope = profile.ambient.noise_level;

@@ -135,6 +135,12 @@ pub struct DecayParams {
     /// Per-sample multiplicative decay factor for the slow (tail) stage.
     /// Must be in (0.0, 1.0). Used after `fast_samples_ms` elapses, or
     /// for the entire voice if `fast_samples_ms = 0.0`.
+    ///
+    /// Contract (night-master-4): the value is authored at the crate's
+    /// canonical 44.1 kHz reference (params::SAMPLE_RATE). `init_state`
+    /// renormalizes it to the device rate with the `c^(R/S)` law so the
+    /// tail keeps the same length at 44.1/48/96 kHz — measured spread
+    /// drops from 54% to 0%. Author values against 44.1 kHz behavior.
     pub coefficient: f32,
     /// Amplitude threshold below which the voice is deactivated.
     pub voice_off_threshold: f32,
@@ -146,6 +152,9 @@ pub struct DecayParams {
     ///
     /// Typical value: `0.997` — at 44.1 kHz this reaches -60 dB in
     /// ~23 ms, capturing the click transient's rapid energy drop.
+    /// Authored at the 44.1 kHz reference and renormalized to the
+    /// device rate by `init_state` (night-master-4, the same
+    /// `c^(R/S)` law as the slow stage).
     pub coefficient_fast: f32,
     /// Duration of the fast (initial) stage in milliseconds (v10.2.0+ —
     /// N7). After this many milliseconds, the voice switches from
@@ -182,6 +191,11 @@ pub struct AmbientParams {
     /// Controls how long the rattle persists after the keypress.
     /// MUST be < 1.0 (same constraint as `DecayParams::coefficient`).
     /// Lower values = faster rattle decay; higher values = longer ring.
+    ///
+    /// Contract (night-master-4): authored at the 44.1 kHz reference
+    /// like every decay coefficient — `init_state` renormalizes it to
+    /// the device rate with the same `c^(R/S)` law, so the rattle burst
+    /// keeps its length on every device.
     pub noise_decay: f32,
 }
 
