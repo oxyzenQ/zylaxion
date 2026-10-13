@@ -113,9 +113,39 @@ fn context_volume_percent() -> Result<u32, String> {
     Ok(percent as u32)
 }
 
+// ── The player wire (night-improve-26) ───────────────────────────────
+// The exact string passed to Command::new when `on` execs the stateless
+// player, and the exact name clap registers for the hidden variant
+// (`name = "_play"` on Commands::Play in src/cli/mod.rs). One constant,
+// two consumers — the spawn and its test pin — so the wire cannot
+// drift again. The underscore prefix is the internal-verb convention,
+// not a typo.
+#[cfg(feature = "ebpf")]
+pub(crate) const PLAYER_SPAWN_VERB: &str = "_play";
+
+/// The root refusal for the `on` surface (night-improve-26): the
+/// parent owns the door, the child owns the audio. The verdict is the
+/// same `session_refusal` wording the player-side guard prints — one
+/// wording, two doors — so a root `on` fails here, BEFORE it spawns,
+/// instead of failing inside the player after it does.
+#[cfg(feature = "ebpf")]
+pub(crate) fn on_root_refusal(euid_is_root: bool) -> Option<&'static str> {
+    crate::session::privilege::session_refusal(euid_is_root)
+}
+
 /// Handle `zylaxion on [preset]` — enable the sound.
 #[cfg(feature = "ebpf")]
 pub fn cmd_on(cli_preset: Option<String>) {
+    // The privilege verdict (night-improve-26): the parent owns the
+    // door — a root `on` refuses before it resolves paths, opens maps,
+    // or spawns anything. Same wording the player-side guard prints;
+    // a root player would open audio in root's session, which no user
+    // desktop shares.
+    if let Some(refusal) = on_root_refusal(crate::session::privilege::euid_is_root()) {
+        crate::output::error(refusal);
+        process::exit(1);
+    }
+
     init_logger();
 
     // The kernel gate: one probe, the same verdicts the doctor prints.
@@ -201,7 +231,7 @@ pub fn cmd_on(cli_preset: Option<String>) {
     };
     use std::os::unix::process::CommandExt as _;
     let spawn = std::process::Command::new(exe)
-        .arg("_play")
+        .arg(PLAYER_SPAWN_VERB)
         .stdin(process::Stdio::null())
         .stdout(process::Stdio::null())
         .stderr(process::Stdio::inherit())
@@ -228,8 +258,9 @@ pub fn cmd_on(cli_preset: Option<String>) {
     loop {
         if child.try_wait().map(|s| s.is_some()).unwrap_or(true) {
             crate::output::error(
-                "the player exited during startup — run `zylaxion _play` in the \
-                 foreground for the full error",
+                "the player exited during startup\nrun `zylaxion doctor` for the \
+                 environment verdicts, or run `zylaxion _play` in a terminal to \
+                 see the player's own output",
             );
             let _ = control.set(ENABLED_SLOT, 0, 0);
             process::exit(1);
@@ -239,8 +270,9 @@ pub fn cmd_on(cli_preset: Option<String>) {
         }
         if started.elapsed() >= PLAYER_SETTLE_BUDGET {
             crate::output::error(
-                "the player did not reach the running state in time — run \
-                 `zylaxion _play` in the foreground for the full error",
+                "the player did not reach the running state in time\nrun \
+                 `zylaxion doctor` for the environment verdicts, or run \
+                 `zylaxion _play` in a terminal to see the player's own output",
             );
             let _ = child.kill();
             let _ = control.set(ENABLED_SLOT, 0, 0);
@@ -500,3 +532,7 @@ pub fn cmd_status(_verbose: bool) {
     crate::output::error(crate::ebpf::dormant::DORMANT_REFUSAL);
     process::exit(1);
 }
+
+#[cfg(all(test, feature = "ebpf"))]
+#[path = "../../test/commands/sound_tests.rs"]
+mod tests;
