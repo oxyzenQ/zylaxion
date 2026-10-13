@@ -87,6 +87,23 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-1 (the control plane's one probe and one clamp)** —
+  three consistency finds in the player/verb plumbing. The volume
+  cell had two writers with two laws: the startup lane clamped
+  through `with_volume` (±100 gain) while the watcher's live retune
+  stored raw f32 bits — the same map value meant two loudnesses
+  depending on when it was written; the watcher now rides the pool's
+  own `volume_bits`. The player pid probe existed in three copies,
+  two of them the zombie-blind kill(0) form: a ZOMBIE player read as
+  alive, so `_play` refused "already playing" on a dead player, `on`
+  claimed "sound already on" for one, and `off` stalled its full
+  stop budget against one before advising a `kill -TERM` that cannot
+  fix a zombie; both copies are deleted — every surface shares the
+  orphan module's tested zombie-aware probe. And the `volume` verb's
+  success print said "cap 200%" even when `--force-this` had just
+  written 201..=10000: the note now names the lane that carried the
+  write.
+
 - **night-hunter-1 (the signed-noise range law)** — `u32_to_signed_f32`
   mapped the u32 domain to [-1.0, +3.0], not the documented symmetric
   [-1.0, +1.0]: the divisor rode 2²³ − 1 under a `* 2.0 - 1.0` tail

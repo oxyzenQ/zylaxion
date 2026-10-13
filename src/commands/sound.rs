@@ -73,10 +73,12 @@ pub(crate) fn open_control() -> Result<Array<MapData, u32>, String> {
     Array::try_from(owned).map_err(|e| format!("the pinned control map is not an array: {e}"))
 }
 
-/// Liveness probe for the player pid.
-fn pid_alive(pid: i32) -> bool {
-    nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), None).is_ok()
-}
+// The liveness probe is the orphan module's zombie-aware one (night-hunter-1):
+// a ZOMBIE answers the raw kill(0) probe but is a dead player by any honest
+// measure — the local kill-only copy is deleted so every surface shares one
+// tested probe. (ebpf-gated: every call site lives in the ebpf-gated verbs.)
+#[cfg(feature = "ebpf")]
+use crate::session::orphan::pid_alive;
 
 /// One kernel-policy gate for the verbs that must talk to the pinned
 /// control plane (night-badas-4 round 5): the classified refusal beats
@@ -428,7 +430,19 @@ pub fn cmd_volume(percent: u32, force_this: bool) {
         crate::output::error(format!("cannot write the volume slot: {e}"));
         process::exit(1);
     }
-    println!("volume set to {percent}% (100 = the compiled default, cap 200%)");
+    // night-hunter-1: the note names the lane that actually carried the
+    // write — the old print said "cap 200%" even when --force-this had
+    // just written 201..=10000, contradicting the value on the same line.
+    let cap = crate::session::preset::MAX_VOLUME_PERCENT;
+    let cap_note = if percent > cap {
+        format!(
+            "--force-this carried it past the {cap}% cap (force ceiling {})%)",
+            crate::session::preset::MAX_FORCE_VOLUME_PERCENT
+        )
+    } else {
+        format!("cap {cap}%")
+    };
+    println!("volume set to {percent}% (100 = the compiled default, {cap_note})");
 }
 
 /// Handle `zylaxion status [--verbose]` — the one-screen truth:

@@ -133,8 +133,14 @@ impl VoicePool {
 
     /// The pure volume clamp: finite values clamp to [-100, 100],
     /// everything else falls back to the compiled default. Stored as
-    /// f32 bits for the atomic cell.
-    fn volume_bits(volume: f32) -> u32 {
+    /// f32 bits for the atomic cell. PUB (night-hunter-1) because the
+    /// player's control-plane watcher retunes through the SAME cell —
+    /// every writer of the volume atomic must ride this one law, or
+    /// the startup lane and the live-retune lane disagree about what
+    /// a map value means (they did: the watcher stored raw bits, so
+    /// a forced retune above ~1818% outranged what a fresh `on` would
+    /// have clamped to).
+    pub fn volume_bits(volume: f32) -> u32 {
         let clamped = if volume.is_finite() {
             volume.clamp(-100.0, 100.0)
         } else {
