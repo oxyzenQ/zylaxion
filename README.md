@@ -34,7 +34,7 @@
 ## Demo
 
 <!-- Screenshot asset: the rendered help is the real `zylaxion -h` output
-     of the v11 build with the brand-styled CLI (purple headings, grey
+     of the v80 build with the brand-styled CLI (purple headings, grey
      grammar tier — night-improve-2). The help surface touches no audio
      or input hardware, so a capture host renders it byte-identical to
      a desktop. A typing-sound video demo needs real audio hardware, so
@@ -551,7 +551,7 @@ slightly more stable, slightly faster, slightly easier to maintain.
 - No REST API, no network control plane
 - No non-Linux support
 
-### Stable API (from v11.0.0)
+### Stable API (from v80.0.0)
 
 The CLI surface is frozen. No breaking changes to commands, flags, or
 output format. Future releases focus on:
