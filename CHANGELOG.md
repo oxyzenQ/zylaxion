@@ -24,6 +24,39 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-private-research-2xblade** — the Zactrix Engine: the
+  acoustic engine's spectrum learns to move. The pass started as a
+  measurement, not a feature: a headless audit harness
+  (`scripts/audit/zactrix-audit.sh`) rendered all 24 presets through
+  the real render path at 96 kHz and scored four physical movement
+  metrics per preset against conservative physical bands
+  (`docs/ZACTRIX_AUDIT.md`). The frozen-coefficient engine measured
+  A = 1, B = 17, C = 6 — 21 of 24 presets carried 99+ percent of
+  onset energy in the first 5 ms — and the Phase 0 gate opened. The
+  Zactrix Engine makes the spectrum evolve with the actuation it is
+  voicing. The change is architectural: the three TPT SVF stages
+  gain time-varying cutoff and Q, driven by physics-derived curves.
+  Every preset was re-audited; every tier change is named in
+  docs/ZACTRIX_AUDIT.md. No preset regressed. Stage A (click)
+  collapses from broadband to the click band over ~3 ms, stage B
+  (spring) travels from the click band into the spring band over
+  ~5 ms while Q wakes, stage C (housing) keeps the constant whose
+  long ring stays the existing envelope's job; the curves are
+  authored in seconds and Hz and are sample-rate invariant by
+  construction. The engine struct carries the Zactrix name (the
+  historical `MechanicalClick` remains as a documented alias). The
+  re-tune raised the housing resonance on 20 presets under the
+  level-preserving `mix x Q` law, with click/spring/decay/ambient
+  rows untouched; four presets refused the fit on identity grounds
+  and are recorded as exceptions. Same-instrument before/after:
+  centroid drift and flatness evolution roughly doubled on the
+  fitted crowd, six voices now sit inside the physical attack/tail
+  band (three before), `ibm_model_m` and `buckling_spring` rose
+  C -> B, `topre` holds A untouched. The honest residuals — the
+  Q <= 10 range ceiling on ring survival, the modal column's
+  32-48 ms late frames, and the four refusals — are named in the
+  audit doc, not hidden.
+
 - **night-improve-28** — the honest architecture ledger,
   `docs/EBPF_ONLY_VS_DAEMON.md`: the eBPF-only bet costed against
   the deleted daemon era, with the win rows carrying their

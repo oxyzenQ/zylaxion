@@ -326,6 +326,7 @@ impl Default for ZactrixEngine {
 /// Zactrix name is the engine's identity, not a breaking rename.
 pub type MechanicalClick = ZactrixEngine;
 
+mod init;
 mod render;
 
 #[cfg(test)]
