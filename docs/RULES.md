@@ -156,6 +156,12 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   `scripts/**` — plus the workflow's own file (night-badas-2, the
   zelynic boost-10 one-spelling law). `*.md`, `*.txt` and `docs/`
   match nothing: a docs-only commit never buys a code lane.
+- **No detector job:** the former `changes` job (a full
+  `fetch-depth: 0` clone plus a git-diff regex re-implementing
+  GitHub's native path filter) is gone (night-badas-6, the zelynic
+  NIGHT-improve-13 lineage). The `paths:` filter IS the single
+  trigger gate — no depth-0 clone is spent detecting what GitHub
+  already knows.
 - **Gate-keepers CI (night-badas-5):** `Dragon Guard - Gate-keepers`
   (gate-keepers.yml) runs on EVERY push and PR, UNFILTERED — the
   wholesale non-code gates (permissions, headers, LOC caps, language,
