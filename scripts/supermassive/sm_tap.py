@@ -107,15 +107,22 @@ def battery(ledger: Ledger, binary: str, handover_user: str) -> None:
             )
 
     with Step(ledger, "tap idempotency and classifications"):
+        # The shipped contract (night-improve-26, loader.rs): a
+        # COMPLETE pin set IS attached — the second attach is a
+        # classified success shape, nothing to do. The old
+        # refusal-shaped expectation here was the probe drifting from
+        # the source it audits (night-badas-4 round 5): the message
+        # names the state, the rc stays 0, exactly like the second
+        # detach below.
         rc, out = _run(binary, ["attach"], sudo_user=handover_user)
-        if rc != 0 and "entries" in out:
+        if rc == 0 and "already attached" in out:
             ledger.pass_row(
-                "re-attach over a live tap refuses honestly",
+                "re-attach over a live tap is an idempotent success",
                 out.splitlines()[0][:70],
             )
         else:
             ledger.fail_row(
-                "re-attach over a live tap refuses honestly",
+                "re-attach over a live tap is an idempotent success",
                 f"rc={rc}: {out[:120]}",
             )
 

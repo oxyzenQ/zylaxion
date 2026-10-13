@@ -120,6 +120,17 @@ pub fn cmd_play() {
 
     init_logger();
 
+    // The kernel-policy gate (night-badas-4 round 5): the player's
+    // whole registration ride is control-map writes — a kernel that
+    // gates unprivileged bpf() ends the run here, classified, instead
+    // of an EPERM surfacing as a cryptic map error.
+    if let Some(refusal) = crate::session::kernel::probe()
+        .unpriv_map_write_refusal(crate::session::privilege::euid_is_root())
+    {
+        crate::output::error(refusal);
+        process::exit(1);
+    }
+
     // ── Open the pinned control plane (unprivileged: the pins were
     //    chowned to this user at attach time).
     let mut control = match open_control_array() {

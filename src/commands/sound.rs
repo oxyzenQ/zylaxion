@@ -79,6 +79,21 @@ fn pid_alive(pid: i32) -> bool {
     nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), None).is_ok()
 }
 
+/// One kernel-policy gate for the verbs that must talk to the pinned
+/// control plane (night-badas-4 round 5): the classified refusal beats
+/// the misleading "not attached" shape an EPERM takes on a kernel that
+/// gates unprivileged bpf(). Root is never gated (capability-keyed).
+#[cfg(feature = "ebpf")]
+fn kernel_policy_gate() {
+    let kernel = crate::session::kernel::probe();
+    if let Some(refusal) =
+        kernel.unpriv_map_write_refusal(crate::session::privilege::euid_is_root())
+    {
+        crate::output::error(refusal);
+        process::exit(1);
+    }
+}
+
 /// Registry index for a preset name, or the canonical did-you-mean
 /// error (the night-improve-19 lineage — same shape the resolver uses).
 fn preset_index_or_error(name: &str) -> Result<u32, String> {
@@ -178,6 +193,9 @@ pub fn cmd_on(cli_preset: Option<String>) {
         ));
         process::exit(1);
     }
+    // The kernel-policy gate (night-badas-4 round 5): the classified
+    // refusal beats the misleading not-attached shape an EPERM takes.
+    kernel_policy_gate();
 
     let mut control = match open_control() {
         Ok(c) => c,
@@ -321,6 +339,13 @@ pub fn cmd_on(cli_preset: Option<String>) {
 pub fn cmd_off() {
     init_logger();
 
+    // The kernel-policy gate, only when a tap actually lives in the
+    // kernel (night-badas-4 round 5): the pin check is filesystem-
+    // level, so the idempotent shape below stays posture-independent.
+    if pin::any_pin_present() {
+        kernel_policy_gate();
+    }
+
     let mut control = match open_control() {
         Ok(c) => c,
         Err(_) => {
@@ -370,6 +395,7 @@ pub fn cmd_off() {
 #[cfg(feature = "ebpf")]
 pub fn cmd_preset(name: &str) {
     init_logger();
+    kernel_policy_gate();
     let preset_index = match preset_index_or_error(name) {
         Ok(i) => i,
         Err(e) => {
@@ -402,6 +428,7 @@ pub fn cmd_preset(name: &str) {
 #[cfg(feature = "ebpf")]
 pub fn cmd_volume(percent: u32) {
     init_logger();
+    kernel_policy_gate();
     let mut control = match open_control() {
         Ok(c) => c,
         Err(e) => {
@@ -434,6 +461,14 @@ pub fn cmd_status(verbose: bool) {
     if !pin::all_pins_present() {
         crate::output::warning(
             "the pin set is partial (a crashed attach?) — sudo zylaxion attach replants it",
+        );
+    }
+    // The kernel-policy note (night-badas-4 round 5): a locked
+    // unprivileged-bpf kernel refuses the map reads too — name why.
+    if !crate::session::privilege::euid_is_root() && !kernel.unpriv_bpf_allowed() {
+        println!(
+            "      {}",
+            crate::output::warning(&kernel.unpriv_bpf_verdict())
         );
     }
     // Open the control map once: the tap line below reads the chain

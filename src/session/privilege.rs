@@ -27,6 +27,16 @@
 //! the decision and the wording are unit-pinned below — the same
 //! drift-pin discipline as the zelynic reference contract
 //! ("do not use sudo for check download").
+//!
+//! The euid axis above is not the only gate: the kernel answers to
+//! `kernel.unprivileged_bpf_disabled` too (night-badas-4 round 5).
+//! Distros that build the gate in (Ubuntu does,
+//! CONFIG_BPF_UNPRIV_DEFAULT_OFF=y) refuse every plain-user bpf()
+//! call for the whole boot — on such kernels the control-plane verbs
+//! refuse classified (the kernel probe's verdict in
+//! `session::kernel`) whatever the euid, root keeps its full read
+//! (the syscall gate keys on capability), and the doctor's kernel
+//! section carries the posture.
 
 /// The euid fact every refusal rides. `true` when the process runs
 /// with effective uid 0 — sudo, su, a root login shell, or a root

@@ -205,19 +205,27 @@ def _tapless_doors(ledger: Ledger, binary: str, full_mode: bool) -> None:
         # lane: the full lane's caller is root, so `on` meets the root
         # refusal (a root player would open audio in root's session —
         # the parent owns the door before anything spawns); the
-        # self-test lane is unprivileged and meets the kernel gate or
-        # the tap gate, both honest environment verdicts. The user's
-        # tap-less door is asserted separately in the real-usage lane
-        # (on after detach, as the real user).
+        # self-test lane is unprivileged and meets the kernel gate,
+        # the tap gate, or the unprivileged-bpf posture gate (a distro
+        # that builds CONFIG_BPF_UNPRIV_DEFAULT_OFF=y locks the verbs
+        # out for the whole boot) — all honest environment verdicts.
+        # The user's tap-less door is asserted separately in the
+        # real-usage lane (on after detach, as the real user).
         root_door = "do not use sudo" in out
         kernel_door = "kernel eBPF verdict" in out
         tap_door = "the tap is not attached" in out and "zylaxion attach" in out
+        posture_door = "unprivileged bpf" in out
         if full_mode:
             ok = rc == 1 and root_door
             shape = "root door"
         else:
-            ok = rc == 1 and (tap_door or kernel_door)
-            shape = "tap door" if tap_door else "kernel door"
+            ok = rc == 1 and (tap_door or kernel_door or posture_door)
+            if tap_door:
+                shape = "tap door"
+            elif kernel_door:
+                shape = "kernel door"
+            else:
+                shape = "posture door"
         if ok:
             ledger.pass_row(
                 "on without the ready environment answers honestly",
@@ -227,7 +235,7 @@ def _tapless_doors(ledger: Ledger, binary: str, full_mode: bool) -> None:
             ledger.fail_row(
                 "on without the ready environment answers honestly",
                 f"rc={rc}, root-door={root_door}, tap-door={tap_door}, "
-                f"kernel-door={kernel_door}: {out[:90]}",
+                f"kernel-door={kernel_door}, posture-door={posture_door}: {out[:90]}",
             )
 
         rc, out = run_cli(binary, ["_play"])
@@ -246,10 +254,13 @@ def _tapless_doors(ledger: Ledger, binary: str, full_mode: bool) -> None:
                 )
         else:
             # Unprivileged, tap-less: the player's own honest startup
-            # failure (the pinned map is unreadable — the message names
-            # the tap and the attach fix).
+            # failure — the pinned map is unreadable (the message names
+            # the tap and the attach fix), or the kernel's
+            # unprivileged-bpf posture gate ends the run classified
+            # (night-badas-4 round 5).
             honest = (
                 "cannot open the pinned control map" in out
+                or "unprivileged bpf" in out
                 or "zylaxion doctor" in out
             )
             if rc == 1 and honest:

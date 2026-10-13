@@ -511,6 +511,16 @@ jobs:
           cp /tmp/kfloor/mods/*.ko* rootfs/opt/zylaxion/modules/
           cp "$GITHUB_WORKSPACE/scripts/ci/supermassive-init.sh" rootfs/init
           chmod +x rootfs/init
+          # The guest's Unix shape: the whole tree belongs to root.
+          # The extraction above runs as the runner user, and a
+          # non-root tar defaults to --no-same-owner — the
+          # docker-exported tree (every apt-installed file, sudo's
+          # config included) lands owned by the runner's uid. The
+          # guest's sudo refuses to run when /etc/sudo.conf and
+          # /etc/sudoers are not root-owned, which beheaded the whole
+          # real-user lane at the sudo door before zylaxion was ever
+          # reached (night-badas-4 round 5, run 38375322712).
+          sudo chown -hR root:root rootfs
           # PID 1 needs a console to exec onto before devtmpfs lands:
           # remove whatever the tar degraded, mknod the real char
           # device fresh (the zelynic assembly lesson).

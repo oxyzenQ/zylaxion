@@ -371,6 +371,15 @@ zylaxion is deliberately small and stateless. In one breath:
 - **Kernel 5.15+ with BPF available** — lockdown / integrity modes
   that block BPF are refused with the exact reason; `zylaxion doctor`
   names the block instead of guessing.
+- **The kernel's own unprivileged-bpf gate** — distros that build
+  `CONFIG_BPF_UNPRIV_DEFAULT_OFF=y` in (Ubuntu does, 5.15 and 7.0
+  verified) boot with `kernel.unprivileged_bpf_disabled=2`, locked for
+  the whole boot: the attach handover still plants user-owned pins,
+  but every map op a plain user issues is refused, so the control
+  verbs (`on`, `preset`, `volume`, `off`, `status`'s live read) cannot
+  run as that user on those kernels. The verbs refuse classified and
+  `zylaxion doctor` carries the posture line; root keeps its full
+  read (the gate keys on capability, not the sysctl).
 - **Audio rides the desktop's bridge** — cpal → PipeWire / PulseAudio
   / ALSA. There is no direct JACK backend and no network audio.
 - **The musl lane is dormant** — a fully static build waits on a

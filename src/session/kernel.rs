@@ -73,6 +73,11 @@ pub struct KernelReport {
     /// The active lockdown mode is `confidentiality` — the kernel
     /// withdraws BPF entirely. Required-false.
     pub lockdown_blocks_bpf: bool,
+    /// The raw `kernel.unprivileged_bpf_disabled` value (0 allowed,
+    /// 1 disabled-but-recoverable, 2 locked for this boot; any other
+    /// non-zero value reads as disabled). `0` also when the sysctl
+    /// file is absent — no gate file, no gate.
+    pub unpriv_bpf_disabled: u8,
 }
 
 impl KernelReport {
@@ -89,6 +94,52 @@ impl KernelReport {
         } else {
             "verified unsupported"
         }
+    }
+
+    /// The pure posture law: does this sysctl value allow the plain
+    /// user's bpf() calls at all? Only `0` does — `1` and `2` both
+    /// gate every non-bpf_capable caller; root is never gated (the
+    /// gate keys on capability, not on the sysctl).
+    pub fn unpriv_bpf_allowed(&self) -> bool {
+        self.unpriv_bpf_disabled == 0
+    }
+
+    /// The doctor's posture line — a pure function of the raw value.
+    pub fn unpriv_bpf_verdict(&self) -> String {
+        match self.unpriv_bpf_disabled {
+            0 => "unprivileged bpf: allowed — the control-plane verbs run as a plain user"
+                .to_string(),
+            1 => "unprivileged bpf: disabled (1) — the verbs cannot run as a plain user; \
+                  root may re-enable it this boot: sysctl -w kernel.unprivileged_bpf_disabled=0"
+                .to_string(),
+            2 => "unprivileged bpf: locked (2) — the kernel build hard-disabled unprivileged \
+                  bpf() and it cannot be re-enabled this boot; the control-plane verbs \
+                  cannot run as a plain user"
+                .to_string(),
+            other => format!(
+                "unprivileged bpf: disabled ({other}) — the kernel refuses unprivileged bpf()"
+            ),
+        }
+    }
+
+    /// The kernel-policy gate for every surface that must talk to the
+    /// pinned control plane (night-badas-4 round 5): when the kernel
+    /// gates unprivileged bpf() and the caller is not root, no map
+    /// read or write can succeed — the honest answer is the classified
+    /// refusal, not the misleading "not attached" shape an EPERM
+    /// surfaces as. The message carries the substring the E2E battery
+    /// pins ("unprivileged bpf") — do not reword it without the
+    /// engine's sm_audio.py.
+    pub fn unpriv_map_write_refusal(&self, euid_is_root: bool) -> Option<String> {
+        if euid_is_root || self.unpriv_bpf_allowed() {
+            return None;
+        }
+        Some(format!(
+            "{}\n  tip: the pins stay readable after `sudo zylaxion attach`, but the \
+             control-plane map ops need the kernel's unprivileged bpf gate open — \
+             see `zylaxion doctor`",
+            self.unpriv_bpf_verdict()
+        ))
     }
 }
 
@@ -253,6 +304,14 @@ pub fn parse_blacklist(content: &str, symbol: &str) -> BlacklistStatus {
     }
 }
 
+/// The pure unprivileged-bpf law: parse the sysctl file's contents
+/// into the raw posture value. Empty or malformed content reads as 0
+/// (allowed) — a probe must never invent a lock it cannot witness,
+/// and the gate's own bounds keep the real values at 0, 1 or 2.
+pub fn parse_unpriv_bpf_disabled(raw: &str) -> u8 {
+    raw.trim().parse::<u8>().unwrap_or(0)
+}
+
 /// Probe the host kernel (the filesystem-reading half). Every field
 /// degrades to its honest default when the backing file is absent —
 /// a probe must never panic on a hardened kernel.
@@ -272,6 +331,9 @@ pub fn probe() -> KernelReport {
     let lockdown = std::fs::read_to_string("/sys/kernel/security/lockdown").ok();
     let lockdown_readable = lockdown.is_some();
     let lockdown_blocks_bpf = lockdown.map(|s| lockdown_blocks(&s)).unwrap_or(false);
+    let unpriv_bpf_disabled = std::fs::read_to_string("/proc/sys/kernel/unprivileged_bpf_disabled")
+        .map(|s| parse_unpriv_bpf_disabled(&s))
+        .unwrap_or(0);
     KernelReport {
         release,
         parsed,
@@ -280,6 +342,7 @@ pub fn probe() -> KernelReport {
         input_tap,
         lockdown_readable,
         lockdown_blocks_bpf,
+        unpriv_bpf_disabled,
     }
 }
 
