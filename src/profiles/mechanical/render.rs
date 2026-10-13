@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! The MechanicalClick render path (the AcousticModel impl).
+//! The ZactrixEngine render path (the AcousticModel impl).
 //!
 //! Split from mechanical.rs in night-improve-18 (the no-mercy LOC
 //! law): the struct + defaults stay in the parent module, the
@@ -14,11 +14,26 @@ use std::sync::atomic::Ordering;
 use crate::profiles::{AcousticModel, KeyProfile, KeyTrigger, SynthState};
 
 use super::{
-    AMPLITUDE_DRIFT_FRAC, MechanicalClick, PITCH_DRIFT_FRAC, splitmix64, u32_to_signed_f32,
+    AMPLITUDE_DRIFT_FRAC, PITCH_DRIFT_FRAC, ZactrixEngine, splitmix64, u32_to_signed_f32,
     xorshift32,
 };
 
-impl AcousticModel for MechanicalClick {
+// ── Zactrix physics shape constants (night-private-research-2xblade) ──
+// The SHAPE is the actuation physics and is the same for every preset;
+// each preset's own numbers (frequencies, resonances) are the curve
+// anchors. Verifier-first: docs/ZACTRIX_AUDIT.md holds the measurement
+// these curves answer, and scripts/audit/zactrix-verify.sh judges them.
+/// Impact collapse time constant: 3 tau is the ~3 ms broadband-to-band
+/// collapse of the switch-leaf contact.
+const TAU_CLICK_S: f32 = 0.001;
+/// Spring wake time constant: 3 tau is the ~5 ms click-band-to-spring-
+/// band travel.
+const TAU_SPRING_S: f32 = 0.005 / 3.0;
+/// Broadband start of the click cutoff, as a multiple of the click
+/// band: first contact spreads energy across the audible range.
+const CLICK_BREADTH: f32 = 2.5;
+
+impl AcousticModel for ZactrixEngine {
     fn get_profile(&self, event: &KeyTrigger) -> KeyProfile {
         // night-improve-22: one compiled preset profile for every key;
         // the per-scancode override map died with the config file.
@@ -144,14 +159,38 @@ impl AcousticModel for MechanicalClick {
         // more muted). Scale: ±20% of the profile resonance.
         let velocity_resonance_scale = 1.0 + (1.0 - vel) * 0.2;
 
-        // Pre-compute click filter TPT coefficients (using drifted
-        // frequency + velocity-modulated resonance)
-        state.click_g = (std::f32::consts::PI * click_freq / sr).tan();
+        // ── Zactrix stage A (click): the impact-collapse curve ─────
+        // Physics shape, locked: first contact is broadband — the
+        // cutoff starts at 2.5x the click band (clamped below 0.45
+        // Nyquist so the bilinear prewarp stays honest) and collapses
+        // into the click band with a ~1 ms time constant (3 tau = the
+        // ~3 ms collapse), while Q starts at a quarter of the preset
+        // resonance (a broadband passage, not a narrow ping) and
+        // settles to it. The drifted click frequency rides as the
+        // anchor, so micro-randomization moves the whole curve exactly
+        // as it moved the frozen coefficient before.
+        state.click_fc_end = click_freq;
+        let f_broad = (click_freq * CLICK_BREADTH).min(0.45 * sr);
+        state.click_fc_delta = f_broad - click_freq;
         state.click_k = 1.0 / (profile.click.resonance * velocity_resonance_scale);
+        state.click_k_delta = 3.0 * state.click_k;
+        state.click_step = (-1.0 / (sr * TAU_CLICK_S)).exp();
+        state.click_e = 1.0;
 
-        // Pre-compute spring filter TPT coefficients (using drifted frequency)
-        state.spring_g = (std::f32::consts::PI * spring_freq / sr).tan();
+        // ── Zactrix stage B (spring): the wake curve ───────────────
+        // Physics shape, locked: the cutoff travels from the click
+        // band to the spring band with a ~1.67 ms time constant (3 tau
+        // = the ~5 ms wake) while Q wakes from a quarter of the preset
+        // resonance to it — the spring is born broad and sharpens as
+        // it starts to ring. Down in Hz for every shipped preset
+        // (spring below click); the shape is the travel, the direction
+        // is the preset's numbers.
+        state.spring_fc_end = spring_freq;
+        state.spring_fc_delta = click_freq - spring_freq;
         state.spring_k = 1.0 / profile.spring.resonance;
+        state.spring_k_delta = 3.0 * state.spring_k;
+        state.spring_step = (-1.0 / (sr * TAU_SPRING_S)).exp();
+        state.spring_e = 1.0;
 
         // Pre-compute housing filter TPT coefficients (v4.2.0+, using
         // drifted frequency). The housing layer is a third TPT SVF
@@ -159,7 +198,9 @@ impl AcousticModel for MechanicalClick {
         // keycap-hitting-PCB "thock" sound. It is driven by the same
         // noise excitation as the click and spring layers, but with a
         // longer excitation window — see `housing_excitation_samples`
-        // below.
+        // below. Zactrix stage C: the curve is the constant itself —
+        // cutoff stays low, Q stays high, and the long ring stays the
+        // existing envelope's job.
         state.housing_g = (std::f32::consts::PI * housing_freq / sr).tan();
         state.housing_k = 1.0 / profile.housing.resonance;
         state.housing_mix = profile.housing.mix;
@@ -168,19 +209,27 @@ impl AcousticModel for MechanicalClick {
         state.excitation_samples = (profile.click.duration_ms * 0.001 * sr) as u32;
         state.excitation_samples = state.excitation_samples.max(1);
 
-        // Housing excitation window: longer than the click burst so the
-        // low-frequency filter has time to ring up. Four periods of the
-        // housing fundamental is a good balance — enough for the filter
-        // to reach steady-state, short enough to keep the impact
-        // percussive (not a sustained tone). For 250 Hz at 44.1 kHz:
-        // 4 * 44100/250 = 706 samples ≈ 16 ms. Uses the drifted
-        // housing_freq so the window scales with the pitch drift.
+        // Housing excitation window. Zactrix stage C drive law
+        // (night-private-research-2xblade): the drive window follows
+        // the mode. A HIGH-Q housing (Q > 3, the re-tuned body) is
+        // kicked by the impact's own contact time and rings free — a
+        // longer driven window would let the narrow low band slurp
+        // the attack (measured in the first fit pass: the centroid
+        // contrast and the modal structure collapsed on exactly the
+        // presets whose housing dominated). A LOW-Q housing (Q <= 3,
+        // the legacy shape every preset shipped before the re-tune,
+        // including topre and the four identity refusals) still needs
+        // the four-period driven window to build audible level — the
+        // ring-up time of a wide mode is long, and the thock lives in
+        // the driven steady state.
         let housing_periods = 4.0_f32;
         let housing_excitation_fundamental = (housing_periods * sr / housing_freq) as u32;
-        state.housing_excitation_samples = state
-            .excitation_samples
-            .max(housing_excitation_fundamental)
-            .max(1);
+        state.housing_excitation_samples = if profile.housing.resonance > 3.0 {
+            state.excitation_samples
+        } else {
+            state.excitation_samples.max(housing_excitation_fundamental)
+        };
+        state.housing_excitation_samples = state.housing_excitation_samples.max(1);
 
         // Pre-compute decay and threshold from profile.
         //
@@ -332,6 +381,7 @@ impl AcousticModel for MechanicalClick {
         if !state.active {
             return [0.0, 0.0];
         }
+        let sr = self.sample_rate;
 
         // ── Stage 1: Generate click + spring excitation ───────────────
         // During the initial burst, produce shaped white noise. After the
@@ -415,9 +465,17 @@ impl AcousticModel for MechanicalClick {
         };
 
         // ── Stage 2a: Click TPT SVF (bandpass emphasis) ─────────────
-        // Inlined TPT SVF for zero function-call overhead in the render path
-        let g = state.click_g;
-        let k = state.click_k;
+        // Zactrix stage A: the coefficients move with the impact-
+        // collapse curve — broadband at first contact, collapsed into
+        // the click band by ~3 ms. The TPT integrator state carries
+        // across coefficient changes (that is what the topology
+        // preserves), so per-sample modulation is stable by
+        // construction; the clamps are a safety net, not a shaping
+        // surface (every preset's curve lives far inside them).
+        state.click_e *= state.click_step;
+        let fc = (state.click_fc_end + state.click_fc_delta * state.click_e).clamp(20.0, 0.45 * sr);
+        let k = (state.click_k + state.click_k_delta * state.click_e).clamp(0.1, 10.0);
+        let g = (std::f32::consts::PI * fc / sr).tan();
         let a1 = 1.0 / (1.0 + g * (g + k));
         let a2 = g * a1;
         let a3 = g * g * a1;
@@ -433,11 +491,18 @@ impl AcousticModel for MechanicalClick {
         let click_out = (v3 - v1) * 0.7 + v1 * 0.3;
 
         // ── Stage 2b: Spring TPT SVF (resonant ring) ─────────────────
-        // Independent filter driven directly by the excitation. After the
-        // burst ends, the filter rings at its natural frequency — this is
-        // the "spring" sound characteristic of mechanical switches.
-        let sg = state.spring_g;
-        let sk = state.spring_k;
+        // Independent filter driven directly by the excitation. Zactrix
+        // stage B: the cutoff travels from the click band into the
+        // spring band over ~5 ms while Q wakes to the preset resonance
+        // — the spring is born broad and sharpens as it starts to
+        // ring. After the burst ends, the filter rings at its natural
+        // frequency — this is the "spring" sound characteristic of
+        // mechanical switches.
+        state.spring_e *= state.spring_step;
+        let sfc =
+            (state.spring_fc_end + state.spring_fc_delta * state.spring_e).clamp(20.0, 0.45 * sr);
+        let sk = (state.spring_k + state.spring_k_delta * state.spring_e).clamp(0.1, 10.0);
+        let sg = (std::f32::consts::PI * sfc / sr).tan();
         let sa1 = 1.0 / (1.0 + sg * (sg + sk));
         let sa2 = sg * sa1;
         let sa3 = sg * sg * sa1;
