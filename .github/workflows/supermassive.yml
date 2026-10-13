@@ -5,10 +5,17 @@
 # peak LTS; the name and the seat are the zelynic lineage).
 # =============================================================================
 #
-# Runs weekly (Mon 05:00 UTC, ahead of the 07:00 maintenance lane) and on
-# demand via workflow_dispatch. Deliberately NOT on push: the push estate is
-# ci.yml's job; this workflow is the periodic deep proof a push lane must
-# not pay for on every commit.
+# night-badas-2 (the owner's call; the zelynic NIGHT-reject-1 lineage):
+# the weekly clock is retired and the deep battery joins the push
+# estate. The trigger spelling is the estate's shared surface globs —
+# the zelynic boost-10 one-spelling law: '**/*.rs', '**/*.toml',
+# '**/Cargo.lock', '.cargo/**', 'ebpf/**' (this repo's core kernel
+# surface) and 'scripts/**' — plus this file's own name (the hunt-34
+# law: a workflow that can change its own contract owes itself a
+# run). A docs-only commit matches nothing here; a code commit runs
+# the whole battery it can break. workflow_dispatch stays for the
+# on-demand deep run, and the concurrency group rides the workflow
+# name so a fresh push never stacks on a running battery.
 #
 # night-master-3 adds the THIRD seat, the one this workflow could never
 # hold before: the real-usage E2E on the KVM micro-VM floor (the
@@ -59,9 +66,21 @@
 name: Dragon Guard - Supermassive
 
 "on":
-  workflow_dispatch:
-  schedule:
-    - cron: "0 5 * * 1"  # Monday 05:00 UTC — ahead of the maintenance lane
+  push:
+    branches: [main]
+    paths:
+      # night-badas-2: the estate-wide trigger spelling (the zelynic
+      # boost-10 one-spelling law) — the shared surface globs plus this
+      # file's own name, the same shape as the zelynic supermassive. A
+      # docs-only change matches nothing here.
+      - '**/*.rs'
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.cargo/**'
+      - 'ebpf/**'
+      - 'scripts/**'
+      - '.github/workflows/supermassive.yml'
+  workflow_dispatch: {}
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -71,7 +90,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: supermassive-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -291,7 +310,7 @@ jobs:
             pocket: latest
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
 
       # The zelynic doctrine, verbatim: /dev/kvm is a GitHub runner
       # guarantee, but the node ships 0660 root:kvm — the job opens it
