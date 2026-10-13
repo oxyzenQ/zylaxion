@@ -239,6 +239,35 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-badas-3** — the README is a total refactor to the zelynic
+  masterclass shape, and the stale claims inside it are gone with it.
+  The old intro still sold the dead architecture ("transforms every
+  keystroke ... using Linux's `evdev` interface" — the evdev capture
+  died with the daemon in night-improve-23) and its preset demo block
+  taught `zylaxion start`, a verb the CLI has never had; both now
+  state the eBPF tap truth and spell `on`. The new structure follows
+  the zelynic reference section for section: the "Why zylaxion?" hook
+  with a claims table where every edge maps to the mechanism that
+  verifies it (the claims battery's probes, the doctor's verdicts,
+  the render audit's numbers), the dependency-policy and vs-
+  traditional-tools tables (the class rows honestly labeled as the
+  published shape of those tools, not benchmarks), the reordered
+  install lanes (release first, then crates.io with the ebpf-prebuilt
+  story, the one-command machine installer, then manual source), an
+  honest Limitations section (root-once-per-boot, the dormant musl
+  lane, one engine for every keyboard, CI has no ears — plus the
+  nightly-toolchain quarantine story), the IS / will-NEVER-be
+  philosophy lists, the branches table, Contributing (CLA + DCO),
+  the private security-reporting pointer, the documentation shelf
+  under the master index, the Test Results harness table with the
+  world-first claims battery spelled out, and the ZYLAXION-DISCLAIMER
+  documentation-disclaimer block. The trademark section was rewritten
+  to say what TRADEMARK.md actually says — every fork must rename and
+  rebrand (the zelynic two-category fork policy does not exist here;
+  the draft that claimed it was corrected against the real §4 before
+  landing). Verified: all 20 linked files exist, codespell clean,
+  gate-keepers fully green (the name-case rule included).
+
 - **night-badas-2** — the supermassive deep battery joined the push
   estate and its weekly clock is retired (the owner's call, the
   zelynic NIGHT-reject-1 lineage). The workflow that deliberately sat
