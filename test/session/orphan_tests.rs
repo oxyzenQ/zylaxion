@@ -7,6 +7,14 @@
 
 use super::*;
 
+// The two live-process tests share one mutex: the stub test plants a
+// real matching process in the shared /proc namespace, and the
+// clean-host test asserts the scan finds nothing — under the test
+// harness's parallel threads the stub would be exactly what the clean
+// scan finds. Serialized, the two legs are deterministic (the
+// ENV_LOCK precedent in preset_tests).
+static LIVE_PROCESS_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// The exact match: this binary's path followed by the player verb,
 /// NUL-terminated the way /proc renders it.
 #[test]
@@ -86,6 +94,7 @@ fn the_sweep_finds_and_terminates_a_stubbed_player() {
     use std::os::unix::process::CommandExt as _;
     use std::process::{Command, Stdio};
 
+    let _guard = LIVE_PROCESS_LOCK.lock().expect("live-process lock");
     let exe = std::env::current_exe().expect("test binary path");
     // The stub: argv = [the test binary's path, "_play"] — the exact
     // player shape. arg0 rewrites argv[0]; grep with a pattern and no
@@ -127,8 +136,10 @@ fn the_sweep_finds_and_terminates_a_stubbed_player() {
 #[cfg(not(miri))]
 #[test]
 fn a_clean_host_scans_empty_and_reaps_nothing() {
+    let _guard = LIVE_PROCESS_LOCK.lock().expect("live-process lock");
     // This test binary's own argv is the test harness's, not the
-    // player shape, so the scan finds nothing.
+    // player shape, and the stub test is serialized behind the lock,
+    // so the scan finds nothing.
     assert!(
         scan_orphans(
             std::env::current_exe()
