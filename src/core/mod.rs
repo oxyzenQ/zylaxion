@@ -320,24 +320,26 @@ impl<S: AudioSink> Orchestrator<S> {
         // actual chunk size each iteration.
         let mut batch = [[0.0f32; 2]; MAX_RENDER_CHUNK];
 
-        // v10.2.0 (dragonzen audit S4), rewritten by night-hunt-1:
-        // heartbeat tracking. Log a debug message after 60 s of input
-        // inactivity, upgrade to warn! after 5 min.
+        // v10.2.0 (dragonzen audit S4), rewritten by night-hunt-1,
+        // reframed by night-improve-27: the idle heartbeat.
         //
-        // The original text ("input thread may be stuck — restart it,
-        // `systemctl --user restart zylaxion`") was a fossil of the
-        // deleted libinput daemon: that thread, the PID file and the
-        // user unit it named no longer exist. In the eBPF pipeline a
-        // wedged input lane cannot hide here — the bridge thread dies
-        // loudly (the channel disconnects and run() exits) or logs its
-        // own poll errors — so "stuck input thread" is not a reachable
-        // state at this point. What IS honest from this seat is the
-        // weaker claim: no keys arrived for a long while, which is
-        // either ordinary idle (the overwhelmingly common case) or the
-        // kernel tap is not delivering (a detached or wedged tap).
-        // The messages below say exactly that and point at the
-        // diagnostic lanes (doctor, attach) that can actually tell the
-        // two apart — a restart cannot re-plant a detached tap.
+        // The daemon-era stuck-thread wording, plus a restart command
+        // for a service that never existed in this architecture, died
+        // with the libinput daemon it named (the sweep pins both dead).
+        // In
+        // the eBPF pipeline a wedged input lane cannot hide here — the
+        // bridge thread dies loudly (the channel disconnects and
+        // run() exits) or logs its own poll errors. What IS honest
+        // from this seat is the weaker claim: no keys arrived for a
+        // long while, which is either ordinary idle (the overwhelmingly
+        // common case) or the kernel tap is not delivering (a detached
+        // or wedged tap — the player's ring-buffer fd keeps the old
+        // map alive even after an unpin, so liveness is NOT provable
+        // from here; that is the same inode lesson the orphan sweep
+        // learned). The messages below teach the two actions that
+        // cover both branches — type, or off — and hand the fork to
+        // the diagnostic lanes (doctor, attach) that can tell them
+        // apart. A restart cannot re-plant a detached tap.
         let mut last_event_monotonic = std::time::Instant::now();
         let heartbeat_debug = Duration::from_secs(60);
         let heartbeat_warn = Duration::from_secs(5 * 60);
@@ -366,11 +368,17 @@ impl<S: AudioSink> Orchestrator<S> {
                 heartbeat_debug_emitted = true;
             }
             if !heartbeat_warn_emitted && idle >= heartbeat_warn {
-                log::warn!(
-                    "no key events in {:.0}s — idle, or the kernel tap is not delivering \
-                     events. If keys pressed right now stay silent, run `zylaxion doctor` \
-                     and re-attach with `sudo zylaxion attach`.",
-                    idle.as_secs()
+                // The night-improve-27 reframe, one honest adjustment:
+                // the locked draft said "the tap is live and idle",
+                // but the player's seat cannot prove tap liveness (the
+                // held ring-buffer fd outlives an unpin — the inode
+                // lesson). The line teaches the two actions and hands
+                // the liveness fork to the lanes that can prove it.
+                eprintln!(
+                    "[zylaxion-core] no key events in {}s — idle; type to hear the sound, \
+                     or `zylaxion off` to stop. Keys silent while pressed means the tap is \
+                     not delivering — `zylaxion doctor` tells you why.",
+                    heartbeat_warn.as_secs()
                 );
                 heartbeat_warn_emitted = true;
             }

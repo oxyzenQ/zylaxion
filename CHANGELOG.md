@@ -186,6 +186,40 @@ v80.0.0-alpha.1
   the entry, and the staging hint (and the --commit path) name every
   file the run actually touched — never a partial `git add` again.
 
+  The live test then surfaced the lifecycle seam, and the second
+  half of the night closed it. The player could outlive the map it
+  was watching: detach unpinned the control map, but the old player
+  held the old inode and kept running against a flag only it could
+  read. Two players, two maps, two worlds, both producing sound.
+  The wire was made whole in night-improve-26; night-improve-27
+  makes the lifecycle whole. `detach` now reaps the running player
+  BEFORE a single pin unlinks — the enabled gate clears in the map
+  the player is watching (its own 100 ms watcher exits on it), and
+  the 0 → SIGTERM → SIGKILL escalation ladder drives until the pid
+  is gone, every step logged. `attach` sweeps /proc for a process
+  whose cmdline is EXACTLY this binary plus the `_play` argument and
+  reaps it before any kernel state is touched (exact match only —
+  unrelated processes are untouchable; a survivor refuses attach
+  with the pid and the fix). `on` runs the same sweep before
+  spawning, idempotent from any state, and its already-running check
+  keeps its place ahead of the sweep so a live registered player is
+  kept, never killed-and-respawned. The liveness probe reads
+  /proc/<pid>/stat's state byte because signal 0 alone cannot tell a
+  zombie from a live process. The volume lane completed its design
+  in the same night: the gate moved from the clap parser (a generic
+  range error) into the session layer, where `volume 1000%` refuses
+  with the exact boundary message and the `--force-this` escape
+  (201..=10000; past the force cap nothing passes), the success
+  print names the cap ("volume set to N% (100 = the compiled
+  default, cap 200%)"), and the `ZYLAXION_VOLUME` env lane gained
+  its absolute-gain ceiling (10.0). The 300s idle line was reframed:
+  it teaches the two actions ("type to hear the sound, or
+  `zylaxion off` to stop") and hands the tap-liveness fork to
+  `zylaxion doctor` — the player's seat cannot prove tap liveness
+  (the held ring-buffer fd outlives an unpin, the same inode
+  lesson), so the line does not claim it. The sweep test now pins
+  the dead service command as absent from the whole living tree.
+
 - **night-badas-4** — the Dragon Guard estate goes green: five red
   checks, four root causes, all fixed. (1) The eBPF tap build failed
   at the structural validation on every run since the job was

@@ -202,8 +202,8 @@ fn signal_pid(pid: i32, signal: Signal) -> String {
 
 /// Liveness probe: signal 0 checks existence, but a ZOMBIE (a dead
 /// child its parent has not waited yet) still answers the kill probe —
-/// the state byte in /proc/<pid>/stat tells them apart. A zombie is a
-/// dead player by any honest measure, so the probe reads it.
+/// the state byte in the pid's `/proc` stat entry tells them apart. A
+/// zombie is a dead player by any honest measure, so the probe reads it.
 pub fn pid_alive(pid: i32) -> bool {
     if kill(nix::unistd::Pid::from_raw(pid), None).is_err() {
         return false;
