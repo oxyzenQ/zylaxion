@@ -151,14 +151,21 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 
 ## CI/CD (GitHub Actions)
 
-- **CI paths filter:** Ignore `*.md`, `*.txt`, `docs/` on push/PR.
+- **CI paths filter (code-push workflows):** the shared surface globs
+  — `**/*.rs`, `**/*.toml`, `**/Cargo.lock`, `.cargo/**`, `ebpf/**`,
+  `scripts/**` — plus the workflow's own file (night-badas-2, the
+  zelynic boost-10 one-spelling law). `*.md`, `*.txt` and `docs/`
+  match nothing: a docs-only commit never buys a code lane.
 - **Node.js:** `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` in all workflow env.
 - **Dependabot:** REMOVED. Do not use Dependabot.
 - **Dependency updates:** Custom `maintenance.yml` workflow auto-updates deps
   and commits directly to `main`. NO PRs. NO branch spam.
 - **Maintenance schedule:** Weekly Monday 07:00 UTC.
 - **Bot identity:** Commits as `github-actions[bot]`.
-- **Workflow title:** MUST be exactly `"Maintenance deps weekly"`.
+- **Workflow titles:** the `Dragon Guard - <lane>` family, exactly as
+  in the zelynic reference (CI, Supermassive, Miri, Release,
+  Dependency Maintenance, crates.io publish) — one family, one grep
+  surface (docs/GLOSSARY.md, "Dragon Guard").
 - **Linting:** Run `actionlint` and `yamllint` on `.github/workflows/*`.
 
 ## Branding & Metadata

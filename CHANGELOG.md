@@ -239,6 +239,30 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-badas-2** — the supermassive deep battery joined the push
+  estate and its weekly clock is retired (the owner's call, the
+  zelynic NIGHT-reject-1 lineage). The workflow that deliberately sat
+  off-push ("the push estate is ci.yml's job") now triggers on every
+  push to main that touches the surfaces the battery can prove or
+  break, spelled the zelynic boost-10 way: the shared surface globs
+  (`**/*.rs`, `**/*.toml`, `**/Cargo.lock`, `.cargo/**`, `ebpf/**`,
+  `scripts/**`) plus the workflow's own file — a workflow that can
+  change its own contract owes itself a run. `ebpf/**` rides the
+  shared spelling because the tap source is this repo's core kernel
+  surface and every battery leg source-builds the object; a
+  docs-only commit matches nothing, so the expensive KVM legs never
+  buy a typo in the README. `workflow_dispatch` stays for the
+  on-demand deep run. The concurrency group moves to the zelynic
+  spelling (`${{ github.workflow }}-${{ github.ref }}`), so the
+  group name rides the Dragon Guard family name instead of a private
+  prefix. Estate-wide name audit against the zelynic reference: all
+  six zylaxion workflow titles were already byte-identical to their
+  zelynic counterparts (`Dragon Guard - CI / Supermassive / Miri /
+  Release / Dependency Maintenance / crates.io publish`) — the one
+  stale doc was docs/RULES.md, which still mandated the pre-lineage
+  `"Maintenance deps weekly"` title and a prose CI filter; both now
+  state the Dragon Guard family law and the shared glob spelling.
+
 - **night-improve-25** — the attach chain is fentry -> kprobe ->
   kprobe-alt, three steps, no tracepoint lane at all. The tap runs
   as two programs over one body in the object (`fentry/input_event`,
