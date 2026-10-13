@@ -16,6 +16,10 @@ in
 and the pre-v10 release notes live next to it in
 [docs/archive/CHANGELOG-v6.0.0.md](docs/archive/CHANGELOG-v6.0.0.md).
 
+## [Released]
+
+v80.0.0-alpha.1
+
 ## [Unreleased]
 
 ### Changed
