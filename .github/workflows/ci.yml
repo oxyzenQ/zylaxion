@@ -108,7 +108,11 @@ jobs:
   # root crate building with the object staged into the binary); this
   # lane proves the KERNEL half standalone: formatting, the release
   # build with the committed lock, and the ELF structure aya's loader
-  # demands (tracepoint, maps, license sections). No system packages:
+  # demands (night-badas-4: the tap's program sections are
+  # fentry/input_event and kprobe/input_event — the night-improve-25
+  # chain — plus the maps and license sections; the old "tracepoint"
+  # expectation described a tap shape this crate never shipped and
+  # failed every run since its introduction). No system packages:
   # aya-ebpf is pure Rust and the object needs no host headers.
   ebpf:
     name: eBPF tap build
@@ -145,13 +149,32 @@ jobs:
         run: |
           set -euo pipefail
           OBJECT="ebpf/target/bpfel-unknown-none/release/zylaxion-tap"
-          test -s "$OBJECT"
+          test -s "$OBJECT" || {
+            echo "FAIL: the tap object is absent at $OBJECT — the build above claims success;"
+            echo "listing what cargo actually produced under ebpf/target:"
+            find ebpf/target -maxdepth 3 -name 'zylaxion*' 2>/dev/null || true
+            exit 1
+          }
           MAGIC=$(dd if="$OBJECT" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')
-          test "$MAGIC" = "7f454c46"
+          test "$MAGIC" = "7f454c46" || {
+            echo "FAIL: $OBJECT is not ELF (magic: $MAGIC)"
+            exit 1
+          }
           SECTIONS=$(readelf -S "$OBJECT")
-          echo "$SECTIONS" | grep -qw tracepoint
-          echo "$SECTIONS" | grep -qw maps
-          echo "$SECTIONS" | grep -qw license
+          echo "$SECTIONS" | grep -qw maps || {
+            echo "FAIL: no maps section — the pinned state store would have nowhere to live"; echo "$SECTIONS"; exit 1
+          }
+          echo "$SECTIONS" | grep -qw license || {
+            echo "FAIL: no license section — the loader would refuse the program"; echo "$SECTIONS"; exit 1
+          }
+          # night-badas-4: the program section is the night-improve-25
+          # chain's shape — fentry/input_event (the BTF lane) or
+          # kprobe/input_event (the fallback), never "tracepoint".
+          echo "$SECTIONS" | grep -qE 'fentry/input_event|kprobe/input_event' || {
+            echo "FAIL: no program section on input_event — the tap cannot attach"
+            echo "$SECTIONS"
+            exit 1
+          }
           echo "eBPF object structural validation: OK"
 
   workflow_quality:
