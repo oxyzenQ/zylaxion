@@ -263,6 +263,23 @@ and the pre-v10 release notes live next to it in
 
 ### Removed
 
+- **night-simple-1** — the crates.io distribution lane leaves the
+  record. The depth audit found no AUR package, no PKGBUILD, and no
+  homebrew/nix/snap/flatpak lane anywhere in the tree — the only
+  registry-shaped promises were documentation prose. Gone now: the
+  `documentation` (docs.rs), `keywords` and `categories` manifest
+  fields (pure crates.io-discovery metadata, no effect on source
+  builds), the "registry tarball" narrative in build/ebpf.rs (the lane
+  is renamed `prebuilt` — a tree without the ebpf/ workspace — and its
+  panic no longer teaches `cargo install zylaxion`, it points at a git
+  checkout or GitHub Releases), and the matching stale comments in
+  Cargo.toml, build.rs, src/ebpf/loader.rs and
+  scripts/dev/bootstrap-ebpf.sh. Before: the tree promised a registry
+  install path nobody uses; after: the distribution surface is GitHub
+  Releases and a git checkout, period. The `cargo install cargo-audit`
+  tooling note in docs/RULES.md and scripts/build.sh stays — that is
+  the gate's own dev tool, not a distribution channel.
+
 - **night-improve-23** — the daemon dies. The entire POSIX daemonization
   stack is deleted: fork/setsid with the init-sync pipe, the PID file
   (with its /proc/exe identity forensics), the Unix-domain-socket IPC
