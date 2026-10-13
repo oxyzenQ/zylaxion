@@ -303,6 +303,24 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-badas-6** — ci.yml's trigger is the native `paths:` filter
+  and the detector job is dead. The former `changes` job spent a full
+  `fetch-depth: 0` clone on every single push re-implementing — with a
+  git-diff regex — what GitHub's native path filter already knows
+  (the zelynic NIGHT-improve-13 deletion, landed here). The push and
+  PR triggers now carry the estate-wide boost-10 spelling directly:
+  `**/*.rs`, `**/*.toml`, `**/Cargo.lock`, `.cargo/**`, `ebpf/**`,
+  `scripts/**`, plus the workflow's own file (the hunt-34 law); the
+  check and eBPF jobs run ungated (the filter decides), the header
+  carries the coverage facts, and the workflow lost the two seats that
+  moved to their proper homes the same push (the lint quad to
+  gate-keepers.yml — under the path-filtered shape a
+  workflow-file-only change matched no glob and skipped the very
+  gates that could catch it — and the CVE scan to audit.yml, whose
+  weekly schedule claim is now true). A docs-only push now buys zero
+  build minutes across the whole estate, with the wholesale gates the
+  only lane that runs.
+
 - **night-badas-3** — the README is a total refactor to the zelynic
   masterclass shape, and the stale claims inside it are gone with it.
   The old intro still sold the dead architecture ("transforms every
@@ -408,6 +426,31 @@ and the pre-v10 release notes live next to it in
     tap-not-attached verdict instead of a not-found error.
 
 ### Added
+
+- **night-badas-5** — the Dragon Guard estate gains the two zelynic
+  reference lanes it was missing, and the E2E legs take the reference
+  naming. `Dragon Guard - Gate-keepers` (gate-keepers.yml) runs the
+  wholesale non-code gate on EVERY push and PR, unfiltered: the nine
+  gate-keepers.sh sections (permissions, SPDX headers, the Rust and
+  scripts LOC caps, language discipline, the emoji sweep, the actions
+  pins health, release parity, the name-case rule) plus the workflow
+  lint quad (actionlint 1.7.7, yamllint 1.38.0, codespell 2.4.3,
+  pinned). The doctrine is the zelynic NIGHT-improve-13 law: a
+  docs-only change matches nothing in the path-filtered build estate,
+  and a docs-only change is exactly the class of commit that can break
+  the gates that police docs — so the wholesale lane never sleeps, at
+  zero build minutes (bash, git, python3 and four pinned lint tools;
+  no Rust toolchain, no compile). `Dragon Guard - Security Audit`
+  (audit.yml) takes the cargo-audit scan out of ci.yml into its own
+  scanner workflow under the zelynic NIGHT-improve-11 scanner rule —
+  a scanner carries the surface it scans (`**/*.toml`,
+  `**/Cargo.lock`, its own file) plus the weekly Monday 07:00 UTC
+  advisory-DB clock; the scan is now actually weekly, which the old
+  ci.yml job only claimed to be (its workflow had no schedule
+  trigger). The supermassive E2E legs ride the zelynic low/best specs
+  naming: `supermassive test - low specs (the 5.15 documented floor)`
+  and `supermassive test - best specs (the archive's head)` — no musl
+  twins, the musl lane being the documented dormant lane.
 
 - **night-master-1** — the world-first claims battery: the
   extraordinary claims get their own independent, statically-verifiable

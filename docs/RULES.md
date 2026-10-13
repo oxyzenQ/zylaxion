@@ -156,6 +156,20 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   `scripts/**` — plus the workflow's own file (night-badas-2, the
   zelynic boost-10 one-spelling law). `*.md`, `*.txt` and `docs/`
   match nothing: a docs-only commit never buys a code lane.
+- **Gate-keepers CI (night-badas-5):** `Dragon Guard - Gate-keepers`
+  (gate-keepers.yml) runs on EVERY push and PR, UNFILTERED — the
+  wholesale non-code gates (permissions, headers, LOC caps, language,
+  emoji, actions pins, release parity, name-case) plus the workflow
+  lint quad (actionlint, yamllint, codespell) can never be skipped by
+  a docs-only change, the exact class of commit they police. Zero
+  build minutes: bash, git, python3 and four pinned lint tools.
+- **Scanner rule:** a scanner workflow carries the surface it scans
+  (the zelynic NIGHT-improve-11 law) — `Dragon Guard - Security
+  Audit` (audit.yml, cargo-audit `--deny warnings`) triggers on
+  `**/*.toml` + `**/Cargo.lock` + its own file, with the weekly
+  Monday 07:00 UTC clock as the between-pushes advisory-DB watch.
+  It is the canonical CVE verdict; the local gatekeeper skips
+  cargo-audit per policy.
 - **Node.js:** `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` in all workflow env.
 - **Dependabot:** REMOVED. Do not use Dependabot.
 - **Dependency updates:** Custom `maintenance.yml` workflow auto-updates deps
@@ -164,8 +178,14 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 - **Bot identity:** Commits as `github-actions[bot]`.
 - **Workflow titles:** the `Dragon Guard - <lane>` family, exactly as
   in the zelynic reference (CI, Supermassive, Miri, Release,
-  Dependency Maintenance, crates.io publish) — one family, one grep
-  surface (docs/GLOSSARY.md, "Dragon Guard").
+  Dependency Maintenance, crates.io publish, Gate-keepers, Security
+  Audit) — one family, one grep surface (docs/GLOSSARY.md,
+  "Dragon Guard").
+- **Supermassive E2E leg names:** the zelynic low/best specs shape —
+  `supermassive test - low specs (the 5.15 documented floor)` and
+  `supermassive test - best specs (the archive's head)` (night-badas-5).
+  No musl twins: the musl lane is the documented dormant lane
+  (.cargo/config.toml header).
 - **Linting:** Run `actionlint` and `yamllint` on `.github/workflows/*`.
 
 ## Branding & Metadata
