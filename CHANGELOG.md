@@ -20,6 +20,14 @@ and the pre-v10 release notes live next to it in
 
 ### Fixed
 
+- **night-badas-4 (round 3)** — the E2E rootfs lane hit the next
+  era-drift: ubuntu:24.04 (noble) renamed the ALSA runtime package in
+  the time_t transition, so `libasound2` has "no installation
+  candidate" inside the micro-VM rootfs and both legs died before
+  qemu. The rootfs step now detects the name the archive actually
+  serves (`libasound2`, else `libasound2t64`) and says which one it
+  picked — the payload's soname need is `libasound.so.2` either way.
+
 - **night-badas-4 (round 2)** — the first runs to reach the deep lanes
   found three more facts, each verified empirically before the fix.
   (1) The eBPF validator's own diagnostic caught its second bug: plain
