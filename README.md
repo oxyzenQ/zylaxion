@@ -597,6 +597,9 @@ design record is [Security & Privacy](#security--privacy) above.
   one row per question (the master index)
 - [Philosophy](docs/PHILOSOPHY.md) — "the boring and stealth", the
   design posture behind the zero-leakage engine
+- [The eBPF-only bet](docs/EBPF_ONLY_VS_DAEMON.md) — the honest
+  pros-and-cons ledger of the daemon deletion: wins with their
+  verifiers, costs with their irreducible remainders
 - [Kernel Compatibility](docs/KERNEL_COMPATIBILITY.md) — the 5.15
   floor, BTF/lockdown behavior, per-distro layouts
 - [Release Verification](docs/VERIFY_RELEASE.md) — checksum + GPG
