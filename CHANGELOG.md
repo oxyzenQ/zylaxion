@@ -24,6 +24,61 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-private-research-2xblade-2** — the Range Question: one
+  decision, taken from the audit data, executed in one direction.
+  The reading (the audit end to end, the engine's clamp sites, the
+  registry's descriptions, the range pins) found three facts: the
+  contract's written rationale ("resonance > 10.0 becomes
+  numerically unstable in single-precision TPT SVF") is contradicted
+  by the tree's own pin — `test_svf_high_q_does_not_blow_up` runs
+  the SVF at Q = 50 for 44,100 samples and asserts finite output —
+  so the ceiling was inherited, never measured; the contract is
+  enforced at four sites (the ranges constants, `validate_and_clamp`,
+  the two per-sample safety-net clamps on the click and spring
+  curves, the registry test tree); and the description scan is wider
+  than the mission's five — "long ring" is verbatim in
+  `ibm_model_m` and `clicky`, "long mid ring" in `retro_typewriter`,
+  "long bass sustain" in `oceanic`, beside the promised
+  resonant/thock/hollow/ping language on `buckling_spring`,
+  `alps_skcm`, `gateron_yellow` and `classic`. The owner's decision:
+  EXPAND — the Q range contract moves from `[0.1, 10.0]` to
+  `[0.1, 30.0]`. The Q range contract expanded because the audit
+  named it as the ceiling and the reading confirmed five presets
+  whose own text promises a ring the old contract could not deliver.
+  The engine's architecture is now the shape its descriptions
+  promise. No preset regressed; every tier change is named in
+  docs/ZACTRIX_AUDIT.md. Path A ran in order: the numerical
+  stability battery (`scripts/audit/zactrix-stability.sh`, a new
+  harness mode rendering each scan-set preset with every stage
+  forced to the 30.0 ceiling, one million samples per rate, through
+  the raw model path with no VoicePool safety net) came first and
+  came back clean — zero NaN, zero Inf, zero output denormals, every
+  TPT integrator state bounded, and the c^(R/S) retention law's
+  direct measurand (voice lifetime) agreeing across 44.1/48/96 kHz
+  within 0.02%; the two honest residues it found (denormal
+  integrator dust at voice death, and a rate-dependent -60 dB tail
+  endpoint) are control-proven pre-existing properties of
+  noise-driven synthesis, recorded in the audit doc. Then the
+  re-tune, fit-surface-first (`--fit`, `--modal-debug`): eight scan
+  presets re-tuned, five rose B -> A (ibm_model_m, classic,
+  buckling_spring, alps_skcm, retro_typewriter — the modal column
+  went from one non-zero row to six), three hold B with zero
+  regressions and the reason named (clicky: its 1 ms spring cannot
+  reach the modal picker without breaking the flatness and
+  attack/tail bands; gateron_yellow: a lubed linear's spring is
+  deliberately ringless — the thock is the identity; oceanic: its
+  100 Hz mode sits on FFT bin 1, below the tracker's bin-2 pickup
+  floor — the ring is delivered and now measured inside the energy
+  band, +18.6 -> +11.6). topre holds A untouched; the four identity
+  refusals hold C untouched; the sixteen untouched presets reproduce
+  the 2xblade after matrix byte-for-byte. The audit instrument gained
+  the stability mode and the fit surface; the metric definitions
+  did not change, and `zactrix-audit.sh` stays byte-reproducible
+  (two consecutive runs diff-clean). Full battery green: fmt, strict
+  clippy all-features, 209+38+38+53 workspace tests + 55 harness
+  tests, rustdoc -D warnings, build.sh --check-all (cargo-audit
+  skipped: not installed in the sandbox), gate-keepers all sections.
+
 - **night-private-research-2xblade** — the Zactrix Engine: the
   acoustic engine's spectrum learns to move. The pass started as a
   measurement, not a feature: a headless audit harness
