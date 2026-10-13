@@ -120,7 +120,8 @@ zylaxion has a **zero-leakage** posture. Hard rules:
   carries a raw hardware scancode that can be mapped back to typed
   text via the user's keyboard layout. Logging it — even at `debug`
   or `trace` level — would create a side-channel leak exploitable by
-  anyone with read access to `journalctl --user -u zylaxion`.
+  anyone who can read the player's stderr: the terminal that spawned
+  it, a shell scrollback, or any log capture that stderr reaches.
   - **Forbidden**: `log::debug!("scancode: {}", event.scancode)`,
     `println!("key: {:?}", event)`, `eprintln!("got {}", event.scancode)`.
   - **Allowed**: `log::debug!("input event received")` (generic,

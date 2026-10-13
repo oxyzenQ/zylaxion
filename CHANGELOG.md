@@ -87,6 +87,16 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-1 (the stale-reference sweep)** — the panic hook's
+  comment taught the reader to look for the panic record in
+  `journalctl --user -u zylaxion` (a unit that does not exist in the
+  eBPF-only architecture; the record lands on the stderr the `on`
+  invocation leaves behind) and spoke of "the daemon" and
+  "foreground mode" — all reworded to the player's actual stderr
+  story. `docs/RULES.md`'s zero-leakage rationale named the same dead
+  unit as the side-channel surface; it names the honest surfaces now
+  (the spawning terminal, shell scrollback, any log capture).
+
 - **night-hunter-1 (the two half-blind scans)** — the telemetry
   render's per-key sweep covered `0..255` while the tap counts and
   the loader maps the full `0..=255` domain (the total rides slot
