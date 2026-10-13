@@ -131,7 +131,7 @@ impl AcousticModel for ZactrixEngine {
         // surface (every preset's curve lives far inside them).
         state.click_e *= state.click_step;
         let fc = (state.click_fc_end + state.click_fc_delta * state.click_e).clamp(20.0, 0.45 * sr);
-        let k = (state.click_k + state.click_k_delta * state.click_e).clamp(0.1, 10.0);
+        let k = (state.click_k + state.click_k_delta * state.click_e).clamp(0.1, 30.0);
         let g = (std::f32::consts::PI * fc / sr).tan();
         let a1 = 1.0 / (1.0 + g * (g + k));
         let a2 = g * a1;
@@ -158,7 +158,7 @@ impl AcousticModel for ZactrixEngine {
         state.spring_e *= state.spring_step;
         let sfc =
             (state.spring_fc_end + state.spring_fc_delta * state.spring_e).clamp(20.0, 0.45 * sr);
-        let sk = (state.spring_k + state.spring_k_delta * state.spring_e).clamp(0.1, 10.0);
+        let sk = (state.spring_k + state.spring_k_delta * state.spring_e).clamp(0.1, 30.0);
         let sg = (std::f32::consts::PI * sfc / sr).tan();
         let sa1 = 1.0 / (1.0 + sg * (sg + sk));
         let sa2 = sg * sa1;

@@ -36,6 +36,7 @@ mod engine;
 
 mod fft;
 mod metrics;
+mod stability;
 
 use engine::VoicePool;
 use profiles::{KeyTrigger, MechanicalClick, registry_all};
@@ -110,6 +111,101 @@ fn mark(in_band: bool) -> &'static str {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+
+    // The Range Question stability mode: the expanded Q ceiling must
+    // prove itself numerically before any preset rides it.
+    if args.iter().any(|a| a == "--stability") {
+        stability::run_stability();
+        return;
+    }
+
+    // Modal-debug: the tuning lab. Prints what the modal tracker
+    // actually sees for one preset — reference-frame peaks with their
+    // relative levels, per-mode decay rates, the spread, and the
+    // live-gated tail frames with their flatness/centroid. A tuning
+    // surface, not a change to the instrument: metrics.rs is untouched.
+    if let Some(pos) = args.iter().position(|a| a == "--modal-debug") {
+        let name = args
+            .get(pos + 1)
+            .unwrap_or_else(|| panic!("--modal-debug needs a preset name"));
+        let presets = registry_all();
+        let preset = presets
+            .iter()
+            .find(|p| p.name == name)
+            .unwrap_or_else(|| panic!("unknown preset: {name}"));
+        println!(
+            "{}",
+            metrics::debug_modal(
+                &render_mono(preset.profile),
+                RENDER_RATE,
+                preset.profile.click.frequency,
+                preset.profile.spring.frequency,
+            )
+        );
+        return;
+    }
+
+    // Parameter-fit lab: clone one preset's profile with three tuning
+    // overrides (housing mix, spring resonance, spring mix; "-" keeps
+    // the registry value), render, and print the verifier row plus the
+    // modal candidate view. The fitting surface for the ring re-tune:
+    // tuning without this is tuning by taste.
+    if let Some(pos) = args.iter().position(|a| a == "--fit") {
+        let spec = args
+            .get(pos + 1)
+            .unwrap_or_else(|| panic!("--fit needs name:hmix:sq:smix ('-' keeps)"));
+        let parts: Vec<&str> = spec.split(':').collect();
+        if parts.len() != 4 {
+            panic!("--fit format: name:hmix:sq:smix (use '-' to keep a value)");
+        }
+        let presets = registry_all();
+        let preset = presets
+            .iter()
+            .find(|p| p.name == parts[0])
+            .unwrap_or_else(|| panic!("unknown preset: {}", parts[0]));
+        let mut profile = preset.profile;
+        if parts[1] != "-" {
+            profile.housing.mix = parts[1].parse().expect("housing mix f32");
+        }
+        if parts[2] != "-" {
+            profile.spring.resonance = parts[2].parse().expect("spring resonance f32");
+        }
+        if parts[3] != "-" {
+            profile.spring.mix = parts[3].parse().expect("spring mix f32");
+        }
+        println!(
+            "fit {spec}  (housing Q {} mix {:.4} | spring Q {} mix {:.2})",
+            profile.housing.resonance,
+            profile.housing.mix,
+            profile.spring.resonance,
+            profile.spring.mix
+        );
+        println!(
+            "{}",
+            metrics::debug_modal(
+                &render_mono(profile),
+                RENDER_RATE,
+                profile.click.frequency,
+                profile.spring.frequency,
+            )
+        );
+        let m = metrics::measure(&render_mono(profile), RENDER_RATE);
+        let v = m.verdict();
+        println!(
+            "| {} | {:.0} ({}) | {:.3} ({}) | {:.0} ({}) | {:+.1} ({}) | {} |",
+            parts[0],
+            m.centroid_drift_hz,
+            mark(v.centroid_in_band),
+            m.flatness_evolution,
+            mark(v.flatness_in_band),
+            m.modal_spread_db_s,
+            mark(v.modal_in_band),
+            m.attack_tail_db,
+            mark(v.attack_tail_in_band),
+            v.tier
+        );
+        return;
+    }
 
     // Single-preset verifier mode: same four metrics, per-metric
     // verdicts, no gate math. Unknown names exit 2.

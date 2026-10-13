@@ -138,6 +138,33 @@ const fn preset(
 /// needs Q far beyond the 10.0 range cap; a low-band body would
 /// break the sharp-glass character). Every refusal is recorded in
 /// docs/ZACTRIX_AUDIT.md.
+///
+/// night-private-research-2xblade-2 (the Range Question): the owner
+/// expanded the Q contract to [0.1, 30.0] after the stability battery
+/// proved the ceiling numerically clean (1M samples x three rates, raw
+/// model path — zero NaN/Inf/overflow, retention-law spread <= 0.02%,
+/// docs/ZACTRIX_AUDIT.md). Eight presets whose own text promises a
+/// ring (the scan set) were re-tuned against the audit's four bands,
+/// verifier-first: five rose to A (ibm_model_m, classic,
+/// buckling_spring, alps_skcm, retro_typewriter) — the housing ring
+/// rides the new headroom (Q 21-28) at the level the noise-driven
+/// bandpass actually delivers (level scales with mix x Q^1.5, so mix
+/// falls as Q rises), and the spring ring was raised into the audit's
+/// visibility window (Q 10-20, mix 1.0) because a ring the instrument
+/// cannot pick up is a ring only the description claims. Three stay B
+/// with zero regressions and the reason documented: clicky (its
+/// 2400 Hz spring dies inside one millisecond — the housing levels
+/// that lift it into the modal picker push flatness and attack/tail
+/// out of band), gateron_yellow (a lubed linear: its Q = 1.5 spring
+/// is a driven, deliberately ringless layer — the thock IS the
+/// identity), and oceanic (its 100 Hz mode sits on FFT bin 1, below
+/// the instrument's bin-2 pickup floor — the ring is delivered and
+/// measured in the energy band, invisible to the modal tracker by
+/// position, not by absence). topre stays untouched (the A-tier
+/// reference); the four identity refusals stay as authored. Every
+/// number landed through scripts/audit/harness --fit, judged by
+/// zactrix-verify.sh, and the deltas are named in
+/// docs/ZACTRIX_AUDIT.md.
 pub static PRESETS: [Preset; 24] = [
     // ── Classic series ────────────────────────────────────────────────
     preset(
@@ -162,10 +189,10 @@ pub static PRESETS: [Preset; 24] = [
         "classic",
         "Deeper, more resonant - old bucklespring feel, MX Brown / tactile",
         click(3200.0, 2.5, 2.5, 0.7),
-        spring(1200.0, 4.0, 0.75),
+        spring(1200.0, 12.0, 1.0),
         decay(0.9992, 1e-5),
         ambient(true, 0.18, 0.982),
-        housing(350.0, 8.0, 0.175),
+        housing(350.0, 28.0, 0.023),
     ),
     preset(
         "studio",
@@ -219,17 +246,17 @@ pub static PRESETS: [Preset; 24] = [
         spring(2400.0, 4.5, 0.7),
         decay(0.9996, 1e-5),
         ambient(true, 0.16, 0.983),
-        housing(600.0, 8.0, 0.065),
+        housing(600.0, 26.0, 0.02),
     ),
     // ── v4.0.0 legendary keyboard series ──────────────────────────────
     preset(
         "ibm_model_m",
         "The iconic buckling spring - deep, very resonant, long ring",
         click(2200.0, 5.5, 1.2, 0.85),
-        spring(850.0, 7.5, 0.85),
+        spring(850.0, 20.0, 1.0),
         decay(0.99975, 1e-6),
         ambient(true, 0.20, 0.983),
-        housing(400.0, 9.0, 0.135),
+        housing(400.0, 27.0, 0.02),
     ),
     preset(
         "topre",
@@ -271,19 +298,19 @@ pub static PRESETS: [Preset; 24] = [
         "buckling_spring",
         "Sharper, brighter buckling spring - Model F style, more ping",
         click(3000.0, 6.0, 0.8, 0.85),
-        spring(1400.0, 5.5, 0.75),
+        spring(1400.0, 12.0, 1.0),
         decay(0.9996, 5e-6),
         ambient(true, 0.15, 0.983),
-        housing(380.0, 6.0, 0.175),
+        housing(380.0, 21.0, 0.038),
     ),
     preset(
         "alps_skcm",
         "Legendary tactile ALPS - loud, hollow housing, pronounced bump",
         click(3500.0, 3.5, 1.2, 0.9),
-        spring(2000.0, 3.8, 0.65),
+        spring(2000.0, 20.0, 1.0),
         decay(0.9995, 1e-5),
         ambient(true, 0.22, 0.982),
-        housing(300.0, 8.0, 0.21),
+        housing(300.0, 28.0, 0.03),
     ),
     preset(
         "gateron_yellow",
@@ -292,7 +319,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(1500.0, 1.5, 0.4),
         decay(0.9992, 1e-5),
         ambient(true, 0.10, 0.985),
-        housing(250.0, 8.0, 0.20),
+        housing(250.0, 20.0, 0.08),
     ),
     preset(
         "zealios_v2",
@@ -329,7 +356,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(600.0, 2.0, 0.8),
         decay(0.9998, 1e-6),
         ambient(true, 0.18, 0.99),
-        housing(100.0, 8.0, 0.105),
+        housing(100.0, 12.0, 0.17),
     ),
     preset(
         "glass_tactile",
@@ -344,10 +371,10 @@ pub static PRESETS: [Preset; 24] = [
         "retro_typewriter",
         "Typebar strike on a cast-iron frame - loud, long mid ring",
         click(2500.0, 4.0, 1.0, 0.85),
-        spring(1500.0, 5.5, 0.7),
+        spring(1500.0, 10.0, 1.0),
         decay(0.9996, 5e-6),
         ambient(true, 0.20, 0.985),
-        housing(280.0, 8.0, 0.25),
+        housing(280.0, 25.0, 0.03),
     ),
     preset(
         "neon_pulse",

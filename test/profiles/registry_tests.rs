@@ -214,19 +214,23 @@ fn showcase_preset_values_match_the_retired_config() {
     assert_eq!(m.profile.click.frequency, 2200.0);
     assert_eq!(m.profile.click.resonance, 5.5);
     assert_eq!(m.profile.spring.frequency, 850.0);
-    assert_eq!(m.profile.spring.resonance, 7.5);
-    assert_eq!(m.profile.spring.mix, 0.85);
+    // night-private-research-2xblade-2: the Range Question re-tune.
+    // The spring ring was raised into the audit's modal visibility
+    // (7.5 -> 20.0, mix 0.85 -> 1.0) and the housing ring rides the
+    // expanded [0.1, 30.0] contract at the level the verifier judged
+    // (9.0 -> 27.0, mix 0.135 -> 0.02 — the noise-driven bandpass
+    // level scales with mix x Q^1.5, so mix falls as Q rises). All
+    // four metrics in band, tier A; docs/ZACTRIX_AUDIT.md holds the
+    // delta and the fit surface that landed these numbers.
+    assert_eq!(m.profile.spring.resonance, 20.0);
+    assert_eq!(m.profile.spring.mix, 1.0);
     assert_eq!(m.profile.decay.coefficient, 0.99975);
     assert_eq!(m.profile.decay.voice_off_threshold, 1e-6);
     assert!(m.profile.ambient.enabled);
     assert_eq!(m.profile.ambient.noise_level, 0.20);
     assert_eq!(m.profile.housing.frequency, 400.0);
-    // night-private-research-2xblade: the Zactrix re-tune raised the
-    // housing resonance (3.0 -> 9.0) and rescaled the mix so the
-    // housing level holds (mix x Q preserved: 0.4 x 3.0 = 1.2,
-    // 0.135 x 9.0 = 1.215). The retired-config transcription pin
-    // follows the re-tuned row; the audit doc records the delta.
-    assert_eq!(m.profile.housing.mix, 0.135);
+    assert_eq!(m.profile.housing.resonance, 27.0);
+    assert_eq!(m.profile.housing.mix, 0.02);
 
     let t = lookup("topre").unwrap();
     assert_eq!(t.profile.click.frequency, 650.0);
