@@ -109,34 +109,56 @@ fn hidden_player_verb_parses_as_the_spawned_spelling() {
     );
 }
 
-// ── night-improve-27: the master-volume safety cap at the parser ─────
+// ── night-improve-27: the master-volume cap is a GATE, not a parser
+// limit (night-improve-27 task 2). The parser accepts any u32 so the
+// refusal can name the cap, the reason, and the --force-this escape;
+// the boundary pins live in the session layer (preset_tests). Here the
+// pins carry the parse-through contract.
 
-/// `volume --percent 1000` (the owner's own rehearsal input) must die
-/// at the parser, exit 2, before any map write: the fatal-input lane.
+/// `volume --percent 1000` (the owner's own rehearsal input) parses
+/// intact and reaches the gate — the refusal belongs to the session
+/// layer's volume_gate, pinned there with the exact wording.
 #[test]
-fn volume_percent_above_the_cap_is_refused_at_the_parser() {
+fn volume_percent_above_the_cap_parses_for_the_gate() {
     use clap::Parser as _;
 
-    let err = super::super::Cli::try_parse_from(["zylaxion", "volume", "--percent", "1000"])
-        .err()
-        .expect("1000% must fail the night-improve-27 safety cap");
-    let rendered = err.to_string();
-    assert!(
-        rendered.contains("0..=200"),
-        "the parser refusal must name the 0..=200 domain, got: {rendered}"
-    );
+    let cli = super::super::Cli::try_parse_from(["zylaxion", "volume", "--percent", "1000"])
+        .expect("the parser no longer owns the cap");
+    match cli.command {
+        Some(super::super::Commands::Volume {
+            percent,
+            force_this,
+        }) => {
+            assert_eq!(percent, 1000, "the percent survives for the gate");
+            assert!(!force_this, "no override was asked for");
+        }
+        _ => panic!("expected the volume verb"),
+    }
 }
 
-/// Exactly 201 is also above the cap — the boundary is inclusive at
-/// 200, exclusive everywhere above it.
+/// The override parses: --force-this rides along with any percent.
 #[test]
-fn volume_percent_201_is_one_past_the_cap() {
+fn volume_force_this_parses() {
     use clap::Parser as _;
 
-    assert!(
-        super::super::Cli::try_parse_from(["zylaxion", "volume", "--percent", "201",]).is_err(),
-        "201% is one past the ceiling and must be refused"
-    );
+    let cli = super::super::Cli::try_parse_from([
+        "zylaxion",
+        "volume",
+        "--percent",
+        "1000",
+        "--force-this",
+    ])
+    .expect("the override is a real flag");
+    match cli.command {
+        Some(super::super::Commands::Volume {
+            percent,
+            force_this,
+        }) => {
+            assert_eq!(percent, 1000);
+            assert!(force_this, "the override must survive the parse");
+        }
+        _ => panic!("expected the volume verb"),
+    }
 }
 
 /// The cap itself parses: 200 is the loudest value any surface takes.
@@ -147,7 +169,7 @@ fn volume_percent_at_the_cap_parses() {
     let cli = super::super::Cli::try_parse_from(["zylaxion", "volume", "-p", "200"])
         .expect("200% is exactly the cap and must parse");
     match cli.command {
-        Some(super::super::Commands::Volume { percent }) => {
+        Some(super::super::Commands::Volume { percent, .. }) => {
             assert_eq!(percent, 200, "the parsed percent must survive intact")
         }
         Some(_) => panic!("expected the volume verb, got another variant"),

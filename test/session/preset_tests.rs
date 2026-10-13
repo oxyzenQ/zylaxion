@@ -179,3 +179,92 @@ fn no_config_file_is_ever_read() {
     let (_profile, name, _volume) = resolve_from(None, None, None).expect("resolve is fs-free");
     assert_eq!(name, DEFAULT_PRESET);
 }
+
+// ── night-improve-27: the volume gate and the env-lane gain cap ──────
+
+/// The gate's honest domain: 0..=200 passes without the override,
+/// every boundary value included.
+#[test]
+fn volume_gate_accepts_the_safety_domain() {
+    for percent in [0u32, 1, 100, 199, 200] {
+        assert_eq!(
+            volume_gate(percent, false).expect("within the safety domain"),
+            percent,
+            "{percent}% must pass without the override"
+        );
+    }
+}
+
+/// Above the safety cap, the gate refuses and names the cap, the
+/// reason, and the escape.
+#[test]
+fn volume_gate_refuses_above_the_cap_naming_the_escape() {
+    let err = volume_gate(201, false).expect_err("201 must refuse");
+    assert!(err.contains("exceeds the 200% safety cap"), "{err}");
+    assert!(err.contains("can damage speakers"), "{err}");
+    assert!(err.contains("Use --force-this to override"), "{err}");
+    let err = volume_gate(1000, false).expect_err("1000 must refuse");
+    assert!(
+        err.contains("volume 1000% exceeds the 200% safety cap"),
+        "{err}"
+    );
+}
+
+/// The override lifts the ceiling to the force cap: 201..=10000 pass
+/// with --force-this, and the force ceiling itself passes.
+#[test]
+fn volume_gate_force_lifts_to_the_force_cap() {
+    for percent in [201u32, 500, 1000, 9999, 10000] {
+        assert_eq!(
+            volume_gate(percent, true).expect("within the force domain"),
+            percent,
+            "{percent}% must pass with the override"
+        );
+    }
+}
+
+/// Past the force cap nothing passes — with or without the override —
+/// and the refusal names the force cap as the ceiling.
+#[test]
+fn volume_gate_refuses_past_the_force_cap() {
+    let err = volume_gate(10001, true).expect_err("10001 must refuse");
+    assert!(
+        err.contains("exceeds the 10000% force cap"),
+        "the refusal names the force cap: {err}"
+    );
+    let err = volume_gate(u32::MAX, true).expect_err("u32::MAX must refuse");
+    assert!(err.contains("10000% force cap"), "{err}");
+}
+
+/// The env lane's gain cap: 10.0 is the loudest ZYLAXION_VOLUME; the
+/// refusal rides the same wording pattern.
+#[test]
+fn master_volume_env_gain_is_capped_at_ten() {
+    assert_eq!(
+        master_volume_from(Some("10.0")).expect("the cap is inclusive"),
+        10.0
+    );
+    assert_eq!(
+        master_volume_from(Some("5.5")).expect("the compiled default"),
+        5.5
+    );
+    let err = master_volume_from(Some("10.1")).expect_err("above the gain cap must refuse");
+    assert!(err.contains("exceeds the 10 gain safety cap"), "{err}");
+    assert!(err.contains("can damage speakers"), "{err}");
+    let err = master_volume_from(Some("42")).expect_err("way above must refuse too");
+    assert!(
+        err.contains("gain 42 exceeds the 10 gain safety cap"),
+        "{err}"
+    );
+}
+
+/// The env lane maps into the percent domain honestly: the 10.0 gain
+/// cap lands at 182 percent — inside the percent lane's safety cap,
+/// two scales, both capped.
+#[test]
+fn the_env_gain_cap_maps_inside_the_percent_cap() {
+    let percent = volume_percent_from_gain(10.0).expect("the gain cap maps honestly");
+    assert_eq!(percent, 182, "10.0 gain = 182 percent of the 5.5 default");
+    let err = volume_percent_from_gain(-1.0).expect_err("below silence refuses");
+    assert!(err.contains("below silence"), "{err}");
+}

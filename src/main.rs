@@ -131,7 +131,10 @@ fn main() {
             cli::Commands::On { preset } => commands::sound::cmd_on(preset),
             cli::Commands::Off => commands::sound::cmd_off(),
             cli::Commands::Preset { switch } => commands::sound::cmd_preset(&switch),
-            cli::Commands::Volume { percent } => commands::sound::cmd_volume(percent),
+            cli::Commands::Volume {
+                percent,
+                force_this,
+            } => commands::sound::cmd_volume(percent, force_this),
             cli::Commands::Status { verbose } => commands::sound::cmd_status(verbose),
             cli::Commands::Doctor => commands::info::cmd_doctor(),
             cli::Commands::Attach => commands::attach::cmd_attach(),
