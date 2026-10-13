@@ -14,6 +14,11 @@
 #            longer reads either directory, uninstall still cleans them)
 # Legacy user dir (~/.config/zylaxion/) is PRESERVED — pass --purge to remove.
 # Sudo is used ONLY for system paths. Run WITHOUT sudo.
+#
+# night-master-2: the install posture is SYSTEM-ONLY now (binary ->
+# /usr/bin, oneshot -> /etc/systemd/system). The user-path removals
+# below are LEGACY CLEANUP for installs made by the pre-night-master-2
+# dual-mode installer; no current installer produces them.
 
 set -uo pipefail
 
@@ -26,9 +31,10 @@ Usage: $0 [--system|--user|--all] [--purge]
   (default)  Auto-detect: scan all known locations and remove every
              ${PROJECT_NAME} artifact found. Sudo only for system paths.
   --system   Remove only system paths (/usr/bin,
-             /etc/${PROJECT_NAME}, /etc/systemd/user).
+             /etc/${PROJECT_NAME}, /etc/systemd/system).
   --user     Remove only user paths (~/.local/bin,
-             ~/.config/systemd/user). No sudo.
+             ~/.config/systemd/user). No sudo. Legacy cleanup only -
+             the current install posture is system-only (night-master-2).
   --all      Same as default.
   --purge    Also remove the legacy user dir at ~/.config/${PROJECT_NAME}/.
 
