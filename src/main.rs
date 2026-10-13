@@ -63,11 +63,12 @@ fn main() {
     // to stderr. This is critical for the cpal audio callback path:
     // if a future code change introduces an `unwrap` on `None` inside
     // the callback, cpal catches the unwind and silently drops the
-    // stream — the daemon stays alive but audio goes silent. Without
-    // a panic hook, the journal would have no record of WHY the
-    // stream died. With the hook, `journalctl --user -u zylaxion`
-    // shows the panic message + backtrace, making the silent-audio
-    // failure mode debuggable.
+    // stream — the player stays alive but audio goes silent. Without
+    // a panic hook, whatever captures the player's stderr (the
+    // terminal that ran `zylaxion on`) would have no record of WHY
+    // the stream died. With the hook, that stderr shows the panic
+    // message + backtrace, making the silent-audio failure mode
+    // debuggable.
     //
     // The hook delegates to the previous handler (chain pattern) so
     // existing panic output to stderr is preserved.
@@ -85,7 +86,7 @@ fn main() {
             .unwrap_or_else(|| "<non-string panic payload>".to_string());
         log::error!("panic at {location}: {payload}");
         // Chain to the previous hook so stderr output is preserved
-        // for foreground mode (where journald captures stderr).
+        // for the terminal (or capture) the player's stderr reaches.
         prev_hook(info);
     }));
 
