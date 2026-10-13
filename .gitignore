@@ -29,3 +29,7 @@ agent-ctx/
 # Test output (raw/wav audio from integration tests)
 *.raw
 *.wav
+
+# Python bytecode (the supermassive engine is source, never bytecode)
+__pycache__/
+*.pyc

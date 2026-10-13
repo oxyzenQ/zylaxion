@@ -10,6 +10,27 @@
 # ci.yml's job; this workflow is the periodic deep proof a push lane must
 # not pay for on every commit.
 #
+# night-master-3 adds the THIRD seat, the one this workflow could never
+# hold before: the real-usage E2E on the KVM micro-VM floor (the
+# zelynic supermassive lineage's crown job, ported to zylaxion's
+# claims). The hosted jobs above prove the headless surfaces; the
+# e2e-vm job boots a real kernel in a micro-VM (direct kernel boot,
+# initramfs rootfs, /dev/kvm on the runner) and runs the WHOLE
+# zero-to-hero chain inside it: install the payload to /usr/bin, walk
+# the tap lifecycle (attach, the pin handover, the idempotency and
+# foreign-entry classifications, detach), then the crown stage — a
+# real user in NO input group turns the sound on, a uinput virtual
+# keyboard types through the kernel's own input path, the eBPF tap
+# counts every press kernel-side, and snd-dummy's PCM state witnesses
+# the synthesizer rendering real frames. Two legs cross the kernel
+# span: the documented 5.15 floor (jammy's 5.15.0 line) and the newest
+# kernel the archive serves the runner's own distro. The verdict relay
+# is the zelynic sentinel contract: the guest's init
+# (scripts/ci/supermassive-init.sh) and the engine
+# (scripts/supermassive/supermassive-test.py) print MASS-RESULT rows
+# plus one final MASS-VERDICT line on the serial console; the Verdict
+# step greps them (a VM cannot pass exit codes through qemu).
+#
 # Honest physics of a sound keyboard in CI: there is no audio device and no
 # input device on a runner. What the battery therefore proves — and proves
 # deeply, on the pinned toolchain, not a floating one:
@@ -171,3 +192,243 @@ jobs:
           "${BIN}" -V
           echo "--- zylaxion -h (first 20 lines) ---"
           "${BIN}" -h | head -20
+
+  # ═══════════════════════════════════════════════════════════════════
+  # night-master-3: the real-usage E2E on the KVM micro-VM floor.
+  # Two legs cross the kernel span (the documented 5.15 floor, the
+  # newest kernel the archive serves); the battery inside is the same
+  # whole-chaos engine both times. The envelope derives from the
+  # runner at boot (the zelynic dynamic doctrine — never pin one
+  # era's hardware): every core, three quarters of the RAM.
+  # ═══════════════════════════════════════════════════════════════════
+  e2e-vm:
+    name: supermassive E2E — ${{ matrix.leg.title }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        leg:
+          - title: floor kernel (5.15, the documented floor)
+            pocket: floor
+          - title: latest kernel (the archive's head)
+            pocket: latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
+
+      # The zelynic doctrine, verbatim: /dev/kvm is a GitHub runner
+      # guarantee, but the node ships 0660 root:kvm — the job opens it
+      # up itself. Failing LOUDLY beats a confusing TCG fallback: the
+      # release-shape binary is native codegen and would SIGILL under
+      # TCG's -cpu qemu64 — KVM's -cpu host passthrough is what makes
+      # "native" honest inside the VM.
+      - name: Verify KVM
+        run: |
+          test -e /dev/kvm || {
+            echo "FAIL: /dev/kvm is absent — this runner image cannot boot the micro-VM"
+            exit 1
+          }
+          test -w /dev/kvm || sudo chmod 666 /dev/kvm
+          test -w /dev/kvm || {
+            echo "FAIL: /dev/kvm is not usable by the runner user even after chmod"
+            ls -l /dev/kvm
+            exit 1
+          }
+          echo "OK: /dev/kvm present and usable"
+
+      - name: Install qemu + cpio
+        run: >-
+          sudo apt-get -o Acquire::Retries=5 update -qq &&
+          sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends qemu-system-x86 cpio
+
+      - name: Install pinned toolchain (rust-toolchain.toml governs)
+        run: rustup show active-toolchain
+
+      # The release shape needs the eBPF objects (the default ebpf
+      # feature source-builds them): the same cache + bootstrap pair
+      # the battery job runs.
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-supermassive-e2e-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-supermassive-e2e-
+
+      # The bring-up half, on the runner: the exact release shape the
+      # release workflow builds (the baseline alias — it runs on every
+      # CPU the VM can expose). A guest cannot host a Rust toolchain
+      # build; the payload crosses as a finished binary.
+      - name: Build the release shape payload
+        run: cargo pro-linux-amd64-gnu --locked
+
+      # ── the guest kernel, per leg ─────────────────────────────────
+      # floor: the documented 5.15 floor — jammy's pockets carry the
+      #   5.15.0 line, resolver picks the highest 5.15 (still the
+      #   documented floor: 5.15.x).
+      # latest: the newest kernel the runner's own distro pockets
+      #   serve (the zelynic dynamic-resolver doctrine, scoped to the
+      #   runner's distro — same userland, the kernel is the leg's
+      #   variable).
+      - name: Resolve and fetch the guest kernel (${{ matrix.leg.pocket }})
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kfloor && cd /tmp/kfloor
+          if [ "${{ matrix.leg.pocket }}" = "floor" ]; then
+            {
+              echo "deb http://archive.ubuntu.com/ubuntu/ jammy main"
+              echo "deb http://archive.ubuntu.com/ubuntu/ jammy-updates main"
+            } | sudo tee /etc/apt/sources.list.d/jammy-floor.list >/dev/null
+            sudo apt-get -o Acquire::Retries=5 update \
+              -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/jammy-floor.list \
+              -o Dir::Etc::sourceparts=/dev/null \
+              -o APT::Get::List-Cleanup=0
+            PATTERN='linux-image-unsigned-5\.15\.0-[0-9]+-generic'
+          else
+            sudo apt-get -o Acquire::Retries=5 update -qq
+            PATTERN='linux-image-unsigned-[0-9]+\.[0-9]+\.0-[0-9]+-generic'
+          fi
+          IMG=$(apt-cache search --names-only "$PATTERN" 2>/dev/null \
+            | grep -oE 'linux-image-unsigned-[0-9.]+-[0-9]+-generic' \
+            | sort -uV | tail -1 || true)
+          if test -z "$IMG"; then
+            echo "FAIL: no kernel image resolved for the ${{ matrix.leg.pocket }} pocket"
+            apt-cache search --names-only 'linux-image-unsigned' | head -5 || true
+            exit 1
+          fi
+          echo "resolved: $IMG"
+          KVER="${IMG#linux-image-unsigned-}"
+          for pkg in "linux-image-unsigned-$KVER" "linux-modules-$KVER" "linux-modules-extra-$KVER"; do
+            apt-get -o Acquire::Retries=5 download "$pkg"
+          done
+          for deb in linux-image-unsigned-*_amd64.deb linux-modules-*_amd64.deb; do
+            dpkg-deb -x "$deb" pkg
+          done
+          VMLINUZ=$(find pkg/boot -name 'vmlinuz-*' | head -1)
+          test -n "$VMLINUZ" || { echo "FAIL: no vmlinuz in the debs"; ls -la pkg/boot || true; exit 1; }
+          cp "$VMLINUZ" /tmp/kfloor/vmlinuz
+          # Stage the battery's module chain from the SAME kernel's
+          # module trees (same-suite vermagic by construction): the
+          # sound core chain (snd-dummy is the PCM witness's card),
+          # plus uinput (the keystroke injector's kernel half).
+          mkdir -p /tmp/kfloor/mods
+          for ko in soundcore snd snd-timer snd-pcm snd-dummy uinput; do
+            SRC=$(find pkg/lib/modules -name "${ko}.ko*" | head -1)
+            test -n "$SRC" || { echo "FAIL: module $ko not in the kernel's module debs"; exit 1; }
+            cp "$SRC" /tmp/kfloor/mods/
+          done
+          echo "kernel: $(du -h /tmp/kfloor/vmlinuz | cut -f1), modules: $(ls /tmp/kfloor/mods | tr '\n' ' ')"
+
+      # ── the rootfs (ubuntu:24.04 — the runner's own userland, the
+      # zelynic gnu-leg doctrine: a dynamically linked payload owes
+      # its glibc a same-distro rootfs) ─────────────────────────────
+      - name: Assemble the initramfs rootfs
+        run: |
+          set -euo pipefail
+          cd /tmp/kfloor
+          docker run --name zylaxion-rootfs -d ubuntu:24.04 sleep infinity
+          docker exec zylaxion-rootfs apt-get -o Acquire::Retries=5 update -qq
+          # python3: the engine. sudo + passwd: the real-user lane.
+          # kmod: the insmod chain. libasound2: the payload's ALSA
+          # runtime. iproute2: the init's loopback bring-up.
+          docker exec zylaxion-rootfs apt-get -o Acquire::Retries=5 install -y -qq \
+            --no-install-recommends python3 sudo kmod passwd libasound2 iproute2
+          docker exec zylaxion-rootfs python3 -c 'import sys; assert sys.version_info >= (3, 10)'
+          docker export zylaxion-rootfs -o rootfs.tar
+          mkdir -p rootfs
+          tar -xf rootfs.tar -C rootfs
+          mkdir -p rootfs/opt/zylaxion/modules
+          git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C rootfs/opt/zylaxion
+          cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-gnu/release/zylaxion" \
+            rootfs/opt/zylaxion/zylaxion
+          test -x rootfs/opt/zylaxion/zylaxion
+          cp /tmp/kfloor/mods/*.ko* rootfs/opt/zylaxion/modules/
+          cp "$GITHUB_WORKSPACE/scripts/ci/supermassive-init.sh" rootfs/init
+          chmod +x rootfs/init
+          # PID 1 needs a console to exec onto before devtmpfs lands:
+          # remove whatever the tar degraded, mknod the real char
+          # device fresh (the zelynic assembly lesson).
+          sudo rm -f rootfs/dev/console
+          sudo mknod -m 600 rootfs/dev/console c 5 1
+          ( cd rootfs && sudo find . -print0 | sudo cpio --null -o -H newc ) | gzip -1 > initrd.gz
+          echo "initramfs: $(du -h initrd.gz | cut -f1)"
+
+      # Boot the micro-VM: direct kernel boot, KVM host-passthrough
+      # CPU, no disk, no egress (the battery is offline by design —
+      # zylaxion needs no network and a deterministic guest beats a
+      # wired one), serial console to stdout, panic=-1 + -no-reboot so
+      # a kernel panic ends qemu instead of hanging the job, the
+      # outer timeout so a wedged guest can never burn the job budget,
+      # and the isa-debug-exit device — the guest ends the VM
+      # deterministically by writing one byte to port 0xf4.
+      - name: Boot the micro-VM and run the whole-chaos battery
+        run: |
+          set -euo pipefail
+          cd /tmp/kfloor
+          CORES=$(nproc)
+          TOTAL_MB=$(free -m | awk '/^Mem:/{print $2}')
+          SMP=$CORES
+          MEM=$(( TOTAL_MB * 3 / 4 )); [ "$MEM" -lt 2048 ] && MEM=2048
+          echo "envelope: $SMP vCPU / $MEM MB (of $CORES cores / $TOTAL_MB MB on the runner)"
+          set +e
+          timeout 1500 qemu-system-x86_64 \
+            -machine q35,accel=kvm -cpu host \
+            -m "$MEM" -smp "$SMP" \
+            -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+            -kernel vmlinuz \
+            -initrd initrd.gz \
+            -append "console=ttyS0 panic=-1" \
+            -nographic -no-reboot 2>&1 | tee vm.log
+          QEMU_RC=${PIPESTATUS[0]}
+          set -e
+          # rc 0 = a natural poweroff; rc 1 = the guest's deliberate
+          # isa-debug-exit (the verdict itself rides the MASS-*
+          # sentinel lines, so the Verdict step stays the authority).
+          if test "$QEMU_RC" -ne 0 && test "$QEMU_RC" -ne 1; then
+            echo "FAIL: qemu exited $QEMU_RC — log tail:"
+            tail -40 vm.log
+            exit 1
+          fi
+          exit 0
+
+      # The verdict lives in the log (the VM cannot relay exit codes
+      # through qemu; the MASS-* sentinel lines are the contract —
+      # scripts/ci/supermassive-init.sh owns them).
+      - name: Verdict
+        run: |
+          set -euo pipefail
+          cd /tmp/kfloor
+          echo "── supermassive verdicts (${{ matrix.leg.title }}) ──"
+          grep -E '^MASS-(RESULT|VERDICT)' vm.log || true
+          grep -q '^MASS-VERDICT: PASS' vm.log
+          echo "OK: the zero-to-hero chain proven on ${{ matrix.leg.title }}"
+
+      - name: Battery inventory (the step summary)
+        if: always()
+        run: |
+          cd /tmp/kfloor
+          {
+            echo "## supermassive E2E — ${{ matrix.leg.title }}"
+            echo
+            echo '```'
+            grep -E '^MASS-(RESULT|VERDICT)' vm.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

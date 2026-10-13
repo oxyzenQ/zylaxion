@@ -237,6 +237,45 @@ and the pre-v10 release notes live next to it in
 
 ### Added
 
+- **night-master-3** — the supermassive E2E: the whole zero-to-hero
+  chain on the KVM micro-VM floor, the zelynic lineage's crown job
+  ported to zylaxion's claims. The engine
+  (`scripts/supermassive/supermassive-test.py` plus the sm_* module
+  family and the bash wrapper) drives two lanes: `--self-test`, the
+  rootless lane (the CLI/UX battery — identity, discovery, the fatal
+  input matrix with exit-code pins, the tap-less doors, the root-door
+  polarity — plus the pure-math proof: zero RIFF/WAVE bytes in the
+  binary, zero audio assets in the tree; and the zero-config proof:
+  a pristine HOME/XDG run writes nothing anywhere), and `--full`, the
+  root lane the guest init calls: environment probes, the tap
+  lifecycle (attach with the pin handover to a real user, the
+  complete pin layout, the live re-attach refusal, the
+  foreign-entry-keeping detach, the idempotent re-detach, five rapid
+  attach/detach cycles, the zero-residue proof), and the crown — the
+  real-usage chain: a user with no input group and no /dev/input
+  access turns the sound on, a uinput virtual keyboard types through
+  the kernel's own input path, `status --verbose` counts the presses
+  the tap accumulated kernel-side, the PCM state under /proc/asound
+  witnesses the synthesizer rendering real frames, live preset and
+  volume switches ride the pinned maps as the unprivileged user, `off`
+  self-exits the player to a zero-process state, and the detached
+  `on` closes the loop at the tap-less door. Every probe lands on one
+  ledger that prints a human row and the MASS-RESULT sentinel, one
+  final MASS-VERDICT line is the CI relay. `scripts/ci/supermassive-init.sh`
+  is the guest's PID 1 (the zelynic kernel-floor contract: the mounts,
+  the staged module chain from the guest kernel's own debs —
+  snd-dummy is the PCM witness's card, uinput the injector's kernel
+  half — the install step landing the payload at /usr/bin the way
+  install-on-my-machine.sh does, the engine, the isa-debug-exit).
+  `.github/workflows/supermassive.yml` grows the e2e-vm job: the
+  release-shape payload built on the runner, the guest kernel
+  resolved per leg (the documented 5.15 floor from jammy's pockets,
+  the newest kernel the runner's own distro serves), an
+  ubuntu:24.04 initramfs rootfs, and a dynamic envelope (every core,
+  three quarters of the RAM) — two legs, one battery, the verdict
+  grepped off the serial console. The self-test lane ran green in
+  the build sandbox (26 probes, 1 honest skip); the VM legs ride CI.
+
 - **night-revert-1** — the crates.io publish lane, mature CI and all.
   The owner's verdict on night-simple-1 landed plainly: removing the
   registry lane was a mistake — crates.io is a fully supported
