@@ -28,6 +28,14 @@ and the pre-v10 release notes live next to it in
   serves (`libasound2`, else `libasound2t64`) and says which one it
   picked — the payload's soname need is `libasound.so.2` either way.
 
+- **night-badas-4 (round 4)** — the round-3 name probe was itself
+  era-blind: noble keeps `libasound2` alive as a purely-virtual name
+  (Provided by `libasound2t64`), and `apt-cache show` exits 0 on a
+  purely-virtual name — the probe picked the dead name and the install
+  still died with "no installation candidate". The honest probe is the
+  resolver itself: an `apt-get install -s` simulation of each name,
+  and the first that resolves wins.
+
 - **night-badas-4 (round 2)** — the first runs to reach the deep lanes
   found three more facts, each verified empirically before the fix.
   (1) The eBPF validator's own diagnostic caught its second bug: plain
