@@ -58,6 +58,9 @@ with its evidence.
 ### ...understand the design
 
 [PHILOSOPHY.md](PHILOSOPHY.md) — why the boring and stealth.
+[EBPF_ONLY_VS_DAEMON.md](EBPF_ONLY_VS_DAEMON.md) — the honest ledger
+of the eBPF-only bet: what the daemon deletion wins, what it costs,
+and who the trade serves.
 [BRANDING.md](BRANDING.md) — the palette contract (brand purple
 `#A855F7`, the CLI color tiers). [QA.md](QA.md) — verified answers,
 one question one honest answer. [GLOSSARY.md](GLOSSARY.md) — the

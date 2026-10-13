@@ -17,7 +17,7 @@ wins; this file explains the reasoning that produced the gate.
 
 ## 1. Boring: One Sound, Done Perfectly
 
-The daemon has exactly one job — turn key events into keystroke
+The system has exactly one job — turn key events into keystroke
 sounds — and it does that job the same way on every boot. No skins,
 no visualizers, no companion app, no cloud profiles. Every acoustic
 preset is compile-time data in the registry (night-improve-22
@@ -35,26 +35,31 @@ A keyboard listener is one debug log away from being a keylogger, so
 zylaxion refuses to be one by construction. It reads hardware
 scancodes — physical key locations, never characters — feeds them
 straight into the DSP engine, and forgets them. Nothing is logged at
-any level, nothing is written to disk beyond the PID file and the
-IPC socket, nothing is transmitted — the only outbound network call
+any level, nothing is transmitted — the only outbound network call
 in the entire codebase is the explicit `zylaxion --check-update`,
-which the user must invoke by hand. The IPC socket is mode `0o600`,
-so other users on the machine cannot even talk to the daemon. The
-zero-trust logging policy is the whole point: there is nothing in
-the logs to reconstruct, and the README shows the grep commands to
-verify that yourself.
+which the user must invoke by hand. The scancodes never reach the
+filesystem at all — the state store is pinned BPF maps on bpffs,
+whose contents are a sound class, a pan position, and a volume, and
+whose pinned owner is the attaching user. The zero-trust logging
+policy is the whole point: there is nothing in the logs to
+reconstruct, and the README shows the grep commands to verify that
+yourself.
 
-## 3. Linux-First, evdev-Only
+## 3. Linux-First, eBPF-Only
 
-zylaxion speaks to the Linux kernel's `evdev` interface through
-libinput and nothing else. There is no X11 hook, no Wayland
-compositor protocol, no desktop-environment plugin — which is
-exactly why the input capture works everywhere the kernel does:
-Wayland, X11, and the raw TTY. The display server is irrelevant to
-a keyboard; treating it as irrelevant is what makes the input path
-one small, auditable module. Portability to other operating systems
-is explicitly out of scope; the project would rather be perfect on
-one kernel than average on three.
+zylaxion listens where the keystrokes originate: a passive
+kernel-side tap on the exported `input_event()` function — fentry
+when vmlinux BTF is present, kprobe otherwise — and nothing else.
+There is no evdev grab, no `/dev/input` node access, no udev rule,
+no X11 hook, no Wayland compositor protocol, no desktop-environment
+plugin — which is exactly why the input capture works everywhere the
+kernel does: Wayland, X11, and the raw TTY. The display server is
+irrelevant to a keyboard; treating it as irrelevant is what makes
+the input path one small, auditable kernel program. Portability to
+other operating systems is explicitly out of scope; the project
+would rather be perfect on one kernel than average on three
+(docs/EBPF_ONLY_VS_DAEMON.md carries the honest ledger of what that
+bet costs).
 
 ## 4. Pure Procedural Synthesis, Zero Assets
 
@@ -71,24 +76,28 @@ shipping audio data, it is a different product.
 ## 5. Lean Dependencies, Lean Surface
 
 The dependency set is kept to what has a live call site: cpal for
-audio, libinput for capture, serde/toml for config, clap for the
-CLI. The `notify` crate was rejected for the config watcher because
-a 1 Hz mtime poll costs single-digit microseconds — invisible next
-to a 2 ms audio latency budget — and a dependency is supply-chain
-surface that must be audited forever after. The same instinct caps
-file size (600 LOC, the no-mercy cap), keeps `main.rs` a thin
-bootstrap, and keeps the tree at one package with a fixed data flow:
-input → core → engine → audio.
+audio, aya for the userspace half of the eBPF loader, clap for the
+CLI, and a short tail audited gate by gate (night-security-1).
+The daemon-era stack — libinput and udev for capture, serde and
+toml for config, `notify` for the watcher, the session plumbing
+families — was deleted with the architecture it served, not
+deprecated: a dependency is supply-chain surface that must be
+audited forever after. The same instinct caps file size (600 LOC,
+the no-mercy cap), keeps `main.rs` a thin bootstrap, and keeps the
+tree at one package with a fixed data flow: tap → pinned maps →
+core → engine → audio.
 
 ## 6. Honesty Over Impression
 
-The overview screen prints what was verified — daemon state, preset,
-audio device, input group — and the `doctor` subcommand diagnoses
-what it can actually probe. Version output names the build target,
-git hash, and license. When something is not supported, the answer
-is a clear refusal, not a degraded attempt. A tool that reports
-less than it knows wastes the owner's time; a tool that reports
-more than it knows wastes the owner's trust.
+The overview screen prints what was verified — kernel verdict, tap
+residency, sound state, preset, volume, player — and the `doctor`
+subcommand diagnoses what it can actually probe (the kernel floor,
+BTF, bpffs, lockdown, the unprivileged-bpf posture, audio). Version
+output names the build target, git hash, and license. When something
+is not supported, the answer is a clear refusal, not a degraded
+attempt. A tool that reports less than it knows wastes the owner's
+time; a tool that reports more than it knows wastes the owner's
+trust.
 
 ## 7. The Owner Decides
 

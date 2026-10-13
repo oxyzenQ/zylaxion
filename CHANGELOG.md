@@ -20,6 +20,22 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-improve-28** — the honest architecture ledger,
+  `docs/EBPF_ONLY_VS_DAEMON.md`: the eBPF-only bet costed against
+  the deleted daemon era, with the win rows carrying their
+  verifiers and the cost rows keeping their irreducible remainders
+  (the 5.15 kernel floor, the one privileged attach step, the
+  Ubuntu unprivileged-bpf lockout, the kernel-adjacent bug class,
+  the harder field diagnosis, the lost runtime sound customization,
+  the nested nightly build, the partial-pin crash artifact, the
+  aya-side debit in the dependency ledger). The stale daemon-era
+  prose in `docs/PHILOSOPHY.md` is dead with it: the daemon-era
+  "one job" opener, the PID file and IPC socket claims, the
+  "evdev through libinput" input chapter (now the eBPF-only input
+  chapter, linking the ledger), the libinput/serde/toml dependency
+  chapter (now the real set), and the daemon-state overview facts
+  (now the real ones).
+
 - **night-improve-29** — the masterclass CLI/UX tidy of the discovery
   and probe surfaces. `list-presets` renders ONE line per preset — the
   name in a fixed-width column, the description beside it, the
