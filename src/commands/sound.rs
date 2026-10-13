@@ -101,9 +101,10 @@ fn preset_index_or_error(name: &str) -> Result<u32, String> {
 /// the compiled default, or 100. A malformed value is a hard error —
 /// the no-silent-fallback law — and so is a value mapping outside the
 /// honest loudness domain: below silence, or above the night-improve-27
-/// safety cap ([`MAX_VOLUME_PERCENT`], 200) — the same ceiling the
-/// `volume` CLI parser enforces, applied at the env write entry so
-/// `on` cannot smuggle a louder session in through the back door.
+/// safety cap (`crate::session::preset::MAX_VOLUME_PERCENT`, 200) — the
+/// same ceiling the `volume` CLI parser enforces, applied at the env
+/// write entry so `on` cannot smuggle a louder session in through the
+/// back door.
 fn context_volume_percent() -> Result<u32, String> {
     volume_percent_from_gain(crate::session::preset::master_volume()?)
 }
