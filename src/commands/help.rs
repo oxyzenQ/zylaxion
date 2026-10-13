@@ -58,7 +58,7 @@ pub(crate) fn render_reference(color: bool) -> String {
     ));
     push(String::new());
     push("Turn every keystroke into a spatially-accurate click sound through".into());
-    push("your speakers — kernel evdev in, low-latency PipeWire audio out.".into());
+    push("your speakers — the eBPF tap in, low-latency ALSA audio out.".into());
     push(String::new());
 
     push(brand("Run (the eBPF control plane, night-improve-23):"));
@@ -161,7 +161,7 @@ pub(crate) fn render_reference(color: bool) -> String {
     let environment: &[(&str, &str)] = &[
         (
             "ZYLAXION_PRESET=<name>",
-            "the persistent preset behind every start",
+            "the persistent preset `zylaxion on` starts from",
         ),
         (
             "ZYLAXION_VOLUME=<gain>",
