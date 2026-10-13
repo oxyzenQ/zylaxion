@@ -194,9 +194,61 @@ pub fn attach() -> Result<String, AttachError> {
                 .to_string(),
         );
     }
+    // The pre-clean keeps the attach-failure marker planted (night-improve-26:
+    // the evidence the doctor reads back is not swept with the rest).
     if pin::any_pin_present() {
-        let removed = pin::clear_pins();
+        let (removed, _dir) = pin::clear_pins_keeping_marker();
         log::info!("cleaned partial pin set before re-attach: {removed:?}");
+    }
+
+    // The inherited evidence (night-improve-26): if a previous attempt
+    // failed, its marker is still planted — name it in the log before
+    // this attempt supersedes it. A successful plant re-pins a fresh
+    // marker; a failure re-plants via the failure protocol. Then the
+    // marker file alone goes: it lives in the pin directory, and a
+    // non-empty directory is exactly what turned a stale state into
+    // the EEXIST the live test surfaced on first-ever attach.
+    if pin::error_marker_present() {
+        match last_attach_error() {
+            Some(prev) => {
+                log::info!("inherited attach-failure marker from the previous attempt: {prev}");
+            }
+            None => {
+                log::info!("a stale attach-failure marker is planted but unreadable");
+            }
+        }
+        let _ = std::fs::remove_file(pin::PIN_MAP_ERROR);
+    }
+
+    // night-improve-26: a stale pin directory — a prior attempt mkdir'd
+    // it and failed before planting anything — is removed here, the
+    // same classified path detach uses. Attach is idempotent from any
+    // prior state: fresh (absent), stale-empty (removed here),
+    // half-attached (the pre-clean above), fully-attached (the early
+    // return above). Foreign entries are NOT ours to remove — the
+    // honest refusal names them instead of deleting unknown state.
+    match pin::remove_pin_dir() {
+        pin::PinDirRemoval::Removed => {
+            log::info!("removed a stale pin directory left by a prior failed attach");
+        }
+        pin::PinDirRemoval::AlreadyAbsent => {}
+        pin::PinDirRemoval::LeftForeignEntries => {
+            return fail(AttachError::PinFailed {
+                path: format!(
+                    "{} holds entries zylaxion did not create — remove them by hand \
+                     and re-run attach",
+                    pin::PIN_DIR
+                ),
+            });
+        }
+        pin::PinDirRemoval::Unexpected(e) => {
+            return fail(AttachError::PinFailed {
+                path: format!(
+                    "{} (a stale directory could not be removed): {e}",
+                    pin::PIN_DIR
+                ),
+            });
+        }
     }
 
     // 3. The pin directory must exist before anything pins into it.
@@ -480,7 +532,12 @@ fn pin_kprobe_program(bpf: &mut Ebpf) -> Result<(), AttachError> {
 /// doctor, and return the error. A marker that cannot be planted is
 /// logged — the error it accompanies matters more.
 fn fail(e: AttachError) -> Result<String, AttachError> {
-    let removed = pin::clear_pins();
+    // The cleanup keeps the old marker planted (the evidence the doctor
+    // reads back is not swept with the rest); the old marker file goes
+    // right before the re-plant — a deliberate supersede, so the doctor
+    // never reads a verdict older than this failure.
+    let (removed, _) = pin::clear_pins_keeping_marker();
+    let _ = std::fs::remove_file(pin::PIN_MAP_ERROR);
     log::info!(
         "attach failed ({e}); cleaned {} pin(s) — nothing of zylaxion remains half-attached",
         removed.len()
@@ -494,49 +551,16 @@ fn fail(e: AttachError) -> Result<String, AttachError> {
     Err(e)
 }
 
-/// Detach the tap: unpin everything (idempotent, best-effort). Returns
-/// a human-readable summary. After a successful detach NOTHING of
-/// zylaxion exists in the kernel.
-pub fn detach() -> Result<String, AttachError> {
-    if !pin::any_pin_present() {
-        return Ok("tap is not attached — nothing to detach".to_string());
-    }
-    let removed = pin::clear_pins();
-    let missing: Vec<_> = pin::ALL_PINS
-        .iter()
-        .chain(std::iter::once(&pin::PIN_MAP_ERROR))
-        .filter(|p| Path::new(p).exists())
-        .collect();
-    if missing.is_empty() {
-        Ok(format!(
-            "tap detached: {} pin(s) removed — nothing of zylaxion remains in the kernel",
-            removed.len()
-        ))
-    } else {
-        Err(AttachError::Unknown {
-            detail: format!(
-                "tap detach incomplete: {removed:?} removed, but {} could not be removed \
-                 (owned by another user? remove with sudo)",
-                missing
-                    .iter()
-                    .map(|p| p.as_ref())
-                    .collect::<Vec<&str>>()
-                    .join(", ")
-            ),
-        })
-    }
-}
+/// Detach the tap: unpin everything (idempotent, best-effort). Lives
+/// in the teardown module (night-improve-26); this re-export keeps the
+/// verb surface stable.
+pub use super::teardown::detach;
 
 /// The last attach failure recorded in the marker map, if one is
 /// planted and readable — the doctor's read side of the marker lane.
-pub fn last_attach_error() -> Option<AttachError> {
-    use aya::maps::MapData;
-    let data = MapData::from_pin(pin::PIN_MAP_ERROR).ok()?;
-    let owned = aya::maps::Map::Array(data);
-    let marker: Array<MapData, u32> = Array::try_from(owned).ok()?;
-    let code = marker.get(&0u32, 0).ok()?;
-    AttachError::from_code(code)
-}
+/// Lives in the teardown module (night-improve-26); this re-export
+/// keeps the doctor's path stable.
+pub use super::teardown::last_attach_error;
 
 /// Chown the pinned files to the invoking sudo user so the unprivileged
 /// player and CLI can open them. Without sudo (a root shell), the pins

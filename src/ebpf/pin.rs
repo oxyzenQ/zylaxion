@@ -74,26 +74,90 @@ pub fn error_marker_present() -> bool {
 }
 
 /// Unpin everything (best-effort, idempotent). Returns the names that
-/// were actually removed so `detach` can report honestly. The failure
-/// marker is removed with the rest (link first — unlinking the link
-/// detaches the tap; maps, program and marker last); the pin directory
-/// goes last of all.
-pub fn clear_pins() -> Vec<&'static str> {
+/// were actually removed so `detach` can report honestly, plus the
+/// classified outcome of the pin-directory removal. The failure marker
+/// is removed with the rest (a detach leaves nothing — its own contract
+/// says so), the pin directory goes last of all.
+pub fn clear_pins() -> (Vec<String>, PinDirRemoval) {
+    let mut entries: Vec<&str> = ALL_PINS.to_vec();
+    entries.push(PIN_MAP_ERROR);
+    remove_entries_and_dir(&entries, Path::new(PIN_DIR))
+}
+
+/// The attach-side cleanup lane (night-improve-26): unpin the real
+/// pins WITHOUT sweeping the attach-failure marker. The marker is the
+/// evidence the doctor reads back — the pre-attach self-heal and the
+/// failure protocol must not blanket-remove it; the caller supersedes
+/// it deliberately (read it, log it, unlink it right before the
+/// re-plant). Returns the removed paths and the classified directory
+/// outcome.
+pub fn clear_pins_keeping_marker() -> (Vec<String>, PinDirRemoval) {
+    remove_entries_and_dir(ALL_PINS.as_ref(), Path::new(PIN_DIR))
+}
+
+/// The night-improve-26 cleanup core, shaped for both the real bpffs
+/// lanes and the test fixtures: remove every file in `entries` (in the
+/// given order — the link pin must stay first so an interrupted
+/// cleanup leaves a DETACHED tap), then classify the rmdir of `dir`.
+/// Returns the removed entry paths (in the same order) and the
+/// classified directory outcome. The real lanes pass the pinned
+/// constants; the fixture tests pass temp-directory contents — the
+/// classification logic is identical, while the bpffs unlink itself
+/// rides the integration lane (the tests' header note still holds:
+/// the real-path lanes NEVER run inside a test).
+pub fn remove_entries_and_dir(entries: &[&str], dir: &Path) -> (Vec<String>, PinDirRemoval) {
     let mut removed = Vec::new();
-    for p in ALL_PINS {
+    for entry in entries {
         // A pin file is bpffs — a plain unlink. Removing the LINK pin
         // detaches the tap; the rest free their kernel objects once the
         // last reference (player fds) drops.
-        if std::fs::remove_file(p).is_ok() {
-            removed.push(p);
+        if std::fs::remove_file(entry).is_ok() {
+            removed.push((*entry).to_string());
         }
     }
-    // The failure marker rides the same directory discipline.
-    if std::fs::remove_file(PIN_MAP_ERROR).is_ok() {
-        removed.push(PIN_MAP_ERROR);
+    let outcome = remove_dir_classified(dir);
+    (removed, outcome)
+}
+
+/// The classified outcome of the pin-directory removal (night-improve-26,
+/// the D3 cleanup): the rmdir is no longer a silent best-effort — every
+/// outcome is named, and only the two benign ones pass quietly.
+#[derive(Debug)]
+pub enum PinDirRemoval {
+    /// The directory was removed — the cleanup is complete.
+    Removed,
+    /// The directory was not there — already gone, equally fine.
+    AlreadyAbsent,
+    /// The directory holds entries zylaxion did not create. Left in
+    /// place: foreign entries are not ours to remove. Handled, not
+    /// fatal — the caller reports it honestly.
+    LeftForeignEntries,
+    /// Something else went wrong — the caller surfaces it.
+    Unexpected(std::io::Error),
+}
+
+/// Classified rmdir over an arbitrary directory (the fixture-testable
+/// core; the real-path wrapper is [`remove_pin_dir`]). ENOTEMPTY maps
+/// to [`PinDirRemoval::LeftForeignEntries`] (handled-not-fatal), ENOENT
+/// to [`PinDirRemoval::AlreadyAbsent`]; every other error rides
+/// [`PinDirRemoval::Unexpected`] for the caller to surface.
+pub fn remove_dir_classified(dir: &Path) -> PinDirRemoval {
+    match std::fs::remove_dir(dir) {
+        Ok(()) => PinDirRemoval::Removed,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => PinDirRemoval::AlreadyAbsent,
+        Err(e) if e.kind() == std::io::ErrorKind::DirectoryNotEmpty => {
+            PinDirRemoval::LeftForeignEntries
+        }
+        Err(e) => PinDirRemoval::Unexpected(e),
     }
-    let _ = std::fs::remove_dir(PIN_DIR);
-    removed
+}
+
+/// The classified rmdir of the real pin directory (night-improve-26):
+/// detach and the attach pre-flight both end their cleanup here, so a
+/// half-state directory never survives into the next attach as a
+/// surprise EEXIST.
+pub fn remove_pin_dir() -> PinDirRemoval {
+    remove_dir_classified(Path::new(PIN_DIR))
 }
 
 #[cfg(test)]

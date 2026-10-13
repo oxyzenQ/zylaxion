@@ -19,9 +19,10 @@
 //! - [`pin`] — the bpffs pin paths: the single source of truth for
 //!   everything the tap leaves at /sys/fs/bpf/zylaxion.
 //! - [`loader`] — attach (walk the fentry → kprobe chain, init, pin:
-//!   the privileged one-shot that plants the kernel-side state store)
-//!   and detach (unpin everything: after it, NOTHING of zylaxion
-//!   exists in the kernel).
+//!   the privileged one-shot that plants the kernel-side state store).
+//! - [`teardown`] — detach (unpin everything through the classified
+//!   night-improve-26 cleanup: pins, failure marker, the pin directory
+//!   itself) and the doctor's read side of the failure marker.
 //!
 //! The module is feature-gated (`ebpf`, default on). The dormant lane
 //! (`--no-default-features`) compiles the same verb surface with the
@@ -40,6 +41,8 @@ pub mod embedded;
 pub mod loader;
 #[cfg(feature = "ebpf")]
 pub mod pin;
+#[cfg(feature = "ebpf")]
+pub mod teardown;
 
 /// The verb surface both lanes expose: the same call signatures, so the
 /// commands layer cannot tell them apart.
