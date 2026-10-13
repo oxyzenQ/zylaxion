@@ -182,8 +182,10 @@ pub enum Commands {
     /// Set the master volume as a percent of the compiled default
     /// (100 = the laptop-speaker-tuned 5.5x gain).
     Volume {
-        /// Volume percent, 0 (silence) to any sane ceiling.
-        #[arg(long, short)]
+        /// Volume percent, 0 (silence) to 200 (the night-improve-27
+        /// safety cap — anything louder is refused at the parser,
+        /// exit 2, before any map write).
+        #[arg(long, short, value_parser = clap::value_parser!(u32).range(..=(crate::session::preset::MAX_VOLUME_PERCENT as i64)))]
         percent: u32,
     },
 

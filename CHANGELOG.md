@@ -20,6 +20,41 @@ and the pre-v10 release notes live next to it in
 
 ### Fixed
 
+- **night-improve-27** — the old era is eliminated and the master
+  volume has a ceiling. The volume lane carried no upper bound at all:
+  `zylaxion volume -p 1000` answered "volume set to 1000%" and wrote
+  the map straight through (the help text already promised `<0-100>` —
+  a promise the parser never kept). Both write entries now enforce the
+  owner's 200% safety cap: the CLI parser refuses anything above 200
+  with the fatal-input verdict (exit 2, before any map write), and the
+  `ZYLAXION_VOLUME` env lane refuses a gain mapping above the same
+  ceiling with a hard error naming it — never a clamp, so the control
+  map can only ever carry a value the user asked for in writing. The
+  help surface and its pins now document `<0-200>`. The same sweep
+  killed the daemon-era residue that survived in the runtime wording:
+  the root refusal for `on`/`_play` told a story about "the daemon"
+  planting "root-owned session state (lock, socket, PID)" — state no
+  process in this architecture has written since night-improve-23;
+  the honest harm today is a root audio session no user desktop
+  shares (the privilege audit table now lists the real surfaces:
+  `on`/`_play` refused, `off`/`status` allowed, and no `start`/
+  `daemon`/`stop` verbs that do not exist), the signals module's
+  SIGHUP rationale named `cmd_start`/`cmd_daemon --foreground`
+  (deleted verbs) and now explains the real lane (`_play` in a
+  foreground terminal vs the detached spawn), and `on`'s second run
+  says what actually happened: "sound already on: preset ..., volume
+  ...% (player pid N kept — preset updated live)" versus the fresh
+  spawn's "new player pid N". The version manager
+  (scripts/dev/version-to.sh) learned the lesson of the
+  v80.0.0-alpha.1 rehearsal: a sibling manifest that carries its own
+  version line can also carry its own DETACHED workspace lock, and a
+  bump that leaves that lock stale kills every later --locked build of
+  the lane ("cannot update the lock file ... because --locked was
+  passed"). The script now syncs each touched sibling's lock with
+  `cargo update --workspace --offline` in its own directory, verifies
+  the entry, and the staging hint (and the --commit path) name every
+  file the run actually touched — never a partial `git add` again.
+
 - **night-badas-4** — the Dragon Guard estate goes green: five red
   checks, four root causes, all fixed. (1) The eBPF tap build failed
   at the structural validation on every run since the job was

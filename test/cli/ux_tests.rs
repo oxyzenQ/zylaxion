@@ -108,3 +108,49 @@ fn hidden_player_verb_parses_as_the_spawned_spelling() {
          the verb is internal and only '_play' is the contract"
     );
 }
+
+// ── night-improve-27: the master-volume safety cap at the parser ─────
+
+/// `volume --percent 1000` (the owner's own rehearsal input) must die
+/// at the parser, exit 2, before any map write: the fatal-input lane.
+#[test]
+fn volume_percent_above_the_cap_is_refused_at_the_parser() {
+    use clap::Parser as _;
+
+    let err = super::super::Cli::try_parse_from(["zylaxion", "volume", "--percent", "1000"])
+        .err()
+        .expect("1000% must fail the night-improve-27 safety cap");
+    let rendered = err.to_string();
+    assert!(
+        rendered.contains("0..=200"),
+        "the parser refusal must name the 0..=200 domain, got: {rendered}"
+    );
+}
+
+/// Exactly 201 is also above the cap — the boundary is inclusive at
+/// 200, exclusive everywhere above it.
+#[test]
+fn volume_percent_201_is_one_past_the_cap() {
+    use clap::Parser as _;
+
+    assert!(
+        super::super::Cli::try_parse_from(["zylaxion", "volume", "--percent", "201",]).is_err(),
+        "201% is one past the ceiling and must be refused"
+    );
+}
+
+/// The cap itself parses: 200 is the loudest value any surface takes.
+#[test]
+fn volume_percent_at_the_cap_parses() {
+    use clap::Parser as _;
+
+    let cli = super::super::Cli::try_parse_from(["zylaxion", "volume", "-p", "200"])
+        .expect("200% is exactly the cap and must parse");
+    match cli.command {
+        Some(super::super::Commands::Volume { percent }) => {
+            assert_eq!(percent, 200, "the parsed percent must survive intact")
+        }
+        Some(_) => panic!("expected the volume verb, got another variant"),
+        None => panic!("expected a subcommand, got the no-args overview"),
+    }
+}

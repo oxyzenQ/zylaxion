@@ -99,15 +99,34 @@ fn preset_index_or_error(name: &str) -> Result<u32, String> {
 /// The volume percent the session context would pick: `ZYLAXION_VOLUME`
 /// (a linear gain, the night-improve-22 contract) mapped to percent of
 /// the compiled default, or 100. A malformed value is a hard error —
-/// the no-silent-fallback law.
+/// the no-silent-fallback law — and so is a value mapping outside the
+/// honest loudness domain: below silence, or above the night-improve-27
+/// safety cap ([`MAX_VOLUME_PERCENT`], 200) — the same ceiling the
+/// `volume` CLI parser enforces, applied at the env write entry so
+/// `on` cannot smuggle a louder session in through the back door.
 fn context_volume_percent() -> Result<u32, String> {
-    let gain = crate::session::preset::master_volume()?;
+    volume_percent_from_gain(crate::session::preset::master_volume()?)
+}
+
+/// The pure core of [`context_volume_percent`]: gain in, percent (or
+/// the refusal) out. All decision and error formatting lives here so
+/// the test tree pins the cap without touching the process
+/// environment (the resolve_from precedent).
+fn volume_percent_from_gain(gain: f32) -> Result<u32, String> {
     let percent = (gain / VoicePool::DEFAULT_MASTER_VOLUME * 100.0).round();
-    if percent < 0.0 || percent > 10_000.0 {
+    if percent < 0.0 {
         return Err(format!(
-            "volume gain {gain} maps outside the percent domain (0..=10000) — \
-             check {ZYLAXION_VOLUME_HELP}",
-            ZYLAXION_VOLUME_HELP = crate::session::preset::VOLUME_ENV_VAR
+            "volume gain {gain} maps to {percent}% — below silence; \
+             check {VOLUME_ENV_VAR}",
+            VOLUME_ENV_VAR = crate::session::preset::VOLUME_ENV_VAR
+        ));
+    }
+    if percent > crate::session::preset::MAX_VOLUME_PERCENT as f32 {
+        return Err(format!(
+            "volume gain {gain} maps to {percent}% — above the {}% safety cap \
+             (100 = the compiled default; check {VOLUME_ENV_VAR})",
+            crate::session::preset::MAX_VOLUME_PERCENT,
+            VOLUME_ENV_VAR = crate::session::preset::VOLUME_ENV_VAR
         ));
     }
     Ok(percent as u32)
@@ -211,8 +230,12 @@ pub fn cmd_on(cli_preset: Option<String>) {
         && control.get(&STATE_SLOT, 0).unwrap_or(0) == STATE_RUNNING;
     if already_running {
         let _ = control.set(ENABLED_SLOT, 1, 0);
+        // night-improve-27 wording: the map writes above already applied,
+        // so this surface is an UPDATE, not a spawn — say so, and keep
+        // the contrast with the fresh-spawn line below ("new player").
         println!(
-            "sound on: preset {preset_name}, volume {volume_percent}% (player pid {existing_pid}, updated live)"
+            "sound already on: preset {preset_name}, volume {volume_percent}% \
+             (player pid {existing_pid} kept — preset updated live)"
         );
         return;
     }
@@ -280,10 +303,12 @@ pub fn cmd_on(cli_preset: Option<String>) {
         }
         std::thread::sleep(SETTLE_STEP);
     }
+    let child_pid = child.id();
     drop(child);
 
     println!(
-        "sound on: preset {preset_name}, volume {volume_percent}% (player detached; `zylaxion off` to stop)"
+        "sound on: preset {preset_name}, volume {volume_percent}% (new player pid {child_pid}, \
+         detached; `zylaxion off` to stop)"
     );
 }
 

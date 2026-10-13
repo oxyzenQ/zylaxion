@@ -17,11 +17,11 @@
 //! | Surface          | Verdict under euid 0 | Why |
 //! |------------------|----------------------|-----|
 //! | `--check-update` | REFUSE               | privileged network round-trip that buys nothing; root-owned files if a download step ever joins |
-//! | `start`, `daemon`| REFUSE               | plants root-owned lock/socket/PID inside the user's runtime dir — the next user-mode run then fails on flock/bind (the fatal pollution), plus a root input grab and a root audio session no user desktop mixes with |
+//! | `on`, `_play`    | REFUSE               | a root player opens the audio device in root's session — a sound no user desktop shares — and a root-spawned child lingers in root's process table after the invoking terminal is gone |
 //! | `attach`         | REQUIRE              | the inverse lane (night-improve-23): loading and pinning the tap needs CAP_BPF/CAP_PERFMON — root is the honest way in, and the pins are chowned to the invoking sudo user so every other surface stays unprivileged |
-//! | `stop`, `status` | allowed              | the rescue path — must stay reachable to stop a foreign-session daemon; read-only against session state |
+//! | `off`, `status`  | allowed              | the rescue path — must stay reachable to silence or inspect whatever a stray privileged run left behind; read-only or a plain map write against session state |
 //! | `doctor`         | warn                 | the verdicts describe root's session (root is always "in" the input group, root's audio is a different server) — diagnosed as misleading, not fatal |
-//! | everything else  | allowed              | read-only config/preset surfaces, no state, no network |
+//! | everything else  | allowed              | read-only preset surfaces, no state, no network |
 //!
 //! The refusal wordings are pure functions of the euid fact so both
 //! the decision and the wording are unit-pinned below — the same
@@ -54,23 +54,24 @@ pub fn network_refusal(euid_is_root: bool) -> Option<&'static str> {
     }
 }
 
-/// Refusal wording for the daemon surfaces (`start`, `daemon`).
+/// Refusal wording for the sound surfaces (`on` and its spawned
+/// `_play` child).
 ///
 /// The mirror image of the network refusal: here root is not a
-/// wasted privilege but a polluting one. The daemon writes its lock,
-/// socket, and PID files into `$XDG_RUNTIME_DIR` — under sudo that
-/// directory is still the invoking user's, so the files materialize
-/// as root-owned entries inside a user-owned session: the next
-/// user-mode start fails on the flock or the socket bind with no
-/// repair hint. A root daemon also grabs every input device
-/// system-wide and opens audio in root's session, which no user
-/// desktop shares. The guard fires before the instance lock —
-/// acquiring the lock as root IS the pollution event.
+/// wasted privilege but a polluting one (night-improve-27 wording —
+/// the daemon-era lock/socket/PID story named state that no longer
+/// exists; what root actually harms today is the audio session).
+/// A root player opens the audio device in ROOT's session — PipeWire
+/// or ALSA under root's euid — which no user desktop shares, so the
+/// user hears nothing while the process looks healthy. A root-spawned
+/// child also outlives the sudo invocation in root's process table.
+/// The guard fires before any map write or spawn — refusing early is
+/// free, unwinding root's audio session is not.
 pub fn session_refusal(euid_is_root: bool) -> Option<&'static str> {
     if euid_is_root {
         Some(
-            "root refused — the daemon plants root-owned session state (lock, socket, PID) \
-             and grabs input devices as root, do not use sudo\n  \
+            "root refused — a root player opens audio in root's session, which no \
+             user desktop shares, do not use sudo\n  \
              tip: re-run without sudo",
         )
     } else {
