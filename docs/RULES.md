@@ -99,12 +99,16 @@ A CI runner missing any of these will fail at `cargo clippy` with
   (`Type=oneshot`, `RemainAfterExit=no`) — NOT a daemon: it runs
   `zylaxion attach`, exits, and stays dead. What remains resident is
   the kernel side only (one passive BPF program + pinned maps).
-- `scripts/package/install.sh --system` deploys it to
+- `scripts/package/install.sh` deploys it to
   `/etc/systemd/system/zylaxion-attach.service` and enables it; bpffs
   pins do not survive a reboot, so the oneshot replants the tap at
-  every boot.
-- `--user` installs print the manual alternative: `sudo zylaxion attach`
-  (which also hands the pin ownership to the invoking user).
+  every boot. The install posture is system-only (night-master-2):
+  binary to `/usr/bin`, oneshot to `/etc/systemd/system`, no flags.
+- `install-on-my-machine.sh` at the repo root is the CPU-tuned variant
+  of the same posture (amd64 v3/v4 detection, parity-checked aliases).
+- A hand-planted tap stays available without any installer:
+  `sudo zylaxion attach` (which also hands the pin ownership to the
+  invoking user).
 - The user service of the daemon era is gone with the daemon — there is
   nothing to supervise anymore.
 

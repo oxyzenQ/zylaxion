@@ -193,6 +193,25 @@ and the pre-v10 release notes live next to it in
 
 ### Added
 
+- **night-master-2** — the one-command machine installer,
+  `install-on-my-machine.sh` at the repo root. Linux only, no flags:
+  it reads the CPU's x86-64 microarchitecture level from /proc/cpuinfo
+  (x86-64-v4 when the full AVX-512 set is present, x86-64-v3 for the
+  AVX2/FMA/BMI class, baseline otherwise), builds the matching shape
+  through the parity-checked cargo aliases (`pro-linux-amd64-v4-gnu`,
+  `pro-linux-amd64-v3-gnu`, plain `--release` fallback for baseline or
+  non-amd64 hosts), then installs the binary to `/usr/bin/zylaxion`
+  and the boot oneshot to `/etc/systemd/system/zylaxion-attach.service`.
+  The same commit collapses `scripts/package/install.sh` to the
+  system-only posture — before: `--user` (default, `~/.local/bin`, no
+  unit) versus `--system` (`/usr/bin` plus the unit); after: one
+  posture, `/usr/bin` plus the unit, no flags. Both installers clean a
+  stale `~/.local/bin/zylaxion` first so nothing shadows the system
+  binary. `scripts/package/uninstall.sh` keeps its user-path sweep as
+  legacy cleanup for installs made before this change, and README plus
+  docs/RULES.md describe the new posture (the release-binary download
+  example now lands `/usr/bin` too).
+
 - **night-improve-25** — the Pro mode section on the one help
   reference (the zelynic NIGHT-improve-45 lineage): every hidden and
   advanced spelling documented COMPLETELY, grouped by the lane that

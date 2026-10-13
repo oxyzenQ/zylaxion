@@ -116,31 +116,28 @@ the eBPF object ships embedded in the binary.)
 git clone https://github.com/oxyzenQ/zylaxion.git
 cd zylaxion
 
-# Build the release binary
-cargo build --release --locked
-
-# Install (binary goes to ~/.local by default)
-./scripts/package/install.sh
+# One command, no flags: detect the CPU level (amd64 v3/v4), build the
+# matching shape, install to /usr/bin/ + the boot oneshot
+./install-on-my-machine.sh
 ```
 
-To install system-wide (binary → `/usr/bin/`):
-
-```bash
-./scripts/package/install.sh --system
-```
-
-The installer copies the binary; with `--system` it also installs and
-enables the **boot oneshot** (`/etc/systemd/system/zylaxion-attach.service`)
-that plants the kernel-side tap at every boot. It is a `Type=oneshot`
-unit, not a daemon: it runs `zylaxion attach`, exits, and stays dead —
-what remains resident is the kernel side only (one passive BPF program
+The fast lane detects the CPU's x86-64 microarchitecture level
+(x86-64-v4 when the full AVX-512 set is present, x86-64-v3 for the
+AVX2/FMA/BMI class, baseline otherwise) and builds through the
+parity-checked cargo aliases, so the installed binary is the same
+optimization tier the release pipeline ships. It installs the binary
+to `/usr/bin/zylaxion` and the **boot oneshot**
+(`/etc/systemd/system/zylaxion-attach.service`) that plants the
+kernel-side tap at every boot. It is a `Type=oneshot` unit, not a
+daemon: it runs `zylaxion attach`, exits, and stays dead — what
+remains resident is the kernel side only (one passive BPF program
 plus pinned maps, zero processes).
 
-Without the oneshot (--user installs), plant the tap by hand, once per
-boot:
+The portable package lane builds the plain baseline shape and lands
+the same system destinations — no CPU tuning, no flags:
 
 ```bash
-sudo zylaxion attach
+./scripts/package/install.sh
 ```
 
 > **Note:** no `input` group, no udev rules — the tap is a passive
@@ -155,7 +152,7 @@ Download, make executable, and copy to a directory on your PATH:
 ```bash
 wget https://github.com/oxyzenQ/zylaxion/releases/latest/download/zylaxion
 chmod +x zylaxion
-install -Dm755 zylaxion "$HOME/.local/bin/zylaxion"
+sudo install -Dm755 zylaxion /usr/bin/zylaxion
 ```
 
 ### Release Verification
