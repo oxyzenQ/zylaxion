@@ -188,3 +188,66 @@ fn pro_mode_documents_every_hidden_and_advanced_spelling() {
          spelling is an unknown subcommand and must never be taught"
     );
 }
+
+// ── night-improve-27: the daemon-era wording sweep ───────────────────
+
+/// The dead-service sweep, pinned as a test: the string
+/// "systemctl --user restart zylaxion" appears nowhere in the living
+/// tree — src/, ebpf/, and docs/. docs/archive/ is skipped BY LAW, not
+/// by accident: it is the documented frozen-record class (the
+/// docs/README map says so), and rewriting history to please a grep
+/// would falsify the record. CHANGELOG.md sits at the repo root, out
+/// of this test's scope, and its own mentions are the historical
+/// record of the sweep that killed the wording.
+#[test]
+fn the_dead_service_command_appears_nowhere_in_the_living_tree() {
+    const FORBIDDEN: &str = "systemctl --user restart zylaxion";
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut stack = vec![root.join("src"), root.join("ebpf"), root.join("docs")];
+    let mut scanned = 0usize;
+    while let Some(dir) = stack.pop() {
+        let entries = std::fs::read_dir(&dir).expect("every scanned dir is readable");
+        for entry in entries {
+            let path = entry.expect("entry is readable").path();
+            if path.is_dir() {
+                // The frozen-record class: never rewritten, so never scanned.
+                if path.file_name().is_some_and(|n| n == "archive") {
+                    continue;
+                }
+                stack.push(path);
+            } else if path.extension().is_some_and(|e| e == "rs" || e == "md") {
+                let body = std::fs::read_to_string(&path)
+                    .unwrap_or_else(|e| panic!("{} must be readable: {e}", path.display()));
+                scanned += 1;
+                assert!(
+                    !body.contains(FORBIDDEN),
+                    "the dead service command survives in {}",
+                    path.display()
+                );
+            }
+        }
+    }
+    assert!(
+        scanned > 50,
+        "the sweep must actually walk the tree, got {scanned}"
+    );
+}
+
+/// The reframed idle diagnostic teaches the two actions and never
+/// claims a stuck thread: the 300s line carries the off escape and
+/// the honest liveness fork.
+#[test]
+fn the_idle_heartbeat_teaches_type_or_off() {
+    let core = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/core/mod.rs"),
+    )
+    .expect("core source readable");
+    assert!(
+        core.contains("no key events in {}s — idle; type to hear the sound"),
+        "the 300s line must teach type-or-off"
+    );
+    assert!(
+        !core.contains("input thread may be stuck"),
+        "the stuck-thread lie must stay dead"
+    );
+}
