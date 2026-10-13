@@ -146,7 +146,7 @@ pub fn cmd_play() {
     //    is taken over — cattle, not pet.
     match control.get(&PLAYER_PID_SLOT, 0) {
         Ok(0) => {}
-        Ok(live_pid) => match pid_alive(live_pid as i32) {
+        Ok(live_pid) => match crate::session::orphan::pid_alive(live_pid as i32) {
             true => {
                 crate::output::error(format!(
                     "zylaxion is already playing (player pid {live_pid}) — stop it with `zylaxion off`"
@@ -311,7 +311,16 @@ pub fn cmd_play() {
                         .get(&VOLUME_PCT_SLOT, 0)
                         .unwrap_or(last_volume);
                     if volume != last_volume {
-                        volume_factor.store(gain_from_percent(volume).to_bits(), Ordering::Relaxed);
+                        // night-hunter-1: the store rides the pool's own
+                        // clamp law (volume_bits), not raw bits — the
+                        // startup lane clamps through with_volume, so the
+                        // live-retune lane must clamp identically or the
+                        // same map value means two loudnesses depending on
+                        // when it was written.
+                        volume_factor.store(
+                            crate::engine::VoicePool::volume_bits(gain_from_percent(volume)),
+                            Ordering::Relaxed,
+                        );
                         last_volume = volume;
                         log::info!("volume retuned to {volume}%");
                     }
@@ -379,11 +388,10 @@ struct KeyRingEventRaw {
     slot: u32,
 }
 
-/// Liveness probe for the pid stored in the control map: signal 0 is a
-/// no-op that checks existence.
-fn pid_alive(pid: i32) -> bool {
-    nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), None).is_ok()
-}
+// The player's liveness probe is the orphan module's zombie-aware one
+// (night-hunter-1): a ZOMBIE answers the raw kill(0) probe but is a
+// dead player by any honest measure — the local kill-only copy here
+// is deleted so every surface shares the one tested probe.
 
 /// A fatal player error: mark the control map FAILED, unregister, and
 /// exit. The stderr message is all the user sees (the player runs
