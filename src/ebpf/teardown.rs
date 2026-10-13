@@ -7,18 +7,89 @@
 //!
 //! Two surfaces:
 //!
-//! - [`detach`] — unpin everything (idempotent, best-effort). After a
-//!   successful detach NOTHING of zylaxion exists in the kernel: every
-//!   pin unlinked, the failure marker gone, and the pin directory
-//!   itself rmdir'd through the classified night-improve-26 cleanup
-//!   (foreign entries are left and named, unexpected errors surface).
+//! - [`detach`] — unpin everything (idempotent, best-effort). Before a
+//!   single pin is unlinked, a running player is reaped first
+//!   (night-improve-27): the enabled gate clears in the map the player
+//!   is watching, and the 0 → SIGTERM → SIGKILL escalation drives until
+//!   the pid is gone — the player must never outlive the map it reads.
+//!   After a successful detach NOTHING of zylaxion exists in the
+//!   kernel: every pin unlinked, the failure marker gone, and the pin
+//!   directory itself rmdir'd through the classified night-improve-26
+//!   cleanup (foreign entries are left and named, unexpected errors
+//!   surface).
 //! - [`last_attach_error`] — the doctor's read side of the marker lane:
 //!   the classified verdict a failed attach planted on bpffs.
 
 use std::path::Path;
 
+use aya::maps::MapData;
+
 use super::attach_error::AttachError;
 use super::pin;
+
+// The control-slot constants — the userspace mirror of control_slots
+// in ebpf/src/main.rs (the same private-alias shape player.rs carries;
+// the loader's test tree pins the cross-side contract).
+const ENABLED_SLOT: u32 = 0;
+const PLAYER_PID_SLOT: u32 = 3;
+
+/// Reap a running player before the pins go away (night-improve-27):
+/// read the registered pid from the control map, clear the enabled
+/// gate in THAT map (the player's watcher exits on it within its
+/// 100 ms cadence), then drive the orphan escalation ladder until the
+/// pid is gone. Every step logs at info with the pid and the outcome;
+/// the summary line names what happened. Best-effort by contract: an
+/// unreadable control map (foreign pin, raced unpin) logs a warning
+/// and the unpin proceeds — detach's job is unpinning, and a refuse-
+/// to-detach shape would strand the pins forever.
+fn reap_player_from_map() -> Vec<String> {
+    let mut notes = Vec::new();
+    let data = match MapData::from_pin(pin::PIN_MAP_CONTROL) {
+        Ok(d) => d,
+        Err(e) => {
+            log::warn!("player reaping skipped: the control map is not openable: {e}");
+            return notes;
+        }
+    };
+    let owned = aya::maps::Map::Array(data);
+    let Ok(mut control) = aya::maps::Array::<MapData, u32>::try_from(owned) else {
+        log::warn!("player reaping skipped: the control map is not an array");
+        return notes;
+    };
+    let pid = control.get(&PLAYER_PID_SLOT, 0).unwrap_or(0);
+    if pid == 0 {
+        return notes; // no player registered
+    }
+    if !crate::session::orphan::pid_alive(pid as i32) {
+        notes.push(format!(
+            "the registered player pid {pid} is already gone (stale registration)"
+        ));
+        return notes;
+    }
+    // The gate first: the player's own watcher (100 ms) exits cleanly —
+    // the fade-out path, not the signal path, whenever it can be.
+    if let Err(e) = control.set(ENABLED_SLOT, 0, 0) {
+        log::warn!("cannot clear the enabled gate for the player: {e}");
+    }
+    let (outcome, steps) = crate::session::orphan::reap_player(pid as i32);
+    for step in &steps {
+        log::info!("{step}");
+    }
+    match outcome {
+        crate::session::orphan::ReapOutcome::Gone { term_used } => notes.push(format!(
+            "the running player (pid {pid}) was stopped{}",
+            if term_used {
+                " (SIGTERM)"
+            } else {
+                " (the cleared gate)"
+            }
+        )),
+        crate::session::orphan::ReapOutcome::Survived => notes.push(format!(
+            "the running player (pid {pid}) SURVIVED the SIGKILL — kill it manually"
+        )),
+    }
+    notes
+}
 
 /// Detach the tap: unpin everything (idempotent, best-effort). Returns
 /// a human-readable summary. After a successful detach NOTHING of
@@ -27,6 +98,10 @@ pub fn detach() -> Result<String, AttachError> {
     if !pin::any_pin_present() {
         return Ok("tap is not attached — nothing to detach".to_string());
     }
+    // The player never outlives its map (night-improve-27): the gate
+    // clears and the escalation drives BEFORE a single pin is unlinked —
+    // the old player must not keep reading an inode the pins just lost.
+    let reap_notes = reap_player_from_map();
     let (removed, dir_outcome) = pin::clear_pins();
     let missing: Vec<_> = pin::ALL_PINS
         .iter()
@@ -51,13 +126,23 @@ pub fn detach() -> Result<String, AttachError> {
     // reported honestly; anything unexpected is surfaced, not swallowed.
     match dir_outcome {
         pin::PinDirRemoval::Removed | pin::PinDirRemoval::AlreadyAbsent => Ok(format!(
-            "tap detached: {} pin(s) removed — nothing of zylaxion remains in the kernel",
-            removed.len()
+            "tap detached: {} pin(s) removed{} — nothing of zylaxion remains in the kernel",
+            removed.len(),
+            if reap_notes.is_empty() {
+                String::new()
+            } else {
+                format!("; {}", reap_notes.join(", "))
+            }
         )),
         pin::PinDirRemoval::LeftForeignEntries => Ok(format!(
-            "tap detached: {} pin(s) removed — the pin directory holds entries zylaxion \
+            "tap detached: {} pin(s) removed{} — the pin directory holds entries zylaxion \
              did not create and was left in place (foreign entries are not ours to remove)",
-            removed.len()
+            removed.len(),
+            if reap_notes.is_empty() {
+                String::new()
+            } else {
+                format!("; {}", reap_notes.join(", "))
+            }
         )),
         pin::PinDirRemoval::Unexpected(e) => Err(AttachError::Unknown {
             detail: format!(

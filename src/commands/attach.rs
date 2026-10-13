@@ -17,7 +17,8 @@
 //! `detach` unpins everything — after it, NOTHING of zylaxion exists in
 //! the kernel. It stays reachable unprivileged: unlink permission on the
 //! pin files decides, which is exactly the ownership the attach handed
-//! out.
+//! out. A running player never survives it (night-improve-27): the
+//! reaping happens inside the teardown, before the first pin unlinks.
 
 use std::process;
 
@@ -43,6 +44,19 @@ pub fn cmd_attach() {
     }
 
     init_logger();
+
+    // The orphan sweep (night-improve-27): a player from a prior
+    // session could outlive the map it was watching — a fresh attach
+    // must never create a second control map while one of those is
+    // alive, or the machine carries two players, two maps, two worlds.
+    // Root is the one key that can sweep every user's stale player;
+    // the scan is exact-match (this binary + the `_play` argument), so
+    // unrelated processes are untouchable. A survivor refuses attach
+    // with the pid and the fix, before any kernel state is touched.
+    if let Err(e) = crate::session::orphan::reap_orphans() {
+        crate::output::error(e);
+        process::exit(1);
+    }
 
     match crate::ebpf::attach() {
         Ok(summary) => {
