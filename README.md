@@ -8,13 +8,13 @@
 <h1 align="center">zylaxion</h1>
 
 <p align="center">
-  <strong>Real-time mechanical keyboard sound for Linux. Pure math. The kernel hears, mathematics speaks.</strong>
+  <strong>Keyboard sound, computed in the kernel. No samples. No daemon. Just math.</strong>
 </p>
 
 <p align="center">
-  One of the first open-source Linux keyboard sound engines built around a pure eBPF
-  input tap, fully procedural sound synthesis, zero audio samples, zero daemons, and
-  zero config files.
+  The first Linux keyboard sound engine built on a passive eBPF input tap:
+  fully procedural sound synthesis, zero audio samples, zero daemons, zero
+  config files.
 </p>
 
 <div align="center">
@@ -49,15 +49,19 @@
 
 ## Why zylaxion?
 
-Every keyboard sound tool replays recordings. zylaxion **computes** sound.
+Every other keyboard sound tool is a player — it loads a sample, reads a
+config, and runs a process while you type. zylaxion is a computer: a
+passive probe on the kernel's own input path, a mathematical engine that
+voices what the kernel already heard, and nothing else resident.
 
-Sample players ship folders of wav clips, a config file that maps keys to
-files, and a resident app that plays them back. zylaxion has no samples
-because it plays nothing back: every keystroke is synthesized in real time
-from noise excitation, TPT State Variable Filters, resonance modeling, and
-exponential decay envelopes — and the input half lives in the kernel as a
-passive eBPF tap. No `/dev/input`, no evdev grab, no udev rules, no
-`input` group, no daemon, no config file.
+zylaxion does not replay anything. Every keystroke that reaches the
+kernel is synthesized in real time — noise excitation, TPT State Variable
+Filters, resonance modeling, exponential decay — and the input half of
+the engine lives inside the kernel as a passive eBPF probe. No /dev/input.
+No evdev grab. No udev rules. No input group. No daemon. No config file.
+The state store is a handful of pinned BPF maps; the player process is
+born on `on` and dies on `off`. What stays resident between keystrokes is
+one passive kernel program — and the mathematics it carries.
 
 ### What makes zylaxion sharp
 

@@ -36,7 +36,7 @@ license = "GPL-3.0-only"
 # across the toolchain while the address itself stays un-spiderable.
 authors = ["rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>"]
 repository = "https://github.com/oxyzenQ/zylaxion"
-description = "Real-time mechanical keyboard acoustic synthesizer for Linux. Pure procedural synthesis, zero audio samples, the boring and stealth."
+description = "Keyboard sound for Linux, computed in the kernel. A passive eBPF input tap voices every keystroke through pure procedural synthesis — zero samples, zero daemons, zero config files."
 build = "build.rs"
 # night-improve-4: registry-grade manifest completeness, the zelynic
 # package-data pattern. The documentation field is the version-less
