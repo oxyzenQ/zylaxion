@@ -482,17 +482,18 @@ jobs:
           # python3: the engine. sudo + passwd: the real-user lane.
           # kmod: the insmod chain. libasound2: the payload's ALSA
           # runtime. iproute2: the init's loopback bring-up.
-          # night-badas-4 round 3 (empirical): noble renamed the ALSA
-          # runtime in the time_t transition — ubuntu:24.04 serves
-          # 'libasound2t64' and refuses 'libasound2' ("no installation
-          # candidate"); the payload's soname need is libasound.so.2
-          # either way, the t64 rebuild ships exactly that. Detect the
-          # name the rootfs's archive serves instead of guessing an
-          # era.
-          if docker exec zylaxion-rootfs sh -c \
-            "apt-cache show libasound2 > /dev/null 2>&1"; then
-            ALSA_RUNTIME=libasound2
-          else
+          # night-badas-4 round 3+4 (empirical): noble renamed the ALSA
+          # runtime in the time_t transition and kept 'libasound2' as a
+          # purely-virtual name (Provided by 'libasound2t64') — an
+          # apt-cache probe exits 0 on a purely-virtual name while the
+          # install still dies with "no installation candidate". The
+          # honest probe is the resolver itself: an `apt-get install
+          # -s` simulation of each name, and the first that resolves
+          # wins. The payload's soname need is libasound.so.2 either
+          # way, the t64 rebuild ships exactly that.
+          ALSA_RUNTIME=libasound2
+          if ! docker exec zylaxion-rootfs sh -c \
+            "apt-get install -s -qq libasound2 > /dev/null 2>&1"; then
             ALSA_RUNTIME=libasound2t64
           fi
           echo "ALSA runtime package: $ALSA_RUNTIME"
