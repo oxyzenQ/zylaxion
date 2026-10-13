@@ -87,6 +87,16 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-1 (the signed-noise range law)** — `u32_to_signed_f32`
+  mapped the u32 domain to [-1.0, +3.0], not the documented symmetric
+  [-1.0, +1.0]: the divisor rode 2²³ − 1 under a `* 2.0 - 1.0` tail
+  (half the needed 2²⁴ − 1), so every consumer carried a +1.0 DC
+  bias — the noise excitation feeding the waveshaper, the pitch and
+  amplitude drift (up to 3× their designed extremes, asymmetrically),
+  and the pan jitter (stereo pulled right). The divisor is the
+  domain's own max now, both endpoints exact, and the range law is
+  pinned by a sweep test.
+
 - **night-badas-4 (round 5)** — the first full E2E probe run inside
   the micro-VMs exposed four truths, three environmental and one
   structural. The rootfs was assembled by a non-root tar extraction,

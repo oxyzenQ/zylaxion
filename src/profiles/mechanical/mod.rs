@@ -104,11 +104,17 @@ fn xorshift32(x: &mut u32) {
 ///    the negative side, and `+1.0` was unreachable.
 ///
 /// The fix uses the upper 24 bits (full f32 precision) divided by
-/// `8 388 607.0` (2²³ − 1). This produces a symmetric `[-1.0, +1.0]`
+/// `16 777 215.0` (2²⁴ − 1). This produces a symmetric `[-1.0, +1.0]`
 /// range with uniform quantization across the entire distribution.
+/// (night-hunter-1: the divisor rode `8 388 607.0` (2²³ − 1) with the
+/// same `* 2.0 - 1.0` tail — half the needed divisor, so the top of
+/// the range landed at +3.0 and every consumer (noise excitation,
+/// drift, pan jitter) carried a +1.0 DC bias. The divisor is the
+/// domain's own max: 2²⁴ − 1, exactly representable in f32, endpoint
+/// +1.0 exact.)
 #[inline]
 fn u32_to_signed_f32(x: u32) -> f32 {
-    ((x >> 8) as f32 / 8_388_607.0) * 2.0 - 1.0
+    ((x >> 8) as f32 / 16_777_215.0) * 2.0 - 1.0
 }
 
 /// Splitmix64 step. Used to derive a high-quality 32-bit PRNG seed from
