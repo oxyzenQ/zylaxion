@@ -87,6 +87,17 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-1 (the two half-blind scans)** — the telemetry
+  render's per-key sweep covered `0..255` while the tap counts and
+  the loader maps the full `0..=255` domain (the total rides slot
+  256): keycode 255's presses landed in the total but could never
+  reach the top-keys table. And `version-to.sh`'s member-name
+  extractor (the dormant `crates/` lane of the lock verification)
+  opened a sed group it never closed — the day the lane wakes, the
+  extraction errors per member, the names come out empty, and every
+  verification line false-warns; the group is closed and the pattern
+  proven against a live manifest line.
+
 - **night-hunter-1 (the control plane's one probe and one clamp)** —
   three consistency finds in the player/verb plumbing. The volume
   cell had two writers with two laws: the startup lane clamped
