@@ -32,24 +32,18 @@ edition = "2024"
 rust-version = "1.98.1"
 license = "GPL-3.0-only"
 # night-improve-10: the zelynic author format — one obfuscated contact
-# string, family-wide. Keeps the registry-facing author row identical
+# string, family-wide. Keeps the author row identical
 # across the toolchain while the address itself stays un-spiderable.
 authors = ["rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>"]
 repository = "https://github.com/oxyzenQ/zylaxion"
 description = "Real-time mechanical keyboard acoustic synthesizer for Linux. Pure procedural synthesis, zero audio samples, the boring and stealth."
 build = "build.rs"
-# night-improve-4: registry-grade manifest completeness, the zelynic
-# package-data pattern. The documentation field is the version-less
-# docs.rs base URL so it always tracks the newest hosted build the
-# moment the owner publishes to the registry. Keyword and category
-# slugs use only live registry buckets: command-line-utilities (the
-# primary terminal-binary bucket), multimedia::audio (the DSP engine
-# surface), os::linux-apis (the honest bucket for an evdev/libinput,
-# Linux-only tool).
-documentation = "https://docs.rs/zylaxion"
+# night-improve-4: manifest completeness, the zelynic package-data
+# pattern. night-simple-1: the registry-facing fields are gone — the
+# distribution surface is GitHub Releases and a git checkout, and the
+# owner keeps it that way (documentation, keywords and categories were
+# crates.io-discovery metadata with no effect on source builds).
 readme = "README.md"
-keywords = ["keyboard", "audio", "sound", "linux", "real-time"]
-categories = ["command-line-utilities", "multimedia::audio", "os::linux-apis"]
 
 # night-improve-10: explicit auto-discovery controls, the zelynic
 # Pattern-C discipline — a stray tests/ or benches/ directory can
@@ -69,7 +63,7 @@ autobenches = false
 # crate manifests, versions untouched (the owner owns version bumps),
 # plus the night-improve-23 addition: the aya userspace loader
 # (optional, behind the default `ebpf` feature — the zelynic shape:
-# a plain cargo install lands the full-featured binary).
+# a plain source build lands the full-featured binary).
 arc-swap = "1.7"
 # night-improve-23: the userspace half of the pure-Rust eBPF stack.
 # aya 0.14 is the upstream pairing of aya-ebpf 0.2.1 (the ebpf/ crate
@@ -141,11 +135,12 @@ inherits = "release"
 
 [features]
 # night-improve-23 (the zelynic NIGHT-ask-2 shape): `ebpf` is the
-# DEFAULT — a plain `cargo install zylaxion` must land the full-featured
+# DEFAULT — a plain source build must land the full-featured
 # binary, not a dormant one. On a git checkout the loader embeds the
 # source-built object (the nested nightly build build.rs drives); on a
-# registry tarball it embeds the maintainer-built object staged from
-# ebpf-prebuilt/ — either way the install needs NO nightly toolchain.
+# tree without the ebpf/ workspace it embeds the maintainer-built
+# object staged from ebpf-prebuilt/ — either way the build needs NO
+# nightly toolchain.
 # The dormant lane (a stable binary whose eBPF surfaces answer with
 # their honest refusal) is the OPT-IN: --no-default-features.
 default = ["ebpf"]
