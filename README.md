@@ -63,6 +63,12 @@ The state store is a handful of pinned BPF maps; the player process is
 born on `on` and dies on `off`. What stays resident between keystrokes is
 one passive kernel program — and the mathematics it carries.
 
+That mathematics is the Zactrix Engine, measured preset by preset in
+[docs/ZACTRIX_AUDIT.md](docs/ZACTRIX_AUDIT.md). Its three filter stages
+carry a time-variant spectral envelope — cutoff and Q follow
+physics-derived curves, so the spectrum evolves with the actuation
+instead of standing still under an envelope.
+
 ### What makes zylaxion sharp
 
 Every claim below maps to a mechanism that verifies it — the headless
