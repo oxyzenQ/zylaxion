@@ -24,6 +24,7 @@
 //! no file to go stale.
 
 pub mod kernel;
+pub mod orphan;
 pub mod preset;
 pub mod privilege;
 pub mod signals;

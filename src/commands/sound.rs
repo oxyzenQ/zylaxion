@@ -113,13 +113,9 @@ fn preset_index_or_error(name: &str) -> Result<u32, String> {
 
 /// The volume percent the session context would pick: `ZYLAXION_VOLUME`
 /// (a linear gain, the night-improve-22 contract) mapped to percent of
-/// the compiled default, or 100. A malformed value is a hard error —
-/// the no-silent-fallback law — and so is a value mapping outside the
-/// honest loudness domain: below silence, or above the night-improve-27
-/// safety cap (`crate::session::preset::MAX_VOLUME_PERCENT`, 200) — the
-/// same ceiling the `volume` CLI parser enforces, applied at the env
-/// write entry so `on` cannot smuggle a louder session in through the
-/// back door.
+/// the compiled default, or 100. Malformed and out-of-domain values are
+/// hard errors — the no-silent-fallback law — so `on` cannot smuggle a
+/// louder session in through the env back door.
 fn context_volume_percent() -> Result<u32, String> {
     volume_percent_from_gain(crate::session::preset::master_volume()?)
 }
@@ -150,13 +146,11 @@ fn volume_percent_from_gain(gain: f32) -> Result<u32, String> {
 
 // ── The player wire (night-improve-26) ───────────────────────────────
 // The exact string passed to Command::new when `on` execs the stateless
-// player, and the exact name clap registers for the hidden variant
-// (`name = "_play"` on Commands::Play in src/cli/mod.rs). One constant,
-// two consumers — the spawn and its test pin — so the wire cannot
-// drift again. The underscore prefix is the internal-verb convention,
-// not a typo.
+// player: an alias of the orphan sweep's match constant (night-improve-27)
+// so the spawn wire and the /proc sweep cannot drift. The underscore
+// prefix is the internal-verb convention, not a typo.
 #[cfg(feature = "ebpf")]
-pub(crate) const PLAYER_SPAWN_VERB: &str = "_play";
+pub(crate) const PLAYER_SPAWN_VERB: &str = crate::session::orphan::PLAYER_ARG;
 
 /// The root refusal for the `on` surface (night-improve-26): the
 /// parent owns the door, the child owns the audio. The verdict is the
@@ -257,6 +251,15 @@ pub fn cmd_on(cli_preset: Option<String>) {
              (player pid {existing_pid} kept — preset updated live)"
         );
         return;
+    }
+
+    // The orphan sweep (night-improve-27): belt under attach's
+    // suspenders — the spawn must be single from ANY state, so a
+    // player that outlived its map dies here before a new one is
+    // born. Exact-match scan; a survivor refuses with the pid.
+    if let Err(e) = crate::session::orphan::reap_orphans() {
+        crate::output::error(e);
+        process::exit(1);
     }
 
     // Clear any stale registration, then spawn the stateless player:
