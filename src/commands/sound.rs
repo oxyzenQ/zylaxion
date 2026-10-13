@@ -32,7 +32,6 @@ use aya::maps::{Array, MapData};
 
 #[cfg(feature = "ebpf")]
 use crate::ebpf::pin;
-use crate::engine::VoicePool;
 
 // ── Control slot constants ──────────────────────────────────────────────
 // The userspace mirror of control_slots in ebpf/src/main.rs (and the
@@ -111,38 +110,14 @@ fn preset_index_or_error(name: &str) -> Result<u32, String> {
         })
 }
 
-/// The volume percent the session context would pick: `ZYLAXION_VOLUME`
-/// (a linear gain, the night-improve-22 contract) mapped to percent of
-/// the compiled default, or 100. Malformed and out-of-domain values are
-/// hard errors — the no-silent-fallback law — so `on` cannot smuggle a
-/// louder session in through the env back door.
-fn context_volume_percent() -> Result<u32, String> {
-    volume_percent_from_gain(crate::session::preset::master_volume()?)
-}
-
-/// The pure core of [`context_volume_percent`]: gain in, percent (or
-/// the refusal) out. All decision and error formatting lives here so
-/// the test tree pins the cap without touching the process
-/// environment (the resolve_from precedent).
-fn volume_percent_from_gain(gain: f32) -> Result<u32, String> {
-    let percent = (gain / VoicePool::DEFAULT_MASTER_VOLUME * 100.0).round();
-    if percent < 0.0 {
-        return Err(format!(
-            "volume gain {gain} maps to {percent}% — below silence; \
-             check {VOLUME_ENV_VAR}",
-            VOLUME_ENV_VAR = crate::session::preset::VOLUME_ENV_VAR
-        ));
-    }
-    if percent > crate::session::preset::MAX_VOLUME_PERCENT as f32 {
-        return Err(format!(
-            "volume gain {gain} maps to {percent}% — above the {}% safety cap \
-             (100 = the compiled default; check {VOLUME_ENV_VAR})",
-            crate::session::preset::MAX_VOLUME_PERCENT,
-            VOLUME_ENV_VAR = crate::session::preset::VOLUME_ENV_VAR
-        ));
-    }
-    Ok(percent as u32)
-}
+// The volume percent lane moved to the session layer (night-improve-27:
+// the volume policy belongs beside MAX_VOLUME_PERCENT and the env-lane
+// gain law in crate::session::preset). The re-export keeps the test
+// tree's `use super::volume_percent_from_gain` resolving.
+#[cfg(feature = "ebpf")]
+pub(crate) use crate::session::preset::context_volume_percent;
+#[cfg(all(test, feature = "ebpf"))]
+pub(crate) use crate::session::preset::volume_percent_from_gain;
 
 // ── The player wire (night-improve-26) ───────────────────────────────
 // The exact string passed to Command::new when `on` execs the stateless
@@ -427,10 +402,20 @@ pub fn cmd_preset(name: &str) {
 }
 
 /// Handle `zylaxion volume <percent>` — one map write, live retune.
-/// 100 percent is the compiled laptop-speaker default.
+/// 100 percent is the compiled laptop-speaker default; the gate is the
+/// session layer's [`crate::session::preset::volume_gate`]: 0..=200 by
+/// default, `--force-this` lifts the ceiling to 10000, past that
+/// nothing passes. The success print names the cap, no editorializing.
 #[cfg(feature = "ebpf")]
-pub fn cmd_volume(percent: u32) {
+pub fn cmd_volume(percent: u32, force_this: bool) {
     init_logger();
+    let percent = match crate::session::preset::volume_gate(percent, force_this) {
+        Ok(p) => p,
+        Err(e) => {
+            crate::output::error(e);
+            process::exit(2);
+        }
+    };
     kernel_policy_gate();
     let mut control = match open_control() {
         Ok(c) => c,
@@ -443,7 +428,7 @@ pub fn cmd_volume(percent: u32) {
         crate::output::error(format!("cannot write the volume slot: {e}"));
         process::exit(1);
     }
-    println!("volume set to {percent}% (100 = the compiled default)");
+    println!("volume set to {percent}% (100 = the compiled default, cap 200%)");
 }
 
 /// Handle `zylaxion status [--verbose]` — the one-screen truth:
@@ -581,7 +566,7 @@ pub fn cmd_preset(_name: &str) {
 /// Dormant lane (cmd_volume): this binary was built without the eBPF
 /// loader (--no-default-features) — the honest refusal, every time.
 #[cfg(not(feature = "ebpf"))]
-pub fn cmd_volume(_percent: u32) {
+pub fn cmd_volume(_percent: u32, _force_this: bool) {
     crate::output::error(crate::ebpf::dormant::DORMANT_REFUSAL);
     process::exit(1);
 }

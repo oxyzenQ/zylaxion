@@ -183,10 +183,16 @@ pub enum Commands {
     /// (100 = the laptop-speaker-tuned 5.5x gain).
     Volume {
         /// Volume percent, 0 (silence) to 200 (the night-improve-27
-        /// safety cap — anything louder is refused at the parser,
-        /// exit 2, before any map write).
-        #[arg(long, short, value_parser = clap::value_parser!(u32).range(..=(crate::session::preset::MAX_VOLUME_PERCENT as i64)))]
+        /// safety cap). Above 200 the session gate refuses — values
+        /// that loud can damage speakers — unless `--force-this`
+        /// rides along, which lifts the ceiling to 10000 (the force
+        /// cap; anything past it is refused outright).
+        #[arg(long, short)]
         percent: u32,
+        /// Override the 200% safety cap, up to the 10000 force
+        /// ceiling (night-improve-27). Above 10000 nothing passes.
+        #[arg(long)]
+        force_this: bool,
     },
 
     /// Show the one-screen truth: kernel verdict, tap residency,

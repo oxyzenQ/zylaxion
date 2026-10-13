@@ -82,7 +82,7 @@ pub(crate) fn render_reference(color: bool) -> String {
     push(grey("  zylaxion volume --percent <0-200>"));
     push(
         "      Retune the master volume live (100 = the compiled default; 200 = the \
-         safety cap)."
+         safety cap; --force-this overrides up to 10000)."
             .into(),
     );
     push(ok("      zylaxion volume --percent 60"));
@@ -165,7 +165,7 @@ pub(crate) fn render_reference(color: bool) -> String {
         ),
         (
             "ZYLAXION_VOLUME=<gain>",
-            "the persistent output gain, linear — 5.5 laptop\nspeakers, 1.5 headphones; a different scale\nthan the percent lane",
+            "the persistent output gain, linear — 5.5 laptop\nspeakers, 1.5 headphones; a different scale\nthan the percent lane, capped at 10.0",
         ),
         ("NO_COLOR=1", "plain bytes on every surface, always"),
         (

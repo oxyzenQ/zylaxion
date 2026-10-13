@@ -45,13 +45,49 @@ pub const VOLUME_ENV_VAR: &str = "ZYLAXION_VOLUME";
 /// The master-volume ceiling as a percent of the compiled default
 /// (night-improve-27: the owner-mandated safety cap). 100 percent is
 /// the compiled laptop-speaker tuning; 200 percent is the loudest
-/// value any surface accepts — a volume write above the cap is
-/// refused, never clamped, so the map never carries a value the user
-/// did not ask for in writing. Both write entries enforce it: the
-/// `volume` verb at the CLI parser (exit 2, the fatal-input lane) and
-/// the `ZYLAXION_VOLUME` env lane in `context_volume_percent` (a hard
-/// error, the no-silent-fallback law).
+/// value any surface accepts by default — a volume write above the
+/// cap is refused, never clamped, so the map never carries a value
+/// the user did not ask for in writing. [`volume_gate`] enforces it
+/// at the `volume` verb (with the `--force-this` escape up to
+/// [`MAX_FORCE_VOLUME_PERCENT`]) and the gain mirror below enforces
+/// the env lane.
 pub const MAX_VOLUME_PERCENT: u32 = 200;
+
+/// The force ceiling (night-improve-27): `--force-this` lifts the
+/// 200% safety cap to this percent — the internal integer domain the
+/// control map and the gain law honestly carry. Past it there is no
+/// override: the refusal names the force cap.
+pub const MAX_FORCE_VOLUME_PERCENT: u32 = 10000;
+
+/// The env-lane gain ceiling (night-improve-27): `ZYLAXION_VOLUME`
+/// is an ABSOLUTE linear gain (5.5 = the compiled laptop-speaker
+/// tuning), a different scale from the percent lane — 10.0 is the
+/// loudest gain the env lane accepts. Values above it are refused
+/// with the same wording pattern as the percent cap; there is no
+/// force escape on the env lane (the percent lane owns the override).
+pub const MAX_VOLUME_GAIN: f32 = 10.0;
+
+/// The pure volume gate (night-improve-27): percent in, verdict out.
+/// Up to [`MAX_VOLUME_PERCENT`] every value passes; above it, only a
+/// `--force-this` writer passes, up to [`MAX_FORCE_VOLUME_PERCENT`];
+/// past the force ceiling nothing passes. The refusal is the exact
+/// boundary message the CLI prints — every boundary is pinned by the
+/// test tree without touching the process environment.
+pub fn volume_gate(percent: u32, force: bool) -> Result<u32, String> {
+    if percent > MAX_FORCE_VOLUME_PERCENT {
+        return Err(format!(
+            "volume {percent}% exceeds the {MAX_FORCE_VOLUME_PERCENT}% force cap \
+             (values above 200 can damage speakers)"
+        ));
+    }
+    if percent > MAX_VOLUME_PERCENT && !force {
+        return Err(format!(
+            "volume {percent}% exceeds the {MAX_VOLUME_PERCENT}% safety cap \
+             (values above 200 can damage speakers). Use --force-this to override."
+        ));
+    }
+    Ok(percent)
+}
 
 /// Resolve the active preset and master volume.
 ///
@@ -171,7 +207,45 @@ pub fn master_volume_from(volume_env: Option<&str>) -> Result<f32, String> {
             "invalid {VOLUME_ENV_VAR} value '{raw}': must be finite"
         ));
     }
+    if value > MAX_VOLUME_GAIN {
+        return Err(format!(
+            "invalid {VOLUME_ENV_VAR} value '{raw}': gain {value} exceeds the \
+             {MAX_VOLUME_GAIN} gain safety cap (values above 10.0 can damage speakers)"
+        ));
+    }
     Ok(value)
+}
+
+/// The master-volume percent the session context would pick: the
+/// `ZYLAXION_VOLUME` linear gain mapped to percent of the compiled
+/// default, or 100. Malformed and out-of-domain values are hard
+/// errors — the no-silent-fallback law — so `on` cannot smuggle a
+/// louder session in through the env back door.
+pub fn context_volume_percent() -> Result<u32, String> {
+    volume_percent_from_gain(master_volume()?)
+}
+
+/// The pure core of [`context_volume_percent`]: gain in, percent (or
+/// the refusal) out. All decision and error formatting lives here so
+/// the test tree pins the cap without touching the process
+/// environment (the resolve_from precedent).
+pub fn volume_percent_from_gain(gain: f32) -> Result<u32, String> {
+    let percent = (gain / crate::engine::VoicePool::DEFAULT_MASTER_VOLUME * 100.0).round();
+    if percent < 0.0 {
+        return Err(format!(
+            "volume gain {gain} maps to {percent}% — below silence; \
+             check {VOLUME_ENV_VAR}"
+        ));
+    }
+    if percent > MAX_VOLUME_PERCENT as f32 {
+        return Err(format!(
+            "volume gain {gain} maps to {percent}% — above the {}% safety cap \
+             (100 = the compiled default; check {VOLUME_ENV_VAR})",
+            MAX_VOLUME_PERCENT,
+            VOLUME_ENV_VAR = VOLUME_ENV_VAR
+        ));
+    }
+    Ok(percent as u32)
 }
 
 /// Look a name up in the registry or produce the canonical
