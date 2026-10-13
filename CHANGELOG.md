@@ -20,6 +20,31 @@ and the pre-v10 release notes live next to it in
 
 ### Fixed
 
+- **night-hunt-1** — the 300-second idle warning spoke for a dead
+  architecture. The heartbeat that fires after five minutes without
+  key events read "input thread may be stuck — restart it
+  (`systemctl --user restart zylaxion`)": every noun in that sentence
+  is a fossil. The libinput input thread was deleted with the daemon
+  (night-improve-23) — input now arrives from the kernel-side tap
+  through the pinned ring buffer, and a wedged input lane cannot hide
+  inside a running player (the bridge thread dies loudly: the channel
+  disconnects and the render loop exits; its poll errors log their
+  own warn). The advice named a systemd user unit the installer no
+  longer ships, and the message contradicted its own 60-second debug
+  sibling, which already admits idle is normal — a user reading or
+  watching for five minutes got a restart order for a healthy player.
+  The rewritten messages claim only what this seat can honestly know
+  (no keys arrived — idle, or the kernel tap is not delivering) and
+  route the real failure to the lanes that can distinguish the two:
+  `zylaxion doctor` for the environment verdicts and
+  `sudo zylaxion attach` to re-plant a detached tap. The same hunt
+  caught the last stale restart instruction in the preset-resolution
+  module doc, which described the deleted daemon and a user unit —
+  and denied the live preset swap the control-map watcher has applied
+  since the player landed. The stale-text sweep found no other
+  copies: README, QA, docs and the archive changelog never quoted
+  the old wording.
+
 - **night-improve-26** — the parent side of the player wire speaks
   honestly and owns its door. The night's audit found the clap side
   already soldered (the explicit `name = "_play"` pin and its parse
