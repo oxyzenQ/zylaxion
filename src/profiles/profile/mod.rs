@@ -35,14 +35,20 @@ pub struct KeyProfile {
 /// - `click_freq` / `spring_freq`: 500–8000 Hz keeps the bandpass within
 ///   the audible range and prevents the TPT `tan(pi * fc / fs)` pre-compute
 ///   from saturating at Nyquist.
-/// - `resonance` (Q factor): 0.1–10.0. The render path computes
+/// - `resonance` (Q factor): 0.1–30.0. The render path computes
 ///   `k = 1.0 / resonance`, so:
 ///   - `resonance = 0.0` would divide by zero (panic).
 ///   - `resonance < 0.1` produces a very wide filter that lets through
 ///     too much noise (click loses its percussive character).
-///   - `resonance > 10.0` produces a very narrow filter that becomes
-///     numerically unstable in single-precision TPT SVF (state variables
-///     can grow unbounded).
+///   - `resonance > 30.0` is untested territory. The ceiling is a
+///     designed bandwidth, not a measured stability edge: the TPT SVF
+///     is bounded for every finite Q, the tree pins finiteness at
+///     Q = 50 (tpt_tests), and the audit harness renders one million
+///     samples at the 30.0 ceiling across three rates
+///     (scripts/audit/zactrix-stability.sh). The 10.0 ceiling this
+///     replaced was inherited from the config-era guardrails and its
+///     instability rationale was never measured
+///     (night-private-research-2xblade-2, docs/ZACTRIX_AUDIT.md).
 /// - `decay_coefficient`: 0.0–0.9999. MUST be strictly less than 1.0 to
 ///   prevent infinite loops (a coefficient >= 1.0 means the envelope never
 ///   decays, so the voice never deactivates and consumes a polyphony slot
@@ -67,9 +73,15 @@ pub mod ranges {
 
     /// Minimum resonance (Q). Below this the filter is too wide.
     pub const RESONANCE_MIN: f32 = 0.1;
-    /// Maximum resonance (Q). Above this the TPT SVF becomes numerically
-    /// unstable in single-precision float.
-    pub const RESONANCE_MAX: f32 = 10.0;
+    /// Maximum resonance (Q) — the engine's designed bandwidth, not a
+    /// measured stability edge. The TPT SVF is bounded for every finite
+    /// Q; the tree pins finiteness at Q = 50 (tpt_tests) and the audit
+    /// harness renders one million samples at this ceiling across three
+    /// rates (scripts/audit/zactrix-stability.sh). Expanded from the
+    /// inherited 10.0 by night-private-research-2xblade-2 — the audit
+    /// named 10.0 as the modal-ring ceiling; docs/ZACTRIX_AUDIT.md
+    /// holds the matrix.
+    pub const RESONANCE_MAX: f32 = 30.0;
 
     pub const AMPLITUDE_MIN: f32 = 0.0;
     pub const AMPLITUDE_MAX: f32 = 1.0;

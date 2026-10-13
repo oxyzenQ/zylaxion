@@ -442,3 +442,10 @@ fn modal_spread(refs: &[Frame], lates: &[Frame], live_threshold: f64) -> f64 {
     let min = rates.iter().cloned().fold(f64::MAX, f64::min);
     max - min
 }
+
+// The tuning lab lives in a child module: it reaches this file's
+// private analysis primitives directly (the mechanical/mod.rs
+// pattern) and re-exports one function.
+#[path = "debug.rs"]
+mod debug;
+pub use debug::debug_modal;
