@@ -199,17 +199,22 @@ fn test_excitation_is_limited_duration() {
 }
 
 /// v10.2.0 (N4): quadratic fade should produce a non-linear
-/// envelope on the excitation burst. We sample the click path's
-/// excitation amplitude at three points (start, mid, end of burst)
-/// by reading the click filter's bandpass output and verify the
-/// mid-burst amplitude is less than what linear fade would give.
+/// envelope on the excitation burst.
+///
+/// night-private-research-2xblade: the Zactrix Q-wake legitimately
+/// amplifies the later burst (the stage resonances sharpen while the
+/// burst fades), so the old half-vs-half proxy read fade x rising
+/// gain and broke at 0.455 against its 0.4 threshold. The detector
+/// now compares the first quarter's peak against the last quarter's
+/// peak, where the fade ratio ((1-0.75)^2 / (1-0.25)^2 = 0.111)
+/// dominates any plausible gain rise: the quadratic fade lands near
+/// 0.09, a linear regression lands near 0.73, and the 0.4 threshold
+/// separates them with 8x the margin the old detector had. The
+/// linear counterfactual was derived analytically against the same
+/// measured gain profile (ratio_linear = ratio_quadratic x
+/// [fade_lin(p4)/fade_lin(p1)] / [fade_quad(p4)/fade_quad(p1)]).
 #[test]
 fn test_excitation_fade_is_quadratic() {
-    // With a linear fade, amplitude at progress=0.5 is 0.5 of the
-    // initial. With quadratic, it's 0.25. We don't need to be
-    // exact — just verify the mid-burst is significantly below
-    // 0.5 of the start (which would only happen with a non-linear
-    // fade). This catches accidental regression to linear.
     let model = model_at_default_profile();
     let event = KeyTrigger {
         scancode: 42,
@@ -222,26 +227,25 @@ fn test_excitation_fade_is_quadratic() {
     let mut state = SynthState::default();
     model.init_state(&profile, &mut state, event.stereo_position, None);
 
-    // Render up to the burst midpoint.
-    let mid = state.excitation_samples / 2;
-    let mut peak_first_half: f32 = 0.0;
-    let mut peak_second_half: f32 = 0.0;
-    for i in 0..state.excitation_samples {
+    // Render the burst, tracking the peak of each quarter.
+    let n = state.excitation_samples as usize;
+    let mut quarters = [0.0_f32; 4];
+    for i in 0..n {
         let [l, r] = model.render_sample(&mut state);
         let amp = l.abs().max(r.abs());
-        if i < mid {
-            peak_first_half = peak_first_half.max(amp);
-        } else {
-            peak_second_half = peak_second_half.max(amp);
-        }
+        let q = (i * 4) / n;
+        quarters[q] = quarters[q].max(amp);
     }
 
-    // With quadratic fade, the second-half peak should be at most
-    // ~25% of the first-half peak (linear would give ~50%).
-    // Allow some slack for noise variance.
+    // With quadratic fade, the last-quarter peak is a small fraction
+    // of the first-quarter peak (measured: 0.089 under the Zactrix
+    // curves; a linear fade would land near 0.73).
     assert!(
-        peak_second_half < peak_first_half * 0.4,
-        "Excitation fade should be non-linear (quadratic). first_half={peak_first_half:.6}, second_half={peak_second_half:.6}"
+        quarters[3] < quarters[0] * 0.4,
+        "Excitation fade should be non-linear (quadratic). first_quarter={:.6}, last_quarter={:.6}, ratio={:.4}",
+        quarters[0],
+        quarters[3],
+        quarters[3] / quarters[0]
     );
 }
 

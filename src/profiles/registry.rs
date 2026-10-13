@@ -119,6 +119,25 @@ const fn preset(
 /// the v4.0.0 legendary keyboard series, then the v4.1.0 sci-fi series.
 /// Values are transcribed byte-for-byte from the retired `config.toml`
 /// (night-improve-22) — the test tree pins each value in-range.
+///
+/// night-private-research-2xblade: the Zactrix re-tune. The Phase 0
+/// audit (docs/ZACTRIX_AUDIT.md) measured 21 of 24 presets carrying
+/// 99+ percent of onset energy in the first 5 ms — the housing ring
+/// starved by low Q (wide bandwidths kill the ring in milliseconds).
+/// The re-tune raises the housing resonance — the one ring lever the
+/// range contract allows — while preserving each preset's housing
+/// loudness exactly (the render multiplies the housing bandpass by
+/// Q, so `mix x Q` is the level; the product is held within a few
+/// percent). Click, spring, decay, and ambient rows are untouched:
+/// the attack and the spring are the preset's identity, the body is
+/// what was starved. topre is untouched — the audit's single A-tier
+/// reference. Four presets refuse the fit on identity grounds and
+/// stay as authored: whisper ("extremely quiet, short decay"),
+/// rotary_encoder ("subtle, metallic" detent tick), cyber_deck
+/// ("short bright pings, no body"), glass_tactile (a 5 kHz ring
+/// needs Q far beyond the 10.0 range cap; a low-band body would
+/// break the sharp-glass character). Every refusal is recorded in
+/// docs/ZACTRIX_AUDIT.md.
 pub static PRESETS: [Preset; 24] = [
     // ── Classic series ────────────────────────────────────────────────
     preset(
@@ -128,7 +147,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(1800.0, 3.5, 0.6),
         decay(0.9994, 1e-5),
         ambient(true, 0.15, 0.985),
-        housing(500.0, 2.0, 0.3),
+        housing(500.0, 6.0, 0.10),
     ),
     preset(
         "cherryMX",
@@ -137,7 +156,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(1900.0, 3.0, 0.55),
         decay(0.9995, 1e-5),
         ambient(true, 0.12, 0.988),
-        housing(450.0, 2.2, 0.35),
+        housing(450.0, 6.0, 0.13),
     ),
     preset(
         "classic",
@@ -146,7 +165,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(1200.0, 4.0, 0.75),
         decay(0.9992, 1e-5),
         ambient(true, 0.18, 0.982),
-        housing(350.0, 2.8, 0.5),
+        housing(350.0, 8.0, 0.175),
     ),
     preset(
         "studio",
@@ -155,7 +174,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(2200.0, 2.0, 0.5),
         decay(0.9997, 1e-5),
         ambient(false, 0.05, 0.99),
-        housing(400.0, 1.8, 0.45),
+        housing(400.0, 7.0, 0.115),
     ),
     preset(
         "elegant",
@@ -164,7 +183,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(1500.0, 2.5, 0.4),
         decay(0.9991, 1e-4),
         ambient(false, 0.03, 0.99),
-        housing(380.0, 1.5, 0.4),
+        housing(380.0, 6.0, 0.10),
     ),
     preset(
         "whisper",
@@ -182,7 +201,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(1600.0, 1.8, 0.45),
         decay(0.999, 1e-5),
         ambient(true, 0.10, 0.987),
-        housing(350.0, 1.8, 0.7),
+        housing(350.0, 7.0, 0.18),
     ),
     preset(
         "tactile",
@@ -191,7 +210,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(2000.0, 2.5, 0.5),
         decay(0.9993, 1e-5),
         ambient(true, 0.12, 0.985),
-        housing(420.0, 2.0, 0.5),
+        housing(420.0, 5.0, 0.20),
     ),
     preset(
         "clicky",
@@ -200,7 +219,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(2400.0, 4.5, 0.7),
         decay(0.9996, 1e-5),
         ambient(true, 0.16, 0.983),
-        housing(600.0, 2.5, 0.2),
+        housing(600.0, 8.0, 0.065),
     ),
     // ── v4.0.0 legendary keyboard series ──────────────────────────────
     preset(
@@ -210,7 +229,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(850.0, 7.5, 0.85),
         decay(0.99975, 1e-6),
         ambient(true, 0.20, 0.983),
-        housing(400.0, 3.0, 0.4),
+        housing(400.0, 9.0, 0.135),
     ),
     preset(
         "topre",
@@ -228,7 +247,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(1300.0, 1.2, 0.35),
         decay(0.9988, 5e-5),
         ambient(true, 0.06, 0.99),
-        housing(350.0, 1.5, 0.75),
+        housing(350.0, 8.0, 0.14),
     ),
     preset(
         "cherry_mx_clear",
@@ -237,7 +256,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(1700.0, 2.2, 0.5),
         decay(0.9992, 1e-5),
         ambient(true, 0.12, 0.985),
-        housing(400.0, 2.0, 0.55),
+        housing(400.0, 7.0, 0.155),
     ),
     preset(
         "cherry_mx_silver",
@@ -246,7 +265,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(1900.0, 1.5, 0.35),
         decay(0.999, 2e-5),
         ambient(true, 0.05, 0.99),
-        housing(550.0, 1.8, 0.65),
+        housing(550.0, 5.0, 0.235),
     ),
     preset(
         "buckling_spring",
@@ -255,7 +274,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(1400.0, 5.5, 0.75),
         decay(0.9996, 5e-6),
         ambient(true, 0.15, 0.983),
-        housing(380.0, 3.5, 0.3),
+        housing(380.0, 6.0, 0.175),
     ),
     preset(
         "alps_skcm",
@@ -264,7 +283,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(2000.0, 3.8, 0.65),
         decay(0.9995, 1e-5),
         ambient(true, 0.22, 0.982),
-        housing(300.0, 3.0, 0.55),
+        housing(300.0, 8.0, 0.21),
     ),
     preset(
         "gateron_yellow",
@@ -273,7 +292,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(1500.0, 1.5, 0.4),
         decay(0.9992, 1e-5),
         ambient(true, 0.10, 0.985),
-        housing(250.0, 2.0, 0.8),
+        housing(250.0, 8.0, 0.20),
     ),
     preset(
         "zealios_v2",
@@ -282,7 +301,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(2000.0, 2.8, 0.55),
         decay(0.9993, 1e-5),
         ambient(true, 0.13, 0.985),
-        housing(380.0, 2.5, 0.5),
+        housing(380.0, 6.0, 0.21),
     ),
     preset(
         "rotary_encoder",
@@ -310,7 +329,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(600.0, 2.0, 0.8),
         decay(0.9998, 1e-6),
         ambient(true, 0.18, 0.99),
-        housing(100.0, 1.0, 0.85),
+        housing(100.0, 8.0, 0.105),
     ),
     preset(
         "glass_tactile",
@@ -328,7 +347,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(1500.0, 5.5, 0.7),
         decay(0.9996, 5e-6),
         ambient(true, 0.20, 0.985),
-        housing(280.0, 4.0, 0.5),
+        housing(280.0, 8.0, 0.25),
     ),
     preset(
         "neon_pulse",
@@ -337,7 +356,7 @@ pub static PRESETS: [Preset; 24] = [
         spring(2700.0, 3.0, 0.55),
         decay(0.9994, 1e-5),
         ambient(true, 0.35, 0.987),
-        housing(450.0, 2.5, 0.4),
+        housing(450.0, 6.0, 0.17),
     ),
 ];
 

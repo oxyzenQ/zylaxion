@@ -3,27 +3,39 @@
 
 //! Default mechanical keyboard click model.
 //!
-//! [`MechanicalClick`] is the reference [`AcousticModel`](crate::profiles::AcousticModel)
+//! [`ZactrixEngine`] is the reference [`AcousticModel`](crate::profiles::AcousticModel)
 //! implementation for standard mechanical key switches (Cherry MX style).
 //!
 //! # Synthesis Chain
 //!
-//! The sound is generated through three stages, all using pre-computed
-//! coefficients so the per-sample render path contains no division or
-//! transcendentals:
+//! The sound is generated through three stages. The two upper stages
+//! carry the Zactrix time-variant spectral envelope (night-private-
+//! research-2xblade): their cutoff and Q move along physics-derived
+//! curves, so the per-sample path computes two tan() evaluations per
+//! sample — the curves are authored in seconds and Hz and are sample-
+//! rate invariant by construction:
 //!
 //! 1. **Excitation** — A short burst (1–3 ms) of shaped white noise simulates
 //!    the physical impact of the keycap stem hitting the switch housing. A
 //!    linear fade-out within the burst prevents a hard cutoff artifact.
 //!
 //! 2. **Dual TPT SVF filtering** — Two independent TPT State Variable Filters
-//!    run in parallel:
+//!    run in parallel, their coefficients moving with the actuation
+//!    physics:
 //!    - *Click filter* (bandpass): extracts the sharp attack transient from the
 //!      noise burst. Output is a mix of the highpass (70%) and bandpass (30%)
-//!      for a crisp, percussive character.
+//!      for a crisp, percussive character. Zactrix stage A: its cutoff starts
+//!      broadband and collapses into the click band over ~3 ms while its Q
+//!      settles from a quarter of the preset resonance to it.
 //!    - *Spring filter* (bandpass): tuned lower to model the spring snapping
 //!      back and the keycap housing vibrating. This filter continues to ring
 //!      naturally after the excitation ends — the ringing IS the spring sound.
+//!      Zactrix stage B: its cutoff travels from the click band into the
+//!      spring band over ~5 ms while its Q wakes from a quarter of the
+//!      preset resonance to it.
+//!    - *Housing filter* (bandpass, v4.2.0+): the deep "thock" layer. Zactrix
+//!      stage C: its curve is the constant itself — cutoff stays low, Q stays
+//!      high, and the long ring stays the existing envelope's job.
 //!
 //! 3. **Exponential decay envelope** — A per-sample multiplicative envelope
 //!    (`value *= coeff`) models the natural energy dissipation of the mechanical
@@ -56,7 +68,7 @@
 //! reset the counter, then test B's `init_state` call would increment
 //! it before test A's trigger, giving test A's voice an unexpected
 //! seed. v5.0.1 moves the counter to a per-instance field on
-//! `MechanicalClick`. In production there is only one instance (held
+//! `ZactrixEngine`. In production there is only one instance (held
 //! behind an `ArcSwap` in the orchestrator), so behavior is identical.
 //! In tests, each instance has its own counter, so they don't interfere.
 
@@ -145,7 +157,18 @@ fn splitmix64(x: u64) -> u64 {
     z ^ (z >> 31)
 }
 
-/// Default acoustic model for mechanical keyboard switches.
+/// The Zactrix Engine — the acoustic model for mechanical keyboard
+/// switches (night-private-research-2xblade, the forge pass).
+///
+/// The Zactrix thesis: the spectrum evolves in time, driven by physics,
+/// verifier-first. A real actuation is broadband at first contact,
+/// collapses into the resonance bands within ~3 ms, and wakes the
+/// spring over ~5 ms — so the three TPT SVF stages this struct owns are
+/// driven by time-varying cutoff and Q curves (stage A: the impact
+/// collapse, stage B: the spring wake, stage C: the constant whose long
+/// ring stays the existing envelope's job), not by frozen coefficients.
+/// docs/ZACTRIX_AUDIT.md holds the measurement that earned this
+/// architecture and scripts/audit/zactrix-verify.sh judges it.
 ///
 /// Generates a short click/spring sound using filtered noise excitation and
 /// exponential decay, typical of Cherry MX-style mechanical switches. This
@@ -153,7 +176,7 @@ fn splitmix64(x: u64) -> u64 {
 ///
 /// # Profile lookup
 ///
-/// A `MechanicalClick` holds one [`KeyProfile`] — the active preset's
+/// A `ZactrixEngine` holds one [`KeyProfile`] — the active preset's
 /// validated DSP table (night-improve-22: compile-time registry data,
 /// no per-key override map). Every key press returns this profile from
 /// [`get_profile`](crate::profiles::model::AcousticModel::get_profile);
@@ -163,11 +186,11 @@ fn splitmix64(x: u64) -> u64 {
 /// # Hot-reload
 ///
 /// The model is `Send + Sync` and immutable once constructed. The
-/// orchestrator still swaps the entire `MechanicalClick` instance
+/// orchestrator still swaps the entire `ZactrixEngine` instance
 /// behind an `ArcSwap` — active voices continue rendering with their
 /// cached profile (captured at trigger time). Since night-improve-22
 /// nothing swaps it: a preset change is a process restart.
-pub struct MechanicalClick {
+pub struct ZactrixEngine {
     /// The active preset's acoustic profile — one validated DSP table
     /// applied to every key (night-improve-22: the registry replaced
     /// the per-key override map).
@@ -193,7 +216,7 @@ pub struct MechanicalClick {
     /// would reset the counter, then test B's `init_state` call would
     /// increment it before test A's trigger, giving test A's voice an
     /// unexpected seed. Moving the counter to a per-instance field
-    /// eliminates the race — each `MechanicalClick` instance has its
+    /// eliminates the race — each `ZactrixEngine` instance has its
     /// own counter, so tests creating separate instances don't
     /// interfere. In production there is only one instance (held
     /// behind an `ArcSwap` in the orchestrator), so behavior is
@@ -231,8 +254,8 @@ pub struct MechanicalClick {
     last_interval_us: AtomicU64,
 }
 
-impl MechanicalClick {
-    /// Create a new `MechanicalClick` model with the registry's
+impl ZactrixEngine {
+    /// Create a new `ZactrixEngine` model with the registry's
     /// compiled default profile, using the given `sample_rate` (Hz)
     /// for all DSP coefficient calculations.
     #[inline]
@@ -242,7 +265,7 @@ impl MechanicalClick {
         Self::with_profile(default.profile, sample_rate)
     }
 
-    /// Create a `MechanicalClick` model from an explicit [`KeyProfile`]
+    /// Create a `ZactrixEngine` model from an explicit [`KeyProfile`]
     /// — the active preset's validated table, handed over by the
     /// session resolver (night-improve-22).
     #[inline]
@@ -267,7 +290,7 @@ impl MechanicalClick {
     /// # Why per-instance? (v5.0.1)
     ///
     /// Because the counter is now per-instance (not global), resetting
-    /// it only affects THIS `MechanicalClick` instance — other instances
+    /// it only affects THIS `ZactrixEngine` instance — other instances
     /// (e.g. in parallel tests) are unaffected. This eliminates the
     /// flaky-test race that v5.0.0's global counter caused.
     #[doc(hidden)]
@@ -292,11 +315,16 @@ impl MechanicalClick {
     }
 }
 
-impl Default for MechanicalClick {
+impl Default for ZactrixEngine {
     fn default() -> Self {
         Self::new(crate::profiles::SAMPLE_RATE as u32)
     }
 }
+
+/// The engine's historical name, kept as a pure alias. Every consumer —
+/// the CLI, the examples, the test trees — reads identically; the
+/// Zactrix name is the engine's identity, not a breaking rename.
+pub type MechanicalClick = ZactrixEngine;
 
 mod render;
 

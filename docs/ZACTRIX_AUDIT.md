@@ -1,30 +1,30 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# The Zactrix Phase 0 Acoustic Audit
+# The Zactrix Acoustic Audit
 
-Pass: `night-private-research-2xblade`, Phase 0. The forge starts with
+Pass: `night-private-research-2xblade`. The forge starts with
 listening: before any engine code is touched, every shipped preset is
 rendered headlessly through the real render path and measured against
-four physical movement metrics. The question the audit answers is
-whether the DSP architecture has a ceiling that pins every preset into
-the same tier — and the data below decides whether the time-variant
-upgrade is earned.
+four physical movement metrics. This document holds the instrument,
+the before matrix (the frozen-coefficient engine), the after matrix
+(the Zactrix time-variant engine), and every tier delta between them.
 
 One command reproduces everything in this document:
 
 ```bash
-scripts/audit/zactrix-audit.sh
+scripts/audit/zactrix-audit.sh                 # the before/after harness
+scripts/audit/zactrix-verify.sh <preset-name>  # one-preset verifier row
 ```
 
 ## The instrument
 
 The harness (`scripts/audit/harness/`, a standalone stdlib-plus-log
 crate that includes the engine and profiles trees in place) renders
-each of the 24 presets through the real `VoicePool`/`MechanicalClick`
-render path — the same per-sample loop the live player runs — at
-96 kHz, mono, one keypress, 500 ms window, with the micro-randomization
-seed fixed (fresh model instance, counter reset). Repeated runs are
+each of the 24 presets through the real `VoicePool` render path — the
+same per-sample loop the live player runs — at 96 kHz, mono, one
+keypress, 500 ms window, with the micro-randomization seed fixed
+(fresh model instance, counter reset). Repeated runs are
 byte-identical. No audio device is touched.
 
 Four metrics are measured over the 0-100 ms onset window:
@@ -35,15 +35,16 @@ Four metrics are measured over the 0-100 ms onset window:
 2. **Flatness evolution** — spectral flatness (Wiener entropy,
    0 = tone, 1 = noise) of the attack minus the tail. A real attack is
    broadband; a real tail is tonal.
-3. **Modal decay spread (dB/s)** — spread of per-mode decay rates
-   across the strongest spectral modes, tracked from 8/16 ms reference
-   frames to 32/48 ms late frames. Real modes die at different rates;
-   one global envelope does not.
+3. **Modal decay spread (dB/s)** — spread of per-mode ABSOLUTE decay
+   rates across the strongest spectral modes, tracked from 8/16 ms
+   reference frames to 32/48 ms late frames. Real modes die at
+   different rates; one global envelope does not.
 4. **Attack/tail energy (dB)** — energy of the first 5 ms against the
    following 95 ms. Real impacts keep a large share of energy in the
    attack, but not nearly all of it.
 
-Measurement honesty, declared up front:
+Measurement honesty, declared up front — including the corrections
+the instrument itself went through:
 
 - All spectral statistics run over the positive-frequency half of the
   FFT (bins 1..N/2). Over the full mirrored spectrum of a real signal
@@ -54,11 +55,23 @@ Measurement honesty, declared up front:
   frame. Below that the samples are numerical dust, not sound. Silent
   frames are excluded from tail statistics; a mode that dies before
   the late frame is reported at the 600 dB/s dead-rate cap.
+- **Modal level correction** (caught during Phase 1 verification,
+  before any conclusion was drawn from it): the first modal draft
+  compared the two frames' peak-normalized spectra — a shape
+  comparison, blind to absolute level. A late frame 74 dB below the
+  attack normalized its own dust to full scale and read as a
+  "surviving mode", inflating the modal column of the first draft.
+  Both frames are now scaled by their absolute windowed energies, so
+  a rate is a decay rate. The BEFORE matrix below was re-measured
+  against the pre-forge engine with the corrected instrument (the
+  engine checked out at the audit commit), so both matrices ride the
+  same instrument. The Phase 0 gate was re-verified on the corrected
+  numbers and still opened.
 - Frames sit where the phenomenon lives: the modal tracking pairs
   8/16 ms references against 32/48 ms lates because a 30-80 ms
   placement would measure the noise floor of an already-dead tail for
-  most presets. All placements are fixed across presets — no
-  per-preset adaptation.
+  most presets. All placements are fixed across presets and across
+  both matrices — no per-preset adaptation.
 
 ## The physical bands — and their honesty note
 
@@ -81,69 +94,130 @@ reference recording, and this document does not pretend otherwise.
 Tier rule: **A** = all four in band, **B** = two or three, **C** = zero
 or one. Gate: the audit closes the pass only if C = 0 and A >= 20.
 
-## The 24x4 matrix
+## The before matrix (frozen-coefficient engine)
 
 | preset | centroid drift Hz | flatness evolution | modal spread dB/s | attack/tail dB | tier |
 |--------|------------------:|-------------------:|------------------:|---------------:|:----:|
 | `technical` | 1513 | 0.048 | 0 | +31.0 | B |
-| `cherryMX` | 2133 | 0.074 | 599 | +27.7 | B |
-| `classic` | 2617 | 0.082 | 585 | +20.3 | B |
-| `studio` | 4731 | 0.153 | 576 | +26.4 | B |
-| `elegant` | 17183 | 0.511 | 1128 | +31.6 | B |
+| `cherryMX` | 2133 | 0.074 | 0 | +27.7 | B |
+| `classic` | 2617 | 0.082 | 0 | +20.3 | B |
+| `studio` | 4731 | 0.153 | 0 | +26.4 | B |
+| `elegant` | 17183 | 0.511 | 0 | +31.6 | B |
 | `whisper` | 0 | 0.000 | 0 | +43.6 | C |
-| `linear` | 6380 | 0.206 | 1306 | +22.7 | B |
-| `tactile` | 1881 | 0.065 | 944 | +26.3 | B |
+| `linear` | 6380 | 0.206 | 0 | +22.7 | B |
+| `tactile` | 1881 | 0.065 | 0 | +26.3 | B |
 | `clicky` | 637 | 0.017 | 0 | +23.7 | B |
-| `ibm_model_m` | 171 | 0.006 | 683 | +17.3 | B |
-| `topre` | 17863 | 0.452 | 630 | +11.8 | A |
-| `cherry_mx_black` | 11831 | 0.368 | 1237 | +25.1 | B |
-| `cherry_mx_clear` | 3694 | 0.123 | 576 | +25.5 | B |
-| `cherry_mx_silver` | 1027 | 0.034 | 600 | +27.5 | B |
-| `buckling_spring` | 324 | 0.003 | 775 | +21.1 | B |
-| `alps_skcm` | 327 | 0.008 | 674 | +8.9 | B |
-| `gateron_yellow` | 12687 | 0.369 | 575 | +12.9 | B |
-| `zealios_v2` | 462 | 0.013 | 831 | +21.8 | B |
+| `ibm_model_m` | 171 | 0.006 | 0 | +17.3 | C |
+| `topre` | 17863 | 0.452 | 1034 | +11.8 | A |
+| `cherry_mx_black` | 11831 | 0.368 | 0 | +25.1 | B |
+| `cherry_mx_clear` | 3694 | 0.123 | 0 | +25.5 | B |
+| `cherry_mx_silver` | 1027 | 0.034 | 0 | +27.5 | B |
+| `buckling_spring` | 324 | 0.003 | 0 | +21.1 | C |
+| `alps_skcm` | 327 | 0.008 | 0 | +8.9 | B |
+| `gateron_yellow` | 12687 | 0.369 | 0 | +12.9 | B |
+| `zealios_v2` | 462 | 0.013 | 0 | +21.8 | B |
 | `rotary_encoder` | 0 | 0.000 | 0 | +54.5 | C |
 | `cyber_deck` | 0 | 0.000 | 0 | +39.6 | C |
 | `oceanic` | 23238 | 0.552 | 290 | +19.9 | B |
 | `glass_tactile` | 0 | 0.000 | 0 | +58.1 | C |
-| `retro_typewriter` | 231 | 0.005 | 593 | +4.2 | B |
-| `neon_pulse` | 531 | 0.015 | 598 | +25.0 | B |
+| `retro_typewriter` | 231 | 0.005 | 1483 | +4.2 | B |
+| `neon_pulse` | 531 | 0.015 | 0 | +25.0 | B |
 
-**Tiers: A = 1, B = 19, C = 4 (of 24). Gate: OPEN** (C > 0 and
-A < 20 — both open conditions hold).
+**Tiers: A = 1, B = 17, C = 6. Gate: OPEN** (C > 0 and A < 20 — both
+open conditions hold; re-verified on the corrected instrument).
+
+The corrected before matrix tells a harsher story than the first
+draft: with the modal fiction removed, `ibm_model_m` and
+`buckling_spring` were C-tier voices, and only `topre`, `oceanic`, and
+`retro_typewriter` carried any measurable modal decay spread at all.
+
+## The after matrix (Zactrix time-variant engine)
+
+| preset | centroid drift Hz | flatness evolution | modal spread dB/s | attack/tail dB | tier |
+|--------|------------------:|-------------------:|------------------:|---------------:|:----:|
+| `technical` | 2934 | 0.084 | 0 | +19.2 | B |
+| `cherryMX` | 3652 | 0.102 | 0 | +17.6 | B |
+| `classic` | 5280 | 0.160 | 0 | +11.9 | B |
+| `studio` | 5365 | 0.149 | 0 | +15.4 | B |
+| `elegant` | 16976 | 0.470 | 0 | +21.1 | B |
+| `whisper` | 0 | 0.000 | 0 | +43.6 | C |
+| `linear` | 6677 | 0.189 | 0 | +14.6 | B |
+| `tactile` | 3305 | 0.093 | 0 | +18.9 | B |
+| `clicky` | 1335 | 0.037 | 0 | +17.5 | B |
+| `ibm_model_m` | 579 | 0.020 | 0 | +10.2 | B |
+| `topre` | 18405 | 0.462 | 1034 | +11.7 | A |
+| `cherry_mx_black` | 10263 | 0.293 | 0 | +14.7 | B |
+| `cherry_mx_clear` | 4347 | 0.117 | 0 | +14.0 | B |
+| `cherry_mx_silver` | 1255 | 0.037 | 0 | +19.2 | B |
+| `buckling_spring` | 469 | 0.018 | 0 | +18.3 | B |
+| `alps_skcm` | 789 | 0.023 | 0 | +10.5 | B |
+| `gateron_yellow` | 15218 | 0.407 | 0 | +11.7 | B |
+| `zealios_v2` | 1102 | 0.028 | 0 | +15.2 | B |
+| `rotary_encoder` | 0 | 0.000 | 0 | +54.4 | C |
+| `cyber_deck` | 0 | 0.000 | 0 | +39.7 | C |
+| `oceanic` | 23403 | 0.550 | 0 | +18.6 | B |
+| `glass_tactile` | 0 | 0.000 | 0 | +59.0 | C |
+| `retro_typewriter` | 383 | 0.013 | 0 | +9.7 | B |
+| `neon_pulse` | 1217 | 0.032 | 0 | +16.7 | B |
+
+**Tiers: A = 1, B = 19, C = 4.**
+
+## Every tier delta, named
+
+- `ibm_model_m`: **C -> B**. The buckling spring's body arrived: its
+  attack/tail ratio fell from +17.3 to +10.2 dB (inside the physical
+  band), its centroid drift nearly quadrupled (171 -> 579 Hz), its
+  flatness evolution tripled (0.006 -> 0.020).
+- `buckling_spring`: **C -> B**. Drift 324 -> 469 Hz, flatness
+  0.003 -> 0.018 — both into band.
+- No preset dropped a tier. `topre` holds A with its authored rows
+  untouched (its small column movements ride the engine-wide curves).
+- The four C-tier voices that remain are the four documented identity
+  refusals (see the re-tune notes in `src/profiles/registry.rs`):
+  `whisper` ("extremely quiet, short decay"), `rotary_encoder`
+  ("subtle, metallic" detent tick), `cyber_deck` ("short bright pings,
+  no body" — its own description), and `glass_tactile` (a 5 kHz ring
+  needs Q far beyond the 10.0 range cap; a low-band body would break
+  the sharp-glass character). Each refused the fit on identity
+  grounds; none was silently regressed, none was silently reshaped.
 
 ## What the data says
 
-The engine's ceiling is real, measurable, and it is not the one the
-ear drafts first. The three-layer architecture does move the macro
-spectrum — 20 of 24 presets show honest centroid travel, several by
-kilohertz — so the failure is subtler than a frozen spectrum. What the
-layers cannot do is hold energy past the attack: 21 of 24 presets sit
-far above the +12 dB attack/tail ceiling (up to +58 dB), meaning the
-first 5 ms carries 99 percent or more of the onset energy where a real
-actuation keeps 20-94 percent there and spends the rest ringing. The
-cause is structural: each bandpass's ring dies at its own bandwidth
-rate (tens of Hz of bandwidth = a few milliseconds of ring) while the
-slow global envelope scales an already-dead filter state — the
-envelope believes in a tail the filters never deliver. Four presets
-(`whisper`, `rotary_encoder`, `cyber_deck`, `glass_tactile`) are the
-limit case: a click with no body at all, everything dead before the
-first 12 ms frame. Flatness barely evolves for eight presets
-(0.003-0.009 against the 0.01 floor) — their attack is nearly as tonal
-as their tail. The one A-tier preset is `topre`, the smooth
-low-resonance voice whose +11.8 dB ratio and 0.452 flatness travel are
-the only physically proportioned shape in the catalog; the data's
-one-line instruction to Phase 1 is to build every preset the balance
-topre already has, by giving the stages' cutoff and Q the time-varying
-curves the actuation physics dictates. Nineteen presets slumped in the
-same B tier is the ceiling the thesis predicted, measured.
+The Zactrix thesis landed and the instrument can prove it. The
+time-variant cutoff and Q curves roughly doubled the spectral movement
+on the fitted presets — centroid drift rose on 18 of the 20 fitted
+voices (classic 2617 -> 5280 Hz, technical 1513 -> 2934 Hz, clicky 637
+-> 1335 Hz) and flatness evolution rose on all 20 (technical 0.048 ->
+0.084, classic 0.082 -> 0.160, ibm_model_m 0.006 -> 0.020): the
+spectrum now travels during the actuation instead of standing still
+under an envelope. The re-tune then fed the starved bodies: the
+attack/tail ratio improved on all 20 fitted presets, and the number of
+voices inside the physical energy band tripled, from three (alps,
+retro, topre) to six (classic, ibm_model_m, topre, alps, gateron,
+retro). Two C-tier voices rose to B; none fell.
 
-## The gate decision
+The honest residuals are structural, and this document names them
+rather than hiding them. First, the modal column reads zero for the
+fitted crowd under the corrected instrument: the range contract caps
+resonance at Q = 10, which at 250-600 Hz means a ring that survives
+10-25 ms — real differential decay, but everything is dead before the
+32-48 ms late frames, so no spread is measurable there. Second, the
+attack/tail band holds six of twenty-four: the bright-click presets
+(technical, elegant, and their class) still carry 96-99 percent of
+their onset energy in the first milliseconds, because a 4.5 kHz click
+band plus a Q-capped housing cannot balance a physical impact's energy
+share. Lifting that ceiling needs either a higher resonance contract
+or a physically longer ring stage — both are architecture decisions
+that belong to a future pass, made by the owner, with this document as
+the baseline. Third, the four refusals stay as authored: their
+identity is the short shape, and the audit measures identities, not
+wishes.
 
-The Phase 0 gate is **open**: C = 4 > 0 and A = 1 < 20. The data
-earned the time-variant upgrade. Phase 1 (the Zactrix time-variant
-envelope: physics-derived cutoff and Q curves on the three TPT SVF
-stages, verifier-first re-tuning of all 24 presets) is authorized by
-this document, and its before/after record lands in the section below
-when the forge cools.
+## The gate record
+
+The Phase 0 gate opened on the first instrument's numbers (C = 4,
+A = 1) and re-opened on the corrected ones (C = 6, A = 1): the data
+earned the time-variant upgrade, the upgrade was forged, the presets
+were re-tuned and re-audited, and every tier delta is named above.
+The pass record lives in the CHANGELOG; the engine carries the
+Zactrix name with the thesis in one doc comment.

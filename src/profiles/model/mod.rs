@@ -24,9 +24,8 @@ pub struct SynthState {
     pub click_ic1eq: f32,
     /// Second integrator state for the click filter.
     pub click_ic2eq: f32,
-    /// Pre-computed `tan(pi * fc / fs)` for the click filter.
-    pub click_g: f32,
-    /// Pre-computed `1 / Q` for the click filter.
+    /// Pre-computed `1 / Q` for the click filter — the t-infinity
+    /// anchor of the Zactrix click resonance curve.
     pub click_k: f32,
 
     // --- TPT SVF filter state (spring path) ---
@@ -34,10 +33,73 @@ pub struct SynthState {
     pub spring_ic1eq: f32,
     /// Second integrator state for the spring filter.
     pub spring_ic2eq: f32,
-    /// Pre-computed `tan(pi * fc / fs)` for the spring filter.
-    pub spring_g: f32,
-    /// Pre-computed `1 / Q` for the spring filter.
+    /// Pre-computed `1 / Q` for the spring filter — the t-infinity
+    /// anchor of the Zactrix spring resonance curve.
     pub spring_k: f32,
+
+    // --- Zactrix time-variant spectral envelope (night-private-
+    //     research-2xblade) ---
+    // The Zactrix thesis: the spectrum evolves in time, driven by
+    // physics, verifier-first. A real actuation is broadband at first
+    // contact, collapses into the resonance bands within ~3 ms, and
+    // wakes the spring over ~5 ms — the frozen-coefficient engine
+    // played one spectrum stretched by an envelope, which pinned every
+    // preset into the same acoustic tier (docs/ZACTRIX_AUDIT.md). One
+    // law drives every time-varying coefficient here:
+    //
+    //     value(t) = v_end + v_delta * e(n),    e(n) = e(n-1) * step
+    //
+    // with e(0) = 1 and step = exp(-1 / (sr * tau)) pre-computed at
+    // init. The curves are authored in seconds and Hz and sampled at
+    // the device rate, so they are sample-rate invariant by
+    // construction — the c^(R/S) correction class applies only to
+    // per-sample RETENTION coefficients, which these curves are not;
+    // the existing envelope decay keeps its own law unchanged. The
+    // micro-randomization drift rides the anchors exactly as before:
+    // the physics is deterministic, the seed jitter moves the whole
+    // curve.
+    //
+    // Stage A (click): cutoff starts broadband (2.5x the click band,
+    // clamped below 0.45 Nyquist) and collapses into the click band
+    // over ~3 ms; Q starts at a quarter of the preset resonance
+    // (broadband passage) and settles to it. Stage B (spring): the
+    // cutoff travels from the click band to the spring band over ~5 ms
+    // (down in Hz for every shipped preset, up whenever a preset's
+    // spring sits above its click — the shape is the travel, the
+    // direction is the preset's numbers) while Q wakes from a quarter
+    // of the preset resonance to it. Stage C (housing): the curve is
+    // the constant itself — cutoff stays low, Q stays high, and the
+    // long ring stays the existing envelope's job.
+    /// Click curve exponential state (starts at 1.0, decays by
+    /// `click_step`; the whole click stage reads `e` each sample).
+    pub click_e: f32,
+    /// Per-sample decay factor of the click curve,
+    /// `exp(-1 / (sr * 1.0 ms))` — the ~3 ms impact collapse.
+    pub click_step: f32,
+    /// Click cutoff anchor at t-infinity: the drifted click frequency.
+    pub click_fc_end: f32,
+    /// Click cutoff curve amplitude: broadband start minus the click
+    /// band, Hz.
+    pub click_fc_delta: f32,
+    /// Click resonance curve amplitude: starting k (a quarter of the
+    /// preset Q) minus the anchor k.
+    pub click_k_delta: f32,
+    /// Spring curve exponential state (starts at 1.0, decays by
+    /// `spring_step`).
+    pub spring_e: f32,
+    /// Per-sample decay factor of the spring curve,
+    /// `exp(-1 / (sr * 5/3 ms))` — the ~5 ms spring wake.
+    pub spring_step: f32,
+    /// Spring cutoff anchor at t-infinity: the drifted spring
+    /// frequency.
+    pub spring_fc_end: f32,
+    /// Spring cutoff curve amplitude: the click band minus the spring
+    /// band, Hz (negative for every shipped preset — the cutoff
+    /// travels DOWN into the spring band).
+    pub spring_fc_delta: f32,
+    /// Spring resonance curve amplitude: starting k (a quarter of the
+    /// preset Q) minus the anchor k.
+    pub spring_k_delta: f32,
 
     // --- TPT SVF filter state (housing path, v4.2.0+) ---
     /// First integrator state for the housing filter.
@@ -195,12 +257,20 @@ impl Default for SynthState {
         Self {
             click_ic1eq: 0.0,
             click_ic2eq: 0.0,
-            click_g: 0.0,
             click_k: 0.0,
             spring_ic1eq: 0.0,
             spring_ic2eq: 0.0,
-            spring_g: 0.0,
             spring_k: 0.0,
+            click_e: 1.0,
+            click_step: 1.0,
+            click_fc_end: 0.0,
+            click_fc_delta: 0.0,
+            click_k_delta: 0.0,
+            spring_e: 1.0,
+            spring_step: 1.0,
+            spring_fc_end: 0.0,
+            spring_fc_delta: 0.0,
+            spring_k_delta: 0.0,
             housing_ic1eq: 0.0,
             housing_ic2eq: 0.0,
             housing_g: 0.0,

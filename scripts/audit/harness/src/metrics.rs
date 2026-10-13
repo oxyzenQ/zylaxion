@@ -343,6 +343,17 @@ pub fn measure(mono: &[f32], rate: u32) -> Metrics {
 
 /// Track the strongest modes from the reference frames to the late
 /// frames and report the spread of their decay rates in dB/s.
+///
+/// LEVEL HONESTY (measurement correction, applied before any Phase 1
+/// conclusion was drawn): the first instrument draft compared the two
+/// frames' peak-normalized spectra directly — a shape comparison, blind
+/// to absolute level. A late frame sitting 74 dB below the attack
+/// normalized its own dust to full scale and its bins read as
+/// "surviving modes". Both frames are now scaled by their absolute
+/// windowed energies before the rate is taken, so a rate is a DECAY
+/// rate; the dead-mode cap carries a mode that reaches the -60 dB
+/// measurement floor. Both matrices in docs/ZACTRIX_AUDIT.md were
+/// (re-)measured with this corrected instrument.
 fn modal_spread(refs: &[Frame], lates: &[Frame], live_threshold: f64) -> f64 {
     // Reference spectrum: mean of the LIVE reference frames. If no
     // reference frame is live, nothing rings measurably at 8-26 ms
@@ -352,27 +363,35 @@ fn modal_spread(refs: &[Frame], lates: &[Frame], live_threshold: f64) -> f64 {
         return 0.0;
     }
     let mut ref_power = vec![0.0_f64; FFT_N];
+    let mut ref_energy = 0.0_f64;
     for f in &live_refs {
         for (r, &v) in ref_power.iter_mut().zip(&f.power) {
             *r += v;
         }
+        ref_energy += f.energy;
     }
+    let n_live = live_refs.len() as f64;
     for p in &mut ref_power {
-        *p /= live_refs.len() as f64;
+        *p /= n_live;
     }
+    ref_energy /= n_live;
 
     // Late spectrum: mean over ALL late frames (dead ones contribute
     // zero — a mode vanishing into the floor is real decay, and the
     // dead-mode cap below carries it honestly).
     let mut late_power = vec![0.0_f64; FFT_N];
+    let mut late_energy = 0.0_f64;
     for f in lates {
         for (r, &v) in late_power.iter_mut().zip(&f.power) {
             *r += v;
         }
+        late_energy += f.energy;
     }
+    let n_late = lates.len() as f64;
     for p in &mut late_power {
-        *p /= lates.len() as f64;
+        *p /= n_late;
     }
+    late_energy /= n_late;
 
     // Peak picking on the reference spectrum: strict local maxima
     // above -60 dB of the frame peak, merged within +/- 2 bins, top 3.
@@ -402,18 +421,20 @@ fn modal_spread(refs: &[Frame], lates: &[Frame], live_threshold: f64) -> f64 {
         return 0.0;
     }
 
-    // Per-mode decay rate across the 28 ms center separation.
+    // Per-mode ABSOLUTE decay rate across the 28 ms center separation:
+    // shape x frame energy on both sides, so the rate is a level-honest
+    // decay rate, not a shape-drift rate.
     let dt_s = 0.028;
     let mut rates: Vec<f64> = Vec::with_capacity(peaks.len());
     for &k in &peaks {
-        let p_ref: f64 = ref_power[k - 2..=k + 2].iter().sum();
-        let p_late: f64 = late_power[k - 2..=k + 2].iter().sum();
-        let rate = if p_late <= MODE_DEAD_REL {
-            MODE_DEAD_RATE_CAP
-        } else if p_ref > 0.0 {
-            10.0 * (p_ref / p_late).log10() / dt_s
-        } else {
+        let p_ref: f64 = ref_power[k - 2..=k + 2].iter().sum::<f64>() * ref_energy;
+        let p_late: f64 = late_power[k - 2..=k + 2].iter().sum::<f64>() * late_energy;
+        let rate = if p_ref <= 0.0 {
             0.0
+        } else if p_late <= MODE_DEAD_REL * p_ref {
+            MODE_DEAD_RATE_CAP
+        } else {
+            10.0 * (p_ref / p_late).log10() / dt_s
         };
         rates.push(rate);
     }

@@ -221,7 +221,12 @@ fn showcase_preset_values_match_the_retired_config() {
     assert!(m.profile.ambient.enabled);
     assert_eq!(m.profile.ambient.noise_level, 0.20);
     assert_eq!(m.profile.housing.frequency, 400.0);
-    assert_eq!(m.profile.housing.mix, 0.4);
+    // night-private-research-2xblade: the Zactrix re-tune raised the
+    // housing resonance (3.0 -> 9.0) and rescaled the mix so the
+    // housing level holds (mix x Q preserved: 0.4 x 3.0 = 1.2,
+    // 0.135 x 9.0 = 1.215). The retired-config transcription pin
+    // follows the re-tuned row; the audit doc records the delta.
+    assert_eq!(m.profile.housing.mix, 0.135);
 
     let t = lookup("topre").unwrap();
     assert_eq!(t.profile.click.frequency, 650.0);
