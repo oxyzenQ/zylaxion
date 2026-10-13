@@ -105,6 +105,15 @@ else
         note "kernel surfaces" FAIL
 fi
 
+# The unprivileged-bpf posture, named for the archive (informational —
+# a kernel policy is not a defect): Ubuntu builds the gate in
+# (CONFIG_BPF_UNPRIV_DEFAULT_OFF=y on both reference kernels), so the
+# guest boots with kernel.unprivileged_bpf_disabled=2 — unprivileged
+# bpf() is refused for the whole boot and root cannot re-enable it.
+# The engine's real-user lane reads the same fact and tests what the
+# kernel honestly allows (night-badas-4 round 5).
+echo "MASS: unprivileged bpf posture: kernel.unprivileged_bpf_disabled=$(cat /proc/sys/kernel/unprivileged_bpf_disabled 2>/dev/null || echo absent)"
+
 # ── the staged module chain (the guest's sound and keyboard) ──────────
 # The workflow extracts the .ko files from the SAME kernel's module
 # debs (same-suite vermagic by construction) into $Z/modules/. The
@@ -113,15 +122,22 @@ fi
 # round 2, verified against jammy 5.15.0-198 and noble 7.0.0-38): both
 # kernels build uinput INTO vmlinuz (modules.builtin carries
 # kernel/drivers/input/misc/uinput.ko in both; no .ko ships in any
-# deb), so a missing uinput.ko is the expected shape — the honest
-# probe is /sys/module/uinput, which a built-in module populates from
-# boot just like an insmod'ed one. The workflow stages a uinput.ko
-# when the archive ships one (a future series may un-inline it).
+# deb), so a missing uinput.ko is the expected shape. Round 5 (same
+# two kernels, run 38375322712): a built-in module WITHOUT module
+# parameters does not populate /sys/module at all — the driver is
+# demonstrably alive (/dev/uinput exists via devtmpfs) while
+# /sys/module/uinput is absent. The honest evidence is therefore the
+# driver's device surfaces: /dev/uinput or /sys/class/misc/uinput,
+# with /sys/module/uinput kept for kernels that do populate it. The
+# workflow stages a uinput.ko when the archive ships one (a future
+# series may un-inline it).
 MODDIR="$Z/modules"
 for mod in soundcore snd snd-timer snd-pcm snd-dummy uinput; do
         KO=$(find "$MODDIR" -name "${mod}.ko*" 2>/dev/null | head -1)
         if [ -z "$KO" ]; then
-                if [ "$mod" = "uinput" ] && [ -e /sys/module/uinput ]; then
+                if [ "$mod" = "uinput" ] &&
+                        { [ -e /sys/module/uinput ] || [ -e /dev/uinput ] ||
+                                [ -e /sys/class/misc/uinput ]; }; then
                         note "module uinput built into the kernel (no .ko staged)" PASS
                         continue
                 fi

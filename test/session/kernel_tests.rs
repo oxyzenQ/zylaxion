@@ -59,6 +59,7 @@ fn verdict_strings_are_canonical() {
         ),
         lockdown_readable: false,
         lockdown_blocks_bpf: false,
+        unpriv_bpf_disabled: 0,
     };
     assert_eq!(report.verdict(), "verified supported");
     report.parsed = Some((5, 14));
@@ -245,4 +246,90 @@ fn blacklist_parser_reads_the_documented_line_shape() {
         parse_blacklist(content, "drivers/input/input"),
         BlacklistStatus::NotListed
     );
+}
+
+// ── The unprivileged-bpf posture (night-badas-4 round 5) ────────────────
+
+#[test]
+fn unpriv_bpf_parser_reads_the_sysctl_shapes() {
+    // The sysctl renders one integer and a newline.
+    assert_eq!(parse_unpriv_bpf_disabled("0\n"), 0);
+    assert_eq!(parse_unpriv_bpf_disabled("1\n"), 1);
+    assert_eq!(parse_unpriv_bpf_disabled("2\n"), 2);
+    // No trailing newline and surrounding space both parse.
+    assert_eq!(parse_unpriv_bpf_disabled("2"), 2);
+    assert_eq!(parse_unpriv_bpf_disabled("  0  "), 0);
+    // Empty or malformed content reads as allowed — a probe must
+    // never invent a lock it cannot witness.
+    assert_eq!(parse_unpriv_bpf_disabled(""), 0);
+    assert_eq!(parse_unpriv_bpf_disabled("\n"), 0);
+    assert_eq!(parse_unpriv_bpf_disabled("garbage"), 0);
+}
+
+#[test]
+fn unpriv_bpf_allowed_law() {
+    let report = |raw: u8| KernelReport {
+        release: String::new(),
+        parsed: Some((6, 8)),
+        btf: false,
+        bpffs: true,
+        input_tap: String::new(),
+        lockdown_readable: false,
+        lockdown_blocks_bpf: false,
+        unpriv_bpf_disabled: raw,
+    };
+    assert!(report(0).unpriv_bpf_allowed());
+    assert!(!report(1).unpriv_bpf_allowed());
+    assert!(!report(2).unpriv_bpf_allowed());
+}
+
+#[test]
+fn unpriv_map_write_refusal_law() {
+    let report = |raw: u8| KernelReport {
+        release: String::new(),
+        parsed: Some((6, 8)),
+        btf: false,
+        bpffs: true,
+        input_tap: String::new(),
+        lockdown_readable: false,
+        lockdown_blocks_bpf: false,
+        unpriv_bpf_disabled: raw,
+    };
+    // Allowed posture: no refusal, whatever the euid.
+    assert!(report(0).unpriv_map_write_refusal(false).is_none());
+    assert!(report(0).unpriv_map_write_refusal(true).is_none());
+    // Root is never gated — the kernel's gate keys on capability,
+    // not on the sysctl (the rescue path stays reachable).
+    assert!(report(2).unpriv_map_write_refusal(true).is_none());
+    // A gated plain user gets the classified refusal, carrying the
+    // value and the substring the E2E engine pins (sm_audio.py).
+    let locked = report(2).unpriv_map_write_refusal(false).unwrap();
+    assert!(locked.contains("unprivileged bpf"), "{locked}");
+    assert!(locked.contains("(2)"), "{locked}");
+    assert!(locked.contains("doctor"), "{locked}");
+    let disabled = report(1).unpriv_map_write_refusal(false).unwrap();
+    assert!(disabled.contains("unprivileged bpf"), "{disabled}");
+    assert!(disabled.contains("(1)"), "{disabled}");
+    // The recoverable arm names the remedy; the locked arm says the
+    // truth: this boot cannot re-enable it.
+    assert!(disabled.contains("re-enable"), "{disabled}");
+    assert!(locked.contains("cannot be re-enabled"), "{locked}");
+}
+
+#[test]
+fn unpriv_bpf_verdict_law() {
+    let report = |raw: u8| KernelReport {
+        release: String::new(),
+        parsed: Some((6, 8)),
+        btf: false,
+        bpffs: true,
+        input_tap: String::new(),
+        lockdown_readable: false,
+        lockdown_blocks_bpf: false,
+        unpriv_bpf_disabled: raw,
+    };
+    assert!(report(0).unpriv_bpf_verdict().contains("allowed"));
+    assert!(report(1).unpriv_bpf_verdict().contains("disabled (1)"));
+    assert!(report(2).unpriv_bpf_verdict().contains("locked (2)"));
+    assert!(report(9).unpriv_bpf_verdict().contains("disabled (9)"));
 }

@@ -20,6 +20,30 @@ and the pre-v10 release notes live next to it in
 
 ### Fixed
 
+- **night-badas-4 (round 5)** — the first full E2E probe run inside
+  the micro-VMs exposed four truths, three environmental and one
+  structural. The rootfs was assembled by a non-root tar extraction,
+  which defaults to `--no-same-owner`: the whole guest tree landed
+  owned by the runner's uid and the guest's sudo refused to run
+  (`/etc/sudo.conf is owned by uid 1001`) — the real-user lane died at
+  the sudo door before zylaxion was reached; the assembly now chowns
+  the tree to root. The uinput built-in probe checked
+  `/sys/module/uinput`, which a built-in module without parameters
+  never populates (both reference kernels, verified empirically while
+  `/dev/uinput` existed) — the probe now accepts the driver's device
+  surfaces. The re-attach probe still expected the pre-night-improve-26
+  refusal shape; it now pins the shipped idempotent-success contract.
+  And the structural one: both reference kernels build
+  `CONFIG_BPF_UNPRIV_DEFAULT_OFF=y` in, so the guest boots with
+  `kernel.unprivileged_bpf_disabled=2` — locked for the whole boot,
+  root cannot re-enable it, and every plain-user map op is refused.
+  The product now probes that posture, the control-plane verbs refuse
+  classified (naming the sysctl) instead of an EPERM masquerading as
+  "not attached", the doctor carries the posture line, and the E2E's
+  real-user lane tests what the kernel honestly allows: the full
+  zero-to-hero chain where unprivileged bpf is permitted, the
+  classified refusal where it is not.
+
 - **night-badas-4 (round 3)** — the E2E rootfs lane hit the next
   era-drift: ubuntu:24.04 (noble) renamed the ALSA runtime package in
   the time_t transition, so `libasound2` has "no installation

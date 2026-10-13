@@ -349,7 +349,28 @@ def _real_usage(ledger: Ledger, binary: str, user: str) -> None:
             ledger.fail_row("attach hands the tap to the real user", f"rc={rc}: {out[:140]}")
             return
 
+        posture = _unpriv_bpf_disabled()
         rc, out = _run_as_user(user, binary, ["on"])
+        if posture != 0:
+            # The kernel refuses every unprivileged bpf() — no map
+            # write can succeed as this user, so the honest
+            # expectation is the classified refusal itself
+            # (night-badas-4 round 5): the product names the gate,
+            # the rc stays 1, and the chain below it cannot run.
+            if rc == 1 and "unprivileged bpf" in out:
+                ledger.pass_row(
+                    "on as the real user refuses at the kernel's "
+                    "unprivileged-bpf gate",
+                    f"posture {posture}: {out.splitlines()[0][:54]}",
+                )
+            else:
+                ledger.fail_row(
+                    "on as the real user refuses at the kernel's "
+                    "unprivileged-bpf gate",
+                    f"posture {posture}, rc={rc}: {out[:140]}",
+                )
+            _run([binary, "detach"])
+            return
         if rc == 0 and "sound on:" in out:
             ledger.pass_row(
                 f"{user} turns the sound on (no input group, no sudo)",
@@ -512,6 +533,24 @@ def _real_usage(ledger: Ledger, binary: str, user: str) -> None:
                 "on after detach refuses honestly (back to the tap-less door)",
                 f"rc={rc}: {out[:120]}",
             )
+
+
+def _unpriv_bpf_disabled() -> int:
+    """The kernel's unprivileged-bpf posture (night-badas-4 round 5).
+
+    Ubuntu builds the gate in (CONFIG_BPF_UNPRIV_DEFAULT_OFF=y on both
+    reference kernels, verified against the shipped configs): the guest
+    boots at 2, every unprivileged bpf() is refused for the whole boot,
+    and root cannot re-enable it. The real-user chain is a series of
+    control-map writes, so this lane tests what the kernel honestly
+    allows — the full zero-to-hero chain when the sysctl sits at 0,
+    the honest refusal when it does not.
+    """
+    try:
+        with open("/proc/sys/kernel/unprivileged_bpf_disabled") as fh:
+            return int(fh.read().strip() or "0")
+    except (OSError, ValueError):
+        return 0
 
 
 def _readable_by(user: str, path: str) -> bool:

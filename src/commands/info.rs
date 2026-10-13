@@ -169,6 +169,26 @@ pub fn cmd_doctor() {
             );
             ok = false;
         }
+        // The unprivileged-bpf posture (night-badas-4 round 5): the
+        // control-plane verbs run as a plain user only when the kernel
+        // allows unprivileged bpf(). A distro that builds the gate in
+        // (Ubuntu does, CONFIG_BPF_UNPRIV_DEFAULT_OFF=y) locks the
+        // verbs out for the whole boot — the doctor's duty is to name
+        // it, the same way lockdown is named.
+        if kernel.unpriv_bpf_allowed() {
+            println!(
+                "      {}",
+                crate::output::ok_line(
+                    "PASS: unprivileged bpf: allowed — the verbs run as a plain user"
+                )
+            );
+        } else {
+            println!(
+                "      {}",
+                crate::output::fail_line(&format!("FAIL: {}", kernel.unpriv_bpf_verdict()))
+            );
+            ok = false;
+        }
     }
 
     // 3. XDG_RUNTIME_DIR check.
