@@ -68,7 +68,7 @@ the instrument itself went through:
   same instrument. The Phase 0 gate was re-verified on the corrected
   numbers and still opened.
 - Frames sit where the phenomenon lives: the modal tracking pairs
-  8/16 ms references against 32/48 ms lates because a 30-80 ms
+  8/16 ms references against 32/48 ms late frames because a 30-80 ms
   placement would measure the noise floor of an already-dead tail for
   most presets. All placements are fixed across presets and across
   both matrices — no per-preset adaptation.

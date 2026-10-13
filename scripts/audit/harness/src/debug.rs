@@ -36,7 +36,7 @@ pub fn debug_modal(mono: &[f32], rate: u32, click_fc: f32, spring_fc: f32) -> St
             analyze_frame(&fft, MODAL_FRAME, &mono[s..s + MODAL_FRAME])
         })
         .collect();
-    let lates: Vec<Frame> = LATE_FRAME_STARTS_MS
+    let late_frames: Vec<Frame> = LATE_FRAME_STARTS_MS
         .iter()
         .map(|&start_ms| {
             let s = ms(start_ms);
@@ -48,7 +48,7 @@ pub fn debug_modal(mono: &[f32], rate: u32, click_fc: f32, spring_fc: f32) -> St
         .energy
         .max(tail.iter().map(|(_, f)| f.energy).fold(0.0, f64::max))
         .max(refs.iter().map(|f| f.energy).fold(0.0, f64::max))
-        .max(lates.iter().map(|f| f.energy).fold(0.0, f64::max));
+        .max(late_frames.iter().map(|f| f.energy).fold(0.0, f64::max));
     let live_threshold = loudest * LIVE_FLOOR;
 
     let mut out = String::new();
@@ -97,13 +97,13 @@ pub fn debug_modal(mono: &[f32], rate: u32, click_fc: f32, spring_fc: f32) -> St
     ref_energy /= n_live;
     let mut late_power = vec![0.0_f64; FFT_N];
     let mut late_energy = 0.0_f64;
-    for f in &lates {
+    for f in &late_frames {
         for (r, &v) in late_power.iter_mut().zip(&f.power) {
             *r += v;
         }
         late_energy += f.energy;
     }
-    let n_late = lates.len() as f64;
+    let n_late = late_frames.len() as f64;
     for p in &mut late_power {
         *p /= n_late;
     }
@@ -150,7 +150,7 @@ pub fn debug_modal(mono: &[f32], rate: u32, click_fc: f32, spring_fc: f32) -> St
             if i < 3 { "  [tracked]" } else { "" }
         ));
     }
-    let spread = modal_spread(&refs, &lates, live_threshold);
+    let spread = modal_spread(&refs, &late_frames, live_threshold);
     out.push_str(&format!("modal spread: {spread:.1} dB/s (band >= 6.0)\n"));
     // Raw reference-spectrum shape, bins 2..24 (power dB vs frame peak):
     // where the peaks, the skirts, and the pickup floor actually sit.

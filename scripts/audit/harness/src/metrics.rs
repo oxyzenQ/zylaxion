@@ -280,7 +280,7 @@ pub fn measure(mono: &[f32], rate: u32) -> Metrics {
             analyze_frame(&fft, MODAL_FRAME, &mono[s..s + MODAL_FRAME])
         })
         .collect();
-    let lates: Vec<Frame> = LATE_FRAME_STARTS_MS
+    let late_frames: Vec<Frame> = LATE_FRAME_STARTS_MS
         .iter()
         .map(|&start_ms| {
             let s = ms(start_ms);
@@ -293,7 +293,7 @@ pub fn measure(mono: &[f32], rate: u32) -> Metrics {
         .energy
         .max(tail.iter().map(|(_, f)| f.energy).fold(0.0, f64::max))
         .max(refs.iter().map(|f| f.energy).fold(0.0, f64::max))
-        .max(lates.iter().map(|f| f.energy).fold(0.0, f64::max));
+        .max(late_frames.iter().map(|f| f.energy).fold(0.0, f64::max));
     let live_threshold = loudest * LIVE_FLOOR;
 
     // ── Metrics 1 + 2: attack vs live-tail centroid and flatness ─────
@@ -331,7 +331,7 @@ pub fn measure(mono: &[f32], rate: u32) -> Metrics {
     };
 
     // ── Metric 3: modal decay spread ─────────────────────────────────
-    let modal_spread_db_s = modal_spread(&refs, &lates, live_threshold);
+    let modal_spread_db_s = modal_spread(&refs, &late_frames, live_threshold);
 
     Metrics {
         centroid_drift_hz,
@@ -354,7 +354,7 @@ pub fn measure(mono: &[f32], rate: u32) -> Metrics {
 /// rate; the dead-mode cap carries a mode that reaches the -60 dB
 /// measurement floor. Both matrices in docs/ZACTRIX_AUDIT.md were
 /// (re-)measured with this corrected instrument.
-fn modal_spread(refs: &[Frame], lates: &[Frame], live_threshold: f64) -> f64 {
+fn modal_spread(refs: &[Frame], late_frames: &[Frame], live_threshold: f64) -> f64 {
     // Reference spectrum: mean of the LIVE reference frames. If no
     // reference frame is live, nothing rings measurably at 8-26 ms
     // and no spread is measurable.
@@ -381,13 +381,13 @@ fn modal_spread(refs: &[Frame], lates: &[Frame], live_threshold: f64) -> f64 {
     // dead-mode cap below carries it honestly).
     let mut late_power = vec![0.0_f64; FFT_N];
     let mut late_energy = 0.0_f64;
-    for f in lates {
+    for f in late_frames {
         for (r, &v) in late_power.iter_mut().zip(&f.power) {
             *r += v;
         }
         late_energy += f.energy;
     }
-    let n_late = lates.len() as f64;
+    let n_late = late_frames.len() as f64;
     for p in &mut late_power {
         *p /= n_late;
     }
