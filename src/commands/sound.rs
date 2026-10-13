@@ -466,10 +466,7 @@ pub fn cmd_status(verbose: bool) {
     // The kernel-policy note (night-badas-4 round 5): a locked
     // unprivileged-bpf kernel refuses the map reads too — name why.
     if !crate::session::privilege::euid_is_root() && !kernel.unpriv_bpf_allowed() {
-        println!(
-            "      {}",
-            crate::output::warning(&kernel.unpriv_bpf_verdict())
-        );
+        crate::output::warning(&kernel.unpriv_bpf_verdict());
     }
     // Open the control map once: the tap line below reads the chain
     // step from it, the posture block reads the rest.
