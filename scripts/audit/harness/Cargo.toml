@@ -1,0 +1,26 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+[package]
+name = "zactrix-audit"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# The headless acoustic audit harness (night-private-research-2xblade,
+# Phase 0). A standalone crate so the main zylaxion package carries no
+# new dependency and no new build target: the harness compiles the
+# engine and profiles module trees in place via #[path] includes and
+# adds nothing but `log`, which those trees already require.
+#
+# It renders every shipped preset through the REAL VoicePool render
+# path at 96 kHz and reports four physical movement metrics per preset
+# (spectral centroid drift, flatness evolution, modal decay spread,
+# attack-tail energy ratio), plus the A/B/C tier classification and
+# the Phase 0 gate verdict. No audio device, no network, no daemon.
+
+[dependencies]
+log = { version = "0.4", default-features = false }
+
+[profile.release]
+opt-level = 3
