@@ -423,9 +423,18 @@ jobs:
           fi
           echo "resolved: $IMG"
           KVER="${IMG#linux-image-unsigned-}"
-          for pkg in "linux-image-unsigned-$KVER" "linux-modules-$KVER" "linux-modules-extra-$KVER"; do
-            apt-get -o Acquire::Retries=5 download "$pkg"
-          done
+          apt-get -o Acquire::Retries=5 download "linux-image-unsigned-$KVER"
+          apt-get -o Acquire::Retries=5 download "linux-modules-$KVER"
+          # night-badas-4 round 2 (empirical, verified against the
+          # archive): the modules-extra split is not universal — jammy's
+          # 5.15 ships a 64 MB extra deb while noble's 7.0 carries the
+          # whole 166 MB module set in linux-modules alone and the
+          # archive refuses the extra name ("Unable to locate package",
+          # exit 100). Best-effort by design: ride linux-modules when
+          # the extra deb does not exist for the resolved kernel.
+          if ! apt-get -o Acquire::Retries=5 download "linux-modules-extra-$KVER"; then
+            echo "note: no linux-modules-extra for $KVER — the modules deb carries the full set"
+          fi
           for deb in linux-image-unsigned-*_amd64.deb linux-modules-*_amd64.deb; do
             dpkg-deb -x "$deb" pkg
           done
@@ -434,14 +443,30 @@ jobs:
           cp "$VMLINUZ" /tmp/kfloor/vmlinuz
           # Stage the battery's module chain from the SAME kernel's
           # module trees (same-suite vermagic by construction): the
-          # sound core chain (snd-dummy is the PCM witness's card),
-          # plus uinput (the keystroke injector's kernel half).
+          # sound core chain (snd-dummy is the PCM witness's card).
+          # uinput is NOT in the required set: verified against both
+          # reference kernels, jammy's 5.15.0-198 and noble's 7.0.0-38
+          # build uinput INTO vmlinuz (modules.builtin carries
+          # kernel/drivers/input/misc/uinput.ko in both, no .ko ships
+          # in any deb) — a missing uinput.ko is the expected shape,
+          # the guest init accepts the built-in. Stage it when the
+          # archive does ship one (future series may un-inline it).
           mkdir -p /tmp/kfloor/mods
-          for ko in soundcore snd snd-timer snd-pcm snd-dummy uinput; do
+          for ko in soundcore snd snd-timer snd-pcm snd-dummy; do
             SRC=$(find pkg/lib/modules -name "${ko}.ko*" | head -1)
             test -n "$SRC" || { echo "FAIL: module $ko not in the kernel's module debs"; exit 1; }
             cp "$SRC" /tmp/kfloor/mods/
           done
+          UINPUT_KO=$(find pkg/lib/modules -name 'uinput.ko*' | head -1)
+          if [ -n "$UINPUT_KO" ]; then
+            cp "$UINPUT_KO" /tmp/kfloor/mods/
+            echo "uinput: staged from the kernel's module debs"
+          elif grep -rq "uinput" pkg/lib/modules/*/modules.builtin 2>/dev/null; then
+            echo "uinput: built into the kernel (modules.builtin) — nothing to stage"
+          else
+            echo "FAIL: uinput neither staged nor built-in — the keystroke injector has no kernel half"
+            exit 1
+          fi
           MODS=$(find /tmp/kfloor/mods -maxdepth 1 -type f -printf '%f ')
           echo "kernel: $(du -h /tmp/kfloor/vmlinuz | cut -f1), modules: $MODS"
 

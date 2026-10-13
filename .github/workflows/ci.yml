@@ -203,7 +203,11 @@ jobs:
             echo "FAIL: $OBJECT is not ELF (magic: $MAGIC)"
             exit 1
           }
-          SECTIONS=$(readelf -S "$OBJECT")
+          # -SW: the wide render. Plain -S truncates section names to
+          # 17 columns ("fentry/input[...]") and a full-name grep can
+          # never match (night-badas-4 round 2: the first green-reaching
+          # run caught exactly that).
+          SECTIONS=$(readelf -SW "$OBJECT")
           echo "$SECTIONS" | grep -qw maps || {
             echo "FAIL: no maps section — the pinned state store would have nowhere to live"; echo "$SECTIONS"; exit 1
           }

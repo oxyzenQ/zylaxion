@@ -20,6 +20,30 @@ and the pre-v10 release notes live next to it in
 
 ### Fixed
 
+- **night-badas-4 (round 2)** — the first runs to reach the deep lanes
+  found three more facts, each verified empirically before the fix.
+  (1) The eBPF validator's own diagnostic caught its second bug: plain
+  `readelf -S` truncates section names to 17 columns
+  (`fentry/input[...]`), so a full-name grep can never match — the
+  section list now comes from `readelf -SW`, and the fresh validator's
+  named-failure shape is what surfaced it on the first red run.
+  (2) The supermassive E2E kernel resolver died per-leg: noble's
+  7.0.0-38 carries the whole 166 MB module set in `linux-modules`
+  alone and the archive refuses the `linux-modules-extra-7.0.0-38`
+  name (apt exit 100), while jammy's 5.15 ships the 64 MB extra deb —
+  the extra download is now best-effort by design. (3) The module
+  chain's uinput requirement was written blind and both reference
+  kernels disprove it: jammy's 5.15.0-198 and noble's 7.0.0-38 build
+  uinput INTO vmlinuz (`modules.builtin` carries
+  kernel/drivers/input/misc/uinput.ko in both; no .ko ships in any
+  deb — verified by downloading and listing all five module debs).
+  The workflow now requires only the sound chain (soundcore, snd,
+  snd-timer, snd-pcm, snd-dummy — staged from the same kernel's debs),
+  stages a uinput.ko when the archive ships one, otherwise verifies
+  the built-in and says so; the guest init accepts the built-in via
+  the honest probe (`/sys/module/uinput`) instead of failing the
+  keystroke injector's kernel half.
+
 - **night-improve-27** — the old era is eliminated and the master
   volume has a ceiling. The volume lane carried no upper bound at all:
   `zylaxion volume -p 1000` answered "volume set to 1000%" and wrote
