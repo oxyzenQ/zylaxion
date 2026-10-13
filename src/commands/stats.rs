@@ -49,7 +49,11 @@ pub(crate) fn print_telemetry() {
     let total_slot = 256u32;
     let total = stats.get(&total_slot, 0).unwrap_or(0);
     let mut rows: Vec<(u32, u64)> = Vec::new();
-    for code in 0..255u32 {
+    // The per-key slots are 0..=255 (the total rides 256) — the scan
+    // must cover the full keycode domain the loader maps and the tap
+    // counts (night-hunter-1: the old 0..255 skipped keycode 255, whose
+    // presses landed in the total but could never reach the top keys).
+    for code in 0..256u32 {
         let count = stats.get(&code, 0).unwrap_or(0);
         if count > 0 {
             rows.push((code, count));

@@ -176,7 +176,7 @@ lock_sync_and_verify() {
         fi
     done < <(if [ -d crates ]; then
         find crates -maxdepth 2 -name Cargo.toml -print0 |
-            xargs -0 -I{} sh -c 'grep -m1 "^name = " "{}" | sed "s/.*\"\(.*\".*/\1/"'
+            xargs -0 -I{} sh -c 'grep -m1 "^name = " "{}" | sed "s/.*\"\(.*\)\".*/\1/"'
     else
         # night-improve-21: no member manifests — verify the root
         # entry through the same manifest-path pipeline.
