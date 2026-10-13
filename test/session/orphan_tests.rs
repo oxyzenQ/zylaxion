@@ -7,19 +7,24 @@
 
 use super::*;
 
-// The two live-process tests share one mutex: the stub test plants a
+// The two live-process tests share one mutex (both are cfg(not(miri))
+// — they touch the real process namespace — so the lock carries the
+// same gate; Miri would otherwise warn it never used): the stub test plants a
 // real matching process in the shared /proc namespace, and the
 // clean-host test asserts the scan finds nothing — under the test
 // harness's parallel threads the stub would be exactly what the clean
 // scan finds. Serialized, the two legs are deterministic (the
 // ENV_LOCK precedent in preset_tests).
+#[cfg(not(miri))]
 static LIVE_PROCESS_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-/// The exact match: this binary's path followed by the player verb,
-/// NUL-terminated the way /proc renders it.
+/// The exact match: a binary path followed by the player verb,
+/// NUL-terminated the way /proc renders it. A synthetic path — the
+/// matcher is pure, and current_exe's readlink is a Miri-isolated
+/// operation this test does not need.
 #[test]
 fn the_exact_player_cmdline_matches() {
-    let exe = std::env::current_exe().expect("test binary path");
+    let exe = std::path::Path::new("/usr/bin/zylaxion");
     let mut raw = exe.as_os_str().as_bytes().to_vec();
     raw.push(0);
     raw.extend_from_slice(b"_play");
