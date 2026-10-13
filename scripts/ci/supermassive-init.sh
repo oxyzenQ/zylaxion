@@ -50,6 +50,15 @@ guest_exit() {
         # exit with status 1 — the rc the workflow's boot step accepts as
         # the guest's deliberate exit, the MASS-* sentinel lines being
         # the verdict.
+        #
+        # The drain beat (night-improve-27): the tail rows and the
+        # verdict ride the kernel's console ring and the emulated UART,
+        # and qemu ends the guest the instant the port byte lands — on
+        # a fast runner that race beat the serial drain, cutting vm.log
+        # mid-row and hiding the verdict from the step that greps for
+        # it (the flaky E2E leg, proven by reruns passing unchanged).
+        # Two seconds lets every console byte land before the exit.
+        sleep 2
         printf '\x00' | dd of=/dev/port bs=1 seek=244 count=1 2>/dev/null || true
         # Belts, in order: the raw poweroff syscall (if this guest ever
         # grows an ACPI S5 path), then the sleep loop (never spin the
