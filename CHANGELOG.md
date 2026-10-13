@@ -237,6 +237,30 @@ and the pre-v10 release notes live next to it in
 
 ### Added
 
+- **night-revert-1** — the crates.io publish lane, mature CI and all.
+  The owner's verdict on night-simple-1 landed plainly: removing the
+  registry lane was a mistake — crates.io is a fully supported
+  distribution channel, and the zelynic family already runs the
+  mature reference CI for it. The reversal restores everything the
+  removal touched (the `documentation`, `keywords` and `categories`
+  manifest fields, the `registry-prebuilt` lane naming in
+  build/ebpf.rs with its `cargo install zylaxion` panic remedy, the
+  registry-tarball narrative in build.rs, loader.rs and
+  bootstrap-ebpf.sh) and then grows what the tree never had: a
+  `v*`-tag-triggered `Dragon Guard - crates.io publish` workflow —
+  the commit+tag collision gate (scripts/release/wait-for-ci.sh,
+  ported from the zelynic reference: it serializes the publish behind
+  the ci.yml push-run on the exact tagged SHA, with the infra-failure
+  carve-out that buys automatic re-runs for GitHub-side faults and
+  never mistakes them for a code verdict), the tag/version match
+  check, the CRATES_IO_TOKEN presence check, the already-published
+  idempotency probe (a re-pushed tag skips instead of failing), and
+  the `--locked` upload whose verification build exercises exactly
+  the registry-prebuilt lane a `cargo install zylaxion` consumer
+  rides (the packaged tree carries no ebpf/ workspace, so build.rs
+  stages the maintainer-built objects from ebpf-prebuilt/ — no
+  nightly anywhere near the user).
+
 - **night-improve-26** — the kernel compatibility record:
   docs/KERNEL_COMPATIBILITY.md. The kernel floor the tap requires
   (5.15, with the honest doctor verdict either way) plus one entry
@@ -320,23 +344,6 @@ and the pre-v10 release notes live next to it in
   remains the embedding half's proof; this lane is the kernel half's.
 
 ### Removed
-
-- **night-simple-1** — the crates.io distribution lane leaves the
-  record. The depth audit found no AUR package, no PKGBUILD, and no
-  homebrew/nix/snap/flatpak lane anywhere in the tree — the only
-  registry-shaped promises were documentation prose. Gone now: the
-  `documentation` (docs.rs), `keywords` and `categories` manifest
-  fields (pure crates.io-discovery metadata, no effect on source
-  builds), the "registry tarball" narrative in build/ebpf.rs (the lane
-  is renamed `prebuilt` — a tree without the ebpf/ workspace — and its
-  panic no longer teaches `cargo install zylaxion`, it points at a git
-  checkout or GitHub Releases), and the matching stale comments in
-  Cargo.toml, build.rs, src/ebpf/loader.rs and
-  scripts/dev/bootstrap-ebpf.sh. Before: the tree promised a registry
-  install path nobody uses; after: the distribution surface is GitHub
-  Releases and a git checkout, period. The `cargo install cargo-audit`
-  tooling note in docs/RULES.md and scripts/build.sh stays — that is
-  the gate's own dev tool, not a distribution channel.
 
 - **night-improve-23** — the daemon dies. The entire POSIX daemonization
   stack is deleted: fork/setsid with the init-sync pipe, the PID file

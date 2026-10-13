@@ -18,10 +18,9 @@
 //!   environment when an alias/CI build stamps one (see `build_info`).
 //! - `ZYLAXION_EBPF_LANE` — which lane produced (or skipped) the embedded
 //!   eBPF object (night-improve-23): `source-built` (a git checkout with
-//!   the ebpf/ tree — the nested nightly cross-build), `prebuilt`
-//!   (a tree without the ebpf/ workspace — the maintainer-built object
-//!   staged from ebpf-prebuilt/), or the dormant refusal (the `ebpf`
-//!   feature off).
+//!   the ebpf/ tree — the nested nightly cross-build), `registry-prebuilt`
+//!   (a registry tarball — the maintainer-built object staged from
+//!   ebpf-prebuilt/), or the dormant refusal (the `ebpf` feature off).
 //!   The staging machinery lives in build/ebpf.rs (the zelynic build/
 //!   module precedent — the 600-LOC no-mercy cap demands the split).
 //!

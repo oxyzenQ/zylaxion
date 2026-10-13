@@ -1,0 +1,167 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+# Dragon Guard - crates.io publish (night-revert-1)
+# =============================================================================
+#
+# night-revert-1 (the owner's call: the night-simple-1 removal was a
+# mistake — crates.io is a fully supported distribution channel, the
+# lane belongs in the record): publishes zylaxion to crates.io on
+# every owner-pushed release tag — the same 'v*' filter release.yml
+# carries, so the registry never lags behind a GitHub Release. The
+# workflow shape is the zelynic family reference (the mature crates.io
+# CI), ported to zylaxion's estate.
+#
+# What gets published — the full-featured lane: cargo's package walk
+# auto-excludes nested packages, so the detached ebpf/ workspace (its
+# own Cargo.toml) cannot ride a registry tarball — the crate ships
+# ebpf-prebuilt/ instead (a plain directory, NOT a nested package):
+# the two maintainer-built objects, the same bytes the GitHub Release
+# binaries embed. The default feature is `ebpf`, so a plain
+# `cargo install zylaxion` lands the full-featured binary on a stable
+# toolchain — no nightly anywhere near the user. The publish job's own
+# verification build exercises exactly that registry lane: build.rs
+# stages the prebuilt objects from ebpf-prebuilt/ (the packaged tree
+# carries no ebpf/ workspace) and the tarball compiles before any
+# upload. No separate prebuilt-parity gate exists in this estate (the
+# zelynic wholesale-gate second wait and its parity check have no
+# zylaxion counterpart — ci.yml runs unfiltered on every push and is
+# the only run to wait for).
+#
+# One-time setup (owner): create a crates.io API token
+# (crates.io -> Account Settings -> API Tokens, "publish-new" scope is
+# enough) and add it as the CRATES_IO_TOKEN repository secret
+# (repo Settings -> Secrets and variables -> Actions).
+#
+# Safety properties:
+#   - Fails fast if the tag does not match Cargo.toml's version.
+#   - Idempotent: if the version is already published (re-pushed tag or
+#     re-run), the job skips the upload instead of failing.
+#   - --locked: the published dependency set is exactly the tagged
+#     Cargo.lock, the same tree every other CI job validated.
+#
+# Dependency version policy: actions are SHA-pinned (the night-improve-8
+# estate — kept current by scripts/gates/check-actions-pins.sh) and the
+# Rust toolchain is governed by rust-toolchain.toml (single source of
+# truth; no rustup override anywhere, the same law every other
+# workflow runs under).
+
+name: Dragon Guard - crates.io publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # The commit+tag collision gate (the zelynic wait-for-ci lineage).
+  # When the release commit and its tag are pushed together, this
+  # publish would race the branch CI on the same SHA — and a crates.io
+  # publish is IRREVERSIBLE (a bad version can only be yanked, never
+  # replaced). The gate waits for the ci.yml push-run on the exact
+  # tagged SHA and requires conclusion=success before the upload.
+  # Full contract: scripts/release/wait-for-ci.sh.
+  ci_gate:
+    name: CI gate (commit+tag push)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    # actions: write (not read) — the gate's infra-failure carve-out
+    # re-runs the failed jobs of a run whose failures all carry
+    # GitHub-infra signatures. Read-only would make every such flake a
+    # human-attended publish blocker. The token is still THIS job's
+    # ephemeral github.token: it can re-run CI runs in this repository
+    # and nothing else.
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
+
+      - name: Wait for the branch CI on the tagged commit
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./scripts/release/wait-for-ci.sh
+
+  publish-crates-io:
+    name: Publish to crates.io (${{ github.ref_name }})
+    runs-on: ubuntu-24.04
+    needs: ci_gate
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7, night-improve-8 SHA pin
+
+      # The pinned toolchain (rust-toolchain.toml governs — no rustup
+      # override anywhere, the estate's single-source-of-truth law).
+      - name: Install pinned toolchain
+        run: rustup show active-toolchain
+
+      # The publish job's verification build compiles the packaged tree
+      # before any upload, and cpal's ALSA backend links against
+      # alsa-sys — the same pair every other build lane installs. The
+      # eBPF prereqs (nightly, bpf-linker) are NOT needed here by
+      # design: the packaged tree carries no ebpf/ workspace, so
+      # build.rs takes the registry-prebuilt lane and stages the
+      # maintainer-built objects from ebpf-prebuilt/ — the exact lane a
+      # `cargo install zylaxion` consumer rides.
+      - name: Install ALSA build dependencies
+        run: |
+          sudo apt-get -o Acquire::Retries=5 update -qq
+          sudo apt-get -o Acquire::Retries=5 install -y -qq \
+            libasound2-dev pkg-config
+
+      - name: Verify tag matches Cargo.toml version
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CARGO_VERSION="$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)".*/\1/')"
+          if [ -z "${CARGO_VERSION}" ]; then
+            echo "::error::could not parse version from Cargo.toml"
+            exit 1
+          fi
+          if [ "${TAG_VERSION}" != "${CARGO_VERSION}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${CARGO_VERSION}"
+            echo "Bump the package version before tagging: ./scripts/dev/version-to.sh ${TAG_VERSION}"
+            exit 1
+          fi
+          echo "Publishing zylaxion ${CARGO_VERSION} to crates.io"
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CARGO_REGISTRY_TOKEN}" ]; then
+            echo "::error::CRATES_IO_TOKEN repository secret is not set."
+            echo "Create a crates.io API token (crates.io -> Account Settings -> API Tokens)"
+            echo "and add it under repo Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          VERSION="$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)".*/\1/')"
+          # Idempotency probe: crates.io rejects duplicate versions, so a
+          # re-pushed tag (or a re-run) must not attempt a second upload.
+          # The API requires a custom User-Agent (plain curl gets 403).
+          # The probe carries the curl retry contract — a transient 5xx
+          # reading as "not published" would fall through to cargo
+          # publish and die as a duplicate-version error, the exact
+          # infra-flake-looks-like-code-failure trap the gate closes.
+          if curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 --retry-max-time 300 --connect-timeout 15 \
+              -A "zylaxion-ci-publish-check" \
+              "https://crates.io/api/v1/crates/zylaxion/${VERSION}" >/dev/null 2>&1; then
+            echo "zylaxion ${VERSION} is already published on crates.io - nothing to do."
+            exit 0
+          fi
+          cargo publish --locked
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
