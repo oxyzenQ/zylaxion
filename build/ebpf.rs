@@ -30,15 +30,13 @@ const TAP_OBJECT: &str = "zylaxion-tap";
 //
 //   dormant           — the `ebpf` feature is off: nothing stages, the
 //                       loader module is not compiled either.
-//   prebuilt          — a tree that carries no ebpf/ workspace (a
-//                       stripped or packaged source tree): the
-//                       maintainer-built object tracked in
+//   registry-prebuilt — a registry tarball (cargo's package walk cannot
+//                       carry nested packages, so no ebpf/ tree rides the
+//                       extract): the maintainer-built object tracked in
 //                       ebpf-prebuilt/ is staged verbatim, provenance in
-//                       ebpf-prebuilt/manifest.toml. The object ships
-//                       in-tree, so a normal checkout never reaches this
-//                       lane — it exists so a source tree without the
-//                       nested ebpf crate still links a full-featured
-//                       binary on a stable toolchain.
+//                       ebpf-prebuilt/manifest.toml. This is the lane
+//                       that lets a plain `cargo install zylaxion` land
+//                       the full-featured binary on a stable toolchain.
 //   source-built      — a git checkout: the ebpf/ crate is cross-compiled
 //                       by a nested cargo invocation under the dated
 //                       nightly pin, and the artifact is staged after
@@ -76,10 +74,9 @@ pub(super) fn build_ebpf_objects() {
         return;
     }
 
-    // Prebuilt lane: the tree carries no ebpf/ workspace (stripped or
-    // packaged source).
+    // Registry lane: no ebpf/ tree rides a crates.io extract.
     if !ebpf_dir.join("Cargo.toml").is_file() {
-        stage_prebuilt_objects(&manifest_dir);
+        stage_registry_prebuilt_objects(&manifest_dir);
         return;
     }
 
@@ -136,10 +133,10 @@ pub(super) fn stage_object(out_dir: &std::path::Path, data: &[u8]) {
         .unwrap_or_else(|e| panic!("failed to stage {} into OUT_DIR: {e}", dst.display()));
 }
 
-/// Prebuilt lane: stage the maintainer-built object from ebpf-prebuilt/.
+/// Registry lane: stage the maintainer-built object from ebpf-prebuilt/.
 /// A missing or damaged prebuilt object is an INCOMPLETE crate — panic
 /// with the honest diagnosis and the two working remedies.
-pub(super) fn stage_prebuilt_objects(manifest_dir: &std::path::Path) {
+pub(super) fn stage_registry_prebuilt_objects(manifest_dir: &std::path::Path) {
     let prebuilt_dir = manifest_dir.join("ebpf-prebuilt");
     // Watched only on the lane that consumes it: a git checkout builds
     // its object from ebpf/ and never reads this directory.
@@ -148,17 +145,17 @@ pub(super) fn stage_prebuilt_objects(manifest_dir: &std::path::Path) {
     let data =
         read_validated_ebpf_object(&prebuilt_dir.join(TAP_OBJECT)).unwrap_or_else(|problem| {
             panic!(
-                "the ebpf feature was requested from a tree without the ebpf/ \
-             workspace, and the prebuilt object \
+                "the ebpf feature was requested from a registry tarball (no ebpf/ \
+             workspace rides a registry package), and the prebuilt object \
              {TAP_OBJECT} is missing or damaged ({problem}). This crate is INCOMPLETE: \
-             the ebpf-prebuilt/ lane that backs such trees \
+             the ebpf-prebuilt/ lane that makes `cargo install zylaxion` full-featured \
              did not survive packaging. Meanwhile build from a git checkout \
              (git clone https://github.com/oxyzenQ/zylaxion, then cargo build --release) \
              or install the binary from GitHub Releases"
             )
         });
     stage_object(&out_dir, &data);
-    println!("cargo:rustc-env=ZYLAXION_EBPF_LANE=prebuilt");
+    println!("cargo:rustc-env=ZYLAXION_EBPF_LANE=registry-prebuilt");
 }
 
 /// Verify the two source-build prerequisites BEFORE the nested build

@@ -60,8 +60,8 @@ use super::pin;
 
 /// The embedded pure-Rust tap object (night-improve-23): the aya-ebpf
 /// ELF staged into OUT_DIR by build.rs — source-built on a git checkout,
-/// prebuilt on a tree without the ebpf/ workspace; either way the same
-/// name, either way it rides inside the binary.
+/// registry-prebuilt on a crates.io extract; either way the same name,
+/// either way it rides inside the binary.
 static TAP_ELF: &[u8] =
     &embedded::AlignedElf::new(*include_bytes!(concat!(env!("OUT_DIR"), "/zylaxion-tap"))).bytes;
 
