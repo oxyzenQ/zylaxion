@@ -320,14 +320,24 @@ impl<S: AudioSink> Orchestrator<S> {
         // actual chunk size each iteration.
         let mut batch = [[0.0f32; 2]; MAX_RENDER_CHUNK];
 
-        // v10.2.0 (dragonzen audit S4): heartbeat tracking. Log a
-        // debug message after 60 s of input inactivity, upgrade to
-        // warn! after 5 min. Without this, if `libinput.dispatch()`
-        // returns Ok(()) forever but never produces events (device fd
-        // stuck, kernel bug), the daemon appears alive (PID file
-        // present, IPC socket listening) but produces no audio. The
-        // user has no feedback. The heartbeat makes the failure mode
-        // visible in `journalctl --user -u zylaxion`.
+        // v10.2.0 (dragonzen audit S4), rewritten by night-hunt-1:
+        // heartbeat tracking. Log a debug message after 60 s of input
+        // inactivity, upgrade to warn! after 5 min.
+        //
+        // The original text ("input thread may be stuck — restart it,
+        // `systemctl --user restart zylaxion`") was a fossil of the
+        // deleted libinput daemon: that thread, the PID file and the
+        // user unit it named no longer exist. In the eBPF pipeline a
+        // wedged input lane cannot hide here — the bridge thread dies
+        // loudly (the channel disconnects and run() exits) or logs its
+        // own poll errors — so "stuck input thread" is not a reachable
+        // state at this point. What IS honest from this seat is the
+        // weaker claim: no keys arrived for a long while, which is
+        // either ordinary idle (the overwhelmingly common case) or the
+        // kernel tap is not delivering (a detached or wedged tap).
+        // The messages below say exactly that and point at the
+        // diagnostic lanes (doctor, attach) that can actually tell the
+        // two apart — a restart cannot re-plant a detached tap.
         let mut last_event_monotonic = std::time::Instant::now();
         let heartbeat_debug = Duration::from_secs(60);
         let heartbeat_warn = Duration::from_secs(5 * 60);
@@ -350,16 +360,16 @@ impl<S: AudioSink> Orchestrator<S> {
             let idle = last_event_monotonic.elapsed();
             if !heartbeat_debug_emitted && idle >= heartbeat_debug {
                 log::debug!(
-                    "no key events in {:.0}s — input thread may be stuck (this is normal during idle periods)",
+                    "no key events in {:.0}s — idle (normal during quiet periods)",
                     idle.as_secs()
                 );
                 heartbeat_debug_emitted = true;
             }
             if !heartbeat_warn_emitted && idle >= heartbeat_warn {
                 log::warn!(
-                    "no key events in {:.0}s — input thread may be stuck. \
-                     If the daemon appears alive but produces no audio, \
-                     restart it (`systemctl --user restart zylaxion`).",
+                    "no key events in {:.0}s — idle, or the kernel tap is not delivering \
+                     events. If keys pressed right now stay silent, run `zylaxion doctor` \
+                     and re-attach with `sudo zylaxion attach`.",
                     idle.as_secs()
                 );
                 heartbeat_warn_emitted = true;

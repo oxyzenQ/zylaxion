@@ -17,12 +17,12 @@
 //!      script; the standard env-var contract, zero parsing of ours)
 //!   3. the compiled default preset ("technical") from the registry
 //!
-//! There is no fourth layer and no hot reload: a preset is chosen
-//! once at process start. Changing it means restarting the daemon —
-//! `systemctl --user restart zylaxion` or `zylaxion stop` + `start`.
-//! For a sound switcher that is the honest lifecycle; the old 1-second
-//! file watcher existed to serve a configuration surface nobody
-//! actually tuned per-keystroke.
+//! There is no fourth layer at process start: a preset is resolved
+//! once when a surface boots. While the player runs, the runtime
+//! `zylaxion preset <name>` command applies changes live — it writes
+//! the preset slot of the pinned control map and the player's watcher
+//! thread swaps the model through the ArcSwap within 100 ms, no
+//! restart involved.
 //!
 //! The master output volume follows the same law: `ZYLAXION_VOLUME`
 //! in the environment, the compiled laptop-speaker default (5.5)
