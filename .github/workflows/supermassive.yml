@@ -194,6 +194,82 @@ jobs:
           "${BIN}" -h | head -20
 
   # ═══════════════════════════════════════════════════════════════════
+  # night-master-1: the world-first claims battery, rootless, on the
+  # exact release shape. The extraordinary claims get their own
+  # independent verification lane: pure-math synthesis (no decoder is
+  # linked — the process physically cannot play a sample), the eBPF
+  # tap shipped as an embedded ELF-BPF object targeting input_event,
+  # and the no-daemon/no-bloat posture (zero config/pidfile/socket
+  # strings, zero daemon-era crates transitively in Cargo.lock). The
+  # probes are pure stdlib (a hand-rolled ELF64 DT_NEEDED parser — no
+  # readelf/ldd dependency) so the same battery also rides inside the
+  # micro-VM's full lane. The release shape is built with the same
+  # cache + bootstrap pair the release-shape job uses.
+  # ═══════════════════════════════════════════════════════════════════
+  claims:
+    name: supermassive test - the world-first claims (rootless)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            libasound2-dev pkg-config
+
+      - name: Install pinned toolchain (rust-toolchain.toml governs)
+        run: rustup show active-toolchain
+
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-supermassive-claims-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-supermassive-claims-
+
+      - name: Build the exact release shape (night-improve-11 alias)
+        run: cargo pro-linux-amd64-gnu --locked
+
+      - name: The world-first claims battery (rootless self-test lane)
+        run: |
+          set -o pipefail
+          ./scripts/supermassive/supermassive-test.sh --self-test \
+            --binary target/x86_64-unknown-linux-gnu/release/zylaxion \
+            2>&1 | tee /tmp/claims.log
+
+      - name: Claims inventory (the step summary)
+        if: always()
+        run: |
+          {
+            echo "## supermassive — the world-first claims (rootless)"
+            echo
+            echo '```'
+            grep -E '^MASS-(RESULT|VERDICT)' /tmp/claims.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ═══════════════════════════════════════════════════════════════════
   # night-master-3: the real-usage E2E on the KVM micro-VM floor.
   # Two legs cross the kernel span (the documented 5.15 floor, the
   # newest kernel the archive serves); the battery inside is the same

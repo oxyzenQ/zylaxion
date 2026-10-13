@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-"""supermassive — the whole E2E on the micro-VM floor (night-master-3).
+"""supermassive — the whole E2E on the micro-VM floor (night-master-3,
+the world-first claims battery rides since night-master-1).
 
 The zylaxion supermassive engine, the zelynic lineage's shape: one
 Python engine, two lanes.
 
   --self-test [--binary PATH]   the rootless lane: the CLI/UX battery,
                                 the pure-math proof, the zero-config
-                                proof — everything honest without a
-                                tap, a sound card, or root. Runs
-                                anywhere, including a sandbox.
+                                proof, and the world-first claims
+                                battery (no decoder linked, the eBPF
+                                tap embedded as an ELF-BPF object,
+                                zero daemon-era strings, a
+                                transitively clean dependency graph)
+                                — everything honest without a tap, a
+                                sound card, or root. Runs anywhere,
+                                including a sandbox.
   --full     --binary PATH      the root lane (the micro-VM's PID 1
                                 calls this): the whole chaos — env
                                 probes, the CLI/UX battery, the tap
@@ -53,6 +59,7 @@ from sm_env import (  # noqa: E402
     run,
 )
 from sm_report import Ledger, Step  # noqa: E402
+from sm_static import battery as static_battery  # noqa: E402
 from sm_tap import battery as tap_battery  # noqa: E402
 from sm_ux import battery as ux_battery  # noqa: E402
 
@@ -149,6 +156,7 @@ def self_test(binary: str) -> int:
         return 2
     ux_battery(ledger, binary, full_mode=False)
     audio_battery(ledger, binary, user="", tree_root=REPO_ROOT, root_lane=False)
+    static_battery(ledger, binary, REPO_ROOT, root_lane=False)
     return ledger.finish()
 
 
@@ -165,6 +173,7 @@ def full(binary: str) -> int:
     _ensure_user(ledger, GUEST_USER)
     tap_battery(ledger, binary, GUEST_USER)
     audio_battery(ledger, binary, user=GUEST_USER, tree_root=REPO_ROOT)
+    static_battery(ledger, binary, REPO_ROOT, root_lane=True)
     return ledger.finish()
 
 
@@ -177,7 +186,8 @@ def main() -> int:
     mode.add_argument(
         "--self-test",
         action="store_true",
-        help="the rootless lane: CLI/UX battery + pure-math + zero-config proofs",
+        help="the rootless lane: CLI/UX battery + pure-math + zero-config "
+        "proofs + the world-first claims battery",
     )
     mode.add_argument(
         "--full",
