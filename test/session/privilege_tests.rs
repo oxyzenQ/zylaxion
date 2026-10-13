@@ -38,19 +38,25 @@ fn network_refusal_allows_non_root() {
     );
 }
 
-/// Drift pin for the daemon surfaces: the session refusal names
-/// the pollution (root-owned session state), the grab (input
-/// devices), and the fix.
+/// Drift pin for the sound surfaces: the session refusal names the
+/// harm (a root audio session no user desktop shares) and the fix.
+/// night-improve-27: the daemon-era pollution story (root-owned
+/// lock/socket/PID) named state that no longer exists — the pin now
+/// guards the eBPF-era wording AND the absence of the old fiction.
 #[test]
-fn session_refusal_names_pollution_and_grab() {
+fn session_refusal_names_the_root_audio_session() {
     let msg = session_refusal(true).expect("euid 0 must be refused");
     assert!(
         msg.contains("do not use sudo"),
         "refusal must carry the do-not-use-sudo verdict, got: {msg}"
     );
     assert!(
-        msg.contains("session state") && msg.contains("input devices"),
-        "refusal must name the pollution and the grab, got: {msg}"
+        msg.contains("root's session"),
+        "refusal must name the harm: audio opened in root's session, got: {msg}"
+    );
+    assert!(
+        !msg.contains("daemon"),
+        "the daemon-era fiction must stay dead, got: {msg}"
     );
     assert!(
         msg.contains("tip: re-run without sudo"),

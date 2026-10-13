@@ -12,6 +12,7 @@
 
 use super::PLAYER_SPAWN_VERB;
 use super::on_root_refusal;
+use super::volume_percent_from_gain;
 
 /// The spawn string is exactly the verb clap registers: the spawn's
 /// `.arg(PLAYER_SPAWN_VERB)` rides the `name = "_play"` pin on the
@@ -54,5 +55,59 @@ fn on_surface_allows_the_non_root_caller() {
     assert!(
         on_root_refusal(false).is_none(),
         "a non-root on must pass the door — the guard keys on euid, nothing else"
+    );
+}
+
+// ── night-improve-27: the master-volume safety cap ────────────────────
+
+/// The env lane maps the compiled default gain to exactly 100 percent —
+/// the "100 = the compiled default" sentence every surface prints.
+#[test]
+fn default_gain_maps_to_100_percent() {
+    assert_eq!(
+        volume_percent_from_gain(crate::engine::VoicePool::DEFAULT_MASTER_VOLUME),
+        Ok(100),
+        "the compiled default gain must map to exactly 100%"
+    );
+}
+
+/// The cap is inclusive: the gain that maps to exactly 200 percent is
+/// the loudest value the env lane accepts.
+#[test]
+fn gain_at_the_cap_maps_to_200_percent() {
+    let cap_gain = crate::engine::VoicePool::DEFAULT_MASTER_VOLUME * 2.0;
+    assert_eq!(
+        volume_percent_from_gain(cap_gain),
+        Ok(200),
+        "exactly 200% is the ceiling, accepted"
+    );
+}
+
+/// Above the cap is a hard refusal naming the ceiling — never a clamp.
+#[test]
+fn gain_above_the_cap_is_refused_naming_the_ceiling() {
+    let loud_gain = crate::engine::VoicePool::DEFAULT_MASTER_VOLUME * 3.0;
+    let err = volume_percent_from_gain(loud_gain)
+        .expect_err("a 300% mapping must be refused by the safety cap");
+    assert!(
+        err.contains("safety cap") && err.contains("200"),
+        "the refusal must name the 200% ceiling, got: {err}"
+    );
+    assert!(
+        !err.contains("10000"),
+        "the old 0..=10000 domain wording must stay dead, got: {err}"
+    );
+}
+
+/// A negative gain maps below silence — refused, with wording that
+/// says "below silence", not the cap sentence (a negative value never
+/// touched the ceiling).
+#[test]
+fn negative_gain_is_refused_as_below_silence() {
+    let err = volume_percent_from_gain(-1.0)
+        .expect_err("a negative gain maps below silence and must be refused");
+    assert!(
+        err.contains("below silence"),
+        "the refusal must name the below-silence bound, got: {err}"
     );
 }

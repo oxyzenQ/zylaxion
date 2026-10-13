@@ -271,6 +271,43 @@ if [ -f Cargo.lock ]; then
     lock_sync_and_verify "${NEW_VERSION}" || true
 fi
 
+# --- Sync each touched sibling's OWN Cargo.lock (night-improve-27) ---
+# A sibling that carries its own version line can also carry its own
+# DETACHED workspace lock (the ebpf lane does). A stale sibling lock
+# fails every --locked build of that lane — the nested eBPF build
+# refuses to rewrite the lock, which is exactly how the v80.0.0-alpha.1
+# rehearsal died ("cannot update the lock file ... because --locked was
+# passed"). cargo stays the authority on its own lock format, per lane;
+# the rust-toolchain.toml beside the lock resolves the toolchain.
+sibling_lock_sync() {
+    local manifest="$1"
+    local dir name entry_ver
+    dir="$(dirname "${manifest}")"
+    [ -f "${dir}/Cargo.lock" ] || { echo -e "  ${YELLOW}!${NC} ${dir}/Cargo.lock  → absent, nothing to sync"; return 0; }
+    name="$(grep -m1 '^name = ' "${manifest}" | sed 's/.*"\(.*\)".*/\1/')"
+    if (cd "${dir}" && cargo update --workspace --offline > /dev/null 2>&1); then
+        entry_ver="$(grep -A1 "^name = \"${name}\"$" "${dir}/Cargo.lock" | grep '^version = "' | head -1 | sed 's/^version = "\(.*\)"/\1/')"
+        if [ "${entry_ver}" = "${NEW_VERSION}" ]; then
+            echo -e "  ${GREEN}OK${NC} ${dir}/Cargo.lock  → ${name} version = ${NEW_VERSION}"
+        else
+            echo -e "  ${YELLOW}!${NC} ${dir}/Cargo.lock  → ${name}: expected ${NEW_VERSION}, got ${entry_ver:-absent}"
+        fi
+    else
+        echo -e "  ${YELLOW}!${NC} ${dir}/Cargo.lock  → cargo update --workspace --offline failed in ${dir}/ — run it manually to resync"
+    fi
+}
+SIBLING_LOCKS=()
+if [ "${#SIBLING_TOUCHED[@]}" -gt 0 ]; then
+    for f in "${SIBLING_TOUCHED[@]}"; do
+        [ -n "$f" ] || continue
+        sibling_lock_sync "$f"
+        dir="$(dirname "$f")"
+        if [ -f "${dir}/Cargo.lock" ]; then
+            SIBLING_LOCKS+=("${dir}/Cargo.lock")
+        fi
+    done
+fi
+
 # --- Update README.md (probed first — the zelynic NIGHT-hunt-32 rule) ---
 README_HITS="$(grep -cE 'releases/download/v[0-9]|zylaxion-v[0-9]+\.[0-9]+|^Version: v[0-9]' README.md 2>/dev/null || true)"
 if [ "${README_HITS:-0}" -gt 0 ]; then
@@ -293,15 +330,22 @@ echo -e "  ${GREEN}OK${NC} Binary (zylaxion)   → auto (reads from Cargo.toml)"
 
 echo ""
 echo -e "${GREEN}Version updated to v${NEW_VERSION}${NC}"
-echo "next: git add Cargo.toml Cargo.lock CHANGELOG.md && git commit"
+# The staging hint names every file the run actually touched — the
+# night-improve-27 rule: a version bump that touches a detached
+# sibling's manifest AND lock must never hint a partial `git add`.
+STAGE_FILES=(Cargo.toml Cargo.lock CHANGELOG.md)
+[ "${README_HITS:-0}" -gt 0 ] && STAGE_FILES+=(README.md)
+for f in "${SIBLING_TOUCHED[@]:-}"; do
+    [ -n "$f" ] && STAGE_FILES+=("$f")
+done
+for f in "${SIBLING_LOCKS[@]:-}"; do
+    [ -n "$f" ] && STAGE_FILES+=("$f")
+done
+echo "next: git add ${STAGE_FILES[*]} && git commit"
 
 if [ "${COMMIT}" = "true" ]; then
-    git add Cargo.toml
-    [ -f Cargo.lock ] && git add Cargo.lock
-    [ "${README_HITS:-0}" -gt 0 ] && git add README.md
-    [ -f CHANGELOG.md ] && git add CHANGELOG.md
-    for f in "${SIBLING_TOUCHED[@]:-}"; do
-        [ -n "$f" ] && git add "$f"
+    for f in "${STAGE_FILES[@]}"; do
+        [ -f "$f" ] && git add "$f"
     done
     git commit -m "release: v${NEW_VERSION}"
     echo -e "${GREEN}OK Committed: release: v${NEW_VERSION}${NC}"

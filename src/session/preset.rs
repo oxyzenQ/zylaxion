@@ -42,6 +42,17 @@ pub const PRESET_ENV_VAR: &str = "ZYLAXION_PRESET";
 /// The environment variable holding the master output volume override.
 pub const VOLUME_ENV_VAR: &str = "ZYLAXION_VOLUME";
 
+/// The master-volume ceiling as a percent of the compiled default
+/// (night-improve-27: the owner-mandated safety cap). 100 percent is
+/// the compiled laptop-speaker tuning; 200 percent is the loudest
+/// value any surface accepts — a volume write above the cap is
+/// refused, never clamped, so the map never carries a value the user
+/// did not ask for in writing. Both write entries enforce it: the
+/// `volume` verb at the CLI parser (exit 2, the fatal-input lane) and
+/// the `ZYLAXION_VOLUME` env lane in `context_volume_percent` (a hard
+/// error, the no-silent-fallback law).
+pub const MAX_VOLUME_PERCENT: u32 = 200;
+
 /// Resolve the active preset and master volume.
 ///
 /// Priority: `cli_preset` > `ZYLAXION_PRESET` > the compiled default.
@@ -57,7 +68,7 @@ pub const VOLUME_ENV_VAR: &str = "ZYLAXION_VOLUME";
 ///
 /// Unknown preset name (from the flag or the environment) or an
 /// unparsable `ZYLAXION_VOLUME` — both are hard errors. The caller
-/// (`cmd_start` / `cmd_daemon`) prints the message and exits; there
+/// (`cmd_on` / `cmd_preset`) prints the message and exits; there
 /// is **no silent fallback** to a different preset or volume.
 pub fn resolve(cli_preset: Option<&str>) -> Result<(KeyProfile, &'static str, f32), String> {
     let preset_env = std::env::var(PRESET_ENV_VAR).ok();

@@ -154,7 +154,7 @@ fn pro_mode_documents_every_hidden_and_advanced_spelling() {
     );
     for spelling in [
         "-s, --switch <NAME>",
-        "-p, --percent <0-100>",
+        "-p, --percent <0-200>",
         "-v, --verbose",
         "ZYLAXION_PRESET=<name>",
         "ZYLAXION_VOLUME=<gain>",

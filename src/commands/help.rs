@@ -79,8 +79,12 @@ pub(crate) fn render_reference(color: bool) -> String {
     push("      Switch the acoustic preset live while playing.".into());
     push(ok("      zylaxion preset --switch topre"));
     push(String::new());
-    push(grey("  zylaxion volume --percent <0-100>"));
-    push("      Retune the master volume live (100 = the compiled default).".into());
+    push(grey("  zylaxion volume --percent <0-200>"));
+    push(
+        "      Retune the master volume live (100 = the compiled default; 200 = the \
+         safety cap)."
+            .into(),
+    );
     push(ok("      zylaxion volume --percent 60"));
     push(String::new());
     push(grey("  zylaxion off"));
@@ -149,7 +153,7 @@ pub(crate) fn render_reference(color: bool) -> String {
             "preset's live switch, the short spelling",
         ),
         (
-            "-p, --percent <0-100>",
+            "-p, --percent <0-200>",
             "volume's live retune, the short spelling",
         ),
         ("-v, --verbose", "status's deep read, the short spelling"),

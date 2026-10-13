@@ -32,13 +32,15 @@
 //! # SIGHUP (v10.2.0+ — dragonzen audit B11)
 //!
 //! The previous version registered only SIGTERM/SIGINT/SIGQUIT. When
-//! `cmd_start` ran in the foreground and the user closed the terminal,
-//! the kernel sent SIGHUP — the default action (terminate) ran
+//! `_play` runs in a foreground terminal (the diagnostic lane the
+//! startup-failure tips point at) and the user closes that terminal,
+//! the kernel sends SIGHUP — the default action (terminate) ran
 //! `process::exit` from the signal handler, skipping all Drop guards.
-//! The result: no fade-out, PipeWire pop, stale PID/lock files. The
-//! fix adds SIGHUP to the graceful-shutdown set. In `cmd_daemon
-//! --foreground` mode (systemd), SIGHUP is harmless — systemd doesn't
-//! send it during normal operation.
+//! The result: no fade-out, PipeWire pop. The fix adds SIGHUP to the
+//! graceful-shutdown set. For the detached spawn (`on` detaches the
+//! player into its own process group with stdio null), SIGHUP is
+//! harmless — no controlling terminal means nothing sends it during
+//! normal operation.
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
