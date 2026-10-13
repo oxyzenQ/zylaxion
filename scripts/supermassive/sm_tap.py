@@ -126,17 +126,23 @@ def battery(ledger: Ledger, binary: str, handover_user: str) -> None:
                 f"rc={rc}: {out[:120]}",
             )
 
+        # The foreign entry is a DIRECTORY: bpffs refuses to create
+        # regular files (objects arrive via the pin syscall only) but
+        # accepts mkdir — the same operation the loader itself uses
+        # for the pin directory. A directory inside the pin set makes
+        # remove_dir(2) answer ENOTEMPTY, the exact
+        # handled-not-fatal shape the detach contract names
+        # (night-badas-4 round 5: the file-shaped probe could never
+        # plant, and the strict full lane accepts no skips).
         foreign = f"{PIN_DIR}/foreign-probe"
         planted = False
         try:
-            with open(foreign, "wb") as fh:
-                fh.write(b"supermassive")
+            os.mkdir(foreign)
             planted = True
         except OSError:
             pass
         if planted:
             rc, out = _run(binary, ["detach"])
-            note = out if rc != 0 else ""
             still_there = os.path.exists(foreign)
             if rc == 0 and still_there:
                 ledger.pass_row(
@@ -146,12 +152,27 @@ def battery(ledger: Ledger, binary: str, handover_user: str) -> None:
             else:
                 ledger.fail_row(
                     "detach keeps foreign entries (handled-not-fatal)",
-                    f"rc={rc}, foreign-survives={still_there} {note[:80]}",
+                    f"rc={rc}, foreign-survives={still_there} {out[:80]}",
                 )
             try:
-                os.unlink(foreign)
+                os.rmdir(foreign)
             except OSError:
                 pass
+            # The detach above is real: the pins are gone. The read
+            # -back below needs the live tap, so replant it through
+            # the same SUDO_USER handover before the lane moves on.
+            rc, out = _run(binary, ["attach"], sudo_user=handover_user)
+            if rc == 0 and "tap attached" in out:
+                ledger.pass_row(
+                    "the lane replants the tap after the foreign probe",
+                    out.splitlines()[0][:70],
+                )
+            else:
+                ledger.fail_row(
+                    "the lane replants the tap after the foreign probe",
+                    f"rc={rc}: {out[:120]}",
+                )
+                return
         else:
             ledger.skip_row(
                 "detach keeps foreign entries (handled-not-fatal)",
