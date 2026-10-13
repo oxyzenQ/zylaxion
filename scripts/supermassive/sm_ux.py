@@ -124,20 +124,34 @@ def _discovery(ledger: Ledger, binary: str) -> None:
             ledger.fail_row("list-backends renders", f"rc={rc}: {out[:90]}")
 
         rc, out = run_cli(binary, ["doctor"])
-        # The doctor's rc is the verdict's polarity, honestly: 0 when
-        # every check passed ("verified supported"), 1 when the
-        # environment failed a check ("verified unsupported"). The
-        # probe demands the PAIR match — a rc without its verdict
-        # string (or the reverse) is the failure shape.
-        supported = rc == 0 and "verified supported" in out
-        unsupported = rc == 1 and "verified unsupported" in out
-        if supported or unsupported:
-            verdict = "supported (rc 0)" if supported else "unsupported (rc 1)"
-            ledger.pass_row("doctor prints the kernel verdict", verdict)
+        # night-badas-4: the probe used to equate the doctor's rc with
+        # the KERNEL verdict's polarity ("verified supported" -> rc 0).
+        # The doctor's actual contract is the WHOLE report's health:
+        # rc 0 <=> the "All checks passed" summary line, rc 1 <=> the
+        # "Some checks failed" summary line — and on a runner with no
+        # audio device (and no XDG_RUNTIME_DIR) the kernel verdict can
+        # honestly be "verified supported" while the report still exits
+        # 1. The probe therefore pins the real contract: the summary
+        # line matches the rc, AND the kernel verdict line is present
+        # with its PASS/FAIL marker agreeing with the verdict string.
+        supported = "PASS: eBPF: verified supported" in out
+        unsupported = "FAIL: eBPF: verified unsupported" in out
+        verdict_ok = supported or unsupported
+        summary_ok = (rc == 0 and "All checks passed" in out) or (
+            rc == 1 and "Some checks failed" in out
+        )
+        if verdict_ok and summary_ok:
+            verdict = (
+                "kernel verified supported"
+                if supported
+                else "kernel verified unsupported"
+            )
+            ledger.pass_row("doctor prints the kernel verdict", f"{verdict}, rc {rc} matches the summary")
         else:
             ledger.fail_row(
                 "doctor prints the kernel verdict",
-                f"rc={rc}, verdict-string={'verified' in out}: {out[:80]}",
+                f"rc={rc}, kernel-verdict-line={verdict_ok}, "
+                f"summary-matches-rc={summary_ok}: {out[:80]}",
             )
 
 

@@ -20,6 +20,35 @@ and the pre-v10 release notes live next to it in
 
 ### Fixed
 
+- **night-badas-4** — the Dragon Guard estate goes green: five red
+  checks, four root causes, all fixed. (1) The eBPF tap build failed
+  at the structural validation on every run since the job was
+  introduced: the validator grepped the ELF section list for
+  `tracepoint` — a tap shape this crate never shipped — while the
+  night-improve-25 chain plants `fentry/input_event` and
+  `kprobe/input_event` sections (the validator's own build step
+  succeeded every time; the ~0.1 s "failure" was readelf finding no
+  tracepoint section). The validation now demands the real contract:
+  the maps and license sections plus a program section on
+  `input_event`, each with a named failure message and the section
+  dump. (2) The two supermassive E2E legs (the 5.15 floor and the
+  latest kernel) died in the payload build before the micro-VM ever
+  booted: the job installed only qemu + cpio, and cpal's alsa-sys
+  needs `alsa.pc` via pkg-config — `libasound2-dev pkg-config` now
+  rides the same apt step. (3) The workflow lint failed on
+  actionlint's shellcheck SC2012 in the kernel resolver's module
+  listing (`ls` piped into `tr`); the listing now comes from `find`,
+  and the two yamllint comment-spacing warnings in crates-io.yml are
+  cleaned with it. (4) The world-first claims probe "doctor prints
+  the kernel verdict" modeled the doctor's exit code as the KERNEL
+  verdict's polarity and failed on every runner: the doctor's actual
+  contract is the WHOLE report's health (rc 0 ⇔ "All checks passed",
+  rc 1 ⇔ "Some checks failed") — on a runner with no audio device the
+  kernel can honestly be "verified supported" while the report exits
+  1. The probe now pins the real contract: the summary line matches
+  the rc AND the kernel verdict line is present with its PASS/FAIL
+  marker agreeing with the verdict string.
+
 - **night-master-4** — the presets stopped being sample-rate-
   dependent. Every decay coefficient in the registry (the main
   envelope, the two-stage fast lane, the ambient rattle envelope) was
