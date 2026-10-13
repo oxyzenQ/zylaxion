@@ -17,6 +17,76 @@ use cpal::traits::{DeviceTrait, HostTrait};
 use crate::ebpf::pin;
 use crate::session::preset;
 
+/// Silence libasound's C-level stderr error log for the duration of
+/// one device probe (night-improve-29, the CLI/UX tidy).
+///
+/// cpal's ALSA host resolves the `default` PCM by opening it; on a
+/// host without a sound card libasound prints up to eight raw
+/// `ALSA lib ...` diagnostic lines straight to stderr — C-library
+/// noise the rendered verdict already answers honestly. The guard
+/// swaps in a silent handler for the probe's lifetime and restores
+/// the library default on drop, so the player path (where a raw ALSA
+/// line is real diagnosis) stays loud. alsa-sys is cpal's own pin —
+/// the target-gated dependency adds zero crates to the lock.
+#[cfg(target_os = "linux")]
+struct QuietAlsa;
+
+#[cfg(target_os = "linux")]
+impl QuietAlsa {
+    fn new() -> Self {
+        // The handler type carries a C-variadic tail; defining a
+        // variadic `extern "C" fn` is a nightly-only surface, so the
+        // no-op non-variadic shape is transmuted into the handler slot
+        // (the established pattern: both are nullable function
+        // pointers of identical layout, the callee reads no arguments,
+        // and the SysV x86-64 ABI passes the variadic bookkeeping in a
+        // call-clobbered register a non-variadic callee ignores).
+        unsafe {
+            alsa_sys::snd_lib_error_set_handler(std::mem::transmute::<
+                unsafe extern "C" fn(
+                    *const std::os::raw::c_char,
+                    std::os::raw::c_int,
+                    *const std::os::raw::c_char,
+                    std::os::raw::c_int,
+                    *const std::os::raw::c_char,
+                ),
+                alsa_sys::snd_lib_error_handler_t,
+            >(
+                silent_alsa_handler
+                    as unsafe extern "C" fn(
+                        *const std::os::raw::c_char,
+                        std::os::raw::c_int,
+                        *const std::os::raw::c_char,
+                        std::os::raw::c_int,
+                        *const std::os::raw::c_char,
+                    ),
+            ));
+        }
+        QuietAlsa
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl Drop for QuietAlsa {
+    fn drop(&mut self) {
+        unsafe { alsa_sys::snd_lib_error_set_handler(None) };
+    }
+}
+
+/// The silent handler: libasound's documented contract accepts any
+/// no-op with this signature (the variadic tail is transmuted away
+/// in `QuietAlsa::new` — see the note there); the rendered verdict
+/// lines are the user-facing truth instead.
+#[cfg(target_os = "linux")]
+unsafe extern "C" fn silent_alsa_handler(
+    _file: *const std::os::raw::c_char,
+    _line: std::os::raw::c_int,
+    _function: *const std::os::raw::c_char,
+    _err: std::os::raw::c_int,
+    _fmt: *const std::os::raw::c_char,
+) {
+}
+
 /// Print a system-health diagnostic report (build facts, kernel/eBPF
 /// verdict, audio).
 ///
@@ -224,15 +294,42 @@ pub fn cmd_doctor() {
         }
     }
 
-    // 4. Audio server check (best-effort).
+    // 4. Audio server check (night-improve-29: the probe now OPENS the
+    //    device — a name without a working config was a false PASS on
+    //    hosts whose `default` PCM cannot open — and the probe rides
+    //    the quiet-ALSA guard so libasound's C-level error log cannot
+    //    spew across the report. The compact render matches the
+    //    overview's audio line, one shape family-wide).
     println!("\n{}", crate::output::section("[4/4] Audio server..."));
-    match cpal::default_host().default_output_device() {
-        Some(device) => {
-            let name = device.name().unwrap_or_else(|_| "<unknown>".into());
+    #[cfg(target_os = "linux")]
+    let _quiet = QuietAlsa::new();
+    match cpal::default_host().default_output_device().map(|d| {
+        let name = d.name().unwrap_or_else(|_| "<unknown>".into());
+        (name, d.default_output_config())
+    }) {
+        Some((name, Ok(config))) => {
             println!(
                 "      {}",
-                crate::output::ok_line(&format!("PASS: default output device: {name}"))
+                crate::output::ok_line(&format!(
+                    "PASS: default output device: {name} ({} Hz, {}ch, {:?})",
+                    config.sample_rate().0,
+                    config.channels(),
+                    config.sample_format()
+                ))
             );
+        }
+        Some((name, Err(e))) => {
+            println!(
+                "      {}",
+                crate::output::fail_line(&format!(
+                    "FAIL: default output device ({name}) present but not openable: {e}"
+                ))
+            );
+            println!(
+                "      {}",
+                crate::output::tip_line("fix: start PipeWire or PulseAudio")
+            );
+            ok = false;
         }
         None => {
             println!(
@@ -271,46 +368,74 @@ pub fn cmd_doctor() {
 /// file to fail finding and no parse to fail.
 pub fn cmd_list_presets() {
     let active = preset::context_preset_name();
+    let env_name = std::env::var(preset::PRESET_ENV_VAR)
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
     println!("Available presets (compiled into this binary):\n");
-    for entry in crate::profiles::registry_all() {
-        let marker = if entry.name == active {
-            crate::output::ok_marker(" <- active")
-        } else {
-            String::new()
-        };
-        println!("  {}{marker}", entry.name);
-        println!("      {}", entry.description);
-    }
-    println!();
-    println!("Active preset: {active}");
-    println!();
-    println!("Switch preset:");
-    println!("  zylaxion on --preset <name>        # when starting");
-    println!("  zylaxion preset --switch <name>    # live, while playing");
-    println!("  or export {}=\"<name>\"", preset::PRESET_ENV_VAR);
-    println!();
-    println!(
-        "Volume (headphones want less): export {}=1.5",
-        preset::VOLUME_ENV_VAR
-    );
+    print!("{}", presets_table_from(active, env_name.as_deref()));
 }
 
-/// List available audio backends via cpal.
+/// The pure render behind `list-presets` (night-improve-29): ONE line
+/// per preset — the name in a fixed-width column, the description
+/// beside it, the session-active row marked at the end — and no
+/// how-to footer (the help and the overview teach switching; a list
+/// lists). The env honesty note names an override that names nothing.
+fn presets_table_from(active: &str, env_preset: Option<&str>) -> String {
+    let registry = crate::profiles::registry_all();
+    let width = registry.iter().map(|e| e.name.len()).max().unwrap_or(0);
+    let mut out = String::new();
+    for entry in registry.iter() {
+        out.push_str("  ");
+        out.push_str(&format!("{:<width$}", entry.name));
+        out.push_str("  ");
+        out.push_str(entry.description);
+        if entry.name == active {
+            out.push_str(&crate::output::ok_marker("  <- active"));
+        }
+        out.push('\n');
+    }
+    // The honesty note: an env selection that names nothing renders
+    // as if it were absent (the compiled default is marked) — the
+    // note names the truth so the marker cannot mislead.
+    if let Some(env_name) = env_preset
+        && !registry.iter().any(|e| e.name == env_name)
+    {
+        out.push_str(&crate::output::tip_line(&format!(
+            "\nnote: {}=\"{env_name}\" names no registered preset — using {active}",
+            preset::PRESET_ENV_VAR
+        )));
+        out.push('\n');
+    }
+    out
+}
+
+/// List the audio surface via cpal (night-improve-29 render): the
+/// host, then the default output in the SAME compact shape the
+/// overview and the doctor carry — one device, one line. The probe
+/// rides the quiet-ALSA guard; on a host with no sound card the
+/// honest verdict line replaces libasound's raw stderr spew.
 pub fn cmd_list_backends() {
+    #[cfg(target_os = "linux")]
+    let _quiet = QuietAlsa::new();
     let host = cpal::default_host();
     println!("Audio host: {}", host.id().name());
-
-    if let Some(device) = host.default_output_device() {
-        let name = device.name().unwrap_or_else(|_| "<unknown>".into());
-        println!("Default output: {name}");
-
-        if let Ok(config) = device.default_output_config() {
-            println!("  Sample rate: {} Hz", config.sample_rate().0);
-            println!("  Channels: {}", config.channels());
-            println!("  Format: {:?}", config.sample_format());
+    match host.default_output_device() {
+        Some(device) => {
+            let name = device.name().unwrap_or_else(|_| "<unknown>".into());
+            match device.default_output_config() {
+                Ok(config) => println!(
+                    "Default output: {name} ({} Hz, {}ch, {:?})",
+                    config.sample_rate().0,
+                    config.channels(),
+                    config.sample_format()
+                ),
+                Err(e) => {
+                    println!("Default output: {name} (present but not openable: {e})")
+                }
+            }
         }
-    } else {
-        println!("No default output device.");
+        None => println!("Default output: none found"),
     }
 }
 
@@ -368,7 +493,10 @@ pub fn cmd_overview() {
     #[cfg(not(feature = "ebpf"))]
     println!("  ebpf:    dormant build (--no-default-features) — no tap surface");
 
-    // 3. Audio device.
+    // 3. Audio device (the quiet-ALSA guard keeps libasound's C-level
+    //    error log off the overview on cardless hosts).
+    #[cfg(target_os = "linux")]
+    let _quiet = QuietAlsa::new();
     let host = cpal::default_host();
     match host.default_output_device() {
         Some(device) => {
@@ -390,8 +518,12 @@ pub fn cmd_overview() {
     }
 
     println!();
-    println!("  zylaxion on             # start the sound");
+    println!("  zylaxion on                      # start the sound");
     println!("  zylaxion preset --switch <name>  # switch sound live");
-    println!("  zylaxion status         # the full truth");
+    println!("  zylaxion status                  # the full truth");
     println!();
 }
+
+#[cfg(test)]
+#[path = "../../test/commands/info_tests.rs"]
+mod tests;

@@ -20,6 +20,30 @@ and the pre-v10 release notes live next to it in
 
 ### Changed
 
+- **night-improve-29** — the masterclass CLI/UX tidy of the discovery
+  and probe surfaces. `list-presets` renders ONE line per preset — the
+  name in a fixed-width column, the description beside it, the
+  session-active row marked at the end — and the how-to footer
+  (`Active preset:` restatement, the `Switch preset:` block, the
+  volume tip) is gone: a list lists, the help and the overview teach.
+  An env override that names no registered preset is now named in an
+  inline note instead of silently falling back to the marked default.
+  `list-backends` and the overview's audio line, and the doctor's
+  audio section, all render the same compact one-device shape; the
+  doctor's audio probe now OPENS the device (a name without a working
+  config was a false PASS on hosts whose `default` PCM cannot open)
+  and reports "present but not openable" honestly. The raw libasound
+  C-level stderr spew (up to eight `ALSA lib ...` lines on a cardless
+  host) is silenced for the probe surfaces via a quiet-ALSA guard —
+  alsa-sys joins as a target-gated dependency at cpal's own pin
+  (0.3.1, zero lockfile delta), restoring the library default on drop
+  so the player path keeps its full diagnosis. Stale-claim kills in
+  the help and the crate doc: "kernel evdev in, low-latency PipeWire
+  audio out" → "the eBPF tap in, low-latency ALSA audio out"; the
+  `ZYLAXION_PRESET` env row no longer references the dead `start`
+  verb. The supermassive preset-catalog probe re-pinned to the new
+  one-line shape (the scanner carries the surface it scans).
+
 - **night-security-1** — supply-chain dependency audit and tightening.
   Every feature gate in the manifest was walked against the audited
   API surface (crate-level: all 11 direct dependencies are live, zero

@@ -4,8 +4,8 @@
 //! **zylaxion** — real-time mechanical keyboard acoustic synthesizer for Linux.
 //!
 //! Transforms every keystroke into a spatially-accurate click sound
-//! through your speakers, using the kernel's evdev interface and
-//! low-latency audio via cpal / PipeWire.
+//! through your speakers, through the kernel-side eBPF tap and
+//! low-latency audio via cpal / ALSA.
 //!
 //! # The Cosmic Dragon Engine (night-improve-21, the unified architecture)
 //!

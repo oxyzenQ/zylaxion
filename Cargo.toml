@@ -119,6 +119,17 @@ signal-hook = { version = "0.3", default-features = false }
 # serialize), and the libinput `input` crate died with the seat capture —
 # the kernel-side eBPF tap replaced it.
 
+# night-improve-29: alsa-sys rides the tree as cpal's own pin — the
+# same 0.3.1 resolves, zero lockfile delta, no new supply-chain
+# surface. Target-gated to Linux because that is where cpal's ALSA
+# host lives. The ONE use: the quiet-ALSA probe guard in
+# src/commands/info.rs — libasound's C-level error log (up to eight
+# raw `ALSA lib ...` lines on a cardless host) cannot spew across the
+# rendered CLI surfaces; the guard restores the library default on
+# drop so the player path keeps its full diagnosis.
+[target.'cfg(target_os = "linux")'.dependencies]
+alsa-sys = "0.3.1"
+
 [profile.release]
 opt-level = 3
 debug = false

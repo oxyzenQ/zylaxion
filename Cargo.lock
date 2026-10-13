@@ -1323,6 +1323,7 @@ dependencies = [
 name = "zylaxion"
 version = "11.0.0"
 dependencies = [
+ "alsa-sys",
  "arc-swap",
  "aya",
  "clap",

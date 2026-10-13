@@ -81,17 +81,18 @@ def _read_binary(binary: str) -> bytes:
 def _list_preset_names(binary: str) -> list[str]:
     """Ask the binary for its own preset catalog.
 
-    list-presets renders one name per line, indented exactly two
-    spaces, optionally followed by the `<- active` marker; description
-    lines sit deeper (six spaces) and the header/footer prose is
-    unindented — the shape is parsed, not guessed.
+    night-improve-29: list-presets renders ONE line per preset —
+    the name indented exactly two spaces, then two spaces, then the
+    description; the active row ends with the `<- active` marker and
+    the header/note prose is unindented — the shape is parsed, not
+    guessed.
     """
     proc = subprocess.run(
         [binary, "list-presets"], capture_output=True, text=True, timeout=45
     )
     names: list[str] = []
     for line in proc.stdout.splitlines():
-        match = re.fullmatch(r"  ([A-Za-z0-9_]+)(?: <- active)?", line)
+        match = re.fullmatch(r"  ([A-Za-z0-9_]+)  .+(?:  <- active)?", line)
         if match:
             names.append(match.group(1))
     return names
