@@ -340,9 +340,10 @@ is codified in [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md).
   `zylaxion --check-update` subcommand, which fetches the latest
   GitHub release tag and exits. No background phone-home. Under
   root (`sudo`, `su`, a root shell) that check refuses with a
-  "do not use sudo" error before any network I/O, and the player
-  refuses root the same way — a root player would open audio in
-  root's session, which no user desktop shares. `zylaxion doctor`
+  "do not use sudo" error before any network I/O, and `zylaxion on`
+  and the player refuse root the same way — the `on` door closes
+  before any path resolution or spawn, and a root player would open
+  audio in root's session, which no user desktop shares. `zylaxion doctor`
   warns when run as root because its verdicts describe root's
   session, not yours.
 - **Does not accept inbound network connections** — there is no TCP

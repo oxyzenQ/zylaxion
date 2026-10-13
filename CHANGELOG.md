@@ -20,6 +20,50 @@ and the pre-v10 release notes live next to it in
 
 ### Fixed
 
+- **night-improve-26** — the parent side of the player wire speaks
+  honestly and owns its door. The night's audit found the clap side
+  already soldered (the explicit `name = "_play"` pin and its parse
+  tests landed with night-improve-25), but two parent-side gaps
+  remained. First, both startup-failure strings led with
+  `zylaxion _play` — pointing a stranded user at a hidden internal
+  verb as the primary diagnostic; they now lead with `zylaxion
+  doctor` (the environment verdicts) and mention the internal verb
+  only as a secondary, honest pointer to something that exists.
+  Second, `zylaxion on` had no root door: root sailed past the
+  parent into the player's refusal and met a spawn error instead of
+  the session wording. `cmd_on` now refuses root BEFORE any path
+  resolution, map open, or spawn, through the pure decision surface
+  `on_root_refusal` — the exact mirror of the player-side guard,
+  one wording, two doors. The wire is pinned against drift besides:
+  the spawn literal becomes the `PLAYER_SPAWN_VERB` constant the
+  spawn consumes, and test/commands/sound_tests.rs holds the three
+  decision-surface pins (the underscore spelling, the root refusal
+  carrying the do-not-use-sudo note, the non-root pass).
+
+- **night-improve-26** — the attach cleanup owns the directory. The
+  old cleanup unpinned files but never removed the pin directory:
+  an attach that failed after `mkdir` left /sys/fs/bpf/zylaxion
+  behind, and the next first-ever attach died with EEXIST at that
+  path — on CachyOS (nested bpffs) it surfaced on the owner's live
+  host (docs/KERNEL_COMPATIBILITY.md carries the entry). The one
+  rmdir that did exist was a silent `let _ =`: every outcome —
+  foreign entries and real failures included — vanished without a
+  word, and the attach-side self-heal fired only when a pin (not
+  the bare directory) was present, so a stale-EMPTY directory
+  survived into the next attach. The cleanup is now classified end
+  to end: `PinDirRemoval` splits the outcomes (Removed,
+  AlreadyAbsent, LeftForeignEntries — ENOTEMPTY reads as
+  handled-not-fatal because foreign entries are not ours to remove
+  — and Unexpected, which surfaces), attach pre-clean removes the
+  stale-empty directory before mkdir and refuses honestly on
+  foreign entries, detach reports every outcome instead of
+  swallowing it, and the failure marker the doctor reads survives
+  the cleanup lanes — read, logged, then deliberately superseded.
+  The detach half lives in the new teardown module (loader.rs hit
+  the 600-line no-mercy cap and split the theme out); the
+  classified core is pinned by four fixture tests in
+  test/ebpf/pin_tests.rs.
+
 - **night-improve-25** — the hidden player verb parses again: clap
   derives `play` from the bare `Commands::Play` variant, but every
   call site spells the verb with the underscore (sound.rs spawns
@@ -192,6 +236,20 @@ and the pre-v10 release notes live next to it in
     tap-not-attached verdict instead of a not-found error.
 
 ### Added
+
+- **night-improve-26** — the kernel compatibility record:
+  docs/KERNEL_COMPATIBILITY.md. The kernel floor the tap requires
+  (5.15, with the honest doctor verdict either way) plus one entry
+  per distro layout the tap actually meets, each carrying its
+  evidence — opened with the CachyOS nested-bpffs case: the layout
+  (`findmnt -t bpf` shows bpf-on-bpf), the symptom (the first-ever
+  attach's EEXIST at /sys/fs/bpf/zylaxion), the classified-cleanup
+  fix, and the provenance chain from the live 6.18.50 host (the
+  EEXIST, the detach clearing the leftover, the clean attach,
+  `bpftool prog show` reporting `prog_type tracing` on the BTF id
+  of `input_event`). A resolved entry is RESOLVED — not worked
+  around: the fix lives in the code, so nobody re-litigates it as
+  a zylaxion bug later. Indexed from docs/README.md.
 
 - **night-master-2** — the one-command machine installer,
   `install-on-my-machine.sh` at the repo root. Linux only, no flags:
