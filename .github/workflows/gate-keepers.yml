@@ -1,0 +1,87 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+# DRAGON GUARD - GATE-KEEPERS — the wholesale non-code gate, CI-side
+# =============================================================================
+#
+# night-badas-5 (the zelynic gate-keepers.yml lineage, NIGHT-improve-13
+# doctrine): the non-code gates — permissions, SPDX headers, the LOC
+# caps, language discipline, the emoji sweep, the actions pins health,
+# release parity, the name-case rule, plus the workflow lint quad —
+# run on EVERY push, UNFILTERED. A docs-only change matches nothing in
+# the path-filtered build estate (ci.yml, supermassive.yml), but it can
+# break exactly the gates that police docs and file plumbing — so this
+# workflow never sleeps. Zero build minutes (no Rust toolchain, no
+# compile): bash, git, python3 and four pinned lint tools are the whole
+# budget.
+#
+# The workflow lint quad (actionlint, yamllint, codespell) moved here
+# from ci.yml's "Workflow lint + codespell" job (night-badas-6): under
+# that job's build-gated shape a docs-only push skipped the very gates
+# that could catch it, and a workflow-file-only change (which matches
+# no build glob) skipped them entirely. Same pins, new unfiltered home.
+#
+# Tool pins make findings meaningful: a red run means the tree drifted,
+# never that a linter released overnight. actionlint is pinned to
+# 1.7.7 — the exact binary this repo's workflows were validated with.
+# =============================================================================
+---
+name: Dragon Guard - Gate-keepers
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  gatekeepers:
+    name: Gate-keepers (wholesale)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+
+      # The curl retry contract is the zelynic NIGHT-dinner-12 lesson:
+      # a transient 5xx on a tool download must never kill a wholesale
+      # run before a single gate executed, and without -f a 5xx page
+      # lands in the tarball and dies later inside tar with a
+      # misleading error.
+      - name: Install the lint quad (pinned)
+        run: |
+          python3 -m pip install --user yamllint==1.38.0 codespell==2.4.3
+          curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 --retry-max-time 300 --connect-timeout 15 \
+            -o /tmp/actionlint.tgz \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          tar -xzf /tmp/actionlint.tgz -C /tmp actionlint
+          sudo install -m755 /tmp/actionlint /usr/local/bin/actionlint
+          yamllint --version
+          codespell --version
+          actionlint --version
+
+      - name: The lint quad (workflow lint + codespell)
+        run: |
+          actionlint .github/workflows/*.yml
+          yamllint .github/workflows
+          if [ -f .codespellrc ]; then
+            codespell --config .codespellrc .
+          else
+            codespell --skip './.git,./target,./assets,./dist,./node_modules' .
+          fi
+
+      # The wholesale run: all nine sections in one shot — exit code 0
+      # or the push is blocked. bash + git + python3 only; every gate
+      # script it drives lives under scripts/gates/.
+      - name: Run gate-keepers.sh (wholesale)
+        run: bash scripts/gate-keepers.sh

@@ -1,0 +1,74 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+# =============================================================================
+# DRAGON GUARD - SECURITY AUDIT — the supply-chain CVE watch
+# =============================================================================
+#
+# night-badas-5 (the zelynic audit.yml lineage): the cargo-audit scan
+# moves out of ci.yml into its own scanner workflow. The scanner rule
+# (the zelynic NIGHT-improve-11 law): a scanner workflow carries the
+# surface it scans — here the manifests and the lockfiles — so a
+# manifest or lockfile change gets an advisory scan the same push the
+# dependency surface moved, instead of waiting for Monday's clock. The
+# weekly schedule stays as the between-pushes watch over the advisory
+# DB itself (cargo-audit's database updates out-of-band; a quiet week
+# can still grow a new CVE). Rust source, scripts, and docs all leave
+# this workflow asleep; gate-keepers.yml (unfiltered) polices the rest.
+#
+# This is the canonical source for vulnerability scanning — the local
+# gatekeeper (build.sh check-all) skips cargo-audit per policy; this
+# lane owns the verdict (cargo audit --deny warnings: any advisory
+# blocks).
+#
+# Weekly schedule: Monday 07:00 UTC — the same clock maintenance.yml
+# already keeps (one schedule spelling per estate).
+# =============================================================================
+---
+name: Dragon Guard - Security Audit
+
+"on":
+  push:
+    branches: [main]
+    paths:
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.github/workflows/audit.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      # Same spelling as push (the no-drift law).
+      - '**/*.toml'
+      - '**/Cargo.lock'
+      - '.github/workflows/audit.yml'
+  schedule:
+    - cron: "0 7 * * 1"  # Monday 07:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  audit:
+    name: Supply-chain CVE scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+
+      - name: Install Rust toolchain
+        run: rustup default stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Run cargo audit
+        run: cargo audit --deny warnings

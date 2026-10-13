@@ -297,16 +297,22 @@ jobs:
   # era's hardware): every core, three quarters of the RAM.
   # ═══════════════════════════════════════════════════════════════════
   e2e-vm:
-    name: supermassive E2E — ${{ matrix.leg.title }}
+    name: ${{ matrix.leg.title }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
+        # night-badas-5: the leg titles ride the zelynic supermassive
+        # lineage's low/best specs shape — the floor kernel (the
+        # documented 5.15 minimum, jammy's pockets) and the archive's
+        # head. zylaxion has no musl twins: the musl lane is the
+        # documented dormant lane (the .cargo/config.toml header), so
+        # each spec tier is one gnu leg.
         leg:
-          - title: floor kernel (5.15, the documented floor)
+          - title: supermassive test - low specs (the 5.15 documented floor)
             pocket: floor
-          - title: latest kernel (the archive's head)
+          - title: supermassive test - best specs (the archive's head)
             pocket: latest
     steps:
       - name: Checkout
@@ -518,7 +524,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/kfloor
-          echo "── supermassive verdicts (${{ matrix.leg.title }}) ──"
+          echo "── supermassive verdicts (${{ matrix.leg.pocket }} pocket) ──"
           grep -E '^MASS-(RESULT|VERDICT)' vm.log || true
           grep -q '^MASS-VERDICT: PASS' vm.log
           echo "OK: the zero-to-hero chain proven on ${{ matrix.leg.title }}"
