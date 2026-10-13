@@ -191,7 +191,9 @@ fn pro_mode_documents_every_hidden_and_advanced_spelling() {
 
 // ── night-improve-27: the daemon-era wording sweep ───────────────────
 
-/// The dead-service sweep, pinned as a test: the string
+/// The dead-service sweep, pinned as a test (a filesystem walk, so it
+/// rides cfg(not(miri)) like every other FS-touching leg — Miri's
+/// isolation has no opendir, and its mandate is UB, not wording): the string
 /// "systemctl --user restart zylaxion" appears nowhere in the living
 /// tree — src/, ebpf/, and docs/. docs/archive/ is skipped BY LAW, not
 /// by accident: it is the documented frozen-record class (the
@@ -199,6 +201,7 @@ fn pro_mode_documents_every_hidden_and_advanced_spelling() {
 /// would falsify the record. CHANGELOG.md sits at the repo root, out
 /// of this test's scope, and its own mentions are the historical
 /// record of the sweep that killed the wording.
+#[cfg(not(miri))]
 #[test]
 fn the_dead_service_command_appears_nowhere_in_the_living_tree() {
     const FORBIDDEN: &str = "systemctl --user restart zylaxion";
@@ -235,7 +238,9 @@ fn the_dead_service_command_appears_nowhere_in_the_living_tree() {
 
 /// The reframed idle diagnostic teaches the two actions and never
 /// claims a stuck thread: the 300s line carries the off escape and
-/// the honest liveness fork.
+/// the honest liveness fork. (A file read — cfg(not(miri)) with the
+/// sweep above.)
+#[cfg(not(miri))]
 #[test]
 fn the_idle_heartbeat_teaches_type_or_off() {
     let core = std::fs::read_to_string(
