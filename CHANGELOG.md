@@ -18,6 +18,29 @@ and the pre-v10 release notes live next to it in
 
 ## [Unreleased]
 
+### Changed
+
+- **night-security-1** — supply-chain dependency audit and tightening.
+  Every feature gate in the manifest was walked against the audited
+  API surface (crate-level: all 11 direct dependencies are live, zero
+  unused). Two trims landed: `signal-hook` moves to
+  `default-features = false` — the default `channel` and `iterator`
+  features compile the signal-delivery channel and the `Signals`
+  iterator module trees this crate never touches (only
+  `flag::register` and the `consts` are used, both ungated); `nix`
+  drops the explicit `process` key — `signal = ["process"]` in nix's
+  own feature map, so the gate was a redundant key (the audited
+  surface: `sys::signal::kill`, `poll`, `unistd::{getpid, geteuid,
+  Pid, User::from_name}`, `errno::Errno`). Audit findings recorded
+  with no change required: the GitHub Actions estate is already
+  SHA-pinned byte-identical to the zelynic reference; every direct
+  dependency is current within its semver requirement; the tokio /
+  regex / jni / windows lockfile entries are cpal's target-gated
+  backends that never compile on Linux (the Linux-resolved graph is
+  52 crates); aya's upstream `assert_matches` runtime dependency is
+  an upstream choice, not addressable here. README's stale lockfile
+  counts (135) synced to the real 150.
+
 ### Fixed
 
 - **night-badas-4 (round 5)** — the first full E2E probe run inside
