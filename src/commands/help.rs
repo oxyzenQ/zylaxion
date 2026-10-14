@@ -195,7 +195,7 @@ pub(crate) fn render_reference(color: bool) -> String {
         ("NO_COLOR=1", "plain bytes on every surface, always"),
         (
             "RUST_LOG=<filter>",
-            "the log lane: info on attach and the\nplayer, warn on the rest",
+            "the log lane: info on attach, warn on the\nplayer and the rest; the detached player\nwrites no terminal bytes — run _play in\nthe foreground for its log",
         ),
     ];
     let hidden_verbs: &[(&str, &str)] = &[(

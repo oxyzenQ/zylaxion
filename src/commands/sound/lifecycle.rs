@@ -116,8 +116,13 @@ pub fn cmd_on(cli_preset: Option<String>) {
     }
 
     // Clear any stale registration, then spawn the stateless player:
-    // same binary, hidden verb, detached into its own process group, no
-    // stdio worth keeping except stderr (startup errors stay visible).
+    // same binary, hidden verb, detached into its own process group,
+    // no stdio at all (night-hunter-6: the detached player owns no
+    // terminal bytes — its log lane dies here, so a preset switch an
+    // hour later can never dirty the shell that ran `on`). Startup
+    // failure diagnosis stays honest: the parent's error messages
+    // name `zylaxion _play` in the foreground, where the player's
+    // log lane is visible again.
     let _ = control.set(STATE_SLOT, STATE_IDLE, 0);
     let _ = control.set(PLAYER_PID_SLOT, 0, 0);
     let exe = match std::env::current_exe() {
@@ -132,7 +137,7 @@ pub fn cmd_on(cli_preset: Option<String>) {
         .arg(PLAYER_SPAWN_VERB)
         .stdin(process::Stdio::null())
         .stdout(process::Stdio::null())
-        .stderr(process::Stdio::inherit())
+        .stderr(process::Stdio::null())
         .process_group(0)
         .spawn();
     let mut child = match spawn {
