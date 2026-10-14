@@ -437,6 +437,21 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-guard-2 (the release manifest stops promising what
+  signing may not ship)** — Dragon Guard - Release failed on the
+  tag push with "Pattern 'dist/*.tar.gz.asc' does not match any
+  files": the publish step's static glob list unconditionally
+  promised GPG signature files, while the signing contract itself
+  is optional by design (no GPG_PRIVATE_KEY secret = checksums-only
+  release) and `fail_on_unmatched_files: true` turned the empty
+  optional pattern into a hard failure. The publish step now
+  uploads what dist/ actually holds — a runtime enumeration of the
+  tripwire-certified inventory (tarballs, checksums, and
+  signatures only when signing shipped them), with an empty-
+  inventory guard. `fail_on_unmatched_files` stays and becomes
+  honest: it now guards against a file vanishing between
+  enumeration and upload, not against an empty optional pattern.
+
 - **night-guard-1 (the Miri lane's honest posture for the rlimit
   pins)** — CI's Dragon Guard - Miri lane aborted at
   `commands::player::tests::coredump_force_is_idempotent` with
