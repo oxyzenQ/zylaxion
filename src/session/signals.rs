@@ -6,21 +6,23 @@
 //! Registers handlers for `SIGTERM`, `SIGINT` (Ctrl+C), `SIGQUIT`
 //! (Ctrl+\), and `SIGHUP` that atomically set a shared `stop_flag` to
 //! `true`. The orchestrator's main loop polls this flag every iteration
-//! and breaks cleanly — dropping `CpalSink` (with fade-out),
-//! `LibinputSource`, and the `Flock` instance lock.
+//! and breaks cleanly — dropping `CpalSink` with its fade-out pad and
+//! the pinned map handles (the retired daemon-era teardown set — the
+//! libinput capture and the flock — died with night-improve-23).
 //!
 //! # Why not `std::process::exit()` in the handler?
 //!
 //! `std::process::exit()` does NOT run `Drop` guards. If we called it
 //! from a signal handler, the audio stream would be torn down mid-buffer
-//! (causing PipeWire pops), the libinput capture would leak (leaving
-//! the terminal in a confused state), and the flock would remain held
-//! until the kernel reaped the process (potentially blocking the next
-//! `zylaxion` start for seconds).
+//! (causing PipeWire pops) and the pinned map fds would be closed
+//! uncleanly, leaving the player's unregister step skipped until the
+//! kernel reaped the process (the next `zylaxion on` would then read a
+//! stale pid and take it over — correct, but noisier than a clean
+//! exit).
 //!
 //! By only setting an atomic flag, we let the main thread finish its
 //! cleanup path: `fade_out_before_drop()` → `CpalSink::drop()` →
-//! `LibinputSource::drop()` → `Flock::drop()` → process exit.
+//! the control map unregister (state idle, pid cleared) → process exit.
 //!
 //! # Why `signal-hook`?
 //!
