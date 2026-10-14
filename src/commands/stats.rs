@@ -24,7 +24,10 @@ use crate::ebpf::pin;
 /// screen, so this warns and lets the report finish instead of
 /// hard-exiting — the standalone `stats` verb used to die here
 /// because the map was its whole purpose; as a section it is a gap
-/// to name, not a failure to own.
+/// to name, not a failure to own. night-hunter-8: the render rides
+/// the broken-pipe-safe stdout lane (`status | head` must not kill
+/// the process with SIGPIPE-by-panic), and the section header rides
+/// the brand tier like the overview's headers.
 #[cfg(feature = "ebpf")]
 pub(crate) fn print_telemetry() {
     let data = match MapData::from_pin(pin::PIN_MAP_STATS) {
@@ -61,17 +64,23 @@ pub(crate) fn print_telemetry() {
     }
     rows.sort_unstable_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
 
-    println!();
-    println!("telemetry (accumulated in the kernel since attach):");
-    println!("  total presses: {total}");
+    crate::output::print_stdout_line("");
+    crate::output::print_stdout_line(&crate::output::section(
+        "telemetry (accumulated in the kernel since attach):",
+    ));
+    crate::output::print_stdout_line(&format!("  total presses: {total}"));
     if rows.is_empty() {
-        println!("  no presses recorded yet — type something!");
+        crate::output::print_stdout_line("  no presses recorded yet — type something!");
         return;
     }
-    println!();
-    println!("  top keys:");
+    crate::output::print_stdout_line("");
+    crate::output::print_stdout_line("  top keys:");
     for (code, count) in rows.iter().take(10) {
-        println!("    {:>8}  keycode {code:>3} ({})", count, key_name(*code));
+        crate::output::print_stdout_line(&format!(
+            "    {:>8}  keycode {code:>3} ({})",
+            count,
+            key_name(*code)
+        ));
     }
 }
 

@@ -44,13 +44,13 @@ pub fn cmd_status(verbose: bool) {
     } else {
         crate::output::fail_line(kernel.verdict())
     };
-    println!("kernel:   {} ({})", kernel.release, verdict);
+    crate::output::print_stdout_line(&format!("kernel:   {} ({})", kernel.release, verdict));
 
     if !pin::any_pin_present() {
-        println!(
+        crate::output::print_stdout_line(&format!(
             "tap:      {}",
             crate::output::tip_line("not attached (sudo zylaxion attach to plant it)")
-        );
+        ));
         return;
     }
     if !pin::all_pins_present() {
@@ -85,11 +85,11 @@ pub fn cmd_status(verbose: bool) {
             crate::output::warn_line("an unknown chain step (a newer binary attached this tap?)")
         }
     };
-    println!(
+    crate::output::print_stdout_line(&format!(
         "tap:      attached via {tap_line} ({} pins under {})",
         pin::ALL_PINS.len(),
         pin::PIN_DIR
-    );
+    ));
 
     let Ok(control) = control else {
         crate::output::warning("the pinned control map is not openable by this user");
@@ -105,18 +105,21 @@ pub fn cmd_status(verbose: bool) {
     let pid = control.get(&PLAYER_PID_SLOT, 0).unwrap_or(0);
     let state = control.get(&STATE_SLOT, 0).unwrap_or(0);
 
-    println!(
+    crate::output::print_stdout_line(&format!(
         "sound:    {}",
         if enabled {
             crate::output::ok_line("on")
         } else {
             crate::output::tip_line("off")
         }
-    );
-    println!("preset:   {preset_name}");
-    println!("volume:   {volume}% (100 = the compiled default)");
+    ));
+    crate::output::print_stdout_line(&format!("preset:   {preset_name}"));
+    crate::output::print_stdout_line(&format!("volume:   {volume}% (100 = the compiled default)"));
     match (pid, pid_alive(pid as i32)) {
-        (0, _) => println!("player:   {}", crate::output::tip_line("not running")),
+        (0, _) => crate::output::print_stdout_line(&format!(
+            "player:   {}",
+            crate::output::tip_line("not running")
+        )),
         (p, true) => {
             // night-hunter-8: the state word IS the verdict — one
             // word, its own tier. The old shape wrapped the tiered
@@ -124,22 +127,22 @@ pub fn cmd_status(verbose: bool) {
             // a failed player rendered as green `running ... state:
             // failed` (the prefix contradicting the state on the
             // same line) and a running player said "running" twice.
-            println!("player:   {} (pid {p})", state_verdict(state));
+            crate::output::print_stdout_line(&format!(
+                "player:   {} (pid {p})",
+                state_verdict(state)
+            ));
         }
-        (p, false) => println!(
+        (p, false) => crate::output::print_stdout_line(&format!(
             "player:   {}",
             crate::output::warn_line(&format!("stale pid {p} in the map (next `on` takes over)"))
-        ),
+        )),
     }
     if verbose {
         crate::commands::stats::print_telemetry();
     }
-    println!();
-    println!(
-        "{}",
-        crate::output::tip_line(&format!(
-            "introspection: bpftool map dump pinned {}",
-            pin::PIN_MAP_CONTROL
-        ))
-    );
+    crate::output::print_stdout_line("");
+    crate::output::print_stdout_line(&crate::output::tip_line(&format!(
+        "introspection: bpftool map dump pinned {}",
+        pin::PIN_MAP_CONTROL
+    )));
 }
