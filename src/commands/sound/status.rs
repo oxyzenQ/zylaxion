@@ -9,9 +9,24 @@ use crate::session::orphan::pid_alive;
 
 use super::open_control;
 use super::{
-    ENABLED_SLOT, PLAYER_PID_SLOT, PRESET_ID_SLOT, STATE_IDLE, STATE_RUNNING, STATE_SLOT,
-    TAP_KIND_SLOT, VOLUME_PCT_SLOT,
+    ENABLED_SLOT, PLAYER_PID_SLOT, PRESET_ID_SLOT, STATE_FAILED, STATE_IDLE, STATE_RUNNING,
+    STATE_SLOT, STATE_STARTING, TAP_KIND_SLOT, VOLUME_PCT_SLOT,
 };
+
+/// The player state verdict (night-hunter-8): the state word IS the
+/// verdict — one word, its own tier, per the night-hunter-4 law
+/// (green running, grey the passive waiting states, red failed,
+/// yellow unknown). A pure function so the word-per-state wiring is
+/// pinned by the test tree, not just compiled.
+pub(crate) fn state_verdict(state: u32) -> String {
+    match state {
+        STATE_RUNNING => crate::output::ok_line("running"),
+        STATE_STARTING => crate::output::tip_line("starting"),
+        STATE_IDLE => crate::output::tip_line("idle"),
+        STATE_FAILED => crate::output::fail_line("failed"),
+        _ => crate::output::warn_line("unknown"),
+    }
+}
 
 /// Handle `zylaxion status [--verbose]` — the one-screen truth:
 /// kernel verdict, tap residency, player liveness, and the active
@@ -103,20 +118,13 @@ pub fn cmd_status(verbose: bool) {
     match (pid, pid_alive(pid as i32)) {
         (0, _) => println!("player:   {}", crate::output::tip_line("not running")),
         (p, true) => {
-            // night-hunter-4: the state word rides the tier — green
-            // running, grey the passive waiting states, red failed,
-            // yellow unknown.
-            let state_word = match state {
-                STATE_RUNNING => crate::output::ok_line("running"),
-                STATE_IDLE => crate::output::tip_line("idle"),
-                1 => crate::output::tip_line("starting"),
-                3 => crate::output::fail_line("failed"),
-                _ => crate::output::warn_line("unknown"),
-            };
-            println!(
-                "player:   {} (pid {p}, state: {state_word})",
-                crate::output::ok_line("running")
-            );
+            // night-hunter-8: the state word IS the verdict — one
+            // word, its own tier. The old shape wrapped the tiered
+            // state word in an unconditional green "running" claim:
+            // a failed player rendered as green `running ... state:
+            // failed` (the prefix contradicting the state on the
+            // same line) and a running player said "running" twice.
+            println!("player:   {} (pid {p})", state_verdict(state));
         }
         (p, false) => println!(
             "player:   {}",

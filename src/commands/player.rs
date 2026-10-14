@@ -390,6 +390,11 @@ const STATE_SLOT: u32 = 4;
 const STATE_IDLE: u32 = 0;
 const STATE_STARTING: u32 = 1;
 const STATE_RUNNING: u32 = 2;
+/// The failed state (night-hunter-8): the value `fail` writes when the
+/// player dies of a fatal error — named here because an anonymous `3`
+/// in the write path and an anonymous `3` in the status reader were
+/// two ways to drift.
+const STATE_FAILED: u32 = 3;
 
 /// The raw ring record — the byte-level twin of `KeyRingEvent` in
 /// ebpf/src/main.rs (24 bytes; the loader's test tree pins the layout
@@ -414,7 +419,7 @@ struct KeyRingEventRaw {
 /// detached), so it carries the fix.
 #[cfg(feature = "ebpf")]
 fn fail(control: &mut aya::maps::Array<MapData, u32>, message: String) -> ! {
-    let _ = control.set(STATE_SLOT, 3, 0);
+    let _ = control.set(STATE_SLOT, STATE_FAILED, 0);
     let _ = control.set(PLAYER_PID_SLOT, 0, 0);
     crate::output::error(message);
     process::exit(1);

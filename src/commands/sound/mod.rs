@@ -69,8 +69,15 @@ pub(crate) const STATE_SLOT: u32 = 4;
 /// (night-hunter-2): the overview reads the same slot through the
 /// named constant.
 pub(crate) const TAP_KIND_SLOT: u32 = 5;
+/// The player state vocabulary (night-hunter-8): the full word list
+/// the player writes and `status` reads — the writer side (player.rs)
+/// carries its own private mirror of these per the established
+/// private-alias shape, but every name now exists on both sides; the
+/// failed state used to be an anonymous `3` in two files.
 const STATE_IDLE: u32 = 0;
+const STATE_STARTING: u32 = 1;
 const STATE_RUNNING: u32 = 2;
+const STATE_FAILED: u32 = 3;
 
 /// The player-wait budget after spawning (and after `off`): the player
 /// reaches the running state (or dies) well inside a second; 2 s is the

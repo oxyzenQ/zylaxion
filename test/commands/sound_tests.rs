@@ -111,3 +111,41 @@ fn negative_gain_is_refused_as_below_silence() {
         "the refusal must name the below-silence bound, got: {err}"
     );
 }
+
+// ── night-hunter-8: the player state vocabulary and its verdict law ─────
+
+use super::status::state_verdict;
+use super::{STATE_FAILED, STATE_IDLE, STATE_RUNNING, STATE_STARTING};
+
+/// The wire contract: the four state values the player writes and the
+/// status reader maps. Before night-hunter-8 the failed value existed
+/// only as an anonymous `3` in two files and `starting` as an
+/// anonymous `1` in a third — a silent renumber on either side would
+/// have gone unnoticed. These values are the control map's language;
+/// if any of them moves, every writer and every reader must move in
+/// the same commit, and this pin fails first.
+#[test]
+fn player_state_vocabulary_values_are_the_wire_contract() {
+    assert_eq!(STATE_IDLE, 0, "idle is the attach-time default state");
+    assert_eq!(STATE_STARTING, 1, "starting precedes the running flip");
+    assert_eq!(STATE_RUNNING, 2, "running is the healthy steady state");
+    assert_eq!(STATE_FAILED, 3, "failed is the fatal-error verdict");
+}
+
+/// The verdict law: the state word IS the verdict — one word, its own
+/// tier (green running, grey the passive waiting states, red failed,
+/// yellow unknown). The harness runs plain (no TTY), so the tier
+/// helpers return the bare words and the exact vocabulary is pinned
+/// byte-for-byte; the color half rides the already-tested helpers
+/// (ok_line/tip_line/fail_line/warn_line). The unknown fallback must
+/// stay a caution word, not a failure word: an unnamed state from a
+/// newer binary is a finding, not a crash.
+#[test]
+fn player_state_words_ride_the_verdict_tiers() {
+    assert_eq!(state_verdict(STATE_RUNNING), "running");
+    assert_eq!(state_verdict(STATE_STARTING), "starting");
+    assert_eq!(state_verdict(STATE_IDLE), "idle");
+    assert_eq!(state_verdict(STATE_FAILED), "failed");
+    assert_eq!(state_verdict(7), "unknown");
+    assert_eq!(state_verdict(9), "unknown");
+}
