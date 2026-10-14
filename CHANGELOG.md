@@ -450,6 +450,34 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-5c (the README's install directions stop being
+  fatal)** — the flagship user-facing find: the "Install from a
+  release" block sent readers to
+  `releases/latest/download/zylaxion`, an asset that has never
+  existed in that shape — a bare 404, caught live by the owner's
+  own wget (redirects to v11.0.0, which ships only versioned
+  tarballs). The replacement block was executed end-to-end before
+  landing: the tag resolves through the releases/latest HTTP
+  redirect (no API, no jq), the v80-line asset name is tried first
+  and the legacy un-suffixed name is the honest fallback (both
+  shapes verified — the legacy v11.0.0 tarball downloaded and
+  unpacked, the flat v80 shape simulated byte-for-byte from the
+  current release workflow's tar invariant and its binary executed
+  to `-V`), and the extraction lands the binary whether the
+  archive is flat or wraps one directory. The section also gained
+  the checksum-verification pointer, and the prose now says which
+  line (v80 or legacy v11) a `releases/latest` hit will serve.
+  Stale data swept while auditing: the workspace test tree's
+  dormant-lane count was re-measured at 175 (README said 147).
+  Every other README command was verified against the live tree:
+  all 13 Usage verbs match `zylaxion --help` byte-for-byte (the
+  Pro-mode vocabulary too), the Security section's own scancode
+  grep returns zero matches, the 16 doc links resolve to files on
+  disk, both assets exist, the 11-direct-dependencies and
+  150-lockfile-crates counts hold, the cargo aliases named in the
+  source-build lane exist in .cargo/config.toml, and the release
+  channel contract matches the workflow's validator.
+
 - **night-hunter-5b.3 (the uninstaller's disable stop lying and the
   bootstrap's lost instructions)** — two more audit finds in the
   error/lifecycle paths. uninstall.sh's pre-removal disable was

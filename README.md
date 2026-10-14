@@ -143,19 +143,40 @@ No toolchain, no clang, no cargo on the target machine — the pure-Rust
 eBPF objects are embedded in the single binary:
 
 ```bash
-wget https://github.com/oxyzenQ/zylaxion/releases/latest/download/zylaxion
-chmod +x zylaxion
-sudo install -Dm755 zylaxion /usr/bin/zylaxion
+# Resolve the latest release tag — a plain HTTP redirect, no API, no jq:
+TAG=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
+      https://github.com/oxyzenQ/zylaxion/releases/latest | sed 's|.*/tag/||')
+echo "latest release: ${TAG}"
+
+# The v80-line shape ships two arch-baseline tarballs per tag.
+# v3 when in doubt (every CPU that runs v4 runs v3); the legacy
+# v11-line tags carried one un-suffixed tarball — the fallback
+# covers both, so this block works on either line:
+ASSET="zylaxion-${TAG}-linux-amd64-v3-gnu.tar.gz"
+curl -fsSfLO "https://github.com/oxyzenQ/zylaxion/releases/download/${TAG}/${ASSET}" ||
+  { ASSET="zylaxion-${TAG}-linux-amd64-gnu.tar.gz"; \
+    curl -fsSLO "https://github.com/oxyzenQ/zylaxion/releases/download/${TAG}/${ASSET}"; }
+
+# The archive carries zylaxion + LICENSE + README.md — flat on the
+# v80 line, under one directory on legacy tags; this lands the
+# binary either way:
+mkdir zylaxion-pkg && tar xzf "${ASSET}" -C zylaxion-pkg
+sudo install -Dm755 "$(find zylaxion-pkg -type f -name zylaxion | head -1)" /usr/bin/zylaxion
 ```
 
-Releases are arch-baseline builds: every package is x86-64-v3
-(AVX2/FMA/BMI — any x86_64 CPU from ~2013 Haswell onward) or x86-64-v4
-(AVX-512), both dynamically linked against glibc — two tarballs per
-tag, `zylaxion-v<version>-linux-amd64-v3-gnu.tar.gz` and `-v4-gnu`,
-each stamped with its platform id in the binary's `Build:` line (self-
-report via `zylaxion -V`). Pick v3 when in doubt: every CPU that runs
-v4 runs v3. Not sure what your CPU takes? `grep -o 'avx512f'
-/proc/cpuinfo` answers v4 eligibility — any hit means yes.
+Verify the download against its checksums before running — the
+[Release Verification](#release-verification) section and
+[docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) hold the walkthrough.
+
+Releases are arch-baseline builds: every v80-line package is
+x86-64-v3 (AVX2/FMA/BMI — any x86_64 CPU from ~2013 Haswell onward)
+or x86-64-v4 (AVX-512), both dynamically linked against glibc — two
+tarballs per tag, `zylaxion-v<version>-linux-amd64-v3-gnu.tar.gz`
+and `-v4-gnu`, each stamped with its platform id in the binary's
+`Build:` line (self-report via `zylaxion -V`). Pick v3 when in
+doubt: every CPU that runs v4 runs v3. Not sure what your CPU
+takes? `grep -o 'avx512f' /proc/cpuinfo` answers v4 eligibility —
+any hit means yes.
 
 The musl lane is documented dormant. zylaxion's audio path runs
 through cpal, whose Linux backend is ALSA (libasound.so — a C
@@ -666,7 +687,7 @@ real kernel. The full-chaos engine and its ledger live in
 | [supermassive rootless self-test](scripts/supermassive/supermassive-test.sh) | The env probes, the CLI/UX battery, and the world-first static claims — no root, no hardware needed | `./scripts/supermassive/supermassive-test.sh --self-test` |
 | [supermassive full battery](scripts/supermassive/supermassive-test.sh) | The whole chaos: the tap lifecycle (attach, pin handover, idempotency, foreign entries, detach), a real user with no `input` group typing through uinput, the kernel-side telemetry, the PCM witness, live preset/volume map writes | `sudo ./scripts/supermassive/supermassive-test.sh --full` |
 | KVM micro-VM E2E (CI) | The zero-to-hero chain inside a real kernel, two legs: the documented 5.15 floor and the newest kernel the archive serves — verdicts relayed as `MASS-RESULT` / `MASS-VERDICT` rows on the serial console | `.github/workflows/supermassive.yml`, on every push touching the code surface |
-| [the workspace test tree](scripts/build.sh) | Unit + doc tests across the crates (147 in the dormant lane alone), plus fmt and clippy | `./scripts/build.sh check-all -q` |
+| [the workspace test tree](scripts/build.sh) | Unit + doc tests across the crates (175 in the dormant lane alone), plus fmt and clippy | `./scripts/build.sh check-all -q` |
 | [the gate suite](scripts/gate-keepers.sh) | Permissions, SPDX headers, LOC caps, language, emoji, action pins, release parity, the name-case rule | `./scripts/gate-keepers.sh` |
 
 ### The world-first claims battery
