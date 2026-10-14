@@ -450,6 +450,21 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-7 (the doctor answers the first question an owner
+  asks a binary, and the help drops the stale name)** — two surface
+  changes in the zelynic lineage. The doctor's Build-facts block
+  gained the binary's own build-flavor verdict, the NIGHT-dinner-3
+  shape: `Build: FULL-LIFE (eBPF objects: source-built)` on the
+  default lane, `HALF-LIFE (eBPF objects: dormant (not compiled))`
+  plus an install hint on a --no-default-features build — cfg!
+  truth baked next to the objects it describes, the lane detail
+  read from the ZYLAXION_EBPF_LANE stamp, green/yellow tiers per
+  the house law, both lanes verified live. And the help header
+  dropped the stale "Real-time Mechanical Keyboard Acoustic
+  Synthesizer" banner description — the brand line is now the bare
+  `━━━ zylaxion ━━━`, with the current identity (the Cargo.toml
+  description, drift-pinned) carrying the one-liner below it.
+
 - **night-hunter-5d (the LOC cap holds again — three files split,
   zero logic moved)** — the Gate-keepers Rust LOC cap had been red
   in CI since the last session's work pushed three files past the
