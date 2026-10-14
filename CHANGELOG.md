@@ -450,6 +450,21 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-5b.2 (the pins gate's advisory promise becomes
+  real)** — the audit's second exit-code find: under a GitHub API
+  rate limit, every action pin is unresolvable,
+  check-actions-pins.sh lands on FINAL=indeterminate and exits 2
+  while printing "advisory only, never a block" — but its only
+  caller (gate-keepers.sh's run_section) reads every non-zero exit
+  as a section failure, so the "never blocks a push on upstream
+  flakiness" design line turned into a red Gate-keepers verdict on
+  exactly the flaky day it was written for. CI survived until now
+  because its runner token resolves the pins. The indeterminate
+  branch now exits 0 with the advisory line intact — a non-zero
+  verdict stays reserved for facts, not for the network's mood
+  (verified live: the rate-limited sandbox run that failed the
+  section now passes it).
+
 - **night-hunter-5b (the CPU-tuned install lane stops pretending)** —
   the night-hunter-5 script audit's flagship find: the
   `install-on-my-machine.sh` microarchitecture detector read
