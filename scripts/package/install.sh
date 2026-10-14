@@ -9,8 +9,8 @@
 #   binary  -> /usr/bin/zylaxion
 #   oneshot -> /etc/systemd/system/zylaxion-attach.service
 # The build is the portable baseline shape (cargo build --release
-# --locked); the CPU-tuned personal lane lives in
-# install-on-my-machine.sh at the repo root.
+# --locked); the CPU-tuned personal lane is the sibling
+# install-on-my-machine.sh in this directory.
 #
 # Run WITHOUT sudo: the script escalates via sudo ONLY for the install
 # steps (already-root hosts skip the prefix - container posture).
@@ -40,8 +40,8 @@ Installs the system posture, no flags:
 
 The build step (cargo build --release --locked) ALWAYS runs as the
 current user; sudo is used only for the install steps. For a CPU-tuned
-build (amd64 v3/v4 detection) use install-on-my-machine.sh at the repo
-root instead - it lands the same destinations.
+build (amd64 v3/v4 detection) use install-on-my-machine.sh (same
+directory as this script) instead - it lands the same destinations.
 
 Preset selection is compiled in: pass --preset <name> on the CLI or
 export ZYLAXION_PRESET=<name> (systemd units take Environment=).

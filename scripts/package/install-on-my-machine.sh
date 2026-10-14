@@ -10,8 +10,8 @@
 #
 # There are no mode flags on purpose. One machine, one posture: the
 # system-wide install. This is the owner's personal-machine lane; the
-# portable package lane lives in scripts/package/install.sh (baseline
-# build, same system posture).
+# portable package lane is the sibling install.sh in this directory
+# (baseline build, same system posture).
 #
 # Build shapes, by detection result:
 #   x86-64-v4 (full AVX-512 set) -> cargo pro-linux-amd64-v4-gnu
@@ -31,7 +31,10 @@
 set -euo pipefail
 
 PROJECT_NAME="zylaxion"
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Two levels up: this script lives at scripts/package/, the checkout
+# root it operates on is the repo root (cargo must find Cargo.toml
+# there, and the systemd unit comes from assets/).
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ATTACH_UNIT_SRC="${REPO_ROOT}/assets/${PROJECT_NAME}-attach.service"
 
 usage() {
