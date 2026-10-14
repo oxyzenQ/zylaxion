@@ -38,6 +38,7 @@ fn reference_carries_every_subcommand_and_group() {
         "Discover:",
         "Global flags:",
         "Pro mode:",
+        "Advanced flags:",
     ] {
         assert!(
             text.contains(heading),
@@ -156,6 +157,7 @@ fn pro_mode_documents_every_hidden_and_advanced_spelling() {
         "-s, --switch <NAME>",
         "-p, --percent <0-200>",
         "-v, --verbose",
+        "--force-this",
         "ZYLAXION_PRESET=<name>",
         "ZYLAXION_VOLUME=<gain>",
         "NO_COLOR=1",
@@ -173,6 +175,7 @@ fn pro_mode_documents_every_hidden_and_advanced_spelling() {
         "zylaxion preset -s topre",
         "zylaxion volume -p 60",
         "zylaxion status -v",
+        "zylaxion volume -p 250 --force-this",
     ] {
         assert!(
             text.contains(example),
@@ -186,6 +189,21 @@ fn pro_mode_documents_every_hidden_and_advanced_spelling() {
         !text.contains("zylaxion play"),
         "the hidden verb is 'zylaxion _play' — the bare 'zylaxion play' \
          spelling is an unknown subcommand and must never be taught"
+    );
+}
+
+/// night-hunter-2: the banner subtitle IS the Cargo.toml description —
+/// wrapped at render time, so the flattened reference must carry the
+/// registry-facing description verbatim. A hand-edited second copy of
+/// the prose fails this pin (the zelynic no-drift law).
+#[test]
+fn the_banner_subtitle_is_the_crate_description_verbatim() {
+    let text = render_reference(false);
+    let flattened = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let description = env!("CARGO_PKG_DESCRIPTION");
+    assert!(
+        flattened.contains(description),
+        "the help banner must carry the Cargo.toml description: {description}"
     );
 }
 

@@ -437,6 +437,43 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-2 (the stale `<- active` marker)** — `list-presets`
+  marked the active preset from the environment resolution alone
+  (`ZYLAXION_PRESET`, then the compiled default), so a live session
+  switched with `zylaxion preset --switch <name>` kept pointing at a
+  row the player had left behind — the map slot IS what is sounding.
+  The marker now reads the pinned control plane first: a live player's
+  preset slot outranks the would-start resolution, a dead session's
+  leftover slot does not (the next `on` re-resolves it, and the
+  fallback answers what the next start would pick). The no-subcommand
+  overview shares the same posture law — and its player line stops
+  parroting a stale pid as if it were running (`stale pid N — the
+  next \`on\` re-resolves`), with the preset and volume rows rendered
+  from the same live-or-next-start rule. The overview also reads the
+  control plane through the crate-visible slot constants now instead
+  of raw numbers that could drift from the verbs' own mirror.
+
+- **night-hunter-2 (the description drift)** — the version tagline and
+  the help banner carried a hand-written second description
+  ("Real-time mechanical keyboard acoustic synthesizer for Linux" /
+  "Turn every keystroke into a spatially-accurate click sound …") that
+  had drifted from the registry-facing Cargo.toml `description`. The
+  zelynic family contract wins: `about = env!("CARGO_PKG_DESCRIPTION")`
+  — one string, pulled at compile time, wrapping itself into the help
+  banner at render time, so no second copy of the prose exists anywhere
+  in the tree to drift. A test pin holds the flattened reference
+  against the crate description verbatim.
+
+- **night-hunter-2 (the Pro mode estate's missing flag)** — the
+  `--force-this` escape was taught only inside the Run section's
+  volume prose; the Pro mode section (the estate that documents every
+  hidden and advanced spelling COMPLETELY) had no row for it. The
+  Advanced flags group adds the spelling, the computed description
+  column keeps its geometry, and a runnable example
+  (`zylaxion volume -p 250 --force-this`) gives the copy path. The
+  integration pins hold the new spelling, the group heading, and the
+  example.
+
 - **night-hunter-1 (the stale-reference sweep)** — the panic hook's
   comment taught the reader to look for the panic record in
   `journalctl --user -u zylaxion` (a unit that does not exist in the

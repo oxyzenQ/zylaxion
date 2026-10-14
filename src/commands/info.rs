@@ -359,15 +359,68 @@ pub fn cmd_doctor() {
     }
 }
 
+/// The live session's preset name, read straight from the pinned
+/// control map (night-hunter-2): `Some` only when a live player holds
+/// the plane — a pid of zero or a stale/zombie pid answers `None`,
+/// because a dead session's leftover slot must not masquerade as the
+/// active pick (the next `on` re-resolves the slot anyway).
+#[cfg(feature = "ebpf")]
+fn live_session_preset_name() -> Option<&'static str> {
+    let control = crate::commands::sound::open_control().ok()?;
+    let pid = control
+        .get(&crate::commands::sound::PLAYER_PID_SLOT, 0)
+        .unwrap_or(0);
+    if pid == 0 || !crate::session::orphan::pid_alive(pid as i32) {
+        return None;
+    }
+    let index = control
+        .get(&crate::commands::sound::PRESET_ID_SLOT, 0)
+        .unwrap_or(0);
+    crate::profiles::registry_all()
+        .get(index as usize)
+        .map(|e| e.name)
+}
+
+/// The dormant lane of the live read (night-hunter-2): a binary built
+/// without the eBPF loader has no control plane to consult, so no live
+/// session can ever answer.
+#[cfg(not(feature = "ebpf"))]
+fn live_session_preset_name() -> Option<&'static str> {
+    None
+}
+
+/// The pure core of the active-name decision (night-hunter-2): the
+/// live session's preset when one holds the control plane, the
+/// would-start resolution otherwise. All decision logic lives here so
+/// the test tree pins it without a control map or a process
+/// environment (the resolve_from precedent).
+fn active_preset_name_from(live: Option<&'static str>, preset_env: Option<&str>) -> &'static str {
+    match live {
+        Some(name) => name,
+        None => preset::context_preset_name_from(preset_env),
+    }
+}
+
+/// The env-reading shell around [`active_preset_name_from`] (the
+/// thin-shell precedent — see [`preset::context_preset_name`]).
+fn active_preset_name(live: Option<&'static str>) -> &'static str {
+    let preset_env = std::env::var(preset::PRESET_ENV_VAR).ok();
+    active_preset_name_from(live, preset_env.as_deref())
+}
+
 /// List every acoustic preset in the compiled registry and mark the
-/// one the session context would activate right now (the
-/// `ZYLAXION_PRESET` selection when it names a registered preset,
-/// the compiled default otherwise).
+/// one that is active right now: the LIVE session's preset when a
+/// player holds the pinned control plane — the map slot is what is
+/// actually sounding, so a live session outranks the would-start
+/// resolution (night-hunter-2, the stale `<- active` marker fix) —
+/// and the would-start resolution (`ZYLAXION_PRESET` when it names a
+/// registered preset, the compiled default otherwise) when no player
+/// is running.
 ///
 /// Exits 0 always — the registry is compile-time data; there is no
 /// file to fail finding and no parse to fail.
 pub fn cmd_list_presets() {
-    let active = preset::context_preset_name();
+    let active = active_preset_name(live_session_preset_name());
     let env_name = std::env::var(preset::PRESET_ENV_VAR)
         .ok()
         .map(|v| v.trim().to_string())
@@ -452,9 +505,15 @@ pub fn cmd_overview() {
     println!("  kernel:  {} ({})", kernel.release, kernel.verdict());
 
     // 2. Tap residency + active posture (feature lane only; the dormant
-    //    binary says so below).
+    //    binary says so below). The posture reads the control plane
+    //    through the named slot constants (night-hunter-2 — the raw
+    //    numbers here predate the crate-visible constants and could
+    //    drift from the verbs' own mirror).
     #[cfg(feature = "ebpf")]
     {
+        use crate::commands::sound::{
+            ENABLED_SLOT, PLAYER_PID_SLOT, PRESET_ID_SLOT, TAP_KIND_SLOT, VOLUME_PCT_SLOT,
+        };
         if !pin::any_pin_present() {
             println!("  tap:     not attached (sudo zylaxion attach)");
         } else if pin::all_pins_present() {
@@ -462,7 +521,7 @@ pub fn cmd_overview() {
             // the same TAP_KIND read the status line carries.
             let step = crate::commands::sound::open_control()
                 .ok()
-                .and_then(|c| c.get(&5u32, 0).ok())
+                .and_then(|c| c.get(&TAP_KIND_SLOT, 0).ok())
                 .and_then(crate::ebpf::loader::TapKind::from_slot)
                 .map(|k| k.label().to_string())
                 .unwrap_or_else(|| "unknown step".to_string());
@@ -471,21 +530,43 @@ pub fn cmd_overview() {
             println!("  tap:     PARTIAL pin set (sudo zylaxion attach replants it)");
         }
         if let Ok(control) = crate::commands::sound::open_control() {
-            let enabled = control.get(&0u32, 0).unwrap_or(0) == 1;
-            let preset_index = control.get(&1u32, 0).unwrap_or(0);
-            let preset_name = crate::profiles::registry_all()
-                .get(preset_index as usize)
-                .map(|e| e.name)
-                .unwrap_or("<unknown>");
-            let volume = control.get(&2u32, 0).unwrap_or(100);
-            let pid = control.get(&3u32, 0).unwrap_or(0);
+            let enabled = control.get(&ENABLED_SLOT, 0).unwrap_or(0) == 1;
+            let pid = control.get(&PLAYER_PID_SLOT, 0).unwrap_or(0);
+            // The posture law (night-hunter-2, shared with list-presets):
+            // a LIVE player means the map slots are what is sounding;
+            // a dead session means the slots are leftovers — the honest
+            // posture is what the next `on` would resolve, and the
+            // player line names the stale pid instead of parroting it
+            // as if it were running.
+            let alive = pid != 0 && crate::session::orphan::pid_alive(pid as i32);
+            let (preset_name, volume_percent, player_line) = if alive {
+                let index = control.get(&PRESET_ID_SLOT, 0).unwrap_or(0);
+                let name = crate::profiles::registry_all()
+                    .get(index as usize)
+                    .map(|e| e.name)
+                    .unwrap_or("<unknown>");
+                let volume = control.get(&VOLUME_PCT_SLOT, 0).unwrap_or(100);
+                (name, volume, format!("pid {pid}"))
+            } else {
+                let name = active_preset_name(None);
+                // The next-start gain posture; on a malformed
+                // ZYLAXION_VOLUME the env percent refuses — the map's
+                // last value renders rather than a silent 100 (the
+                // stale pid on the player line already flags the row
+                // as last-session data).
+                let volume = preset::context_volume_percent()
+                    .unwrap_or_else(|_| control.get(&VOLUME_PCT_SLOT, 0).unwrap_or(100));
+                let line = if pid == 0 {
+                    "not running".to_string()
+                } else {
+                    format!("stale pid {pid} — the next `on` re-resolves")
+                };
+                (name, volume, line)
+            };
             println!("  sound:   {}", if enabled { "on" } else { "off" });
             println!("  preset:  {preset_name}");
-            println!("  volume:  {volume}% (100 = the compiled default)");
-            match pid {
-                0 => println!("  player:  not running"),
-                p => println!("  player:  pid {p}"),
-            }
+            println!("  volume:  {volume_percent}% (100 = the compiled default)");
+            println!("  player:  {player_line}");
         } else if pin::any_pin_present() {
             println!("  control: not openable by this user (pin ownership?)");
         }
