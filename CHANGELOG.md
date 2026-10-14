@@ -24,6 +24,52 @@ v80.0.0-alpha.1
 
 ### Security
 
+- **night-private-research-2xblade-3.6X** — the security hardening
+  pass, the follow-up the 3.6 record pre-named. The security audit
+  examined six dimensions and found 0 finding(s) and 1 INCONCLUSIVE
+  dimension(s): privilege boundaries. The inconclusive dimensions
+  could not be measured in the sandbox and are named with what would
+  be needed to conclude. The remaining dimensions pass.
+  Evidence in docs/ZACTRIX_SECURITY.md. The two LOW residuals the
+  3.6 record pre-named are fixed in this pass; both live-verified in
+  the sandbox, both inside the audit-pass fix budget (77 LOC across
+  the 2 authorized files; the proof harness is a third file because
+  the layout law requires tests in the test/ tree, never inline):
+    - The coredump carrier (Dimension 1's residual) — the player now
+      forces `RLIMIT_CORE = 0` (soft and hard) at start, before any
+      scancode-capable buffer exists, so a file-backed core dump of
+      the player is no longer producible by the player itself; the
+      hard-limit drop also bars quiet re-raising without
+      CAP_SYS_RESOURCE. Best-effort by contract; piped `core_pattern`
+      stays the operator's policy, named in the record. Two new test
+      pins hold the 0/0 fact and the idempotence
+      (test/commands/player_tests.rs).
+    - The unsigned bpf-linker download (Dimension 5's LOW) —
+      bootstrap-ebpf.sh now pins the measured sha256 of both musl
+      release assets beside the version constant and dies at the
+      checksum gate (both hashes printed) before extraction or
+      execution. Verified live on both paths: a tampered pin is
+      refused with nothing installed or executed; the honest archive
+      passes and installs. The pin's root of trust is the repo's own
+      commit process — the same epistemic class as Cargo.lock.
+  - Verdicts this pass: keystroke confidentiality LOW, narrowed (the
+    coredump carrier closed; same-uid memory reads and operator-piped
+    dump policy are the named remainder); BPF program safety NONE (no
+    byte of ebpf/ moved; the loaded-hash confirmation stays the named
+    inconclusive measurement inside the passing dimension);
+    privilege boundaries INCONCLUSIVE (carried, measurement named);
+    network surface NONE; supply chain NONE (the 3.6 LOW closed;
+    cargo-audit 0.22.2 ran this pass with --deny warnings: exit 0 on
+    all three lockfiles — 150 + 31 + 119 packages, 1314 advisories;
+    the ebpf-prebuilt manifest enforcement stays the freeze pass's);
+    update path and version honesty NONE (the -V build stamp
+    re-measured matching git rev-parse at the same tree).
+  - Full battery green at this tree: fmt, clippy -D warnings, 340
+    tests, rustdoc -D warnings, cargo audit x3, build.sh --check-all,
+    gate-keepers all sections. No DSP math, no preset registry, no
+    CLI surface, no attach chain touched; the version stays
+    owner-decided.
+
 - **night-private-research-2xblade-3.6** — the security audit. The
   security audit examined six dimensions and found 2 finding(s) and
   1 INCONCLUSIVE dimension(s): privilege boundaries. The inconclusive
