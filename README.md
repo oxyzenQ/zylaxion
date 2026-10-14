@@ -194,7 +194,7 @@ oneshot:
 ```bash
 git clone https://github.com/oxyzenQ/zylaxion.git
 cd zylaxion
-./install-on-my-machine.sh
+./scripts/package/install-on-my-machine.sh
 ```
 
 The fast lane picks x86-64-v4 when the full AVX-512 set is present,

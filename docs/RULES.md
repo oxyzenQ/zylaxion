@@ -104,7 +104,7 @@ A CI runner missing any of these will fail at `cargo clippy` with
   pins do not survive a reboot, so the oneshot replants the tap at
   every boot. The install posture is system-only (night-master-2):
   binary to `/usr/bin`, oneshot to `/etc/systemd/system`, no flags.
-- `install-on-my-machine.sh` at the repo root is the CPU-tuned variant
+- `scripts/package/install-on-my-machine.sh` is the CPU-tuned variant
   of the same posture (amd64 v3/v4 detection, parity-checked aliases).
 - A hand-planted tap stays available without any installer:
   `sudo zylaxion attach` (which also hands the pin ownership to the

@@ -275,6 +275,19 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-hunter-5a (the personal-machine lane moves in with the
+  package lane)** — `install-on-my-machine.sh` left the repo root
+  for `scripts/package/`, beside the baseline installer it mirrors:
+  one directory owns every install posture. The move is pure — the
+  script's `REPO_ROOT` math gained the two-level climb its new
+  home requires (`dirname`/`../..`), the header and usage text
+  now describe the baseline lane as the sibling it lives next to,
+  and every cross-reference was re-pointed (README's one-command
+  block, scripts/package/install.sh's prose, docs/RULES.md). A
+  path-math regression here would have failed loudly (no
+  Cargo.toml at the computed root), and the recomputed root was
+  verified against both required files before the commit.
+
 - **night-doc-1** — the honest surface. The musl-dormant phrasing
   and the design-bounded philosophy are now stated in plain language
   where a reader will find them: the dormant lane's reason is
