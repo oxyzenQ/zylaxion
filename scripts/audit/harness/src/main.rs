@@ -36,6 +36,11 @@ mod engine;
 
 mod fft;
 mod metrics;
+mod proof;
+mod rates;
+mod reload;
+mod rt;
+mod soak;
 mod stability;
 
 use engine::VoicePool;
@@ -112,10 +117,40 @@ fn mark(in_band: bool) -> &'static str {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
-    // The Range Question stability mode: the expanded Q ceiling must
-    // prove itself numerically before any preset rides it.
+    // The Range Question stability mode + the PROOF 4 volume axes
+    // (night-private-research-2xblade-3): the expanded Q ceiling must
+    // prove itself numerically, and the volume axes must prove the
+    // post-voice gain law and the master limiter.
     if args.iter().any(|a| a == "--stability") {
         stability::run_stability();
+        return;
+    }
+
+    // PROOF 2: the sample-rate span (five rates, one keystroke per
+    // preset, the decay law and the hashes across rates).
+    if args.iter().any(|a| a == "--rates") {
+        rates::run_rates();
+        return;
+    }
+
+    // PROOF 3: the measured half of the RT-safety audit (per-chunk
+    // render jitter; the written audit lives in the LTS document).
+    if args.iter().any(|a| a == "--rt") {
+        rt::run_rt();
+        return;
+    }
+
+    // PROOF 5: the hot-reload session (sixty minutes of audio time,
+    // 120 preset swaps, 360 volume stores, 18k keystrokes).
+    if args.iter().any(|a| a == "--reload") {
+        reload::run_reload();
+        return;
+    }
+
+    // PROOF 1: the long-run soak (one million keystrokes, round-robin,
+    // the max-pressure schedule, streaming receipts).
+    if args.iter().any(|a| a == "--soak") {
+        soak::run_soak();
         return;
     }
 

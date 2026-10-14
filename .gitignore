@@ -26,6 +26,9 @@ agent-ctx/
 .supermaven/
 .vale/
 
+# Audit harness raw proof output (scripts/audit/out/)
+scripts/audit/out/
+
 # Test output (raw/wav audio from integration tests)
 *.raw
 *.wav

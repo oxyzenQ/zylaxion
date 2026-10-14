@@ -21,6 +21,11 @@ publish = false
 
 [dependencies]
 log = { version = "0.4", default-features = false }
+# PROOF 5 (night-private-research-2xblade-3): the hot-reload driver
+# applies the watcher's exact preset mutation, an ArcSwap store on the
+# model cell - the same crate and version the main package already
+# pins, so the workspace lock gains no new supply-chain surface.
+arc-swap = "1.7"
 
 [profile.release]
 opt-level = 3
