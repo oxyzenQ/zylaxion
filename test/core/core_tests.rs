@@ -69,15 +69,38 @@ fn render_chunk_duration_is_sane() {
 
 #[test]
 fn orchestrator_error_display() {
+    // night-hunter-3: the exact contract — the "audio: " prefix names
+    // the failing plane, and the inner audio error's own message rides
+    // the chain (Display composes, it does not swallow).
     let e = OrchestratorError::Audio(crate::audio::AudioError::NoDeviceAvailable);
     let msg = e.to_string();
-    assert!(msg.contains("audio"));
+    assert!(msg.starts_with("audio: "), "the audio plane prefix: {msg}");
+    let inner = crate::audio::AudioError::NoDeviceAvailable.to_string();
+    assert!(
+        msg.contains(&inner),
+        "the inner error's message rides the chain: '{msg}' must contain '{inner}'"
+    );
 }
 
 #[test]
 fn orchestrator_error_is_error() {
+    // night-hunter-3: the Error trait is not just implemented, it is
+    // USEFUL — source() hands back the inner audio error (typed via
+    // downcast_ref, the way any error-reporting layer would walk the
+    // chain), and the trait-object coercion stays honest.
     let e = OrchestratorError::Audio(crate::audio::AudioError::NoDeviceAvailable);
     let _: &dyn std::error::Error = &e;
+    let source = std::error::Error::source(&e)
+        .expect("the Audio variant must expose its inner error as source");
+    assert!(
+        source.downcast_ref::<crate::audio::AudioError>().is_some(),
+        "source() must downcast to the inner AudioError"
+    );
+    assert_eq!(
+        source.to_string(),
+        crate::audio::AudioError::NoDeviceAvailable.to_string(),
+        "the source chain carries the inner error's own message"
+    );
 }
 
 // ── P8: Orchestrator integration tests (v10.2.0+ — dragonzen audit) ──

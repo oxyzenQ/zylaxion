@@ -70,6 +70,14 @@ static TAP_ELF: &[u8] =
 const FENTRY_PROGRAM: &str = "fentry_input_event";
 const KPROBE_PROGRAM: &str = "kprobe_input_event";
 
+/// The keyboard keycode domain the keymap covers (night-hunter-3):
+/// keycodes 1..=255 — the keyboard keys. Mouse buttons and vendor keys
+/// (BTN_* and friends, >= 0x100) stay unmapped and die in the kernel.
+/// The attach loop populates the map from THIS constant and the test
+/// tree pins its shape, so the written domain and the documented
+/// domain cannot drift.
+pub(crate) const KEYMAP_KEYCODE_DOMAIN: std::ops::RangeInclusive<u32> = 1..=255;
+
 /// The chain step that owns the live tap — the vocabulary of the
 /// control map's TAP_KIND slot and of every surface that reports
 /// which lane is running.
@@ -407,7 +415,7 @@ fn plant(bpf: &mut Ebpf) -> Result<TapKind, AttachError> {
             HashMap::try_from(map).map_err(|e| AttachError::Unknown {
                 detail: format!("'keymap' is not a hash map: {e}"),
             })?;
-        for code in 1..=255u32 {
+        for code in KEYMAP_KEYCODE_DOMAIN {
             keymap
                 .insert(code, 0, 0)
                 .map_err(|e| AttachError::Unknown {

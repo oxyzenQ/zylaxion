@@ -437,6 +437,30 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-3 (the depth audit — three tests that proved less
+  than their names promised)** — a full-tree sweep of all 218 tests
+  (a mechanical scanner hunting zero-assertion bodies, tautologies,
+  and self-referential constructions, then a manual deep-read of the
+  wire-format, ABI, and engine pins plus a rootless supermassive run)
+  landed three finds. `orchestrator_error_is_error` was a
+  compile-time coercion wearing a test costume — zero runtime
+  assertion; it now walks the real Error contract (source() returns
+  the inner AudioError, downcast_ref types it, the message
+  propagates). `orchestrator_error_display` asserted only an
+  "audio" substring; it now pins the exact "audio: " prefix and the
+  composed inner message. And `keymap_domain_is_the_keyboard_range`
+  built its own local 1..=255 Vec and asserted its own construction —
+  a tautology that proved nothing about the attach path; the loader
+  now carries a named KEYMAP_KEYCODE_DOMAIN constant the attach loop
+  iterates and the pin shoots, so the written domain and the
+  documented domain cannot drift. The verdict on the rest of the
+  tree: real — the P8 Orchestrator integration runs the actual run()
+  loop against a MockSink and compares rendered energy, the eBPF pins
+  shoot struct sizes, field offsets, and wire formats via addr_of!,
+  the registry proves migration fidelity and pointer identity, and
+  the supermassive battery probes the real binary image (32 rootless
+  probes PASS, the one skip is the documented root-only lane).
+
 - **night-hunter-4 (the lane law and the completed palette)** — the
   stdout verdict helpers (`ok_line`, `fail_line`, `section`,
   `tip_line`, `ok_marker`) gated on the STDERR capability probe while
