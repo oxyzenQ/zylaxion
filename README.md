@@ -155,10 +155,20 @@ tag, `zylaxion-v<version>-linux-amd64-v3-gnu.tar.gz` and `-v4-gnu`,
 each stamped with its platform id in the binary's `Build:` line (self-
 report via `zylaxion -V`). Pick v3 when in doubt: every CPU that runs
 v4 runs v3. Not sure what your CPU takes? `grep -o 'avx512f'
-/proc/cpuinfo` answers v4 eligibility — any hit means yes. The musl
-lane is documented dormant (the alsa C library — cpal's backend — has
-no static musl answer yet; the evidence lives in the release
-workflow's matrix header).
+/proc/cpuinfo` answers v4 eligibility — any hit means yes.
+
+The musl lane is documented dormant. zylaxion's audio path runs
+through cpal, whose Linux backend is ALSA (libasound.so — a C
+library). No musl-compatible static libasound.a ships with any
+mainstream distribution, and building one is a maintenance burden
+disproportionate to the value: the glibc static-shape releases
+already cover the 99% of Linux desktops whose libc is glibc. The
+lane wakes when (a) cpal gains a pure-Rust backend, (b) PipeWire
+gains a pure-Rust native binding, or (c) ALSA ships a musl static
+archive. Until then: dormant, documented, honest. Not coming soon.
+Not under development. Waiting on the ecosystem, which is not
+zylaxion's to change. (The build-matrix evidence lives in the
+release workflow's matrix header.)
 
 ### Install from crates.io
 
@@ -404,8 +414,9 @@ zylaxion is deliberately small and stateless. In one breath:
 - **Audio rides the desktop's bridge** — cpal → PipeWire / PulseAudio
   / ALSA. There is no direct JACK backend and no network audio.
 - **The musl lane is dormant** — a fully static build waits on a
-  static answer for the alsa C library; the evidence and the unlock
-  paths live in the release workflow's matrix header.
+  static answer for the alsa C library; the reason and the unlock
+  paths are written out in the Install section, the build-matrix
+  evidence lives in the release workflow's matrix header.
 - **A keystroke is a scancode, never a letter** — sound class and
   stereo pan come from key position; layout awareness (QWERTY vs
   Dvorak, what a key *types*) is out of scope by design — it is the

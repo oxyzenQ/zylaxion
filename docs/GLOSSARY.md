@@ -55,10 +55,13 @@ drifts between docs is a bug.
 - **musl dormant lane** — the documented non-shipping musl legs:
   historically blocked by the C input stack (libinput, libudev) with
   no static musl answer. night-improve-23 deleted that stack (the eBPF
-  tap replaced it), leaving alsa-lib — the leg already proven static —
-  so the lane is dependency-unblocked; re-enabling the matrix legs
-  stays the owner's call. The evidence lives in the release workflow's
-  matrix header.
+  tap replaced it), leaving alsa-lib as the remaining gate — no
+  mainstream distribution ships a static musl libasound.a, and
+  building one is a maintenance burden disproportionate to the value
+  — so the lane stays dormant by decision; re-enabling the matrix
+  legs stays the owner's call. The reason and the unlock paths live
+  in the README's Install section; the evidence lives in the release
+  workflow's matrix header.
 - **checksum family** — the three digests per release tarball:
   SHA-512 (`*.sha512sum`), BLAKE2b-512 (`*.b2sum`), and SHAKE256
   (`*.shake256`, quantum-resistant). Defense in depth across three
