@@ -178,7 +178,11 @@ pub fn cmd_doctor() {
         // is reported for completeness, never fatal.
         println!(
             "      BTF:      {} ({})",
-            if kernel.btf { "present" } else { "absent" },
+            if kernel.btf {
+                crate::output::ok_line("present")
+            } else {
+                crate::output::tip_line("absent")
+            },
             if kernel.btf {
                 "enables the fentry lane"
             } else {
@@ -220,8 +224,11 @@ pub fn cmd_doctor() {
         #[cfg(feature = "ebpf")]
         if let Some(err) = crate::ebpf::loader::last_attach_error() {
             println!(
-                "      note: last attach failed: {err} — `sudo zylaxion attach` prints the \
-                 per-step log"
+                "      {}",
+                crate::output::tip_line(&format!(
+                    "note: last attach failed: {err} — `sudo zylaxion attach` prints the \
+                     per-step log"
+                ))
             );
         }
         if kernel.lockdown_readable && kernel.lockdown_blocks_bpf {
@@ -425,7 +432,10 @@ pub fn cmd_list_presets() {
         .ok()
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty());
-    println!("Available presets (compiled into this binary):\n");
+    println!(
+        "{}\n",
+        crate::output::section("Available presets (compiled into this binary):")
+    );
     print!("{}", presets_table_from(active, env_name.as_deref()));
 }
 
@@ -488,7 +498,7 @@ pub fn cmd_list_backends() {
                 }
             }
         }
-        None => println!("Default output: none found"),
+        None => println!("Default output: {}", crate::output::warn_line("none found")),
     }
 }
 
@@ -498,11 +508,18 @@ pub fn cmd_list_backends() {
 /// the active posture replace them — the same facts `status` prints,
 /// in the compact no-subcommand shape.
 pub fn cmd_overview() {
-    println!("=== zylaxion ===\n");
+    println!("{}\n", crate::output::section("=== zylaxion ==="));
 
     // 1. Kernel verdict (both lanes — the kernel probe has no deps).
+    //    night-hunter-4: the verdict rides the semantic tier, the same
+    //    shape the status line carries.
     let kernel = crate::session::kernel::probe();
-    println!("  kernel:  {} ({})", kernel.release, kernel.verdict());
+    let verdict = if kernel.supported() {
+        crate::output::ok_line(kernel.verdict())
+    } else {
+        crate::output::fail_line(kernel.verdict())
+    };
+    println!("  kernel:  {} ({})", kernel.release, verdict);
 
     // 2. Tap residency + active posture (feature lane only; the dormant
     //    binary says so below). The posture reads the control plane
@@ -515,7 +532,10 @@ pub fn cmd_overview() {
             ENABLED_SLOT, PLAYER_PID_SLOT, PRESET_ID_SLOT, TAP_KIND_SLOT, VOLUME_PCT_SLOT,
         };
         if !pin::any_pin_present() {
-            println!("  tap:     not attached (sudo zylaxion attach)");
+            println!(
+                "  tap:     {}",
+                crate::output::tip_line("not attached (sudo zylaxion attach)")
+            );
         } else if pin::all_pins_present() {
             // The chain step that owns the tap (night-improve-25) —
             // the same TAP_KIND read the status line carries.
@@ -523,11 +543,14 @@ pub fn cmd_overview() {
                 .ok()
                 .and_then(|c| c.get(&TAP_KIND_SLOT, 0).ok())
                 .and_then(crate::ebpf::loader::TapKind::from_slot)
-                .map(|k| k.label().to_string())
-                .unwrap_or_else(|| "unknown step".to_string());
-            println!("  tap:     attached ({step})");
+                .map(crate::ebpf::loader::TapKind::label)
+                .unwrap_or("unknown step");
+            println!("  tap:     {} ({step})", crate::output::ok_line("attached"));
         } else {
-            println!("  tap:     PARTIAL pin set (sudo zylaxion attach replants it)");
+            println!(
+                "  tap:     {}",
+                crate::output::warn_line("PARTIAL pin set (sudo zylaxion attach replants it)")
+            );
         }
         if let Ok(control) = crate::commands::sound::open_control() {
             let enabled = control.get(&ENABLED_SLOT, 0).unwrap_or(0) == 1;
@@ -546,7 +569,7 @@ pub fn cmd_overview() {
                     .map(|e| e.name)
                     .unwrap_or("<unknown>");
                 let volume = control.get(&VOLUME_PCT_SLOT, 0).unwrap_or(100);
-                (name, volume, format!("pid {pid}"))
+                (name, volume, crate::output::ok_line(&format!("pid {pid}")))
             } else {
                 let name = active_preset_name(None);
                 // The next-start gain posture; on a malformed
@@ -557,18 +580,30 @@ pub fn cmd_overview() {
                 let volume = preset::context_volume_percent()
                     .unwrap_or_else(|_| control.get(&VOLUME_PCT_SLOT, 0).unwrap_or(100));
                 let line = if pid == 0 {
-                    "not running".to_string()
+                    crate::output::tip_line("not running")
                 } else {
-                    format!("stale pid {pid} — the next `on` re-resolves")
+                    crate::output::warn_line(&format!(
+                        "stale pid {pid} — the next `on` re-resolves"
+                    ))
                 };
                 (name, volume, line)
             };
-            println!("  sound:   {}", if enabled { "on" } else { "off" });
+            println!(
+                "  sound:   {}",
+                if enabled {
+                    crate::output::ok_line("on")
+                } else {
+                    crate::output::tip_line("off")
+                }
+            );
             println!("  preset:  {preset_name}");
             println!("  volume:  {volume_percent}% (100 = the compiled default)");
             println!("  player:  {player_line}");
         } else if pin::any_pin_present() {
-            println!("  control: not openable by this user (pin ownership?)");
+            println!(
+                "  control: {}",
+                crate::output::warn_line("not openable by this user (pin ownership?)")
+            );
         }
     }
     #[cfg(not(feature = "ebpf"))]
@@ -594,14 +629,30 @@ pub fn cmd_overview() {
             }
         }
         None => {
-            println!("  audio:   no device found");
+            println!("  audio:   {}", crate::output::warn_line("no device found"));
         }
     }
 
     println!();
-    println!("  zylaxion on                      # start the sound");
-    println!("  zylaxion preset --switch <name>  # switch sound live");
-    println!("  zylaxion status                  # the full truth");
+    // night-hunter-4: the runnable commands ride the status-green tier
+    // (the help reference's example law), the trailing comments ride
+    // the calm-grey grammar tier. Plain mode reproduces the exact
+    // historical bytes.
+    println!(
+        "  {}                      {}",
+        crate::output::ok_line("zylaxion on"),
+        crate::output::tip_line("# start the sound")
+    );
+    println!(
+        "  {}  {}",
+        crate::output::ok_line("zylaxion preset --switch <name>"),
+        crate::output::tip_line("# switch sound live")
+    );
+    println!(
+        "  {}                  {}",
+        crate::output::ok_line("zylaxion status"),
+        crate::output::tip_line("# the full truth")
+    );
     println!();
 }
 

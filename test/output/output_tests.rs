@@ -16,6 +16,26 @@ fn gate_is_off_under_piped_test_harness() {
     assert!(!color_enabled());
 }
 
+/// night-hunter-4: the stdout-lane verdict helpers are byte-identical
+/// plain when stdout is not a terminal — the report surfaces (status,
+/// overview, doctor, list-presets) stay grep-able in pipes and test
+/// captures, exactly the contract the stderr lane has always held.
+#[test]
+fn stdout_lane_helpers_are_plain_under_the_test_harness() {
+    assert_eq!(ok_line("PASS: fine"), "PASS: fine");
+    assert_eq!(fail_line("FAIL: broken"), "FAIL: broken");
+    assert_eq!(
+        warn_line("stale pid 4242 in the map"),
+        "stale pid 4242 in the map"
+    );
+    assert_eq!(
+        section("=== zylaxion doctor ==="),
+        "=== zylaxion doctor ==="
+    );
+    assert_eq!(tip_line("fix: start PipeWire"), "fix: start PipeWire");
+    assert_eq!(ok_marker("  <- active"), "  <- active");
+}
+
 #[test]
 fn mono_labeled_prefix_is_byte_exact() {
     // The historical grep-able shape must survive untouched when

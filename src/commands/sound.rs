@@ -458,10 +458,21 @@ pub fn cmd_volume(percent: u32, force_this: bool) {
 #[cfg(feature = "ebpf")]
 pub fn cmd_status(verbose: bool) {
     let kernel = crate::session::kernel::probe();
-    println!("kernel:   {} ({})", kernel.release, kernel.verdict());
+    // night-hunter-4: the verdict rides the semantic tier — green for a
+    // supported kernel, red for a verified-unsupported one. Plain bytes
+    // whenever stdout is not a terminal (the pipe contract).
+    let verdict = if kernel.supported() {
+        crate::output::ok_line(kernel.verdict())
+    } else {
+        crate::output::fail_line(kernel.verdict())
+    };
+    println!("kernel:   {} ({})", kernel.release, verdict);
 
     if !pin::any_pin_present() {
-        println!("tap:      not attached (sudo zylaxion attach to plant it)");
+        println!(
+            "tap:      {}",
+            crate::output::tip_line("not attached (sudo zylaxion attach to plant it)")
+        );
         return;
     }
     if !pin::all_pins_present() {
@@ -482,18 +493,22 @@ pub fn cmd_status(verbose: bool) {
     // TAP_KIND control slot records fentry:input_event /
     // kprobe:input_event / kprobe:input_handle_event at attach. A slot
     // this build cannot parse (a newer binary attached this tap?)
-    // renders honestly as unknown instead of guessing.
-    let tap_word = match control
+    // renders honestly as unknown instead of guessing. night-hunter-4:
+    // the known step rides green (an affirmative residency verdict),
+    // the unknown one rides yellow (a finding, not a failure).
+    let tap_line = match control
         .as_ref()
         .ok()
         .and_then(|c| c.get(&TAP_KIND_SLOT, 0).ok())
         .and_then(crate::ebpf::loader::TapKind::from_slot)
     {
-        Some(kind) => kind.label().to_string(),
-        None => "an unknown chain step (a newer binary attached this tap?)".to_string(),
+        Some(kind) => crate::output::ok_line(kind.label()),
+        None => {
+            crate::output::warn_line("an unknown chain step (a newer binary attached this tap?)")
+        }
     };
     println!(
-        "tap:      attached via {tap_word} ({} pins under {})",
+        "tap:      attached via {tap_line} ({} pins under {})",
         pin::ALL_PINS.len(),
         pin::PIN_DIR
     );
@@ -512,30 +527,49 @@ pub fn cmd_status(verbose: bool) {
     let pid = control.get(&PLAYER_PID_SLOT, 0).unwrap_or(0);
     let state = control.get(&STATE_SLOT, 0).unwrap_or(0);
 
-    println!("sound:    {}", if enabled { "on" } else { "off" });
+    println!(
+        "sound:    {}",
+        if enabled {
+            crate::output::ok_line("on")
+        } else {
+            crate::output::tip_line("off")
+        }
+    );
     println!("preset:   {preset_name}");
     println!("volume:   {volume}% (100 = the compiled default)");
     match (pid, pid_alive(pid as i32)) {
-        (0, _) => println!("player:   not running"),
+        (0, _) => println!("player:   {}", crate::output::tip_line("not running")),
         (p, true) => {
+            // night-hunter-4: the state word rides the tier — green
+            // running, grey the passive waiting states, red failed,
+            // yellow unknown.
             let state_word = match state {
-                STATE_RUNNING => "running",
-                STATE_IDLE => "idle",
-                1 => "starting",
-                3 => "failed",
-                _ => "unknown",
+                STATE_RUNNING => crate::output::ok_line("running"),
+                STATE_IDLE => crate::output::tip_line("idle"),
+                1 => crate::output::tip_line("starting"),
+                3 => crate::output::fail_line("failed"),
+                _ => crate::output::warn_line("unknown"),
             };
-            println!("player:   running (pid {p}, state: {state_word})");
+            println!(
+                "player:   {} (pid {p}, state: {state_word})",
+                crate::output::ok_line("running")
+            );
         }
-        (p, false) => println!("player:   stale pid {p} in the map (next `on` takes over)"),
+        (p, false) => println!(
+            "player:   {}",
+            crate::output::warn_line(&format!("stale pid {p} in the map (next `on` takes over)"))
+        ),
     }
     if verbose {
         crate::commands::stats::print_telemetry();
     }
     println!();
     println!(
-        "introspection: bpftool map dump pinned {pin}",
-        pin = pin::PIN_MAP_CONTROL
+        "{}",
+        crate::output::tip_line(&format!(
+            "introspection: bpftool map dump pinned {}",
+            pin::PIN_MAP_CONTROL
+        ))
     );
 }
 
