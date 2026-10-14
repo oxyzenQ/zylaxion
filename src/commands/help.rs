@@ -76,9 +76,7 @@ pub(crate) fn render_reference(color: bool) -> String {
     let grey = |t: &str| span(GREY_OPEN, t, color);
     let ok = |t: &str| span(OK_OPEN, t, color);
 
-    push(brand(
-        "━━━ zylaxion — Real-time Mechanical Keyboard Acoustic Synthesizer ━━━",
-    ));
+    push(brand("━━━ zylaxion ━━━"));
     push(String::new());
     // night-hunter-2: the subtitle is the Cargo.toml description,
     // word-wrapped — the drift pin in the test tree holds it against
