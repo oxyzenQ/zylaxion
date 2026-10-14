@@ -450,6 +450,27 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-5d (the LOC cap holds again — three files split,
+  zero logic moved)** — the Gate-keepers Rust LOC cap had been red
+  in CI since the last session's work pushed three files past the
+  600-line law: `src/commands/info.rs` (661), `src/commands/sound.rs`
+  (636), and `src/ebpf/loader.rs` (608). All three are now
+  directories with one theme per file, in the layout law's
+  dir/mod.rs shape, as pure moves — every line moved verbatim or
+  gained only a wiring-level visibility nudge (pub(super) where a
+  sibling now needs it, cfg-gated imports where a lane's dormant
+  twin would warn): info → alsa_guard / catalog / doctor / overview
+  with the shared active-preset decision in mod.rs; sound →
+  lifecycle / tuning / status with the control plane (slots, map
+  opener, policy gates, the dormant refusals) in mod.rs; loader →
+  orchestrate / chain with the wire vocabulary (TapKind, the
+  control slots, the ring record) in mod.rs. The #[path] test
+  wirings climbed one level with their modules; the test trees
+  resolve unchanged. Battery: fmt, clippy -D warnings, 218/218
+  tests (both lanes), and Gate-keepers green on all nine sections —
+  the LOC gate's first full pass since the violations landed (101
+  files, 0 over cap).
+
 - **night-hunter-5c (the README's install directions stop being
   fatal)** — the flagship user-facing find: the "Install from a
   release" block sent readers to
