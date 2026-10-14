@@ -3,31 +3,35 @@
 
 # The Zactrix LTS Certification
 
-Pass: `night-private-research-2xblade-3`. The engine landed in
-night-private-research-2xblade and the Range Question closed in
-night-private-research-2xblade-2. This pass is not a forge: it takes
-the engine as it stands and tests it — in the oven, in the water,
-under the hammer. Five independent proofs, each with a named
-instrument, a named target from the pass contract, and a measured
-result. Every raw output file lives in `scripts/audit/out/`
-(gitignored; every wrapper regenerates it).
+Passes: `night-private-research-2xblade-3` (the five oven proofs)
+and `night-private-research-2xblade-3.5` (the sixth, the resource
+footprint). The engine landed in night-private-research-2xblade and
+the Range Question closed in night-private-research-2xblade-2. This
+is not a forge: it takes the engine as it stands and tests it — in
+the oven, in the water, under the hammer. Six independent proofs,
+each with a named instrument, a named target from the pass contract,
+and a measured result. Every raw output file lives in
+`scripts/audit/out/` (gitignored; every wrapper regenerates it).
 
 One command reproduces each proof:
 
 ```bash
-scripts/audit/zactrix-stability.sh   # PROOF 4 (forced-Q battery + volume axes)
-scripts/audit/zactrix-rates.sh       # PROOF 2 (five-rate span, two runs, diff)
-scripts/audit/zactrix-rt.sh          # PROOF 3 (jitter measurement)
-scripts/audit/zactrix-reload.sh      # PROOF 5 (hot-reload session)
-scripts/audit/zactrix-soak.sh        # PROOF 1 (two one-million-keystroke runs)
+scripts/audit/zactrix-stability.sh     # PROOF 4 (forced-Q battery + volume axes)
+scripts/audit/zactrix-rates.sh         # PROOF 2 (five-rate span, two runs, diff)
+scripts/audit/zactrix-rt.sh            # PROOF 3 (jitter measurement)
+scripts/audit/zactrix-reload.sh        # PROOF 5 (hot-reload session)
+scripts/audit/zactrix-soak.sh          # PROOF 1 (two one-million-keystroke runs)
+scripts/audit/zactrix-footprint.sh     # PROOF 6 (resource footprint: states A/B/C + cold-start)
 ```
 
 Hardware for every run below: an Intel(R) Xeon(R) virtual sandbox, 2
 vCPUs, no audio device, no eBPF attachment — the proofs are headless
-by construction. Seeds: every render starts from a fresh model
-instance with the keystroke counter reset (the documented
-reproducibility hooks), so repeated runs are byte-identical unless a
-proof's own wall-clock or RSS columns are the measurement.
+by construction (PROOF 6 substitutes the named instrument devices
+its section records; the five oven proofs touch no audio device at
+all). Seeds: every render starts from a fresh model instance with
+the keystroke counter reset (the documented reproducibility hooks),
+so repeated runs are byte-identical unless a proof's own wall-clock
+or RSS columns are the measurement.
 
 The reading that shaped this pass (recorded in the CHANGELOG) found
 the architecture the proofs measure: the DSP render is NOT inside the
@@ -275,13 +279,128 @@ NaN/Inf count exactly zero."
 
 **Verdict: PASS.**
 
+## PROOF 6 — Resource footprint (night-private-research-2xblade-3.5)
+
+**Instrument.** `scripts/audit/zactrix-footprint.sh` (harness modes
+`--footprint-state-b`, `--footprint-state-c`, `--footprint-cold`).
+The driver reproduces the player's exact process topology — the
+`Orchestrator::run` loop (main), the event source (the bridge
+stand-in), the control watcher on its 100 ms cadence, and the device
+clock thread — with the production types (`Orchestrator`,
+`VoicePool`, `MechanicalClick`, the 16384-frame stereo ring) at the
+player's default posture (preset 0, volume 100% → gain 5.5). RSS and
+CPU are sampled from `/proc` twice, from inside (the driver reads
+`/proc/self/stat` utime+stime and `VmRSS` at the anchors) and from
+outside (the wrapper reads the same files via `ps`/`awk` at the same
+anchors); the two instruments agreed tick-for-tick at every shared
+anchor in the recorded run. Cold-start is measured internally by the
+driver's T0 anchor, stamped as the first statement of the process.
+
+**Substitutions, named once.** The sandbox has no root, no
+`CAP_BPF`, no writable `/sys/fs/bpf`, no `bpftool`, and no sound
+card. (1) The pinned control map is an `AtomicU32` cell read on the
+watcher's 100 ms cadence; the measurement window's timer performs the
+`enabled=0` write the CLI's `off` would. (2) The events ring is a
+wall-clock-paced source thread; its 100 ms blocking sleep stands in
+for the bridge's blocking `poll`. (3) There is no audio device: see
+the artifact paragraph. (4) The `bpf()` syscalls the real watcher
+and bridge make (10–20 per second, microseconds each) are the named
+excluded residue. No engine file was touched by any of this — the
+pass's diff lives entirely under `scripts/audit/` and `docs/`.
+
+**The instrument's own artifact, recorded.** The FIRST full run
+drove every state through cpal against the ALSA null PCM
+(`~/.asoundrc` override), and its own evidence refuted it: the idle
+state burned 6073 ticks over 60 s — one full core — while the
+orchestrator loop itself cost 8 ticks per 10 s. Per-thread `/proc`
+attribution named the thread: `cpal_alsa_out` at 748 ticks per 10 s,
+every other thread at zero. The null PCM is POLLOUT-always-ready, so
+the cpal callback thread spins writing silence as fast as the ring
+accepts — that spin is the null device's semantics, not the player's
+(the 2xblade-2 lesson, learned again: when the data is ugly, check
+the instrument before the engine). STATE B and STATE C therefore run
+the same production loop against `PacedNullSink`: the same
+16384-frame ring, the same back-pressure, the same render path —
+with the device's callback thread replaced by a wall-clock drain at
+the desktop's typical quantum (1024 frames at 48 kHz, ~21.3 ms per
+period). The cpal callback's own per-frame cost (`try_pop` +
+`is_finite` + clamp, ~47–93 firings/s on a real device) is the named
+excluded residue, already bounded by PROOF 3's audit. Cold-start
+keeps the real null-PCM open path — the open is the player's own
+work, and the null device's fast open is named.
+
+**Measured result.** CLK_TCK = 100, 2 vCPU; the locked CPU formula
+(the utime+stime delta over the window, divided by wall-clock and
+core count) is applied verbatim; the per-single-core equivalent is
+printed beside it so no reader has to divide.
+
+- **STATE A — idle, sound off.** 60/60 one-second samples with zero
+  `zylaxion` processes: idle CPU 0% because no process exists. The
+  tap half of this state is INCONCLUSIVE (see the verdict): `bpftool`
+  absent, `/sys/fs/bpf/zylaxion` absent, `unprivileged_bpf_disabled = 0`
+  but the filesystem not writable by this uid. DEFINITIONAL context,
+  not a measurement — the compiled map definitions
+  (`ebpf/src/main.rs:164–176`): control `Array<u32>` × 8, keymap
+  `HashMap<u32,u32>` × 512, events `RingBuf` 65,536 B, stats
+  `Array<AtomicU64>` × 257 — about 76 KiB of map data, plus the
+  program image, which is the part only real hardware can size.
+- **STATE B — sound on, 5 keys/s, 60 s.** 299 presses + 299 releases
+  delivered; device rate 48000 Hz. RSS 3712 → 3712 → 3712 KiB at
+  t = 5/30/60 (flat; the +96–104 KiB the wrapper's final samples
+  caught is the fade-out/teardown boundary, not window growth — the
+  driver's internal t = 60 sample still reads 3712). CPU: 129 ticks
+  = 1.29 CPU-seconds over 60.04 s → **1.075%** by the locked formula
+  (**2.15%** of one core).
+- **STATE C — sound on, zero keystrokes, 60 s.** RSS 1580 KiB at
+  t = 0 and 1580 KiB at t = 60: **zero growth across the measured
+  window** (the 144 KiB the external pair shows includes the ring's
+  one-time startup allocation and teardown). CPU: 77 ticks =
+  0.77 CPU-seconds → **0.642%** by the locked formula (**1.28%** of
+  one core). Decomposition: the input bridge 0 ticks, the watcher
+  0 ticks, the device clock 0 ticks — the remainder is the
+  orchestrator's 1 ms `recv_timeout` cadence, ~10 µs per wakeup on
+  this Xeon (a Haswell-class desktop core wakes in ~2–4 µs; the
+  percentage scales with the host, the design cost does not move).
+- **COLD-START.** From the first statement of the process:
+  device open 0.438 ms, first sample pushed 0.439 ms (the pre-fill's
+  first frame — the stream is already running when `CpalSink::new`
+  returns), first rendered sample pushed 0.475 ms. Exec-to-first-line
+  as seen by the wrapper: 2.418 ms. Rate negotiated: 48000 Hz.
+
+**README claim check.** "the player's epoll loop costs nothing
+between keystrokes" names the input bridge — the lane that measured
+0 ticks in every state; the claim is confirmed as scoped. The
+orchestrator's 1 ms event-poll loop is a different loop and carries
+the composite idle cost above; the README does not claim zero for
+it, so no correction landed. The "~1–2 µs per keystroke" kernel-side
+claim is untested here (the INCONCLUSIVE dimension) and
+uncontradicted.
+
+**Target (verbatim).** "idle CPU = 0% (no process exists); kernel
+tap memory (maps + program) < 1 MB total. … player RSS < 50 MB;
+player CPU < 5% single-core average; RSS stable across the three
+samples (< 1 MB growth). … player CPU < 1% single-core average
+(ideally < 0.1%); RSS stable. … < 500 ms."
+
+**Verdict: PASS** on every measurable dimension — idle process
+absence 60/60, RSS bounded and flat in both states, CPU bounded in
+both states, cold-start bounded. **One dimension INCONCLUSIVE,
+named:** the kernel-tap memory half of STATE A (and its STATE B
+echo). The tap cannot be attached in this sandbox — uid 1001, no
+`CAP_BPF`, `/sys/fs/bpf` unwritable, `bpftool` absent — and nothing
+was faked in its place: the compiled definitions are recorded as
+definition, and the dimension remains a one-command owner check on
+real hardware (`sudo zylaxion attach && bpftool map show pinned
+/sys/fs/bpf/zylaxion/control`, sum the four). No fix landed: there
+was no engine failure to fix.
+
 ## The closing record
 
 The engine commit certified: **`3dedb8ab26a6267066499702429d3b891f60d64f`**
-— the head of night-private-research-2xblade-2. This pass
-changed no engine file: every touched file lives under
-`scripts/audit/` (the harness and the five wrappers) or `docs/`. The
-artifact measured is the artifact shipped.
+— the head of night-private-research-2xblade-2. Neither pass changed
+an engine file: every touched file lives under `scripts/audit/`
+(the harness and the six wrappers) or `docs/`. The artifact measured
+is the artifact shipped.
 
 | Proof | Instrument | Target | Verdict |
 |-------|------------|--------|---------|
@@ -290,15 +409,22 @@ artifact measured is the artifact shipped.
 | 3. RT-safety | written audit + `zactrix-rt.sh` | no alloc/lock/syscall, ratio < 10x, block < 5 ms | **PASS** |
 | 4. Numerical stability | `zactrix-stability.sh`, volume axes | NaN = Inf = overflow = 0, peak <= 1.0 | **PASS** |
 | 5. Hot-reload safety | `zactrix-reload.sh`, 120 + 360 switches | artifacts 0, pool balanced, NaN/Inf = 0 | **PASS** |
+| 6. Resource footprint | `zactrix-footprint.sh`, states A/B/C + cold-start | idle CPU 0%, tap < 1 MB, RSS < 50 MB, CPU < 5% / < 1%, cold < 500 ms | **PASS** (tap memory INCONCLUSIVE) |
 
-No proof failed. No fix was needed or landed. No proof was
-INCONCLUSIVE.
+No proof failed. No fix was needed or landed. One dimension inside
+PROOF 6 is INCONCLUSIVE, named where it was measured: the kernel
+side's resident memory — the sandbox cannot attach the tap, so the
+definitions are recorded as definition and the dimension remains a
+one-command owner check on real hardware.
 
 **The LTS declaration.** The Zactrix Engine is certified LTS as of
-commit `3dedb8ab26a6267066499702429d3b891f60d64f`: five independent
+commit `3dedb8ab26a6267066499702429d3b891f60d64f`: six independent
 proofs — long-run soak, sample-rate span, RT-safety, numerical
-stability, hot-reload safety — all passed on the instrumented path,
-and docs/ZACTRIX_LTS.md carries every raw measurement. The engine is
-frozen. Future changes require a why that passes the maintenance bar:
-a security fix, a compatibility fix, or a measured improvement proven
-by the same audit harness.
+stability, hot-reload safety, and the resource footprint — passed on
+every measurable dimension, with one named INCONCLUSIVE: the kernel
+tap's memory, unattachable in the certifying sandbox and left
+honestly open for the owner's hardware. docs/ZACTRIX_LTS.md carries
+every raw measurement. The engine is frozen. Future changes require
+a why that passes the maintenance bar: a security fix, a
+compatibility fix, or a measured improvement proven by the same
+audit harness.
