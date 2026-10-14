@@ -14,6 +14,16 @@
 //! The test process's PRE-call limit is whatever the harness host
 //! allows; the pins clamp from any legal starting point, which the
 //! first test records rather than assumes.
+//!
+//! Miri posture: both pins go through the real rlimit ABI (getrlimit
+//! to measure, setrlimit inside force_no_coredump to clamp), and
+//! Miri on Linux does not interpret foreign libc calls — it aborts
+//! with "can't call foreign function `setrlimit`/`getrlimit` on OS
+//! `linux`" before reaching a single Rust-level assertion. The pins
+//! are therefore #[cfg_attr(miri, ignore)]-gated — cfg(miri) is set
+//! only by the interpreter itself — and stay fully live in the normal
+//! battery, which is the only lane where the rlimit ABI has real
+//! kernel meaning anyway.
 
 use super::force_no_coredump;
 
@@ -32,6 +42,10 @@ fn core_limit() -> libc::rlimit {
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "Miri cannot interpret foreign libc calls (getrlimit/setrlimit)"
+)]
 fn coredump_limit_is_zero_after_force() {
     let before = core_limit();
     force_no_coredump();
@@ -45,6 +59,10 @@ fn coredump_limit_is_zero_after_force() {
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "Miri cannot interpret foreign libc calls (getrlimit/setrlimit)"
+)]
 fn coredump_force_is_idempotent() {
     force_no_coredump();
     let first = core_limit();

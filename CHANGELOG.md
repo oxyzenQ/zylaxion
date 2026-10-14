@@ -437,6 +437,27 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-guard-1 (the Miri lane's honest posture for the rlimit
+  pins)** — CI's Dragon Guard - Miri lane aborted at
+  `commands::player::tests::coredump_force_is_idempotent` with
+  "can't call foreign function `setrlimit` on OS `linux`": Miri
+  interprets Rust and some whitelisted libc shims, but not the
+  rlimit ABI, and it stops at the first unsupported foreign call —
+  so the second pin (`coredump_limit_is_zero_after_force`) never
+  got its turn and the lane never reached the rest of the suite.
+  The two pins now carry `#[cfg_attr(miri, ignore = ...)]` with the
+  reason spelled out, and the module doc records the posture: the
+  gate key `cfg(miri)` is set only by the interpreter itself, so
+  the pins stay fully live in the normal battery (re-verified: both
+  execute and pass there) and are skipped only in the lane where
+  the rlimit ABI has no kernel meaning. The test tree's remaining
+  unsafe surface was statically swept for the same failure class:
+  the attach-error lane touches only libc constants (interpreted
+  fine) and the loader/embedded lanes use plain pointer operations
+  (Miri-supported) — the rlimit pins are the only foreign-call FFI
+  in the suite, and the CI Miri lane itself is the executor of the
+  full interpreted sweep.
+
 - **night-hunter-3 (the depth audit — three tests that proved less
   than their names promised)** — a full-tree sweep of all 218 tests
   (a mechanical scanner hunting zero-assertion bodies, tautologies,
