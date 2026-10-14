@@ -449,8 +449,10 @@ is codified in [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md).
 - **Does not log scancodes** — not at `info`, not at `debug`, not at
   `trace`. The `KeyEvent` struct exists to drive the DSP engine, not
   for human inspection. Audit the codebase: `grep -r 'scancode'
-  src/ | grep -E 'log::|println!|eprintln!'` returns zero hits
-  in production paths.
+  src/ | grep -E 'log::|println!|eprintln!'` returns zero hits in
+  production paths; the one render that names keycodes at all is the
+  `status --verbose` telemetry section, which prints the aggregate
+  per-keycode counters from the stats map, never event sequences.
 - **Does not store keystrokes** — there is no on-disk log, no
   history file, no analytics. Nothing is written to any filesystem:
   the state store is pinned BPF maps on bpffs, and the per-key press
@@ -487,9 +489,9 @@ attack surface — there is nothing in the logs to reconstruct.
 ### Verifying the policy yourself
 
 ```bash
-# Should print zero matches in production paths (excluding examples/
-# which carry an explicit --dump-scancodes opt-in for hardware
-# debugging):
+# Should print zero matches in production paths (the examples/
+# targets only synthesize fixed scancodes for audio sanity runs —
+# they render sound, they never dump key events):
 grep -rn 'scancode' src/ examples/ --include='*.rs' | \
     grep -E 'log::|println!|eprintln!' | \
     grep -v 'examples/'

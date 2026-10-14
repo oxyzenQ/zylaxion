@@ -37,7 +37,8 @@
 //! - [`output`]    — the color/lane system (errors, warnings, brand tiers)
 //! - [`info`]      — the binary's self-knowledge: build facts, Hinnant clock
 //! - [`session`]   — the session contract: preset resolution, kernel probe,
-//!   instance lock, pathguard, privilege, signals
+//!   privilege, signals (the retired instance lock and pathguard died
+//!   with the daemon era — night-improve-23)
 //! - `commands`    — subcommand handlers (`attach`, `doctor`, …)
 //! - `daemon`      — retired with the daemon era (night-improve-23 — the
 //!   pinned maps replace it; see CHANGELOG)

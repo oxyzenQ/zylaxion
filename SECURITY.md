@@ -14,7 +14,7 @@ boundaries sit.
 
 | Version | Branch | Status |
 |---------|--------|--------|
-| 11.x (main) | `main` | **supported** — active maintenance (bug fixes, distro compatibility, hardening) |
+| 80.x (main, the manifest version family) | `main` | **supported** — active maintenance (bug fixes, distro compatibility, hardening) |
 
 Pre-release channels (`alpha`, `beta`, `rc`) are development
 artifacts: reports against them are welcome and triaged, but fixes
