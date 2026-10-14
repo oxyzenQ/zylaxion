@@ -374,6 +374,14 @@ zylaxion on --preset glass_tactile
 zylaxion on --preset neon_pulse
 ```
 
+The Zactrix Engine that voices all 24 presets is LTS-frozen (the
+certification and its six proofs live in
+[docs/ZACTRIX_LTS.md](docs/ZACTRIX_LTS.md), the full security audit
+in [docs/ZACTRIX_SECURITY.md](docs/ZACTRIX_SECURITY.md)): the engine
+changes only for a security fix, a compatibility fix, or a
+measurable improvement proven by the audit harness
+(`scripts/audit/zactrix-*.sh`).
+
 ## Limitations (honest)
 
 zylaxion is deliberately small and stateless. In one breath:

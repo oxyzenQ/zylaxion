@@ -22,6 +22,33 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
+### Frozen
+
+- **night-private-research-2xblade-4** — the freeze. Declared
+  2026-10-14 (UTC, read from the system clock at declaration time —
+  not hardcoded): the Zactrix Engine is LTS-frozen as of the
+  certified commit c028ae6f907055807125c9a20c156cb16a3a2038, the
+  head of night-private-research-2xblade-3.6X, the pass that closed
+  the security audit. From this commit forward, a change to the
+  engine requires one of three admission paths, verbatim:
+  (a) a security fix — a CVE in a dependency, or a vulnerability
+  reported through SECURITY.md, that reaches the engine;
+  (b) a compatibility fix — a kernel, glibc, cpal, PipeWire, or
+  sample-rate change that the engine must adapt to in order to keep
+  running; (c) a measurable improvement proven by the same audit
+  harness that certified the engine (scripts/audit/zactrix-*.sh), on
+  a published before/after matrix, with no tier regression in any
+  preset. A change that cannot name which of the three it belongs to
+  does not land. Cosmetic changes do not land. Tuning by taste does
+  not land. The Zactrix Engine is frozen as of
+  c028ae6f907055807125c9a20c156cb16a3a2038. It was built, sharpened,
+  measured, and audited across seven passes; every proof and every
+  audit finding is recorded in docs/ZACTRIX_LTS.md and
+  docs/ZACTRIX_SECURITY.md. From this commit forward, changes
+  require a why that passes the maintenance bar: a security fix, a
+  compatibility fix, or a measured improvement proven by the same
+  audit harness. The engine is whole.
+
 ### Security
 
 - **night-private-research-2xblade-3.6X** — the security hardening

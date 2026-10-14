@@ -12,6 +12,11 @@
 //!
 //! The render path ([`VoicePool::process_sample`]) performs no heap allocation.
 //! All voices are pre-allocated in a fixed-size array.
+//!
+//! Frozen as of c028ae6f907055807125c9a20c156cb16a3a2038. Changes
+//! require a why that passes the maintenance bar: a security fix, a
+//! compatibility fix, or a measured improvement proven by the audit
+//! harness.
 
 mod pool;
 mod voice;
@@ -23,3 +28,7 @@ pub use voice::Voice;
 // and MAX_POLYPHONY are retired with the unification — the profiles
 // module is one path away in the same crate, and a binary-only crate
 // carries no external consumers that would need the bridge.
+
+#[cfg(test)]
+#[path = "../../test/engine/freeze_tests.rs"]
+mod tests;
