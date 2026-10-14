@@ -24,6 +24,66 @@ v80.0.0-alpha.1
 
 ### Added
 
+- **night-private-research-2xblade-3.5** — the resource footprint:
+  the sixth proof, the one pass the LTS certification was missing.
+  The instrument (`scripts/audit/zactrix-footprint.sh`, harness
+  modes `--footprint-state-b/-c/-cold`) reproduces the player's
+  exact process topology — the production `Orchestrator::run` loop,
+  the 16384-frame stereo ring, the `VoicePool` at the default
+  posture, a wall-clock event source on the bridge's 100 ms cadence,
+  the control watcher, and a device-clock thread — and samples its
+  own `/proc` footprint at the anchors, cross-checked by the
+  wrapper's external reads of the same files (the two instruments
+  agreed tick-for-tick at every shared anchor). The instrument's own
+  artifact is part of the record: the first run drove every state
+  through cpal against the ALSA null PCM and its idle state burned a
+  full core — per-thread `/proc` attribution named `cpal_alsa_out`
+  (the null device is POLLOUT-always-ready, so the callback thread
+  spins writing silence), not the player, whose orchestrator loop
+  cost 8 ticks per 10 s; the 2xblade-2 lesson held again, and states
+  B/C moved to `PacedNullSink` — the same ring and back-pressure
+  with the device thread replaced by a wall-clock drain at the
+  desktop's 1024-frame quantum — before any engine claim was made.
+  Measured (Xeon sandbox, 2 vCPU, CLK_TCK 100; the locked CPU
+  formula Δ(utime+stime) ÷ wall x ncores, the per-single-core
+  figure printed beside it): STATE A — 60/60 samples with zero
+  `zylaxion` processes (idle CPU 0% because no process exists); the
+  kernel-tap memory half is INCONCLUSIVE, named — no root, no
+  `CAP_BPF`, `/sys/fs/bpf` unwritable, `bpftool` absent; the
+  compiled map definitions (about 76 KiB of map data) are recorded
+  as definition, not measurement. STATE B (5 keys/s, 60 s) — RSS
+  3712 KiB flat at t = 5/30/60 (growth 0 KiB in-window; the +96 KiB
+  the final external sample caught is the teardown boundary), CPU
+  1.075% (2.15% of one core), 299 presses + 299 releases at
+  48000 Hz. STATE C (zero keystrokes, 60 s) — RSS 1580 KiB at both
+  anchors (zero in-window growth), CPU 0.642% (1.28% of one core;
+  the input bridge, the watcher, and the device clock all measured
+  0 ticks — the remainder is the orchestrator's 1 ms
+  `recv_timeout` cadence, ~10 us per wakeup on this Xeon). The
+  README's "the player's epoll loop costs nothing between
+  keystrokes" names the bridge lane and is confirmed as scoped; no
+  claim was weakened and none needed correcting. COLD-START —
+  device open 0.438 ms, first output sample pushed 0.439 ms, first
+  rendered sample pushed 0.475 ms (the real null-PCM open path; the
+  null device's fast open is named). No engine file changed, no
+  preset changed, no CLI surface changed; the audit harness gained
+  the three crates the main package already pins (`cpal` 0.15.3,
+  `ringbuf` 0.5.3, `crossbeam-channel` 0.5.17) so the driver could
+  run the real production audio stack. The required sentence,
+  adapted to the one honest delta (the tap-memory clause states the
+  INCONCLUSIVE fact instead of a number, because no number was
+  measured):
+
+  > The sixth proof — resource footprint — PASSed on every
+  > measurable dimension: idle CPU 0% (60/60 process-absence
+  > samples), player RSS bounded and flat in both the active and
+  > inter-keystroke states, player CPU bounded in both states,
+  > cold-start latency bounded. The kernel-tap memory dimension is
+  > INCONCLUSIVE in this sandbox — the tap cannot be attached
+  > without privileges — and is recorded as definition, not
+  > measurement. docs/ZACTRIX_LTS.md now carries six verdicts; the
+  > LTS certification stands.
+
 - **night-private-research-2xblade-3** — the LTS certification: the
   pass that tests the sword, not forges it. The reading (the audit
   end to end, the render path from the cpal callback to the
