@@ -450,6 +450,24 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-5b.3 (the uninstaller's disable stop lying and the
+  bootstrap's lost instructions)** — two more audit finds in the
+  error/lifecycle paths. uninstall.sh's pre-removal disable was
+  three lines that never did what they claimed: it targeted the
+  SYSTEM attach unit while calling it a "user unit", gated the
+  disable on NON-root (where systemctl disable cannot succeed and
+  the failure was swallowed by || true) and skipped root (the one
+  posture where it could), and skipped --system mode — the mode
+  whose whole job is removing that system unit. The disable now
+  runs in exactly the modes that remove the unit (--system, --all),
+  escalates through sudo like every other system-path step, and
+  says what it is. bootstrap-ebpf.sh's no-curl-no-wget branch
+  interpolated ${dest} — an unbound variable under set -u — so the
+  hand-install instructions died as "dest: unbound variable"
+  instead of being printed; it now names ${LOCAL_BIN} like its two
+  sibling branches. Both verified live (uninstall's nothing-found
+  path; bootstrap --check green on this host).
+
 - **night-hunter-5b.2 (the pins gate's advisory promise becomes
   real)** — the audit's second exit-code find: under a GitHub API
   rate limit, every action pin is unresolvable,

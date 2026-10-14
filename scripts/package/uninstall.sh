@@ -55,12 +55,20 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Best-effort: disable systemd user unit first (only if running as non-root
-# and a user service is detected).
-if [[ "${MODE}" != "--system" ]] && [[ "$(id -u)" -ne 0 ]]; then
+# Best-effort: disable the boot oneshot BEFORE its unit file is
+# removed, in exactly the modes that remove the system unit
+# (--system, --all). The attach unit is a SYSTEM unit
+# (/etc/systemd/system), not a user unit, so the disable escalates
+# like every other system-path step — the previous shape gated the
+# disable on NON-root (where systemctl disable cannot succeed and
+# the failure was swallowed) and skipped root (where it could),
+# which made it three lines that never did what they claimed
+# (caught by the night-hunter-5 script audit).
+if [[ "${MODE}" == "--system" || "${MODE}" == "--all" ]]; then
     if systemctl is-enabled "${PROJECT_NAME}-attach" >/dev/null 2>&1; then
-        echo ">> Disabling systemd user unit..."
-        systemctl disable --now "${PROJECT_NAME}-attach" 2>/dev/null || true
+        echo ">> Disabling the boot oneshot (system unit)..."
+        sudo systemctl disable --now "${PROJECT_NAME}-attach" 2>/dev/null ||
+            echo "   (could not disable in this session — the unit file below is removed either way)"
     fi
 fi
 
