@@ -300,15 +300,18 @@ impl<S: AudioSink> Orchestrator<S> {
         }
 
         // Report device info once — confirm interrupt-driven tuning.
+        // The log lane, not the terminal: the detached player owns no
+        // terminal bytes (night-hunter-6) — these surface through
+        // RUST_LOG=info in a foreground `zylaxion _play` run.
         let device_rate = self.sink.sample_rate();
         let sr = device_rate as f64;
-        eprintln!(
-            "[zylaxion-core] Interrupt-driven mode — device rate: {device_rate} Hz, \
+        log::info!(
+            "Interrupt-driven mode — device rate: {device_rate} Hz, \
              render chunk: {MAX_RENDER_CHUNK} frames (~{:.2} ms)",
             MAX_RENDER_CHUNK as f64 / sr * 1000.0,
         );
-        eprintln!(
-            "[zylaxion-core] Ring buffer: 16384 frames (~{:.1} ms), \
+        log::info!(
+            "Ring buffer: 16384 frames (~{:.1} ms), \
              cpal hw buffer: default (PipeWire/ALSA negotiated), \
              pre-fill: {PREFILL_SILENCE_FRAMES} frames (~{:.1} ms)",
             16384.0 / sr * 1000.0,
@@ -352,7 +355,7 @@ impl<S: AudioSink> Orchestrator<S> {
             //    handler sets this to true.  Break immediately so
             //    CpalSink is dropped and PipeWire graph is released.
             if stop_flag.load(Ordering::Relaxed) {
-                eprintln!("[zylaxion-core] stop flag set — shutting down");
+                log::info!("stop flag set — shutting down");
                 self.fade_out_before_drop();
                 return;
             }
@@ -374,8 +377,12 @@ impl<S: AudioSink> Orchestrator<S> {
                 // held ring-buffer fd outlives an unpin — the inode
                 // lesson). The line teaches the two actions and hands
                 // the liveness fork to the lanes that can prove it.
-                eprintln!(
-                    "[zylaxion-core] no key events in {}s — idle; type to hear the sound, \
+                // The log lane, never a raw terminal print — a
+                // detached player must not write terminal bytes
+                // (night-hunter-6); this surfaces in a foreground
+                // `_play` run or with RUST_LOG on.
+                log::warn!(
+                    "no key events in {}s — idle; type to hear the sound, \
                      or `zylaxion off` to stop. Keys silent while pressed means the tap is \
                      not delivering — `zylaxion doctor` tells you why.",
                     heartbeat_warn.as_secs()
@@ -417,7 +424,7 @@ impl<S: AudioSink> Orchestrator<S> {
                 }
                 Err(crossbeam_channel::RecvTimeoutError::Timeout) => {}
                 Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
-                    eprintln!("[zylaxion-core] input channel disconnected — shutting down");
+                    log::warn!("input channel disconnected — shutting down");
                     self.fade_out_before_drop();
                     return;
                 } // Timeout is handled by falling through — the loop

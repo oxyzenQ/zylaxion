@@ -450,6 +450,24 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-6 (the detached player owns no terminal bytes)** —
+  the owner's live catch: a `preset --switch` an hour after `on`
+  sprayed the player's INFO log line into the shell, and five idle
+  minutes printed the 300s heartbeat notice the same way — leaks
+  that made the terminal dirty. Three layers fixed. The `on` verb's
+  spawn now hands the detached player no stdio at all (stderr was
+  inherited so startup errors stayed visible; the parent's failure
+  messages already name the honest diagnostic lane — `zylaxion _play`
+  in the foreground — so nothing is lost). The player's log default
+  drops to warn (it was info — every state transition became a
+  terminal line; RUST_LOG=info restores the full story where someone
+  is actually reading). And the core's raw `[zylaxion-core]` prints
+  — the startup tuning banner, the stop line, the idle heartbeat,
+  the input-disconnect line — all ride the log lane now instead of
+  bypassing it, so verbosity obeys RUST_LOG everywhere. The
+  switch/volume confirmations themselves stay one line each and now
+  ride the green tier. Battery: fmt, clippy -D warnings, 218/218.
+
 - **night-hunter-7 (the doctor answers the first question an owner
   asks a binary, and the help drops the stale name)** — two surface
   changes in the zelynic lineage. The doctor's Build-facts block

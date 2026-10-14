@@ -451,10 +451,15 @@ fn force_no_coredump() {
     }
 }
 
-/// Shared logger wiring (the night-improve-13 lane).
+/// Shared logger wiring (the night-improve-13 lane). The default
+/// filter is WARN (night-hunter-6): the player is a background
+/// process, and an info-level default made every state transition a
+/// terminal line — the noise without a reader. RUST_LOG=info restores
+/// the full story in a foreground `zylaxion _play` run, which is the
+/// diagnostic lane the parent's failure messages already name.
 fn init_logger() {
     use std::io::Write as _;
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn"))
         .format(|buf, record| {
             writeln!(
                 buf,

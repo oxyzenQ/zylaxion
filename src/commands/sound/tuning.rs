@@ -40,9 +40,20 @@ pub fn cmd_preset(name: &str) {
     let playing = control.get(&PLAYER_PID_SLOT, 0).unwrap_or(0).ne(&0)
         && pid_alive(control.get(&PLAYER_PID_SLOT, 0).unwrap_or(0) as i32);
     if playing {
-        println!("preset set to {name} (swapped live)");
+        // The masterclass confirmation: one green line (night-hunter-6
+        // — the switch's only terminal output; the player-side
+        // detail lives in the log lane and in `status`).
+        println!(
+            "{}",
+            crate::output::ok_line(&format!("preset set to {name} (swapped live)"))
+        );
     } else {
-        println!("preset set to {name} (takes effect on `zylaxion on`)");
+        println!(
+            "{}",
+            crate::output::ok_line(&format!(
+                "preset set to {name} (takes effect on `zylaxion on`)"
+            ))
+        );
     }
 }
 
@@ -84,5 +95,10 @@ pub fn cmd_volume(percent: u32, force_this: bool) {
     } else {
         format!("cap {cap}%")
     };
-    println!("volume set to {percent}% (100 = the compiled default, {cap_note})");
+    println!(
+        "{}",
+        crate::output::ok_line(&format!(
+            "volume set to {percent}% (100 = the compiled default, {cap_note})"
+        ))
+    );
 }
