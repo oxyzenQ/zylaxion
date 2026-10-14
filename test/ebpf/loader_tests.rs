@@ -73,13 +73,22 @@ fn ring_record_layout_is_padding_free_at_the_front() {
 
 #[test]
 fn keymap_domain_is_the_keyboard_range() {
-    // The attach writes keycodes 1..=255 — the keyboard key domain.
-    // The bound is a documented posture (mouse buttons >= 0x100 never
-    // sound), so the test pins the bound's shape.
-    let keyboard_domain: Vec<u32> = (1..=255u32).collect();
-    assert_eq!(keyboard_domain.len(), 255);
-    assert_eq!(keyboard_domain[0], 1);
-    assert_eq!(*keyboard_domain.last().unwrap(), 255);
-    // The first button keycode (BTN_MISC = 0x100 = 256) sits outside.
-    assert!(keyboard_domain.into_iter().max().unwrap() < 256);
+    // The attach loop populates the keymap from KEYMAP_KEYCODE_DOMAIN
+    // (night-hunter-3: the former shape of this test built its own
+    // local 1..=255 and asserted its own construction — a tautology
+    // that proved nothing about the code). The pin now shoots the
+    // ACTUAL constant the attach loop iterates: the keyboard key
+    // domain, bounded away from the BTN_* button block.
+    let domain = KEYMAP_KEYCODE_DOMAIN;
+    assert_eq!(*domain.start(), 1, "keycode 0 is not a key");
+    assert_eq!(
+        *domain.end(),
+        255,
+        "the keyboard domain ends at 255 (BTN_MISC = 0x100 stays out)"
+    );
+    let count = domain.clone().count();
+    assert_eq!(count, 255, "255 keyboard keycodes, got {count}");
+    // The first button keycode (BTN_MISC = 0x100 = 256) sits outside —
+    // mouse buttons never sound.
+    assert!(*domain.end() < 256, "the button block starts at 0x100");
 }
