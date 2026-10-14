@@ -7,7 +7,9 @@
 //! surface of the standalone audit crate, no new dependency, no audio
 //! device.
 
+use crate::engine::VoicePool;
 use crate::profiles::{self, MechanicalClick, registry_all};
+use crate::proof::pool_output_law;
 
 // ── The Range Question stability mode (night-private-research-
 //    2xblade-2) ────────────────────────────────────────────────────────
@@ -182,35 +184,12 @@ fn render_raw_stability(profile: &profiles::KeyProfile, rate: u32) -> StabilityP
     // inside the fixed [-25, -50] dB window below the peak (deep tail:
     // the click, spring, and ambient layers are long dead there; what
     // lives is the housing ring), log-linear least squares vs time.
-    let peak_full = samples.iter().fold(0.0_f32, |m, &v| m.max(v.abs()));
-    let win_hi = peak_full * 10.0_f32.powf(-25.0 / 20.0);
-    let win_lo = peak_full * 10.0_f32.powf(-50.0 / 20.0);
+    // The fit lives in proof::ring_decay_fit (shared with the rates
+    // mode so both instruments measure the same quantity with the same
+    // code); the battery output is verified byte-identical after the
+    // extraction.
     let live = probe.live_samples.min(samples.len());
-    let mut pts: Vec<(f64, f64)> = Vec::new();
-    let mut i = 1;
-    while i + 1 < live {
-        let a = samples[i - 1].abs();
-        let b = samples[i].abs();
-        let c = samples[i + 1].abs();
-        if b >= a && b >= c && b >= win_lo && b <= win_hi {
-            pts.push((i as f64 / rate as f64, (b as f64).ln()));
-            i += 2;
-        } else {
-            i += 1;
-        }
-    }
-    if pts.len() >= 32 {
-        let n = pts.len() as f64;
-        let sx: f64 = pts.iter().map(|p| p.0).sum();
-        let sy: f64 = pts.iter().map(|p| p.1).sum();
-        let sxx: f64 = pts.iter().map(|p| p.0 * p.0).sum();
-        let sxy: f64 = pts.iter().map(|p| p.0 * p.1).sum();
-        let denom = n * sxx - sx * sx;
-        if denom.abs() > 1e-12 {
-            let slope = (n * sxy - sx * sy) / denom;
-            probe.ring_decay_db_s = -slope * 8.685_889_638;
-        }
-    }
+    probe.ring_decay_db_s = crate::proof::ring_decay_fit(&samples, rate, live);
     probe
 }
 
@@ -350,4 +329,183 @@ pub(super) fn run_stability() {
         );
         println!();
     }
+
+    // PROOF 4 (night-private-research-2xblade-3): the volume axes,
+    // appended after the forced-Q battery so the existing record stays
+    // byte-identical.
+    run_stability_volume_axes();
+}
+
+// ── PROOF 4: the volume axes (night-private-research-2xblade-3) ────────
+// The master limiter is the hard +/-1.0 clamp at the tail of
+// VoicePool::process_sample; volume enters only AFTER the per-sample
+// DSP, as one linear gain multiply loaded from the atomic cell. So the
+// raw model path carries the DSP numerics, and the volume axis proves
+// the post-voice law exactly as the pool applies it: gain, then
+// is_finite, then the clamp (proof::pool_output_law). Three axes, all
+// derived through the shipped laws rather than copied numbers:
+//   100 percent  -> gain 5.5   (percent lane through the default-gain
+//                                law, VoicePool::DEFAULT_MASTER_VOLUME)
+//   200 percent  -> gain 11.0  (the CLI's MAX_VOLUME_PERCENT cap)
+//   force        -> gain 100.0 (--force-this at the 10000 percent force
+//                                ceiling would store 550.0; the pool's
+//                                volume_bits clamp law pins the internal
+//                                ceiling at 100.0)
+// Every preset, rates 44.1 / 96 kHz, one million streamed samples per
+// combination. Attack axis: the engine exposes no attack-time parameter
+// (the attack shape is the excitation burst duration plus the per-
+// preset decay coefficient — no attack field exists in any params
+// struct), so that axis is not applicable; docs/ZACTRIX_LTS.md records
+// it.
+
+/// The two rates the volume axes are measured at.
+const VOLUME_RATES: [u32; 2] = [44_100, 96_000];
+
+/// One million streamed samples per combination, per the proof contract.
+const VOLUME_SAMPLES: usize = 1_000_000;
+
+/// One volume-axis probe: raw-path counts under the pool's post-voice
+/// law, streamed (no sample storage).
+struct VolumeProbe {
+    live_samples: usize,
+    /// Largest |raw| seen before the gain (the DSP's own peak).
+    pre_peak: f32,
+    /// Largest post-law sample (<= 1.0 whenever the limiter holds).
+    post_peak: f32,
+    /// Samples where the clamp actually engaged (|gain*raw| > 1.0).
+    limited: usize,
+    nan_count: usize,
+    inf_count: usize,
+    denormal_count: usize,
+}
+
+/// Stream one keypress through the raw model path at `rate`, apply the
+/// pool's post-voice law at `gain` sample-wise, and count. Bypasses the
+/// pool's NaN-to-0 net at the probe level: the law's is_finite branch
+/// is where a hidden blow-up would vanish into silence, so the probe
+/// counts the pre-branch value.
+fn render_raw_volume_axis(profile: &profiles::KeyProfile, rate: u32, gain: f32) -> VolumeProbe {
+    use profiles::{AcousticModel, SynthState};
+
+    let model = MechanicalClick::with_profile(*profile, rate);
+    model.reset_keystroke_counter_for_tests();
+    let mut state = SynthState::default();
+    model.init_state(profile, &mut state, 0.0, None);
+
+    let mut probe = VolumeProbe {
+        live_samples: 0,
+        pre_peak: 0.0,
+        post_peak: 0.0,
+        limited: 0,
+        nan_count: 0,
+        inf_count: 0,
+        denormal_count: 0,
+    };
+
+    for _ in 0..VOLUME_SAMPLES {
+        if !state.active {
+            continue;
+        }
+        let [l, r] = model.render_sample(&mut state);
+        probe.live_samples += 1;
+        for v in [l, r] {
+            let a = v.abs();
+            if a > probe.pre_peak {
+                probe.pre_peak = a;
+            }
+            let g = v * gain;
+            if g.is_nan() {
+                probe.nan_count += 1;
+            } else if g.is_infinite() {
+                // f32 overflow and infinity are the same event on the
+                // output stream; both columns report this count.
+                probe.inf_count += 1;
+            } else {
+                if g != 0.0 && g.abs() < f32::MIN_POSITIVE {
+                    probe.denormal_count += 1;
+                }
+                let post = pool_output_law(v, gain);
+                if post.abs() > probe.post_peak {
+                    probe.post_peak = post.abs();
+                }
+                if g.abs() > 1.0 {
+                    probe.limited += 1;
+                }
+            }
+        }
+        if probe.nan_count + probe.inf_count > 0 && probe.live_samples >= 64 {
+            break;
+        }
+    }
+    probe
+}
+
+/// The PROOF 4 section, appended to the `--stability` output: every
+/// preset, two rates, three volume axes. The existing forced-Q battery
+/// output above is byte-identical to the 2xblade-2 record.
+fn run_stability_volume_axes() {
+    println!();
+    println!("PROOF 4 (night-private-research-2xblade-3): volume axes on the raw path");
+    println!(
+        "gain axes derived through the shipped laws: percent lane x {:.1}, pool volume_bits clamp; limiter = the process_sample hard clamp",
+        VoicePool::DEFAULT_MASTER_VOLUME
+    );
+    println!(
+        "attack axis: not applicable - the engine exposes no attack-time parameter (excitation duration_ms + per-preset decay only); see docs/ZACTRIX_LTS.md"
+    );
+    println!(
+        "| preset | rate kHz | axis | live ms | pre-limiter peak | post-limiter peak | limiter engaged % | NaN | Inf/overflow | denormals | verdict |"
+    );
+    println!("|---|---|---|---|---|---|---|---|---|---|---|");
+    // The percent lane's gain law: pct / 100, times the compiled
+    // laptop default (the 100-percent row is unity on that lane).
+    let g100 = VoicePool::DEFAULT_MASTER_VOLUME; // 100 percent of default
+    let g200 = 2.0_f32 * VoicePool::DEFAULT_MASTER_VOLUME; // the 200% cap
+    let gforce = f32::from_bits(VoicePool::volume_bits(
+        100.0_f32 * VoicePool::DEFAULT_MASTER_VOLUME, // 10000% forced, pre-clamp
+    ));
+    let axes: [(&str, f32); 3] = [
+        ("100% (gain 5.5)", g100),
+        ("200% cap (gain 11.0)", g200),
+        ("force ceiling (gain 100.0)", gforce),
+    ];
+    let presets = registry_all();
+    let mut dirty = 0_usize;
+    for preset in presets {
+        for &rate in VOLUME_RATES.iter() {
+            for (label, gain) in axes {
+                let p = render_raw_volume_axis(&preset.profile, rate, gain);
+                let live_ms = p.live_samples as f64 / rate as f64 * 1000.0;
+                let engaged = if p.live_samples > 0 {
+                    p.limited as f64 / (p.live_samples as f64 * 2.0) * 100.0
+                } else {
+                    0.0
+                };
+                let ok = p.nan_count == 0
+                    && p.inf_count == 0
+                    && p.post_peak <= 1.0
+                    && p.pre_peak.is_finite();
+                if !ok {
+                    dirty += 1;
+                }
+                println!(
+                    "| `{}` | {} | {} | {live_ms:.2} | {:.4} | {:.4} | {engaged:.2} | {} | {} | {} | {} |",
+                    preset.name,
+                    rate / 1000,
+                    label,
+                    p.pre_peak,
+                    p.post_peak,
+                    p.nan_count,
+                    p.inf_count,
+                    p.denormal_count,
+                    if ok { "CLEAN" } else { "DIRTY" },
+                );
+            }
+        }
+    }
+    println!(
+        "volume-axis verdict: {} of {} combinations dirty (target: 0; NaN = 0, Inf = 0, overflow = 0, post-limiter peak <= 1.0 everywhere; denormals counted, not gated)",
+        dirty,
+        presets.len() * VOLUME_RATES.len() * axes.len()
+    );
 }
