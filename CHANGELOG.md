@@ -450,6 +450,32 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-8 (the status player line stops contradicting
+  itself, and the failed state gets its name)** — the audit of the
+  remaining CLI output surfaces (`status`, `attach`) under the
+  night-hunter-4 tier law caught one real lie: the player line
+  wrapped its tiered state word in an unconditional green
+  `running` prefix, so a failed player rendered as
+  `running (pid …, state: failed)` — the green affirmative
+  refuted by the red word on the same line — and a running player
+  said "running" twice. The state word IS the verdict now: one
+  word, its own tier (`running` green, `starting`/`idle` grey,
+  `failed` red, `unknown` yellow), exactly the law the surrounding
+  comment already claimed. Alongside it, the player state
+  vocabulary got its missing names: `STATE_FAILED` was an anonymous
+  `3` in the write path (`fail()`) and a different anonymous `3` in
+  the status reader, with `1` (starting) hardcoded in the reader
+  while the writer used a named constant — three literals waiting
+  to drift. The full word list now exists on both sides per the
+  established private-alias shape (sound/mod.rs for the reader,
+  player.rs for the writer; the kernel side owns only the slot
+  index). Attach/detach surfaces audited clean in the same pass:
+  the attach summary's every literal matches the chain's init
+  values, the detach summary names every outcome shape, the
+  `TapKind` labels are the exact kernel symbols, and the volume
+  "(100 = the compiled default)" claim matches the attach-time
+  default.
+
 - **night-hunter-6 (the detached player owns no terminal bytes)** —
   the owner's live catch: a `preset --switch` an hour after `on`
   sprayed the player's INFO log line into the shell, and five idle
