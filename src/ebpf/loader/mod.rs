@@ -25,7 +25,8 @@
 //! 3. `kprobe:input_handle_event` — the alternate symbol, one step
 //!    later in the input core (after the is_event_supported check);
 //!    fewer events, still passive.
-//! 4. Hard refusal — a classified [`AttachError`]; nothing
+//! 4. Hard refusal — a classified
+//!    [`AttachError`](crate::ebpf::attach_error::AttachError); nothing
 //!    half-attached, no silent fallback.
 //!
 //! The chain step that won is recorded in the control map's TAP_KIND
