@@ -79,7 +79,13 @@ has_flag() {
 # across a socket, so one line is the honest read.
 detect_amd64_level() {
     local flags
-    flags="$(sed -n '1s/^flags[[:space:]]*:[[:space:]]*//p' /proc/cpuinfo)"
+    # Read the FIRST flags line. The address must be the /pattern/
+    # guard (print on the first line matching ^flags, then quit): the
+    # line-number address `1s/.../p` reads the FILE's line 1 — the
+    # "processor : 0" line — which never matches, left `flags` empty,
+    # and made every machine classify as "base" (the v3/v4 lanes
+    # never fired; caught by the night-hunter-5 script audit).
+    flags="$(sed -n '/^flags[[:space:]]*:/{s/^flags[[:space:]]*:[[:space:]]*//p;q;}' /proc/cpuinfo)"
     if [[ -z "${flags}" ]]; then
         echo "base"
         return

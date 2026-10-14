@@ -450,6 +450,24 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-5b (the CPU-tuned install lane stops pretending)** —
+  the night-hunter-5 script audit's flagship find: the
+  `install-on-my-machine.sh` microarchitecture detector read
+  /proc/cpuinfo with the line-number address
+  `sed -n '1s/^flags.../p'` — which anchors to the FILE's line 1,
+  and line 1 of /proc/cpuinfo is always `processor : 0`, never a
+  flags line. The capture was therefore empty on every Linux
+  machine, `detect_amd64_level` answered "base" unconditionally,
+  and the v3/v4 build shapes (the parity-checked cargo aliases that
+  make the lane worth existing) were dead code. The lane advertised
+  a CPU-tuned binary and silently shipped the baseline one — a
+  gimmick by the audit's definition. The address is now the
+  /pattern/ guard (print the first line matching ^flags, then
+  quit), the trap is documented at the site so nobody "simplifies"
+  it back, and the fix was verified against the script's own bytes:
+  the sandbox host (abm + full AVX-512 set present) now classifies
+  v4 where it classified base.
+
 - **night-guard-2 (the release manifest stops promising what
   signing may not ship)** — Dragon Guard - Release failed on the
   tag push with "Pattern 'dist/*.tar.gz.asc' does not match any
