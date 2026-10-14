@@ -547,6 +547,35 @@ jobs:
           echo "=== Release body ==="
           cat release-body.md
 
+      # The upload list is what dist/ actually holds, not a wish list.
+      # The static glob block used to promise dist/*.tar.gz.asc even
+      # when signing shipped none (GPG secrets optional by contract),
+      # and fail_on_unmatched_files turned that promise into a hard
+      # release failure. Enumerating the tripwire-certified inventory
+      # keeps fail_on_unmatched_files honest: it now guards against a
+      # file vanishing between enumeration and upload instead of
+      # against an empty optional pattern.
+      - name: Enumerate release assets
+        id: assets
+        run: |
+          set -euo pipefail
+          LIST="$(find dist -maxdepth 1 -type f \( \
+            -name '*.tar.gz' -o \
+            -name '*.tar.gz.sha512sum' -o \
+            -name '*.tar.gz.b2sum' -o \
+            -name '*.tar.gz.shake256' -o \
+            -name '*.tar.gz.asc' \) | sort)"
+          if [ -z "${LIST}" ]; then
+            echo "::error::No release assets found in dist/"
+            exit 1
+          fi
+          echo "${LIST}"
+          {
+            echo "list<<EOF"
+            echo "${LIST}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Publish the GitHub release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3, night-improve-8 SHA pin
         with:
@@ -555,9 +584,4 @@ jobs:
           body_path: release-body.md
           prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
           fail_on_unmatched_files: true
-          files: |
-            dist/*.tar.gz
-            dist/*.tar.gz.sha512sum
-            dist/*.tar.gz.b2sum
-            dist/*.tar.gz.shake256
-            dist/*.tar.gz.asc
+          files: ${{ steps.assets.outputs.list }}
