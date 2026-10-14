@@ -275,6 +275,17 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-doc-1** — the honest surface. The musl-dormant phrasing
+  and the design-bounded philosophy are now stated in plain language
+  where a reader will find them: the dormant lane's reason is
+  technical (cpal → ALSA → no static libasound.a for musl; glibc
+  static-shape covers the 99%), and the freeze is framed as a
+  decision the engine earned, not a shortage of ideas. No code,
+  tests, or frozen surfaces touched. Two paragraphs the engine
+  earned: the musl lane is dormant for a reason, not a promise, and
+  the freeze is a decision, not a shortage. Both are now written
+  where a reader will find them.
+
 - **night-private-research-2xblade-2** — the Range Question: one
   decision, taken from the audit data, executed in one direction.
   The reading (the audit end to end, the engine's clamp sites, the

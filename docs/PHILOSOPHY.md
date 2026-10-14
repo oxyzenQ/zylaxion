@@ -29,6 +29,17 @@ available presets and exits — there is no silent fallback, because a
 tool that quietly guesses is a tool the owner cannot trust. Boring
 means the behavior is fully predictable from the binary itself.
 
+A tool can grow in two directions: it can get deeper, or it can get
+wider. Wider is easier — a new feature is a commit, and the commit
+is not judged by the tool's character but by the changelog's length.
+Deeper is harder — every addition is asked what it displaces, and
+the answer is not always 'it displaces nothing.' zylaxion chose
+deeper. The engine is frozen because the depth it reached is the
+depth it needed to reach. A change that cannot name what it fixes —
+a security issue, a compatibility break, a measured improvement — is
+not a change zylaxion takes. This is not a limitation. It is the
+decision that keeps the tool from becoming a different tool.
+
 ## 2. Stealth: The Keystroke Never Leaves the Process
 
 A keyboard listener is one debug log away from being a keylogger, so
