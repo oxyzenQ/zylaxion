@@ -22,6 +22,55 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
+### Security
+
+- **night-private-research-2xblade-3.6** — the security audit. The
+  security audit examined six dimensions and found 2 finding(s) and
+  1 INCONCLUSIVE dimension(s): privilege boundaries. The inconclusive
+  dimensions could not be measured in the sandbox and are named with
+  what would be needed to conclude. The remaining dimensions pass.
+  Evidence in docs/ZACTRIX_SECURITY.md.
+  - Verdicts: keystroke confidentiality LOW (no counterexample to the
+    zero-leakage claim; the named residency class is recent scancodes
+    recoverable from process-memory artifacts — ring pages, the event
+    channel, active voices — and the kernel-resident aggregate
+    counters; the coredump `RLIMIT_CORE` hardening is pre-named as a
+    residual for a hardening pass, not fixed here); BPF program
+    safety NONE (every map access bounds-checked, the ring record
+    fully initialized before submit, no loops, the `dev` pointer
+    never dereferenced; the loaded-hash confirmation is the one
+    inconclusive measurement inside the passing dimension);
+    privilege boundaries INCONCLUSIVE (the pinned-file permission
+    modes after attach need a real bpffs host: `stat
+    /sys/fs/bpf/zylaxion/*` plus a second-user dump probe — the
+    source-level analysis attaches: root-only attach, the sudo-user
+    chown hand-off, and the kernel's own cross-uid `kill()` EPERM
+    boundary); network surface NONE (zero socket call sites, the
+    only outbound is the constant-URL curl in `--check-update`,
+    root-refused before any I/O, the response parsed for one field
+    and never executed); supply chain LOW (bootstrap-ebpf.sh
+    authenticates the HTTPS channel but not the bpf-linker artifact —
+    no pinned checksum, no signature; named residual, the fix edits
+    the dependency policy this pass may not touch); update path and
+    version honesty NONE (`-V` rides the build.rs-computed git hash,
+    the release pipeline emits exactly the three checksums plus the
+    GPG lane docs/VERIFY_RELEASE.md documents).
+  - Verified against the committed tree: the ebpf-prebuilt object
+    hash matches its manifest byte for byte, the lockfile carries no
+    time crate, no serde, no toml (the lock's `tokio` entry is the
+    wasm32-gated cpal transitive and never compiles for the Linux
+    production target), and the production-path scancode grep names
+    only the disclosed aggregate telemetry render.
+  - Three stale claims corrected, text only, no code behavior:
+    SECURITY.md's supported-versions row now matches the manifest
+    version family (80.x, was 11.x), README no longer describes a
+    nonexistent `--dump-scancodes` examples lane (the examples
+    synthesize fixed scancodes for audio sanity runs), and the
+    daemon-era drop-order comments in `src/session/signals.rs` and
+    `src/main.rs` now describe the actual teardown set. No DSP math,
+    no preset registry, no CLI surface, no attach chain, no player
+    lifecycle change; the version stays owner-decided.
+
 ### Added
 
 - **night-private-research-2xblade-3.5** — the resource footprint:
