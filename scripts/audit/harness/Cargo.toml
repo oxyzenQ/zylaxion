@@ -27,5 +27,15 @@ log = { version = "0.4", default-features = false }
 # pins, so the workspace lock gains no new supply-chain surface.
 arc-swap = "1.7"
 
+# PROOF 6 (night-private-research-2xblade-3.5): the footprint driver
+# runs the REAL production audio stack - CpalSink and the Orchestrator
+# run loop - against the sandbox's ALSA null PCM. These three are the
+# exact crates the main package already pins (main Cargo.lock: cpal
+# 0.15.3, ringbuf 0.5.3, crossbeam-channel 0.5.17); the main package's
+# own dependency set gains nothing.
+cpal = "0.15"
+ringbuf = "0.5"
+crossbeam-channel = "0.5"
+
 [profile.release]
 opt-level = 3

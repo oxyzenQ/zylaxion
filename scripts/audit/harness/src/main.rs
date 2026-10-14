@@ -34,7 +34,20 @@ mod profiles;
 #[path = "../../../../src/engine/mod.rs"]
 mod engine;
 
+// PROOF 6 (night-private-research-2xblade-3.5): the resource-
+// footprint driver runs the REAL production audio stack — the cpal
+// sink and the orchestrator run loop — so the audio and core trees
+// join the include set. The dependencies these two trees need (cpal,
+// ringbuf, crossbeam-channel) are the exact crates the main package
+// already pins; the main package itself gains nothing.
+#[path = "../../../../src/audio/mod.rs"]
+mod audio;
+
+#[path = "../../../../src/core/mod.rs"]
+mod core;
+
 mod fft;
+mod footprint;
 mod metrics;
 mod proof;
 mod rates;
@@ -115,6 +128,10 @@ fn mark(in_band: bool) -> &'static str {
 }
 
 fn main() {
+    // PROOF 6: the process-start anchor — the FIRST statement of the
+    // process, so the cold-start delta begins here. Every mode pays
+    // one Instant + one SystemTime call for the stamp.
+    footprint::stamp_t0();
     let args: Vec<String> = std::env::args().collect();
 
     // The Range Question stability mode + the PROOF 4 volume axes
@@ -151,6 +168,21 @@ fn main() {
     // the max-pressure schedule, streaming receipts).
     if args.iter().any(|a| a == "--soak") {
         soak::run_soak();
+        return;
+    }
+
+    // PROOF 6: the resource-footprint driver's three modes — the
+    // anchor was already stamped at the top of main.
+    if args.iter().any(|a| a == "--footprint-state-b") {
+        footprint::run_state(true);
+        return;
+    }
+    if args.iter().any(|a| a == "--footprint-state-c") {
+        footprint::run_state(false);
+        return;
+    }
+    if args.iter().any(|a| a == "--footprint-cold") {
+        footprint::cold_start();
         return;
     }
 

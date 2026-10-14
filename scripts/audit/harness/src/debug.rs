@@ -155,12 +155,8 @@ pub fn debug_modal(mono: &[f32], rate: u32, click_fc: f32, spring_fc: f32) -> St
     // Raw reference-spectrum shape, bins 2..24 (power dB vs frame peak):
     // where the peaks, the skirts, and the pickup floor actually sit.
     out.push_str("ref spectrum bins 2-24 (bin:dB):");
-    for k in 2..24 {
-        out.push_str(&format!(
-            " {}:{}",
-            k,
-            format!("{:+.1}", 10.0 * ref_power[k].log10())
-        ));
+    for (k, &power) in ref_power.iter().enumerate().take(24).skip(2) {
+        out.push_str(&format!(" {}:{:+.1}", k, 10.0 * power.log10()));
     }
     out.push('\n');
     // Spectral floor at the preset's own click/spring bins, relative to
