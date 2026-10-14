@@ -107,3 +107,43 @@ fn presets_table_stays_silent_on_a_registered_env_override() {
         "no note for a registered override: {table}"
     );
 }
+
+/// night-hunter-2: the active-name decision — a live session's preset
+/// outranks everything (the map slot is what is actually sounding),
+/// even a conflicting environment selection.
+#[test]
+fn active_preset_name_prefers_the_live_session() {
+    assert_eq!(
+        active_preset_name_from(Some("topre"), None),
+        "topre",
+        "a live session answers itself"
+    );
+    assert_eq!(
+        active_preset_name_from(Some("topre"), Some("cherryMX")),
+        "topre",
+        "the live session outranks the environment selection"
+    );
+}
+
+/// night-hunter-2: with no live session, the would-start resolution
+/// answers — the env selection when registered, the compiled default
+/// otherwise (the stale-marker fix: a dead session's leftover slot
+/// must not masquerade as the active pick).
+#[test]
+fn active_preset_name_falls_back_to_the_context_resolution() {
+    assert_eq!(
+        active_preset_name_from(None, None),
+        crate::profiles::DEFAULT_PRESET,
+        "no env: the compiled default"
+    );
+    assert_eq!(
+        active_preset_name_from(None, Some("cherryMX")),
+        "cherryMX",
+        "a registered env selection answers itself"
+    );
+    assert_eq!(
+        active_preset_name_from(None, Some("no-such-preset")),
+        crate::profiles::DEFAULT_PRESET,
+        "an env value naming nothing degrades to the default (the note renders)"
+    );
+}

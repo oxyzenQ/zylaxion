@@ -31,10 +31,13 @@ pub mod styles;
 pub mod suggestion;
 pub mod ux;
 
-/// The one-line tagline under the version header — the same string the
-/// clap `about` surface carries, kept as a const so the report header
-/// and the help header can never drift.
-const ABOUT: &str = "Real-time mechanical keyboard acoustic synthesizer for Linux";
+/// The one-line tagline under the version header — the Cargo.toml
+/// `description` itself, pulled through the compile-time environment
+/// (night-hunter-2, the zelynic family contract: `about =
+/// env!("CARGO_PKG_DESCRIPTION")`). One string, two consumers — the
+/// version report and the help banner — and neither can drift from
+/// the registry-facing description a `cargo search` shows.
+pub(crate) const ABOUT: &str = env!("CARGO_PKG_DESCRIPTION");
 
 /// The plain-text body of the version report (everything after the
 /// brand header). Separated from [`long_version`] /

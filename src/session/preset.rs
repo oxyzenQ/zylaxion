@@ -147,8 +147,11 @@ pub fn resolve_from(
 /// flag: the environment selection when it names a registered preset,
 /// the compiled default otherwise. A malformed environment value does
 /// NOT fail here — the diagnostic surfaces at `resolve` time when a
-/// session actually starts. Used by `list-presets` and the overview
-/// to mark the active row.
+/// session actually starts. night-hunter-2: this is the FALLBACK lane
+/// of the active-row marker — `list-presets` and the overview consult
+/// it only when no live player holds the control plane; a live
+/// session's map slot outranks it (see
+/// `commands::info::active_preset_name_from`).
 // night-improve-22: consumed by the commands tree wired in this same
 // night (list-presets, overview).
 #[allow(dead_code)]

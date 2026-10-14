@@ -25,7 +25,30 @@
 //! environment rows default prose (an environment variable is not a
 //! flag), examples green.
 
+use crate::cli::ABOUT;
 use crate::output::{BRAND_OPEN, GREY_OPEN, OK_OPEN, RESET};
+
+/// Greedy word-wrap at `width` columns (night-hunter-2): the banner's
+/// subtitle IS the Cargo.toml description, wrapped at render time —
+/// the prose cannot drift from the registry-facing description because
+/// there is no second copy of it anywhere in the tree.
+fn wrap_prose(text: &str, width: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    for word in text.split_whitespace() {
+        if !current.is_empty() && current.chars().count() + 1 + word.chars().count() > width {
+            lines.push(std::mem::take(&mut current));
+        }
+        if !current.is_empty() {
+            current.push(' ');
+        }
+        current.push_str(word);
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines
+}
 
 /// Render the end-to-end reference: usage, commands grouped by role,
 /// examples, global flags, the Pro mode estate (short aliases, the
@@ -57,8 +80,12 @@ pub(crate) fn render_reference(color: bool) -> String {
         "━━━ zylaxion — Real-time Mechanical Keyboard Acoustic Synthesizer ━━━",
     ));
     push(String::new());
-    push("Turn every keystroke into a spatially-accurate click sound through".into());
-    push("your speakers — the eBPF tap in, low-latency ALSA audio out.".into());
+    // night-hunter-2: the subtitle is the Cargo.toml description,
+    // word-wrapped — the drift pin in the test tree holds it against
+    // any hand-edited second copy.
+    for line in wrap_prose(ABOUT, 72) {
+        push(line);
+    }
     push(String::new());
 
     push(brand("Run (the eBPF control plane, night-improve-23):"));
@@ -177,9 +204,17 @@ pub(crate) fn render_reference(color: bool) -> String {
         "zylaxion _play",
         "the internal stateless player behind the\non verb; it owns no flags of its own —\nrun it in the foreground for the full\nerror when it dies at startup",
     )];
+    // night-hunter-2: the volume verb's escape flag was taught only in
+    // the Run section's prose — the Pro mode estate documents it as a
+    // first-class row so the advanced vocabulary is complete.
+    let advanced_flags: &[(&str, &str)] = &[(
+        "--force-this",
+        "volume's 200% safety-cap override, up to the 10000 force ceiling",
+    )];
     let pro_col = aliases
         .iter()
         .chain(environment)
+        .chain(advanced_flags)
         .chain(hidden_verbs)
         .map(|(spelling, _)| spelling.len())
         .max()
@@ -218,6 +253,15 @@ pub(crate) fn render_reference(color: bool) -> String {
     push(ok("      zylaxion preset -s topre"));
     push(ok("      zylaxion volume -p 60"));
     push(ok("      zylaxion status -v"));
+    push(String::new());
+    push("  Advanced flags:".into());
+    push(String::new());
+    for (spelling, desc) in advanced_flags {
+        pro_row(&mut push, pro_col, &grey(spelling), spelling, desc);
+    }
+    push(String::new());
+    push("      # the forced loudness, stated in writing".into());
+    push(ok("      zylaxion volume -p 250 --force-this"));
     push(String::new());
     push("  Environment (the no-config law):".into());
     push(String::new());

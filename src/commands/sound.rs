@@ -36,17 +36,21 @@ use crate::ebpf::pin;
 // ── Control slot constants ──────────────────────────────────────────────
 // The userspace mirror of control_slots in ebpf/src/main.rs (and the
 // loader's and player's aliases) — the loader's test tree pins the
-// cross-side contract.
+// cross-side contract. Crate-visible (night-hunter-2): the overview and
+// the preset listing read the same plane through these named constants
+// instead of raw slot numbers that can drift.
 
-const ENABLED_SLOT: u32 = 0;
-const PRESET_ID_SLOT: u32 = 1;
-const VOLUME_PCT_SLOT: u32 = 2;
-const PLAYER_PID_SLOT: u32 = 3;
-const STATE_SLOT: u32 = 4;
+pub(crate) const ENABLED_SLOT: u32 = 0;
+pub(crate) const PRESET_ID_SLOT: u32 = 1;
+pub(crate) const VOLUME_PCT_SLOT: u32 = 2;
+pub(crate) const PLAYER_PID_SLOT: u32 = 3;
+pub(crate) const STATE_SLOT: u32 = 4;
 /// The attach-chain step that owns the live tap (night-improve-25):
 /// the mirror of `control::TAP_KIND` in the loader (and, behind it,
-/// control_slots::TAP_KIND on the ebpf side).
-const TAP_KIND_SLOT: u32 = 5;
+/// control_slots::TAP_KIND on the ebpf side). Crate-visible
+/// (night-hunter-2): the overview reads the same slot through the
+/// named constant.
+pub(crate) const TAP_KIND_SLOT: u32 = 5;
 const STATE_IDLE: u32 = 0;
 const STATE_RUNNING: u32 = 2;
 
