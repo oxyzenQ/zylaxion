@@ -594,7 +594,14 @@ fi
 
 if [ "${FINAL}" = "indeterminate" ]; then
     echo -e "  ${C_YELLOW}pin freshness indeterminate this run${C_NC} — advisory only, never a block"
-    exit 2
+    # Exit 0, not 2: the promise on this line is a CONTRACT, and the
+    # only caller (gate-keepers.sh's run_section) reads every non-zero
+    # exit as a section failure. Under an API rate limit every pin is
+    # unresolvable, FINAL lands on indeterminate, and a non-zero here
+    # turned the "never blocks on upstream flakiness" design into a
+    # red Gate-keepers run — the exact scenario the design forbids
+    # (caught by the night-hunter-5 script audit).
+    exit 0
 fi
 
 # FINAL == behind. MAJOR moves ride the table for the human; the
