@@ -22,6 +22,75 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
+### Added
+
+- **night-private-research-2xblade-3** — the LTS certification: the
+  pass that tests the sword, not forges it. The reading (the audit
+  end to end, the render path from the cpal callback to the
+  per-sample SVF stages, the volume law, the pool) found the
+  architecture the proofs measure: the DSP render is NOT inside the
+  cpal callback — the callback is a lock-free ring-buffer drain
+  (`try_pop`, `is_finite`, clamp, one relaxed atomic load), and the
+  render runs on the producer side, where `VoicePool::process_sample`
+  iterates a fixed 16-voice array, loads the master volume from one
+  relaxed atomic f32-bits cell, and hard-clamps the mix to +/-1.0 —
+  that clamp IS the master limiter, and the NaN/Inf-to-silence branch
+  IS the safety net every raw-path proof must bypass. The volume law
+  is percent x 5.5 into a pool-side clamp of [-100, 100] linear gain
+  (the 200% CLI cap is gain 11.0; `--force-this` at the 10000% force
+  ceiling lands on the internal ceiling 100.0). The pool never
+  allocates: trigger steals the oldest slot, release ramps over
+  ~2 ms, and a voice dies only when its envelope crosses the
+  threshold. The engine exposes no attack-time axis (the attack shape
+  is the excitation burst plus the per-preset decay coefficient), so
+  the attack-max/attack-zero axis the contract named is not
+  applicable and is documented as such. One sandbox fact shaped the
+  instrument: at ~2 tan() evaluations per active voice per sample,
+  the render path costs ~0.4-1.6M pool samples/s here, so the
+  long-run soak renders its one million keystrokes on a max-pressure
+  schedule (the pool saturated, voice stealing continuous) instead of
+  natural pacing — the compression is named in
+  docs/ZACTRIX_LTS.md, and the natural-lifetime dimension is covered
+  by the hot-reload session (one hour of audio at 5 keystrokes/s with
+  releases) and the million-sample raw battery. The proofs, in
+  execution order: PROOF 4 (numerical stability) — 144 combinations
+  (24 presets x 44.1/96 kHz x three volume axes derived through the
+  shipped laws), zero NaN, zero Inf/overflow, post-limiter peak
+  1.0000 everywhere, the forced-Q battery above it byte-identical to
+  the 2xblade-2 record; PROOF 2 (sample-rate span) — the voice
+  lifetime, the c^(R/S) law's exact measurand, spreads 0.0068-0.0628%
+  across 44.1/48/88.2/96/192 kHz on all 24 presets (target 0.5%),
+  every per-rate hash byte-identical across independent runs, the
+  -60 dB tail endpoint recorded as the excitation statistics the
+  2xblade-2 control experiment already named; PROOF 3 (RT-safety) —
+  the written no-alloc/no-lock/no-syscall audit of the callback and
+  the per-sample path, plus the jitter measurement (natural pass
+  max/p50 2.60x, saturated pass 3.58x, worst block 2.23 ms against
+  the 5 ms target, on the named Xeon sandbox); PROOF 5 (hot-reload
+  safety) — one hour of audio time, 120 ArcSwap preset stores, 360
+  volume_bits stores, 18,000 keystrokes: zero artifacts above the 10x
+  baseline, zero net-concealed blow-up signatures, pool fully
+  returned after the drain; PROOF 1 (long-run soak) — one million
+  keystrokes round-robin over all 24 presets, two independent runs:
+  final-1000-sample hashes byte-identical
+  (`0abf267b6833e0c7`), RSS growth 0 KiB, per-1000-keystroke CPU
+  drift +0.93%, 19 raw-path spot checks clean, pool end state zero
+  active voices. New instruments: `scripts/audit/zactrix-soak.sh`,
+  `zactrix-rates.sh`, `zactrix-rt.sh`, `zactrix-reload.sh`, and the
+  volume-axes extension of `zactrix-stability.sh`; the audit harness
+  gained one justified dev-dependency (`arc-swap`, the crate the main
+  package already pins, for the driver's faithful watcher mutation).
+  The required sentence, verbatim:
+
+  > The Zactrix Engine is certified LTS as of commit
+  > `3dedb8ab26a6267066499702429d3b891f60d64f`: five independent
+  > proofs — long-run soak, sample-rate span, RT-safety, numerical
+  > stability, hot-reload safety — all passed on the instrumented
+  > path, and docs/ZACTRIX_LTS.md carries every raw measurement. The
+  > engine is frozen. Future changes require a why that passes the
+  > maintenance bar: a security fix, a compatibility fix, or a
+  > measured improvement proven by the same audit harness.
+
 ### Changed
 
 - **night-private-research-2xblade-2** — the Range Question: one
