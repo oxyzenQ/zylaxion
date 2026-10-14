@@ -60,7 +60,11 @@ pub fn cmd_attach() {
 
     match crate::ebpf::attach() {
         Ok(summary) => {
-            println!("{}", summary);
+            // The broken-pipe-safe stdout lane (night-hunter-8): the
+            // summary is the command's product on stdout, and a
+            // `attach | head` reader must not kill the process with
+            // SIGPIPE-by-panic.
+            crate::output::print_stdout_line(&summary);
         }
         Err(e) => {
             crate::output::error(e.to_string());
@@ -75,7 +79,9 @@ pub fn cmd_detach() {
 
     match crate::ebpf::detach() {
         Ok(summary) => {
-            println!("{}", summary);
+            // The broken-pipe-safe stdout lane (night-hunter-8) — the
+            // summary is the command's product on stdout.
+            crate::output::print_stdout_line(&summary);
         }
         Err(e) => {
             crate::output::error(e.to_string());

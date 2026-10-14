@@ -450,6 +450,24 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-8.1 (the audited surfaces stop carrying the
+  broken-pipe panic)** — the same status/attach audit noticed the
+  output module already documents the law ("`zylaxion -V | head -1`
+  must not kill the process with SIGPIPE-by-panic") and provides the
+  broken-pipe-safe `print_stdout_line` for it, but the report
+  surfaces still printed through raw `println!` — which panics on a
+  closed pipe, so `zylaxion status | head` could die with a 101 and
+  a panic spew instead of finishing quietly. The audited surfaces
+  (the status report, the `--verbose` telemetry render, the
+  attach/detach summaries) all ride the safe lane now. Plain-pipe
+  bytes are unchanged (the safe emitter adds the same newline);
+  the telemetry section header now also rides the brand-purple
+  section tier like the overview's headers, and the render's
+  `total presses:` line the CI telemetry probe greps is untouched.
+  The rest of the report family (doctor, overview, catalog, update)
+  still carries the raw `println!` shape — named here as the
+  residue, a mechanical follow-up, not silently ignored.
+
 - **night-hunter-8 (the status player line stops contradicting
   itself, and the failed state gets its name)** — the audit of the
   remaining CLI output surfaces (`status`, `attach`) under the
