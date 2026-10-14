@@ -437,6 +437,25 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-hunter-4 (the lane law and the completed palette)** — the
+  stdout verdict helpers (`ok_line`, `fail_line`, `section`,
+  `tip_line`, `ok_marker`) gated on the STDERR capability probe while
+  decorating STDOUT report lines: on an interactive shell with a piped
+  stdout (`zylaxion list-presets | grep topre`) the ANSI bytes leaked
+  into the pipe. One gate per stream now — the stdout helpers probe
+  stdout, the stderr lane (error/warning) keeps its own probe. On top
+  of the lane law the semantic tiers complete the report surfaces the
+  palette contract promised: `status` and the no-subcommand overview
+  color their verdicts (green supported/on/running/attached, grey
+  off/not running/idle, yellow the stale pid and unknown states, red
+  failed and verified-unsupported), the introspection footer and the
+  not-attached hint ride the calm-grey tier, `list-presets` carries a
+  brand-purple header, the overview's runnable commands ride the
+  status-green tier with grey comments, and the doctor's BTF line and
+  last-attach note join their tiers. Plain mode stays byte-identical
+  everywhere (the pin holds every helper plain under the capture
+  harness).
+
 - **night-hunter-2 (the stale `<- active` marker)** — `list-presets`
   marked the active preset from the environment resolution alone
   (`ZYLAXION_PRESET`, then the compiled default), so a live session

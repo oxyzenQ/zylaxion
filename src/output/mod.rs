@@ -164,11 +164,21 @@ fn wrap_body_line(line: &str, body_open: &str) -> String {
 }
 
 // ── verdict and tier helpers (the doctor/overview surface) ──────────────
+//
+// The lane law (night-hunter-4): these helpers decorate STDOUT report
+// lines — the doctor's verdicts, the overview's posture, the preset
+// listing's marker — so they gate on the STDOUT capability probe, not
+// the stderr one. The two gates disagree exactly when one stream is a
+// terminal and the other is not (`zylaxion list-presets | grep topre`
+// on an interactive shell): the old stderr gate leaked ANSI bytes into
+// the pipe; the stdout gate keeps pipes byte-identical plain. The
+// stderr lane (error/warning/emit_labeled) keeps its own probe — one
+// gate per stream, the same rule both probe bodies implement.
 
 /// An affirmative verdict line (the caller supplies the word —
 /// `PASS: ...`) — status green.
 pub fn ok_line(text: &str) -> String {
-    if !color_enabled() {
+    if !stdout_color_enabled() {
         return text.to_string();
     }
     format!("{OK_OPEN}{text}{RESET}")
@@ -177,15 +187,25 @@ pub fn ok_line(text: &str) -> String {
 /// A failed verdict line (the caller supplies the word — `FAIL: ...`)
 /// — error red.
 pub fn fail_line(text: &str) -> String {
-    if !color_enabled() {
+    if !stdout_color_enabled() {
         return text.to_string();
     }
     format!("{ERROR_OPEN}{text}{RESET}")
 }
 
+/// A caution verdict line (night-hunter-4) — warning yellow. A finding
+/// that is not a failure: the stale player pid in the map, an absent
+/// optional capability. Same lane law as [`ok_line`] — stdout-gated.
+pub fn warn_line(text: &str) -> String {
+    if !stdout_color_enabled() {
+        return text.to_string();
+    }
+    format!("{WARN_OPEN}{text}{RESET}")
+}
+
 /// A section header (`[1/4] ...`, `=== title ===`) — brand purple bold.
 pub fn section(text: &str) -> String {
-    if !color_enabled() {
+    if !stdout_color_enabled() {
         return text.to_string();
     }
     format!("{BRAND_OPEN}{text}{RESET}")
@@ -193,7 +213,7 @@ pub fn section(text: &str) -> String {
 
 /// A passive suggestion line (`fix: ...`) — calm grey.
 pub fn tip_line(text: &str) -> String {
-    if !color_enabled() {
+    if !stdout_color_enabled() {
         return text.to_string();
     }
     format!("{GREY_OPEN}{text}{RESET}")
