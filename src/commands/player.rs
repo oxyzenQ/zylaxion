@@ -120,6 +120,22 @@ pub fn cmd_play() {
 
     init_logger();
 
+    // ── The core-dump posture (night-private-research-2xblade-3.6X,
+    //    the hardening the 3.6 audit pre-named): a core dump of this
+    //    process is the one recovery carrier for a bounded recent
+    //    keystroke window (the ring pages, the event channel, the
+    //    active voices' scancode fields), so the player drops
+    //    RLIMIT_CORE to zero — soft AND hard — before anything that
+    //    can hold a scancode exists. Zeroing the hard limit too means
+    //    even this process cannot re-raise it later without
+    //    CAP_SYS_RESOURCE. Best-effort by contract: a failure is
+    //    logged, never fatal. Honest scope, named in
+    //    docs/ZACTRIX_SECURITY.md: a piped core_pattern spawns its
+    //    helper regardless of the limit — the operator's policy
+    //    governs there; this closes the file-backed dump path, the
+    //    one the kernel enforces from the limit itself.
+    force_no_coredump();
+
     // The kernel-policy gate (night-badas-4 round 5): the player's
     // whole registration ride is control-map writes — a kernel that
     // gates unprivileged bpf() ends the run here, classified, instead
@@ -404,6 +420,37 @@ fn fail(control: &mut aya::maps::Array<MapData, u32>, message: String) -> ! {
     process::exit(1);
 }
 
+/// Force `RLIMIT_CORE = 0` (soft and hard) for this process — the
+/// coredump hardening the security audit's Dimension 1 pre-named
+/// (night-private-research-2xblade-3.6X). A core dump of the player is
+/// the one recovery carrier for recent scancodes (the ring pages, the
+/// event channel, the active voices); zeroing the limit takes the
+/// file-backed dump path away from every crash of this process.
+/// Best-effort: the only failure paths are an exotic sandbox (a
+/// seccomp filter that denies setrlimit, or a hard floor already above
+/// zero — lowering a hard limit is unprivileged, raising is not) —
+/// logged and lived with; the player stays cattle, not pet. Scope per
+/// core(5): a piped core_pattern spawns its helper regardless of the
+/// limit, so that lane is the operator's policy and stays outside
+/// this call's reach — docs/ZACTRIX_SECURITY.md names it.
+#[cfg(feature = "ebpf")]
+fn force_no_coredump() {
+    let zero = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    // Safety: setrlimit takes a plain const pointer to the ABI's own
+    // struct type; `zero` is a local of exactly that type and the call
+    // neither stores the pointer nor aliases anything.
+    let rc = unsafe { libc::setrlimit(libc::RLIMIT_CORE, &zero) };
+    if rc != 0 {
+        log::warn!(
+            "cannot force RLIMIT_CORE=0 (core dumps stay at the operator's policy): {}",
+            std::io::Error::last_os_error()
+        );
+    }
+}
+
 /// Shared logger wiring (the night-improve-13 lane).
 fn init_logger() {
     use std::io::Write as _;
@@ -428,3 +475,7 @@ pub fn cmd_play() {
     crate::output::error(crate::ebpf::dormant::DORMANT_REFUSAL);
     process::exit(1);
 }
+
+#[cfg(all(test, feature = "ebpf"))]
+#[path = "../../test/commands/player_tests.rs"]
+mod tests;

@@ -47,6 +47,16 @@ fi
 
 BPF_LINKER_URL_BASE="https://github.com/aya-rs/bpf-linker/releases/download"
 BPF_LINKER_VERSION="0.11.1"
+# The artifact checksum pins (night-private-research-2xblade-3.6X, the
+# security hardening pass): sha256 of the exact release asset, measured
+# over HTTPS from the aya-rs release page and committed here. HTTPS
+# authenticates the transport; this pin authenticates the bytes — a
+# compromised release asset or a mirrored page now dies at the
+# checksum gate, before anything is extracted or executed. A bumped
+# BPF_LINKER_VERSION MUST re-measure and re-pin both hashes in the
+# same commit: the version and the two hashes are one contract.
+BPF_LINKER_SHA256_X86_64="e058a6aecc9e65fa4c977b298a8e4b738424d7629769fd352eed409fb57e16e8"
+BPF_LINKER_SHA256_AARCH64="341ec1c595496877cae2b073544c2226d78a922739632b5732dbaa48507f1380"
 CHECK_ONLY=false
 
 case "${1:-}" in
@@ -148,14 +158,16 @@ report() {
 }
 
 install_bpf_linker() {
-	local arch asset url archive extracted
+	local arch asset url archive extracted expected_hash
 	arch="$(uname -m)"
 	case "${arch}" in
 	x86_64)
 		asset="bpf-linker-x86_64-unknown-linux-musl.tar.zst"
+		expected_hash="${BPF_LINKER_SHA256_X86_64}"
 		;;
 	aarch64)
 		asset="bpf-linker-aarch64-unknown-linux-musl.tar.zst"
+		expected_hash="${BPF_LINKER_SHA256_AARCH64}"
 		;;
 	*)
 		die "no bpf-linker ${BPF_LINKER_VERSION} prebuilt for ${arch} — build it from source: https://github.com/aya-rs/bpf-linker"
@@ -179,6 +191,20 @@ install_bpf_linker() {
 		die "neither curl nor wget is available — fetch ${url} by hand and extract bpf-linker into ${dest}"
 	fi
 	[[ -s "${archive}" ]] || die "downloaded file is empty: ${archive}"
+
+	# The artifact pin (night-private-research-2xblade-3.6X): the
+	# downloaded archive must match the sha256 committed beside the
+	# version constant — the checksum gate fires before extraction,
+	# before the ELF check, before anything on this host executes
+	# bytes it did not build. A mismatch here is tampering until
+	# proven otherwise: refuse loudly, name both hashes.
+	command -v sha256sum >/dev/null 2>&1 ||
+		die "sha256sum is not available — cannot verify the pinned bpf-linker checksum."
+	local measured_hash
+	measured_hash="$(sha256sum "${archive}" | awk '{print $1}')"
+	[[ "${measured_hash}" == "${expected_hash}" ]] ||
+		die "downloaded ${asset} sha256 ${measured_hash} does not match the pinned checksum ${expected_hash} — refusing to install an artifact the repo cannot vouch for"
+	ok "checksum verified: ${measured_hash}"
 
 	# Extract with whichever zstd-capable decompressor the host has:
 	# GNU tar with zstd, python3 with the zstandard module, or explicit
