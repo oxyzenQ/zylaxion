@@ -417,6 +417,25 @@ side's resident memory — the sandbox cannot attach the tap, so the
 definitions are recorded as definition and the dimension remains a
 one-command owner check on real hardware.
 
+## The freeze-pin reconciliation (night-total-lts-1, 2026-10-15)
+
+The declaration below certifies the engine at `3dedb8ab` — the
+commit the six proofs measured. The freeze was later re-stamped at
+`c028ae6f` (night-private-research-2xblade-4, the head of the
+hardening pass; recorded in the CHANGELOG's Frozen section and in
+`src/engine/mod.rs`'s module doc) — and this file's closing record
+predates that re-stamp, which made the two pins disagree on paper.
+Carried now, with the drift audit behind the reconciliation
+(night-total-lts-1): `git diff` across `3dedb8ab → c028ae6f → HEAD`
+shows the DSP trees (`src/engine/pool/`, `src/engine/voice/`,
+`src/profiles/`) byte-identical at every step. The only engine-tree
+movement since the certification is `src/engine/mod.rs`'s freeze
+note itself and the freeze-test wiring that guards it, plus
+logging-hygiene and doc-comment lanes in `src/core/` and
+`src/session/` that no proof measures. The proofs' measurand — the
+render path — never moved, so the six recorded proofs stand for the
+current head.
+
 **The LTS declaration.** The Zactrix Engine is certified LTS as of
 commit `3dedb8ab26a6267066499702429d3b891f60d64f`: six independent
 proofs — long-run soak, sample-rate span, RT-safety, numerical

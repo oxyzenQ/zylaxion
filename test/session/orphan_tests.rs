@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 // orphan_tests.rs — the orphaned-player lifecycle pins (night-improve-27):
-// the exact cmdline matcher, the escalation decision table, and the
+// the exact cmdline matcher, the detach-side identity gate
+// (night-total-lts-1), the escalation decision table, and the
 // live stub reap (the cfg(not(miri)) integration leg).
 
 use super::*;
@@ -66,6 +67,50 @@ fn near_miss_arguments_never_match() {
             "near miss must not match: {raw:?}"
         );
     }
+}
+
+/// The detach-side identity gate (night-total-lts-1): the exact
+/// player shape passes; unreadable cmdlines, foreign processes, wrong
+/// verbs, extra arguments, and a failed current_exe are all refusals
+/// — the root reaper only ever signals a provably-ours player.
+#[test]
+fn the_map_pid_gate_admits_only_the_player_shape() {
+    let exe = std::path::Path::new("/usr/bin/zylaxion");
+    let mut player = exe.as_os_str().as_bytes().to_vec();
+    player.push(0);
+    player.extend_from_slice(b"_play");
+    player.push(0);
+    // The honest shape passes.
+    assert!(pid_is_our_player(Some(&player), Some(exe.as_os_str())));
+    // A foreign process's cmdline is refused — the root-mediated
+    // SIGKILL-by-map-data attack this gate closes.
+    assert!(!pid_is_our_player(
+        Some(b"/sbin/init\0".as_slice()),
+        Some(exe.as_os_str())
+    ));
+    // A player from a different install path is refused — the cleared
+    // gate remains its stop signal.
+    assert!(!pid_is_our_player(
+        Some(b"/home/u/target/debug/zylaxion\0_play\0".as_slice()),
+        Some(exe.as_os_str())
+    ));
+    // Near misses of every class the matcher rejects.
+    for raw in [
+        &b"/usr/bin/zylaxion\0attach\0"[..],
+        b"/usr/bin/zylaxion\0_play\0extra\0".as_slice(),
+        b"".as_slice(),
+    ] {
+        assert!(
+            !pid_is_our_player(Some(raw), Some(exe.as_os_str())),
+            "near miss must not pass the gate: {raw:?}"
+        );
+    }
+    // Unverifiable candidates are refusals by construction: no
+    // cmdline (dead between the liveness probe and the read, zombie,
+    // kernel thread), a failed current_exe, both.
+    assert!(!pid_is_our_player(None, Some(exe.as_os_str())));
+    assert!(!pid_is_our_player(Some(&player), None));
+    assert!(!pid_is_our_player(None::<&[u8]>, None));
 }
 
 /// The escalation decision table, walked as the runtime walks it.
