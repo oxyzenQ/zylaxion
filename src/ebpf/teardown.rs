@@ -37,7 +37,8 @@ const PLAYER_PID_SLOT: u32 = 3;
 /// read the registered pid from the control map, clear the enabled
 /// gate in THAT map (the player's watcher exits on it within its
 /// 100 ms cadence), then drive the orphan escalation ladder until the
-/// pid is gone — but only through the [`pid_is_our_player`]
+/// pid is gone — but only through the
+/// [`pid_is_our_player`](crate::session::orphan::pid_is_our_player)
 /// identity gate first (night-total-lts-1): the map is writable by
 /// the pin-owning user, so the pid it carries is untrusted input to a
 /// privileged kill, and a planted pid must never turn `sudo zylaxion
