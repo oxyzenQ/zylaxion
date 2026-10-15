@@ -100,7 +100,11 @@ const SETTLE_STEP: Duration = Duration::from_millis(20);
 pub(crate) enum ControlPinStat {
     /// The pin is stat-able — the walk works and something lives
     /// there (whether the open then succeeds is the map's own
-    /// business: the unpriv gate, the pin's owner).
+    /// business: the unpriv gate, the pin's owner) — or the stat
+    /// failed with an errno this law does not classify, in which
+    /// case the open that follows names the truth verbatim
+    /// (night-total-lts-3: an unseen errno must never fold into the
+    /// idempotent "not attached" shapes below it).
     Reachable,
     /// A parent directory denies the walk — attached or not, this
     /// user cannot reach the control plane, and NOTHING about the
@@ -113,10 +117,32 @@ pub(crate) enum ControlPinStat {
 /// The one stat every "not attached" verdict must consult first.
 #[cfg(feature = "ebpf")]
 pub(crate) fn control_pin_stat() -> ControlPinStat {
-    match std::fs::metadata(pin::PIN_MAP_CONTROL) {
-        Ok(_) => ControlPinStat::Reachable,
-        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => ControlPinStat::WalkBlocked,
-        Err(_) => ControlPinStat::Absent,
+    classify_pin_stat(
+        std::fs::metadata(pin::PIN_MAP_CONTROL)
+            .map(|_| ())
+            .err()
+            .map(|e| e.kind()),
+    )
+}
+
+/// The errno law behind every "not attached" verdict
+/// (night-total-lts-3): only NotFound earns the absent verdict and
+/// only PermissionDenied earns the walk-block verdict — every other
+/// errno names a world this function cannot see into, so it defers
+/// to the syscall that follows (the classified open, which reports
+/// its own errno verbatim) instead of folding into the idempotent
+/// shapes. The night-dinner-3 fold sent every exotic errno (EIO on
+/// a dying bpffs mount, ELOOP on a tampered path) to Absent — the
+/// same lie family that audit closed for EACCES, resurrected for
+/// the rare case; this law keeps the common errnos pinned AND the
+/// rare ones honest.
+#[cfg(feature = "ebpf")]
+pub(crate) fn classify_pin_stat(kind: Option<std::io::ErrorKind>) -> ControlPinStat {
+    match kind {
+        None => ControlPinStat::Reachable,
+        Some(std::io::ErrorKind::NotFound) => ControlPinStat::Absent,
+        Some(std::io::ErrorKind::PermissionDenied) => ControlPinStat::WalkBlocked,
+        Some(_) => ControlPinStat::Reachable,
     }
 }
 
