@@ -27,9 +27,21 @@
 # Files auto-derived: scripts/build.sh (reads from Cargo.toml), the binary
 # (env!("CARGO_PKG_VERSION")). README.md is probed for a version surface and
 # reported honestly either way (the zelynic NIGHT-hunt-32 rule: never claim a
-# rewrite that did not happen — this repo's README carries no badge, no
-# release URL and no Version line today, so the honest lane is the expected
-# one).
+# rewrite that did not happen — since night-dinner-7 the README carries the
+# self-resolving download lanes and zero hardcoded versions, so the probe's
+# honest no-surface verdict is the expected steady state here).
+# The prebuilt lane rides the bump (night-dinner-8, the zelynic
+# NIGHT-improve-70 shape): the ebpf crate's version is part of the tree
+# ebpf-prebuilt/manifest.toml pins, so THIS script's own sibling rewrite
+# stales the lane by construction — and when it does, the refresh runs in
+# the same invocation: the validated root build (cargo build --release
+# --locked --features ebpf, whose build.rs drives the prerequisite
+# preflight, the nested nightly cross-compile and the structural ELF
+# validation), then the one-writer regenerate, then the parity gate as the
+# fail-closed verdict. One command leaves a committable tree; a refresh
+# that cannot complete fails closed with the bootstrap recipe. A lane
+# already stale BEFORE the bump keeps the honest manual verdict: this
+# script auto-refreshes only the churn it created, never a WIP it found.
 # The changelog ledger (night-improve-9, the zelynic NIGHT-improve-76 shape):
 # a bump is a release event — the ledger records it the same way the Cargo
 # files do: a "## [Released]" heading with the bare version line under it,
@@ -332,6 +344,41 @@ echo -e "  ${GREEN}OK${NC} scripts/build.sh    → auto (reads from Cargo.toml)"
 # --- Binary reads from Cargo.toml via env!("CARGO_PKG_VERSION"), no update needed ---
 echo -e "  ${GREEN}OK${NC} Binary (zylaxion)   → auto (reads from Cargo.toml)"
 
+# --- Prebuilt-lane refresh + parity verdict (night-dinner-8, the zelynic ---
+# --- NIGHT-improve-70 shape) ---
+# The gate is the one implementation of the verdict; this script only
+# READS it (the anti-drift discipline the gate's header documents).
+# When THIS script's own rewrite touched ./ebpf/Cargo.toml, the refresh
+# runs in the same invocation so one command leaves a committable tree —
+# the manual two-step (bump, failed commit, refresh, re-commit) was the
+# exact friction the owner refused to keep typing. A lane stale for
+# reasons this run did not create keeps the honest manual verdict.
+EBPF_CHANGED=false
+for f in "${SIBLING_TOUCHED[@]:-}"; do
+    [ "$f" = "./ebpf/Cargo.toml" ] && EBPF_CHANGED=true
+done
+if [ "${EBPF_CHANGED}" = "true" ] && ! bash scripts/gates/check-prebuilt-parity.sh >/dev/null 2>&1; then
+    echo -e "  ${YELLOW}..${NC} ebpf-prebuilt/     → the version rewrite staled the lane's tree pin — auto-refreshing through the validated build pipeline"
+    if cargo build --release --locked --features ebpf \
+        && bash scripts/dev/regenerate-ebpf-prebuilt.sh > /dev/null \
+        && bash scripts/gates/check-prebuilt-parity.sh; then
+        echo -e "  ${GREEN}OK${NC} ebpf-prebuilt/     → lane regenerated in parity (commit ./ebpf/ + ./ebpf-prebuilt/ together)"
+    else
+        echo -e "${RED}FAIL:${NC} the prebuilt refresh did not complete — the tree is NOT committable in this state."
+        echo -e "  the refresh drives the eBPF build; its once-per-machine prerequisites:"
+        echo -e "    ./scripts/dev/bootstrap-ebpf.sh"
+        echo -e "  then finish the bump manually and commit the lane with its sources:"
+        echo -e "    cargo build --release --locked --features ebpf && ./scripts/dev/regenerate-ebpf-prebuilt.sh"
+        echo -e "    git add ./ebpf/Cargo.toml ./ebpf/Cargo.lock ./ebpf-prebuilt/ && git commit"
+        exit 1
+    fi
+elif bash scripts/gates/check-prebuilt-parity.sh >/dev/null 2>&1; then
+    echo -e "  ${GREEN}OK${NC} ebpf-prebuilt/     → parity green (the lane pins the live ebpf/ tree)"
+else
+    echo -e "  ${YELLOW}!${NC} ebpf-prebuilt/     → STALE: ebpf/ changed after the lane was generated (not by this run)"
+    echo -e "     run 'cargo build --release --locked --features ebpf && ./scripts/dev/regenerate-ebpf-prebuilt.sh' and commit ./ebpf/ + ./ebpf-prebuilt/ together (the parity gate fails the commit until the refresh lands)"
+fi
+
 echo ""
 echo -e "${GREEN}Version updated to v${NEW_VERSION}${NC}"
 # The staging hint names every file the run actually touched — the
@@ -345,11 +392,28 @@ done
 for f in "${SIBLING_LOCKS[@]:-}"; do
     [ -n "$f" ] && STAGE_FILES+=("$f")
 done
+# The lane rides the bump it staled (night-dinner-8): whenever this run
+# touched the ebpf sibling, the refreshed lane is part of the commit set.
+[ "${EBPF_CHANGED}" = "true" ] && STAGE_FILES+=("./ebpf-prebuilt/")
 echo "next: git add ${STAGE_FILES[*]} && git commit"
 
 if [ "${COMMIT}" = "true" ]; then
+    # Fail closed (night-dinner-8): a commit that stages the ebpf version
+    # bump WITHOUT the refreshed lane would ride a stale tree pin straight
+    # into CI's parity gate — refuse and name the refresh. With the
+    # auto-refresh above, this refusal is reachable only when the lane was
+    # stale for reasons this run did not create (that shape already failed
+    # closed in the refresh block for its own verdict).
+    if ! bash scripts/gates/check-prebuilt-parity.sh >/dev/null 2>&1; then
+        echo -e "${RED}FAIL:${NC} refusing to commit — the prebuilt lane is stale (ebpf/ changed, ebpf-prebuilt/ has not)."
+        echo -e "  1. cargo build --release --locked --features ebpf && ./scripts/dev/regenerate-ebpf-prebuilt.sh"
+        echo -e "  2. git add ${STAGE_FILES[*]} ./ebpf/Cargo.toml ./ebpf/Cargo.lock ./ebpf-prebuilt/"
+        echo -e "  3. git commit -m \"release: v${NEW_VERSION}\""
+        exit 1
+    fi
     for f in "${STAGE_FILES[@]}"; do
-        [ -f "$f" ] && git add "$f"
+        # -e, not -f: the stage set can carry ./ebpf-prebuilt/, a directory.
+        [ -e "$f" ] && git add "$f"
     done
     git commit -m "release: v${NEW_VERSION}"
     echo -e "${GREEN}OK Committed: release: v${NEW_VERSION}${NC}"
