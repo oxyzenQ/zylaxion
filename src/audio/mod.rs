@@ -208,7 +208,7 @@ impl CpalSink {
         // available — this matches the most common PipeWire/PulseAudio
         // default and eliminates the resampler.
         let preferred_rates = [48000_u32, 96000, 192000];
-        let default_rate = default_config.sample_rate().0;
+        let default_rate = default_config.sample_rate();
 
         let chosen_rate = device
             .supported_output_configs()
@@ -224,7 +224,7 @@ impl CpalSink {
                     .iter()
                     .find(|&&preferred| {
                         collected.iter().any(|c| {
-                            c.min_sample_rate().0 <= preferred && c.max_sample_rate().0 >= preferred
+                            c.min_sample_rate() <= preferred && c.max_sample_rate() >= preferred
                         })
                     })
                     .copied()
@@ -263,7 +263,10 @@ impl CpalSink {
         // trades a few ms of latency for rock-solid stability under
         // normal desktop load — the right tradeoff for daily-driver use.
         let mut stream_config: cpal::StreamConfig = default_config.into();
-        stream_config.sample_rate = cpal::SampleRate(chosen_rate);
+        // night-dinner-10: SampleRate is a u32 type alias since cpal 0.17
+        // — the old tuple constructor cpal::SampleRate(chosen_rate) died
+        // with the struct.
+        stream_config.sample_rate = chosen_rate;
 
         let sample_rate = chosen_rate;
         log::info!("negotiated buffer size: Default (OS negotiated)");
@@ -276,7 +279,7 @@ impl CpalSink {
         // flag and outputs silence when true, preventing a crash.
         let paused = Arc::new(AtomicBool::new(false));
         let paused_for_err = Arc::clone(&paused);
-        let err_fn = move |err: cpal::StreamError| {
+        let err_fn = move |err: cpal::Error| {
             eprintln!("zylaxion: warning: Audio stream error: {err}");
             eprintln!("zylaxion: warning: Audio device disconnected. Pausing output.");
             paused_for_err.store(true, Ordering::Relaxed);
@@ -288,7 +291,7 @@ impl CpalSink {
                 let paused_cb = Arc::clone(&paused);
                 device
                     .build_output_stream(
-                        &stream_config,
+                        stream_config,
                         move |data: &mut [f32], _info: &cpal::OutputCallbackInfo| {
                             // If the device disconnected, output silence
                             // and skip ring-buffer reads. This keeps the
@@ -339,7 +342,7 @@ impl CpalSink {
                 let paused_cb = Arc::clone(&paused);
                 device
                     .build_output_stream(
-                        &stream_config,
+                        stream_config,
                         move |data: &mut [i16], _info: &cpal::OutputCallbackInfo| {
                             if paused_cb.load(Ordering::Relaxed) {
                                 for s in data.iter_mut() {

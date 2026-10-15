@@ -390,7 +390,13 @@ pub fn cmd_doctor() {
     #[cfg(target_os = "linux")]
     let _quiet = QuietAlsa::new();
     match cpal::default_host().default_output_device().map(|d| {
-        let name = d.name().unwrap_or_else(|_| "<unknown>".into());
+        // night-dinner-10: DeviceTrait::name() became description() in
+        // cpal 0.18 (a DeviceDescription with a stable id); render the
+        // same bare name the CLI contract always shown, same fallback.
+        let name = d
+            .description()
+            .map(|desc| desc.name().to_owned())
+            .unwrap_or_else(|_| "<unknown>".into());
         (name, d.default_output_config())
     }) {
         Some((name, Ok(config))) => {
@@ -398,7 +404,7 @@ pub fn cmd_doctor() {
                 "      {}",
                 crate::output::ok_line(&format!(
                     "PASS: default output device: {name} ({} Hz, {}ch, {:?})",
-                    config.sample_rate().0,
+                    config.sample_rate(),
                     config.channels(),
                     config.sample_format()
                 ))

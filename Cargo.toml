@@ -78,19 +78,21 @@ arc-swap = "1.7"
 # builds a dormant binary on hosts that never attach.
 aya = { version = "0.14", optional = true }
 clap = { version = "4", features = ["derive"] }
-# night-dinner-9: 0.15 holds through the v80 RC cycle on purpose — the
-# newer tracks are semver-incompatible offers, not staleness. Upstream
-# changelog: 0.16 brought the ALSA realtime-priority stream threads and
-# the broken-pipe/timestamp fixes, 0.17 the silent try_recover plus the
-# SampleRate struct-to-alias break, 0.18 the no-auto-start contract,
+# night-dinner-10: on 0.18 - the dedicated move the night-dinner-9
+# comment mapped (zero RustSec advisories against 0.15.x made it a
+# sequencing decision, not a security one). What the jump buys on the
+# Linux lane: ALSA realtime-priority stream threads plus the
+# broken-pipe/timestamp fixes (0.16), the silent try_recover that
+# stops libasound's stderr spam (0.17), the no-auto-start contract,
 # by-value StreamConfig, the unified Error/ErrorKind and the native
-# PipeWire/PulseAudio hosts. Zero RustSec advisories against 0.15.x, so
-# nothing forces the jump mid-testing — a sink swap during rapid testing
-# would invalidate the rc.1 signal. The move is a dedicated follow-up
-# with live audio validation; known break points: SampleRate becomes a
-# u32 alias (src/audio/mod.rs), StreamConfig by value, and alsa-sys
-# rides the new pin in lockstep (night-improve-29).
-cpal = "0.15"
+# PipeWire/PulseAudio hosts (0.18). Applied break points, all
+# mechanical: SampleRate is a u32 alias (the tuple constructor and the
+# .0 reads died), build_output_stream takes the config by value, and
+# alsa-sys rides the new pin in lockstep (night-improve-29). 0.19
+# next: OutputCallbackInfo merges into CallbackInfo and play()
+# deprecates toward start() - mapped here so the next bump starts
+# from the same map.
+cpal = "0.18"
 crossbeam-channel = "0.5"
 # night-improve-13: default-features = false — env_logger's default
 # "humantime" feature (a misleading name since 0.11.8: it maps to
@@ -143,15 +145,16 @@ signal-hook = { version = "0.4", default-features = false }
 # the kernel-side eBPF tap replaced it.
 
 # night-improve-29: alsa-sys rides the tree as cpal's own pin — the
-# same 0.3.1 resolves, zero lockfile delta, no new supply-chain
-# surface. Target-gated to Linux because that is where cpal's ALSA
-# host lives. The ONE use: the quiet-ALSA probe guard in
+# same 0.4.0 resolves (night-dinner-10: moved in lockstep from the
+# 0.3.1 era with the cpal 0.18 bump; one copy of the native link, zero
+# supply-chain surface beyond cpal's own choice). Target-gated to
+# Linux because that is where cpal's ALSA host lives. The ONE use: the quiet-ALSA probe guard in
 # src/commands/info.rs — libasound's C-level error log (up to eight
 # raw `ALSA lib ...` lines on a cardless host) cannot spew across the
 # rendered CLI surfaces; the guard restores the library default on
 # drop so the player path keeps its full diagnosis.
 [target.'cfg(target_os = "linux")'.dependencies]
-alsa-sys = "0.3.1"
+alsa-sys = "0.4.0"
 
 [profile.release]
 opt-level = 3

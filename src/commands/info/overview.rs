@@ -129,11 +129,17 @@ pub fn cmd_overview() {
     let host = cpal::default_host();
     match host.default_output_device() {
         Some(device) => {
-            let name = device.name().unwrap_or_else(|_| "<unknown>".into());
+            // night-dinner-10: DeviceTrait::name() became description() in cpal
+            // 0.18 (a DeviceDescription with a stable id); render the same
+            // bare name the CLI contract always shown, same fallback.
+            let name = device
+                .description()
+                .map(|d| d.name().to_owned())
+                .unwrap_or_else(|_| "<unknown>".into());
             if let Ok(dev_config) = device.default_output_config() {
                 println!(
                     "  audio:   {name} ({} Hz, {}ch, {:?})",
-                    dev_config.sample_rate().0,
+                    dev_config.sample_rate(),
                     dev_config.channels(),
                     dev_config.sample_format()
                 );
