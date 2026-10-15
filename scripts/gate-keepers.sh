@@ -72,7 +72,9 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$REPO_ROOT"
+# night-total-lts-4: a failed cd must never leave the wholesale gates
+# policing the wrong tree — fail fast instead.
+cd "$REPO_ROOT" || exit 1
 
 FIX_ALL=false
 if [[ "${1:-}" == "--fix-all" ]]; then

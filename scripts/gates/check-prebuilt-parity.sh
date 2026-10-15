@@ -109,6 +109,9 @@ else
 	pass "manifest present (${MANIFEST})"
 fi
 
+# One object today; the loop stays the manifest's growth path (a
+# second pinned object slots in here without a rewrite).
+# shellcheck disable=SC2043
 for name in zylaxion-tap; do
 	file="${PREBUILT_DIR}/${name}"
 	if [ ! -f "$file" ]; then
