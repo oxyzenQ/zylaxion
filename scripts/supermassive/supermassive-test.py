@@ -22,6 +22,9 @@ Python engine, two lanes.
                                 probes, the CLI/UX battery, the tap
                                 lifecycle (attach, handover,
                                 idempotency, foreign entries, detach),
+                                the night-dinner-3 repro (the
+                                mode-0700 front door, the attach
+                                self-heal, the verdict honesty law),
                                 the real-usage chain (a real user with
                                 no input group, uinput keystrokes, the
                                 kernel-side telemetry, the PCM
@@ -58,6 +61,7 @@ from sm_env import (  # noqa: E402
     parse_kernel_release,
     run,
 )
+from sm_journey import battery as journey_battery  # noqa: E402
 from sm_report import Ledger, Step  # noqa: E402
 from sm_static import battery as static_battery  # noqa: E402
 from sm_tap import battery as tap_battery  # noqa: E402
@@ -172,6 +176,7 @@ def full(binary: str) -> int:
     ux_battery(ledger, binary, full_mode=True)
     _ensure_user(ledger, GUEST_USER)
     tap_battery(ledger, binary, GUEST_USER)
+    journey_battery(ledger, binary, GUEST_USER)
     audio_battery(ledger, binary, user=GUEST_USER, tree_root=REPO_ROOT)
     static_battery(ledger, binary, REPO_ROOT, root_lane=True)
     return ledger.finish()

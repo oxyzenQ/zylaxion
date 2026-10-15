@@ -201,6 +201,13 @@ jobs:
       - name: Build the exact release shape (night-improve-11 alias)
         run: cargo pro-linux-amd64-gnu --locked
 
+      # night-dinner-4 + night-dinner-5: the build's own refresh hook
+      # keeps the prebuilt lane in step with the ebpf/ tree; the verdict
+      # below pins that a release-shape build never leaves the lane
+      # behind (the beta.1 incident shape, asserted in CI).
+      - name: The prebuilt lane is in parity after the build
+        run: ./scripts/dev/regenerate-ebpf-prebuilt.sh --check
+
       - name: Binary identity and hardware-free surfaces
         run: |
           BIN="target/x86_64-unknown-linux-gnu/release/zylaxion"
@@ -269,6 +276,13 @@ jobs:
 
       - name: Build the exact release shape (night-improve-11 alias)
         run: cargo pro-linux-amd64-gnu --locked
+
+      # night-dinner-4 + night-dinner-5: the build's own refresh hook
+      # keeps the prebuilt lane in step with the ebpf/ tree; the verdict
+      # below pins that a release-shape build never leaves the lane
+      # behind (the beta.1 incident shape, asserted in CI).
+      - name: The prebuilt lane is in parity after the build
+        run: ./scripts/dev/regenerate-ebpf-prebuilt.sh --check
 
       - name: The world-first claims battery (rootless self-test lane)
         run: |
@@ -386,6 +400,12 @@ jobs:
       # the VM ever booted; libasound2 rides the rootfs lane below).
       - name: Build the release shape payload
         run: cargo pro-linux-amd64-gnu --locked
+
+      # night-dinner-4 + night-dinner-5: the same parity pin the other
+      # release-shape lanes carry — the payload's build must leave the
+      # prebuilt lane in step with the ebpf/ tree it shipped from.
+      - name: The prebuilt lane is in parity after the build
+        run: ./scripts/dev/regenerate-ebpf-prebuilt.sh --check
 
       # ── the guest kernel, per leg ─────────────────────────────────
       # floor: the documented 5.15 floor — jammy's pockets carry the
