@@ -860,6 +860,10 @@ commercial use (see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)).
 <p align="center">
   <em>No samples. No daemon. No config file. Just math.</em>
 </p>
+
+<p align="center">
+  <em>built with curiosity &amp; masterpiece</em>
+</p>
 <!-- ZYLAXION-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
