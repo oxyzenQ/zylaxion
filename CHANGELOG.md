@@ -660,6 +660,30 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-dinner-6 (Miri leaves the push path — the weekly contract
+  the header always declared, the triggers finally obey)** — the
+  owner's push-CI budget is 2-5 minutes, and the Dragon Guard -
+  Miri leg made that budget impossible by construction: the
+  interpreted workspace suite measured 8.5-10.7 minutes per code
+  push (every one of those runs cancelled by the next rapid push —
+  burned compute, zero verdict, the owner's "Cancelled after 11m")
+  and 33 minutes green when one finally finished, against a push
+  estate whose other three legs all fit the budget (Gate-keepers
+  0.4m, CI 2.0m, Supermassive 2.8m — push wall-clock is
+  max(legs), and Miri made that max 3-7x over by construction).
+  The defect was self-declared all along: the workflow's own header
+  promised the zelynic weekly cadence ("not on the per-PR critical
+  path ... the Sunday run picks up whatever slipped through") while
+  its trigger block carried the push and pull_request filters
+  copied from the build lanes. The triggers now obey the doctrine:
+  schedule (Sunday 00:00 UTC / 07:00 WIB) plus workflow_dispatch
+  for the on-demand deep check; push and pull_request are deleted
+  with their path filters (a schedule event carries no diff to
+  filter). The UB net's strength is unchanged — the full workspace
+  suite, same flags, same artifact lane — it simply runs where
+  slow belongs: off the hot path. The push-path wall clock drops
+  to the Supermassive leg's ~3 minutes.
+
 - **night-dinner-3 (the first run survives Debian 13, and the doctor
   stops lying about readiness)** — a live first-run session on
   Debian 13 exposed a three-verdict lie: bpffs mounts `mode=700`
