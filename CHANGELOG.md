@@ -18,6 +18,7 @@ and the pre-v10 release notes live next to it in
 
 ## [Released]
 
+v80.0.0-rc.1
 v80.0.0-beta.2
 v80.0.0-beta.1
 v80.0.0-alpha.1
