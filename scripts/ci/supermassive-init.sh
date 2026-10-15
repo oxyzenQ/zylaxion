@@ -89,6 +89,7 @@ echo "MASS: init on 1001 1001uname -r)"
 # "unable to resolve host" line on every invocation in a hostless
 # guest — noise in every captured row; one line kills it).
 hostname zylaxion-vm 2>/dev/null || true
+echo "127.0.0.1 zylaxion-vm" >> /etc/hosts 2>/dev/null || true
 
 # The floor itself — the whole reason this VM exists. zylaxion's
 # documented floor is 5.15 (docs and the doctor's verdict): the floor

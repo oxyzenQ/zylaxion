@@ -248,10 +248,36 @@ def _stage_self_heal(ledger: Ledger, binary: str, user: str) -> None:
             _run([binary, "detach"])
             return
         else:
-            ledger.fail_row(
-                f"{user} turns the sound on through the relaxed door",
-                f"rc={rc}: {out[:400]}",
-            )
+            # The escalator (night-dinner-5b's lesson, honored in
+            # night-dinner-5c): the detached player's stdio is null by
+            # design, so the parent's error cannot carry the reason —
+            # the product itself names the surface that can: _play in
+            # the foreground. Eight seconds of it either outlives the
+            # probe (alive — the parent's spawn path is the defect)
+            # or dies with its own stderr on the ledger (the evidence).
+            if _unpriv_posture() == 0:
+                prc, pout = _run(
+                    ["timeout", "8", "sudo", "-u", user, binary, "_play"],
+                    timeout=20,
+                )
+                if prc == 124:
+                    ledger.fail_row(
+                        f"{user} turns the sound on through the relaxed door",
+                        f"rc={rc}: {out[:200]} — but a foreground player runs as "
+                        f"{user} (8s timeout outlived it): the detached-spawn "
+                        f"path, not the player, is the defect",
+                    )
+                else:
+                    ledger.fail_row(
+                        f"{user} turns the sound on through the relaxed door",
+                        f"rc={rc}: {out[:200]} — the foreground player's own "
+                        f"stderr: {pout[:600]}",
+                    )
+            else:
+                ledger.fail_row(
+                    f"{user} turns the sound on through the relaxed door",
+                    f"rc={rc}: {out[:400]}",
+                )
             _run([binary, "detach"])
             return
 
