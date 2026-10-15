@@ -37,6 +37,11 @@ fn doc_words_normalized(text: &str) -> String {
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "UB-poor full-text scan (safe string work only) that miri
+        interprets for minutes - the native CI lane owns the docs assertions"
+)]
 fn readme_names_the_freeze_and_the_admission_paths() {
     let flat = whitespace_normalized(README);
     assert!(
@@ -58,6 +63,12 @@ fn readme_names_the_freeze_and_the_admission_paths() {
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "UB-poor full-text scan (safe string work only) that miri
+        interprets for ~20 minutes alone - the native CI lane owns the
+        docs assertions"
+)]
 fn changelog_carries_the_freeze_declaration() {
     let flat = whitespace_normalized(CHANGELOG);
     assert!(
