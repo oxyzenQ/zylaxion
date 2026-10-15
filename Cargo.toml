@@ -78,6 +78,18 @@ arc-swap = "1.7"
 # builds a dormant binary on hosts that never attach.
 aya = { version = "0.14", optional = true }
 clap = { version = "4", features = ["derive"] }
+# night-dinner-9: 0.15 holds through the v80 RC cycle on purpose — the
+# newer tracks are semver-incompatible offers, not staleness. Upstream
+# changelog: 0.16 brought the ALSA realtime-priority stream threads and
+# the broken-pipe/timestamp fixes, 0.17 the silent try_recover plus the
+# SampleRate struct-to-alias break, 0.18 the no-auto-start contract,
+# by-value StreamConfig, the unified Error/ErrorKind and the native
+# PipeWire/PulseAudio hosts. Zero RustSec advisories against 0.15.x, so
+# nothing forces the jump mid-testing — a sink swap during rapid testing
+# would invalidate the rc.1 signal. The move is a dedicated follow-up
+# with live audio validation; known break points: SampleRate becomes a
+# u32 alias (src/audio/mod.rs), StreamConfig by value, and alsa-sys
+# rides the new pin in lockstep (night-improve-29).
 cpal = "0.15"
 crossbeam-channel = "0.5"
 # night-improve-13: default-features = false — env_logger's default
@@ -100,7 +112,13 @@ log = "0.4"
 # real gates: signal = ["process"] in nix's own feature map, so the
 # explicit "process" was a redundant key; errno and the unistd basics
 # compile ungated. feature list = exactly the used gates.
-nix = { version = "0.29", features = ["signal", "poll", "user"] }
+# night-dinner-9: re-verified on 0.31 — the same three gates map the
+# same surface (signal = ["process"] unchanged, fs/process/ffi stay
+# ungated here because the crate reaches them through std::os::unix),
+# and 0.30's I/O-safety adoption and PollFd Copy removal never touch
+# the audited calls (PollFd::new feeds the array directly; kill's
+# Pid/Option<Signal> shape is stable).
+nix = { version = "0.31", features = ["signal", "poll", "user"] }
 ringbuf = "0.5"
 # night-improve-23: libc survives for the raw BPF/perf syscalls in
 # src/ebpf/bpf_syscall.rs (the tracepoint link pin lane) — the one
@@ -112,7 +130,12 @@ libc = "0.2"
 # and the consts (both ungated), so the default modules are dead
 # weight in every build. flag and consts stay available with no
 # default features — verified against signal-hook 0.3's lib.rs gates.
-signal-hook = { version = "0.3", default-features = false }
+# night-dinner-9: re-verified on 0.4 — flag and consts remain ungated,
+# the default set is still ["channel", "iterator"], and flag::register
+# kept its exact Result<SigId, Error> shape; the only 0.4.0 core break
+# (low_level::pipe moving to OwnedFd) is a module this crate never
+# touches.
+signal-hook = { version = "0.4", default-features = false }
 # night-improve-22: the `toml` dependency died with config.toml — the
 # preset registry is compile-time data. night-improve-23: serde and
 # serde_json died with the daemon IPC (there is no protocol left to
