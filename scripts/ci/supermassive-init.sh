@@ -182,6 +182,26 @@ else
         note "the uinput device node is present (/dev/uinput)" FAIL
 fi
 
+# ── the sound node posture (night-dinner-5d) ──────────────────────────
+# udev never runs in an initramfs guest, and the desktop's /dev/snd
+# posture (root:audio 0660) is a udev rule's work on a real machine —
+# without it the nodes land root:root 0600 and every user-side ALSA
+# open answers "cannot find card '0'" no matter which groups the user
+# carries (the escalator row proved the exact string on the first
+# live chain). A udev-less appliance applies the posture by hand; the
+# engine's audio group (the user half) needs exactly this node half.
+groupadd -f audio 2>/dev/null || true
+if [ -d /dev/snd ] && ls /dev/snd/* >/dev/null 2>&1; then
+        if chgrp audio /dev/snd/* 2>/dev/null &&
+                chmod 660 /dev/snd/* 2>/dev/null; then
+                note "the sound nodes carry the desktop posture (root:audio 0660)" PASS
+        else
+                note "the sound nodes carry the desktop posture (root:audio 0660)" FAIL
+        fi
+else
+        note "the sound nodes exist under /dev/snd" FAIL
+fi
+
 # ── the install step (zero to hero: the payload lands in /usr/bin) ────
 # The way install-on-my-machine.sh lands it, minus systemd (no init
 # system lives in an initramfs guest — the oneshot unit's presence in
