@@ -201,7 +201,12 @@ workspace cannot ride a registry tarball, so the crate ships
 **`ebpf-prebuilt/`** instead: the maintainer-built kernel object —
 with its provenance (`source-tree hash, toolchain, linker, sha256`)
 in `ebpf-prebuilt/manifest.toml` — which `build.rs` stages for the
-default `ebpf` feature. `zylaxion doctor` names the lane
+default `ebpf` feature. The lane enforces itself: the commit-time
+parity gate (`scripts/gates/check-prebuilt-parity.sh`, wired through
+`.githooks/pre-commit` — `gate-keepers.sh` self-installs the hook)
+fails any commit whose `ebpf/` tree no longer matches the manifest
+pin until `scripts/dev/regenerate-ebpf-prebuilt.sh` refreshes it.
+`zylaxion doctor` names the lane
 (`registry-prebuilt`). The dormant lane (stable binary, eBPF surfaces
 disabled) survives as the explicit opt-out: `--no-default-features`.
 
@@ -246,6 +251,11 @@ cd zylaxion
 # ebpf/rust-toolchain.toml + the bpf-linker prebuilt into
 # ~/.local/bin (no sudo, no system LLVM) + the PATH fix persisted:
 ./scripts/dev/bootstrap-ebpf.sh
+
+# The first ./scripts/gate-keepers.sh run also self-installs the
+# pre-commit hook (core.hooksPath=.githooks): every commit then runs
+# the prebuilt parity gate automatically — edit ebpf/ and the gate
+# names the exact refresh command before a stale lane can ship.
 
 # Build:
 cargo build --release --locked
