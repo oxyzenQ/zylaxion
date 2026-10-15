@@ -312,7 +312,11 @@ fi
 README_HITS="$(grep -cE 'releases/download/v[0-9]|zylaxion-v[0-9]+\.[0-9]+|^Version: v[0-9]' README.md 2>/dev/null || true)"
 if [ "${README_HITS:-0}" -gt 0 ]; then
     sed -i -E "s|releases/download/v[0-9]+\.[0-9]+\.[0-9]+|releases/download/v${NEW_VERSION}|g" README.md
-    sed -i -E "s|zylaxion-v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?-|zylaxion-v${NEW_VERSION}-|g" README.md
+    # night-dinner-7: the optional group strips KNOWN prerelease
+    # suffixes only. The former (-[A-Za-z0-9.]+)? ate the first
+    # -token- after the semver — that is how the -linux- platform
+    # segment vanished from the rc.1 README URLs at the bump.
+    sed -i -E "s#zylaxion-v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?-#zylaxion-v${NEW_VERSION}-#g" README.md
     sed -i "s|Version: v.*|Version: v${NEW_VERSION}|" README.md
     echo -e "  ${GREEN}OK${NC} README.md           → v${NEW_VERSION} (release URLs + versioned examples)"
 else

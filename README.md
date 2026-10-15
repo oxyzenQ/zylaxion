@@ -145,9 +145,12 @@ No toolchain, no clang, no cargo on the target machine — the pure-Rust
 eBPF objects are embedded in the single binary:
 
 ```bash
-# Resolve the latest release tag — a plain HTTP redirect, no API, no jq:
-TAG=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
-      https://github.com/oxyzenQ/zylaxion/releases/latest | sed 's|.*/tag/||')
+# Resolve the newest published tag — the releases.atom feed, plain
+# HTTP, no API, no jq. The releases/latest redirect serves stable tags
+# only; the v80 rapid-testing line ships pre-releases, so the redirect
+# would land on the v11.0.0 legacy stable:
+TAG=$(curl -fsSL https://github.com/oxyzenQ/zylaxion/releases.atom |
+      sed -n 's|.*Repository/[0-9]*/\(.*\)</id>|\1|p' | head -1)
 echo "latest release: ${TAG}"
 
 # The v80-line shape ships two arch-baseline tarballs per tag.
@@ -330,14 +333,19 @@ the one reference surface.
 
 ### First run, end to end (the fast path)
 
-Download to hearing keys is five commands. The checksum lane shown is
-the current one (BLAKE3); releases published before the upgrade ship
-`*.b2sum` instead — verify those with coreutils `b2sum`, same shape
-(see [Release Verification](#release-verification)):
+Download to hearing keys is six commands. The tag resolves from the
+releases.atom feed — plain HTTP, no API, no jq — because pre-releases
+never serve under `releases/latest` (the release-channels policy), and
+the current line ships rapid-testing pre-releases. The checksum lane
+shown is the current one (BLAKE3); releases published before the
+upgrade ship `*.b2sum` instead — verify those with coreutils `b2sum`,
+same shape (see [Release Verification](#release-verification)):
 
 ```bash
-curl -LO https://github.com/oxyzenQ/zylaxion/releases/latest/download/zylaxion-v80.0.0-rc.1-amd64-v3-gnu.tar.gz
-curl -LO https://github.com/oxyzenQ/zylaxion/releases/latest/download/zylaxion-v80.0.0-rc.1-amd64-v3-gnu.tar.gz.b3sum
+TAG=$(curl -fsSL https://github.com/oxyzenQ/zylaxion/releases.atom |
+      sed -n 's|.*Repository/[0-9]*/\(.*\)</id>|\1|p' | head -1)
+curl -fLO "https://github.com/oxyzenQ/zylaxion/releases/download/${TAG}/zylaxion-${TAG}-linux-amd64-v3-gnu.tar.gz"
+curl -fLO "https://github.com/oxyzenQ/zylaxion/releases/download/${TAG}/zylaxion-${TAG}-linux-amd64-v3-gnu.tar.gz.b3sum"
 b3sum -c *.b3sum                    # checksum: OK
 tar xzf zylaxion-*.tar.gz           # the archive carries zylaxion + LICENSE + README, nothing else
 ./zylaxion doctor                   # the honest readiness verdict — fix what it names
