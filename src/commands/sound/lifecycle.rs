@@ -13,8 +13,8 @@ use crate::session::orphan::pid_alive;
 use super::{
     ControlPinStat, ENABLED_SLOT, PLAYER_PID_SLOT, PLAYER_SETTLE_BUDGET, PLAYER_SPAWN_VERB,
     PRESET_ID_SLOT, SETTLE_STEP, STATE_IDLE, STATE_RUNNING, STATE_SLOT, VOLUME_PCT_SLOT,
-    context_volume_percent, init_logger, kernel_policy_gate, on_root_refusal, open_control,
-    preset_index_or_error,
+    context_volume_percent, control_pin_stat, init_logger, kernel_policy_gate, on_root_refusal,
+    open_control, preset_index_or_error,
 };
 
 /// Handle `zylaxion on [preset]` — enable the sound.
