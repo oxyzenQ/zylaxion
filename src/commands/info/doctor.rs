@@ -9,6 +9,30 @@ use cpal::traits::{DeviceTrait, HostTrait};
 
 use super::alsa_guard::QuietAlsa;
 
+/// The identity the reach verdict describes (night-dinner-3): the
+/// user who will RUN the verbs — the euid for a plain run, the sudo
+/// user under sudo, and root for a plain root shell (who walks
+/// everywhere; the head-of-report warning already names that bias).
+fn reach_identity() -> (u32, u32) {
+    if !crate::session::privilege::euid_is_root() {
+        return (
+            nix::unistd::geteuid().as_raw(),
+            nix::unistd::getegid().as_raw(),
+        );
+    }
+    match (
+        std::env::var("SUDO_UID")
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok()),
+        std::env::var("SUDO_GID")
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok()),
+    ) {
+        (Some(uid), Some(gid)) => (uid, gid),
+        _ => (0, 0),
+    }
+}
+
 /// Print a system-health diagnostic report (build facts, kernel/eBPF
 /// verdict, audio).
 ///
@@ -143,6 +167,58 @@ pub fn cmd_doctor() {
                 "      {}",
                 crate::output::ok_line("PASS: bpffs: mounted at /sys/fs/bpf")
             );
+            // The reach verdict (night-dinner-3): owning the pins is
+            // not REACHING the pins — a bpffs mount in mode 0700 (the
+            // Debian 13 default) lets attach plant user-owned pins
+            // and still blocks every walk to them, so "All checks
+            // passed" used to be a lie the first `zylaxion on`
+            // refuted. Doctor stats the walk AS the identity that
+            // runs the verbs.
+            let (uid, gid) = reach_identity();
+            let reach = crate::session::kernel::bpffs_reach(uid, gid);
+            if !reach.root_traversable {
+                println!(
+                    "      {}",
+                    crate::output::fail_line(&format!(
+                        "FAIL: bpffs reach: /sys/fs/bpf is mode {:o} — uid {uid} cannot walk \
+                         to the pins (a mode-0700 bpffs mount, the Debian 13 default)",
+                        reach.root_mode
+                    ))
+                );
+                println!(
+                    "      {}",
+                    crate::output::tip_line(
+                        "fix: sudo chmod o+x /sys/fs/bpf (one command; attach does this \
+                         automatically since night-dinner-3)"
+                    )
+                );
+                ok = false;
+            } else if reach.pin_dir_present && !reach.pin_dir_traversable {
+                println!(
+                    "      {}",
+                    crate::output::fail_line(&format!(
+                        "FAIL: bpffs reach: uid {uid} walks the mount but /sys/fs/bpf/zylaxion \
+                         denies the walk (mode {:o})",
+                        reach.root_mode
+                    ))
+                );
+                println!(
+                    "      {}",
+                    crate::output::tip_line(
+                        "fix: sudo chmod o+x /sys/fs/bpf/zylaxion (attach plants it 0755; \
+                         this one was tightened by hand)"
+                    )
+                );
+                ok = false;
+            } else {
+                println!(
+                    "      {}",
+                    crate::output::ok_line(&format!(
+                        "PASS: bpffs reach: uid {uid} walks to the pins (mount mode {:o})",
+                        reach.root_mode
+                    ))
+                );
+            }
         } else {
             println!(
                 "      {}",
@@ -225,34 +301,82 @@ pub fn cmd_doctor() {
     // map is the pidfile since night-improve-23 — RULES.md's file
     // inventory names it).
     println!("\n{}", crate::output::section("[3/4] XDG_RUNTIME_DIR..."));
-    match std::env::var("XDG_RUNTIME_DIR") {
-        Ok(dir) => {
-            let path = std::path::Path::new(&dir);
-            if path.is_dir() {
+    if crate::session::privilege::euid_is_root() {
+        // The root-session note (night-dinner-3): a root doctor used
+        // to FAIL this station on root's own missing XDG_RUNTIME_DIR —
+        // a fact about root's shell that describes nobody's desktop
+        // and pushed the report to a false "Some checks failed".
+        // Root never plays (the session refusal owns that verdict),
+        // so the station downgrades to what it can honestly say:
+        // when sudo handed us the desktop user's uid, THEIR runtime
+        // dir is the one the player would open — a note, never a
+        // verdict counted into the summary.
+        match (
+            std::env::var("SUDO_UID")
+                .ok()
+                .and_then(|v| v.parse::<u32>().ok()),
+            std::env::var("SUDO_USER").ok(),
+        ) {
+            (Some(uid), Some(user)) if !user.is_empty() => {
+                let dir = format!("/run/user/{uid}");
+                if std::path::Path::new(&dir).is_dir() {
+                    println!(
+                        "      {}",
+                        crate::output::ok_line(&format!(
+                            "note: root's shell has no $XDG_RUNTIME_DIR of its own, but sudo \
+                             user '{user}' has {dir} — the desktop session checks out"
+                        ))
+                    );
+                } else {
+                    println!(
+                        "      {}",
+                        crate::output::warn_line(&format!(
+                            "note: sudo user '{user}' has no {dir} — their desktop session \
+                             is missing the runtime dir the player opens"
+                        ))
+                    );
+                }
+            }
+            _ => {
                 println!(
                     "      {}",
-                    crate::output::ok_line(&format!("PASS: $XDG_RUNTIME_DIR = {dir}"))
+                    crate::output::warn_line(
+                        "note: a plain root shell — the audio-session facts belong to a \
+                         desktop user; re-run without sudo"
+                    )
                 );
-            } else {
+            }
+        }
+    } else {
+        match std::env::var("XDG_RUNTIME_DIR") {
+            Ok(dir) => {
+                let path = std::path::Path::new(&dir);
+                if path.is_dir() {
+                    println!(
+                        "      {}",
+                        crate::output::ok_line(&format!("PASS: $XDG_RUNTIME_DIR = {dir}"))
+                    );
+                } else {
+                    println!(
+                        "      {}",
+                        crate::output::fail_line(&format!(
+                            "FAIL: $XDG_RUNTIME_DIR = {dir} (not a directory)"
+                        ))
+                    );
+                    ok = false;
+                }
+            }
+            Err(_) => {
                 println!(
                     "      {}",
-                    crate::output::fail_line(&format!(
-                        "FAIL: $XDG_RUNTIME_DIR = {dir} (not a directory)"
-                    ))
+                    crate::output::fail_line("FAIL: $XDG_RUNTIME_DIR is not set")
+                );
+                println!(
+                    "      {}",
+                    crate::output::tip_line("fix: export XDG_RUNTIME_DIR=/run/user/$(id -u)")
                 );
                 ok = false;
             }
-        }
-        Err(_) => {
-            println!(
-                "      {}",
-                crate::output::fail_line("FAIL: $XDG_RUNTIME_DIR is not set")
-            );
-            println!(
-                "      {}",
-                crate::output::tip_line("fix: export XDG_RUNTIME_DIR=/run/user/$(id -u)")
-            );
-            ok = false;
         }
     }
 

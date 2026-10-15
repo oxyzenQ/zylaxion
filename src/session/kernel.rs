@@ -74,10 +74,21 @@ pub struct KernelReport {
     /// withdraws BPF entirely. Required-false.
     pub lockdown_blocks_bpf: bool,
     /// The raw `kernel.unprivileged_bpf_disabled` value (0 allowed,
-    /// 1 disabled-but-recoverable, 2 locked for this boot; any other
-    /// non-zero value reads as disabled). `0` also when the sysctl
-    /// file is absent — no gate file, no gate.
+    /// 1 disabled-but-recoverable, 2 disabled — see
+    /// [`Self::unpriv_bpf_boot_locked`] for what the 2 really means;
+    /// any other non-zero value reads as disabled). `0` also when the
+    /// sysctl file is absent — no gate file, no gate.
     pub unpriv_bpf_disabled: u8,
+    /// The boot-parameter lock behind a raw value of 2
+    /// (night-dinner-3): the cmdline carries
+    /// `bpf.unprivileged_bpf_disabled=2`, the one shape the kernel
+    /// plants as unflippable for this boot. A 2 WITHOUT it is the
+    /// distro's built-in default posture and root can write 0 over
+    /// it (witnessed live on Debian 13 / 6.12, where the old
+    /// "locked, cannot be re-enabled this boot" claim was refuted by
+    /// the very next sysctl). `false` when the value is not 2 or the
+    /// cmdline is unreadable.
+    pub unpriv_bpf_boot_locked: bool,
 }
 
 impl KernelReport {
@@ -104,7 +115,12 @@ impl KernelReport {
         self.unpriv_bpf_disabled == 0
     }
 
-    /// The doctor's posture line — a pure function of the raw value.
+    /// The doctor's posture line — a pure function of the raw value
+    /// and the boot-param fact. The value-2 arm splits on the lock:
+    /// a boot-parameter 2 is unflippable this boot; any other 2 is
+    /// the distro's default and root may write 0 over it. Every arm
+    /// carries the substring the E2E engine pins ("unprivileged
+    /// bpf") — do not reword it away.
     pub fn unpriv_bpf_verdict(&self) -> String {
         match self.unpriv_bpf_disabled {
             0 => "unprivileged bpf: allowed — the control-plane verbs run as a plain user"
@@ -112,9 +128,15 @@ impl KernelReport {
             1 => "unprivileged bpf: disabled (1) — the verbs cannot run as a plain user; \
                   root may re-enable it this boot: sysctl -w kernel.unprivileged_bpf_disabled=0"
                 .to_string(),
-            2 => "unprivileged bpf: locked (2) — the kernel build hard-disabled unprivileged \
-                  bpf() and it cannot be re-enabled this boot; the control-plane verbs \
-                  cannot run as a plain user"
+            2 if self.unpriv_bpf_boot_locked => {
+                "unprivileged bpf: locked (2) — the boot parameter \
+                  bpf.unprivileged_bpf_disabled=2 planted this lock and it cannot be re-enabled \
+                  this boot; the control-plane verbs cannot run as a plain user"
+                    .to_string()
+            }
+            2 => "unprivileged bpf: disabled (2) — the distro's built-in default, no \
+                  boot-parameter lock on the cmdline; root may re-enable it this boot: \
+                  sudo sysctl -w kernel.unprivileged_bpf_disabled=0"
                 .to_string(),
             other => format!(
                 "unprivileged bpf: disabled ({other}) — the kernel refuses unprivileged bpf()"
@@ -312,6 +334,97 @@ pub fn parse_unpriv_bpf_disabled(raw: &str) -> u8 {
     raw.trim().parse::<u8>().unwrap_or(0)
 }
 
+/// The pure boot-param lock law (night-dinner-3): does the kernel
+/// command line carry the one parameter shape that plants a value of
+/// 2 the sysctl cannot undo this boot? An exact whole-token match —
+/// `bpf.unprivileged_bpf_disabled=1` or a stray prefix must not read
+/// as the lock. The runtime-default 2 (the Debian 13 shape the
+/// doctor used to mislabel "locked") carries no such token, which is
+/// exactly what the live session proved: the write of 0 took.
+pub fn unpriv_bpf_locked_by_boot_param(cmdline: &str) -> bool {
+    cmdline
+        .split_whitespace()
+        .any(|token| token == "bpf.unprivileged_bpf_disabled=2")
+}
+
+// ── bpffs reachability (night-dinner-3) ─────────────────────────────
+
+/// The pure traversal law: does this directory's mode grant the
+/// identity the execute bit that stat()-ing through it needs? The
+/// identity selects ONE triad — owner, then group, then other — the
+/// kernel's own decision order, with no fall-through (an owner denied
+/// by the owner triad does not borrow the other triad's bit).
+pub fn mode_grants_x(mode: u32, owner: u32, group: u32, uid: u32, gid: u32) -> bool {
+    let shift = if uid == owner {
+        6
+    } else if gid == group {
+        3
+    } else {
+        0
+    };
+    (mode >> shift) & 0o1 == 0o1
+}
+
+/// The bpffs reach verdict for one identity (night-dinner-3): can
+/// that user stat() through the pin path? The mount root and the pin
+/// directory each need the x bit; the pins themselves open under
+/// their own file perms (attach hands them to the invoking user), so
+/// only the two directories gate the walk.
+#[derive(Debug, Clone, Copy)]
+pub struct BpffsReach {
+    /// `/sys/fs/bpf` grants this identity the traversal bit (or the
+    /// identity is root, whom the capability law bypasses the bits
+    /// for).
+    pub root_traversable: bool,
+    /// The mount root's permission bits, octal-rendered in the fix
+    /// lines (`0` when the root is unstatable — the doctor's own
+    /// bpffs-mounted check names that case first).
+    pub root_mode: u32,
+    /// The pin directory exists (a tap's state store is planted —
+    /// though under a blocked walk even this fact is beyond the
+    /// caller's sight, so the doctor renders the root verdict only).
+    pub pin_dir_present: bool,
+    /// `/sys/fs/bpf/zylaxion` grants the traversal bit — meaningful
+    /// only when [`Self::pin_dir_present`].
+    pub pin_dir_traversable: bool,
+}
+
+/// Stat both directories and apply [`mode_grants_x`] for `(uid,
+/// gid)`. Root (uid 0) bypasses the bits — the kernel's capability
+/// law, not the mode's. A missing or unstatable mount root reads as
+/// non-traversable with mode 0: this probe must never lie about a
+/// mount it cannot see.
+pub fn bpffs_reach(uid: u32, gid: u32) -> BpffsReach {
+    use std::os::unix::fs::MetadataExt;
+    let (root_mode, root_traversable) = match std::fs::metadata("/sys/fs/bpf") {
+        Ok(m) => {
+            let mode = m.mode();
+            (
+                mode & 0o7777,
+                uid == 0 || mode_grants_x(mode, m.uid(), m.gid(), uid, gid),
+            )
+        }
+        Err(_) => (0, false),
+    };
+    match std::fs::metadata("/sys/fs/bpf/zylaxion") {
+        Ok(m) => {
+            let mode = m.mode();
+            BpffsReach {
+                root_traversable,
+                root_mode,
+                pin_dir_present: true,
+                pin_dir_traversable: uid == 0 || mode_grants_x(mode, m.uid(), m.gid(), uid, gid),
+            }
+        }
+        Err(_) => BpffsReach {
+            root_traversable,
+            root_mode,
+            pin_dir_present: false,
+            pin_dir_traversable: false,
+        },
+    }
+}
+
 /// Probe the host kernel (the filesystem-reading half). Every field
 /// degrades to its honest default when the backing file is absent —
 /// a probe must never panic on a hardened kernel.
@@ -334,6 +447,7 @@ pub fn probe() -> KernelReport {
     let unpriv_bpf_disabled = std::fs::read_to_string("/proc/sys/kernel/unprivileged_bpf_disabled")
         .map(|s| parse_unpriv_bpf_disabled(&s))
         .unwrap_or(0);
+    let cmdline = std::fs::read_to_string("/proc/cmdline").unwrap_or_default();
     KernelReport {
         release,
         parsed,
@@ -343,6 +457,7 @@ pub fn probe() -> KernelReport {
         lockdown_readable,
         lockdown_blocks_bpf,
         unpriv_bpf_disabled,
+        unpriv_bpf_boot_locked: unpriv_bpf_locked_by_boot_param(&cmdline),
     }
 }
 

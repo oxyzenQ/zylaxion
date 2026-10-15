@@ -134,7 +134,9 @@ New here? The [Documentation](#documentation) map is the shelf index;
 - Audio through PipeWire / PulseAudio / ALSA (whatever the desktop
   already runs — cpal talks to the OS's default audio bridge).
 - Root **once per boot** for `sudo zylaxion attach`; every other verb
-  is unprivileged (the attach hands the pins to your user).
+  is unprivileged (the attach hands the pins to your user — and since
+  night-dinner-3 also opens the bpffs front door when a distro mounts
+  it shut; see [First run, end to end](#first-run-end-to-end-the-fast-path)).
 
 ### Install from a release (recommended)
 
@@ -320,6 +322,71 @@ The hidden and advanced vocabulary — the short aliases (`-s`, `-p`,
 `NO_COLOR`, `RUST_LOG`), and the internal `_play` verb — is
 documented completely in the Pro mode section of `zylaxion --help`,
 the one reference surface.
+
+### First run, end to end (the fast path)
+
+Download to hearing keys is five commands. The checksum lane shown is
+the current one (BLAKE3); releases published before the upgrade ship
+`*.b2sum` instead — verify those with coreutils `b2sum`, same shape
+(see [Release Verification](#release-verification)):
+
+```bash
+curl -LO https://github.com/oxyzenQ/zylaxion/releases/latest/download/zylaxion-v80.0.0-linux-amd64-v3-gnu.tar.gz
+curl -LO https://github.com/oxyzenQ/zylaxion/releases/latest/download/zylaxion-v80.0.0-linux-amd64-v3-gnu.tar.gz.b3sum
+b3sum -c *.b3sum                    # checksum: OK
+tar xzf zylaxion-*.tar.gz           # the archive carries zylaxion + LICENSE + README, nothing else
+./zylaxion doctor                   # the honest readiness verdict — fix what it names
+```
+
+Then the boot's one privileged verb and the sound:
+
+```bash
+sudo zylaxion attach                # once per boot; hands the pins to your user
+zylaxion on                         # sound on — no sudo, ever, for this verb
+echo anything                       # hear it
+```
+
+`zylaxion doctor` is the gate between download and sound: it verifies
+the kernel floor, the bpffs walk, the unprivileged-bpf posture, the
+runtime dir, and the audio server — and its summary line matches its
+exit code. Two hardened-distro postures deserve their names up front:
+
+**`bpffs reach` FAIL — the Debian 13 default.** Debian 13 mounts
+bpffs at `/sys/fs/bpf` with `mode=700` — root-only traversal. Attach
+still works and hands the pins to your user, but your user cannot
+walk to them, and older builds misread that as "the tap is not
+attached". Since night-dinner-3, `attach` opens the front door
+itself (adds the single `o+x` bit — walk yes, listing no — and says
+so in its output) and `doctor`'s `bpffs reach` station fails
+honestly while the walk is blocked. By hand, or to undo the relax:
+
+```bash
+sudo chmod o+x /sys/fs/bpf          # undo: sudo chmod o-x /sys/fs/bpf
+```
+
+The bit resets each boot (the mount remounts 0700); attach re-adds
+it on every attach. To make the posture boot-persistent without
+running attach first:
+
+```bash
+echo 'z /sys/fs/bpf 0701 root root - -' | sudo tee /etc/tmpfiles.d/zylaxion-bpffs.conf
+```
+
+**`unprivileged bpf: disabled (2)`.** Debian builds the kernel with
+unprivileged bpf() off by default. The old doctor claimed the value
+was locked for the whole boot — a live Debian 13 session refuted
+that: without the `bpf.unprivileged_bpf_disabled=2` boot parameter,
+the default is runtime-flippable.
+
+```bash
+sudo sysctl -w kernel.unprivileged_bpf_disabled=0
+```
+
+`doctor` now reads `/proc/cmdline` and splits the two worlds: a
+boot-parameter 2 reads "locked … cannot be re-enabled this boot";
+a default 2 carries the sysctl remedy inline. The full per-distro
+evidence lives in
+[docs/KERNEL_COMPATIBILITY.md](docs/KERNEL_COMPATIBILITY.md).
 
 ### Configuration
 
