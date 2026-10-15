@@ -63,9 +63,11 @@ drifts between docs is a bug.
   in the README's Install section; the evidence lives in the release
   workflow's matrix header.
 - **checksum family** — the three digests per release tarball:
-  SHA-512 (`*.sha512sum`), BLAKE2b-512 (`*.b2sum`), and SHAKE256
+  SHA-512 (`*.sha512sum`), BLAKE3-256 (`*.b3sum`), and SHAKE256
   (`*.shake256`, quantum-resistant). Defense in depth across three
-  independent hash families.
+  independent hash families. Releases published before the blake3
+  upgrade carry BLAKE2b-512 (`*.b2sum`) instead — still verifiable
+  with coreutils.
 - **flat archive invariant** — a release tarball carries exactly
   `zylaxion`, `LICENSE`, `README.md` at archive root — nothing else,
   no nesting. The workflow's tripwire asserts it byte-for-byte.

@@ -428,7 +428,7 @@ version rides `CARGO_PKG_VERSION` (the manifest), and a build
 without git falls back to the honest "unknown".
 
 **The release flow is unchanged:** three checksum files per archive
-(SHA-512, BLAKE2b-512, SHAKE256) plus the GPG detached signature,
+(SHA-512, BLAKE3-256, SHAKE256) plus the GPG detached signature,
 emitted by `.github/workflows/release.yml` exactly as
 docs/VERIFY_RELEASE.md documents, including the
 `-V`-label-matches-tarball-name smoke check. No stale claims were

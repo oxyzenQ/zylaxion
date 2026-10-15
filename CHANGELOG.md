@@ -306,6 +306,21 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-dinner-2 (the release checksum lane upgrades from BLAKE2b
+  to BLAKE3)** — the release tarballs now carry `*.b3sum` files
+  (BLAKE3-256, the official `b3sum` CLI) instead of `*.b2sum`
+  (BLAKE2b-512), keeping the three-family defense in depth: SHA-2,
+  BLAKE3, SHA-3 XOF. The workflow installs the helper
+  version-pinned (`cargo install --locked b3sum@1.8.7`) inside the
+  Prepare step itself — reproducible digest, no unpinned drift, and
+  the host-vs-target split documented (the matrix `--target` never
+  touches the helper build). The asset-inventory loop, the
+  enumerate-assets `find`, the release page's verification section,
+  and every checksum claim in the docs tree moved to b3sum in the
+  same commit so no page asserts the dead lane. Older releases keep
+  their `*.b2sum` files and VERIFY_RELEASE.md carries the legacy
+  verification command for them.
+
 - **night-improve-30 (the release page speaks the reference format,
   and speaks it from the API)** — the depth audit's second finding:
   the v80.0.0-beta.1 pre-release page shipped a bespoke body (a

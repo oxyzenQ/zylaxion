@@ -304,10 +304,18 @@ jobs:
           fi
           rm -rf "${STAGE}"
           cd dist
-          # Checksums: SHA-512 (classical) + BLAKE2b-512 + SHAKE256
-          # (quantum-resistant)
+          # Checksums: SHA-512 (classical) + BLAKE3-256 + SHAKE256
+          # (quantum-resistant). The blake3 lane (night-dinner-2):
+          # the official b3sum CLI from crates.io, version-pinned so
+          # the release digest is reproducible, --locked so its
+          # dependency graph can't drift under us. cargo install
+          # builds for the runner host (the matrix --target only
+          # affects the zylaxion builds, never this helper).
+          cargo install --locked b3sum@1.8.7 --quiet
+          command -v b3sum >/dev/null \
+            || { echo "::error::b3sum missing from PATH after install"; exit 1; }
           sha512sum "${PKG}.tar.gz" > "${PKG}.tar.gz.sha512sum"
-          b2sum "${PKG}.tar.gz" > "${PKG}.tar.gz.b2sum"
+          b3sum "${PKG}.tar.gz" > "${PKG}.tar.gz.b3sum"
           python3 -c "
           import hashlib
           data = open('${PKG}.tar.gz', 'rb').read()
@@ -476,7 +484,7 @@ jobs:
           fi
           BROKEN=0
           for f in dist/*.tar.gz; do
-            for suffix in sha512sum b2sum shake256; do
+            for suffix in sha512sum b3sum shake256; do
               if [ ! -f "${f}.${suffix}" ]; then
                 echo "::error::Missing checksum sibling ${f}.${suffix}"
                 BROKEN=1
@@ -641,7 +649,7 @@ jobs:
           LIST="$(find dist -maxdepth 1 -type f \( \
             -name '*.tar.gz' -o \
             -name '*.tar.gz.sha512sum' -o \
-            -name '*.tar.gz.b2sum' -o \
+            -name '*.tar.gz.b3sum' -o \
             -name '*.tar.gz.shake256' -o \
             -name '*.tar.gz.asc' \) | sort)"
           if [ -z "${LIST}" ]; then

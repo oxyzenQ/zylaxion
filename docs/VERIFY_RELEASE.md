@@ -26,7 +26,7 @@ The tarball name carries the platform id the binary itself reports
 | File | Algorithm | Family | Quantum-safe? |
 |------|-----------|--------|---------------|
 | `*.sha512sum` | SHA-512 | SHA-2 | 256-bit (borderline) |
-| `*.b2sum` | BLAKE2b-512 | BLAKE2 | 256-bit |
+| `*.b3sum` | BLAKE3-256 | BLAKE3 | 256-bit |
 | `*.shake256` | SHAKE256 | SHA-3 XOF (NIST PQ) | 256-bit |
 
 ## How to verify
@@ -38,8 +38,8 @@ mismatch). No manual hash comparison needed.
 # Classical (universal, every Linux has this)
 sha512sum -c zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.sha512sum
 
-# Quantum-resistant — BLAKE2b (fastest, in coreutils)
-b2sum -c zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.b2sum
+# Quantum-resistant — BLAKE3 (the official b3sum CLI)
+b3sum -c zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.b3sum
 
 # Quantum-resistant — SHAKE256 (NIST PQ standard, via Python)
 # openssl's -shake256 default output length varies by version/distro;
@@ -70,18 +70,31 @@ name's platform id:
 # Build-time: M/D/YYYY HH:MM (UTC)          <- Hinnant-stamped UTC
 ```
 
+## Verifying an older release (pre-BLAKE3 archives)
+
+Releases before the blake3 checksum upgrade ship `*.b2sum` files
+(BLAKE2b-512) instead of `*.b3sum`. Those remain fully verifiable:
+`b2sum` is GNU coreutils and preinstalled everywhere.
+
+```bash
+# Legacy lane — archives published before BLAKE3
+b2sum -c zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.b2sum
+```
+
 ## Why three algorithms
 
 Defense in depth across three independent hash families
-(SHA-2, BLAKE2, SHA-3 XOF). A future cryptanalytic break of any
+(SHA-2, BLAKE3, SHA-3 XOF). A future cryptanalytic break of any
 single family does not invalidate verification via the other two.
 
 ## Verification tools required
 
 - `sha512sum` — GNU coreutils (preinstalled on every Linux)
-- `b2sum` — GNU coreutils ≥ 8.x (preinstalled on modern distros)
+- `b3sum` — the official BLAKE3 CLI (`cargo install --locked b3sum`;
+  some distros package it as `blake3`, e.g. Arch's `blake3`)
 - `python3` — for the SHAKE256 lane (hashlib is stdlib)
 - `gpg` — GnuPG 2.x (only for the signature lane)
 
-All four tools ship with Arch Linux, Debian, Ubuntu, Fedora, Alpine,
-and macOS by default — no extra install needed.
+Three of the four tools ship with Arch Linux, Debian, Ubuntu, Fedora,
+Alpine, and macOS by default; `b3sum` is one install away on any
+machine with Rust (this project's audience by definition).
