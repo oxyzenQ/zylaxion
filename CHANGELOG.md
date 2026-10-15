@@ -213,6 +213,17 @@ v80.0.0-alpha.1
   law), the guest carries a hostname (killing the resolve noise sudo
   printed into every captured row), and the journey's failure rows
   carry the player's own stderr instead of a 140-character truncation.
+  The 5d round carried the cure one layer deeper — the sound node
+  posture itself (udev never runs in the guest, so the desktop's
+  `root:audio 0660` /dev/snd shape was never applied and every
+  user-side ALSA open answered `cannot find card '0'`; the init now
+  applies it by hand) — and the player then lived for the first time
+  on the micro-VM floor, which exposed the last harness bug: the
+  uinput injector's legacy `uinput_user_dev` setup packed 1120 bytes
+  where the kernel reads exactly 1116 (a missing u16 in the format
+  string, plus native-alignment padding), so the first live injection
+  ever attempted died EINVAL before a single keystroke; the format is
+  fixed, the size is asserted, and every setup step labels its errors.
 
 - **night-dinner-4** — the prebuilt eBPF lane regenerates itself.
   The manual rule ("regenerate `ebpf-prebuilt/` after any change

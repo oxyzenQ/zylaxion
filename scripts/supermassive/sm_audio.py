@@ -80,21 +80,43 @@ class _KeyboardInjector:
             import struct
 
             self.fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
-            fcntl.ioctl(self.fd, _UI_SET_EVBIT, _EV_KEY)
-            fcntl.ioctl(self.fd, _UI_SET_EVBIT, _EV_SYN)
+            # Every setup step labels itself — the first live chain
+            # (night-dinner-5's posture flip) burned a CI round on a
+            # bare EINVAL with no call site named.
+            for label, req, arg in (
+                ("UI_SET_EVBIT EV_KEY", _UI_SET_EVBIT, _EV_KEY),
+                ("UI_SET_EVBIT EV_SYN", _UI_SET_EVBIT, _EV_SYN),
+            ):
+                try:
+                    fcntl.ioctl(self.fd, req, arg)
+                except OSError as exc:
+                    raise OSError(f"{label}: {exc}") from exc
             for key in _INJECT_KEYS:
-                fcntl.ioctl(self.fd, _UI_SET_KEYBIT, key)
-            # struct uinput_user_dev: name[80] + input_id (4 x u16) +
-            # ff_effects_max (u32) + the four abs tables (64 x u32 each).
+                try:
+                    fcntl.ioctl(self.fd, _UI_SET_KEYBIT, key)
+                except OSError as exc:
+                    raise OSError(f"UI_SET_KEYBIT {key}: {exc}") from exc
+            # struct uinput_user_dev: name[80] + input_id (4 x u16:
+            # bustype, vendor, product, version) + ff_effects_max (u32)
+            # + the four abs tables (64 x u32 each) — 1116 bytes exact.
+            # The old format string carried three u16s and two u32s:
+            # 1118 bytes, and the kernel's write path answered EINVAL
+            # on the first live injection this harness ever drove.
             setup = struct.pack(
-                "80sHHHII" + "64I" * 4,
+                "80sHHHHI" + "64I" * 4,
                 b"zylaxion-supermassive",
                 0x06,  # BUS_VIRTUAL
-                0x1A, 0x5A, 0x01,
-                0,
+                0x1A,  # id.vendor
+                0x5A,  # id.product
+                0x01,  # id.version
+                0,  # ff_effects_max
                 *([0] * 256),
             )
-            os.write(self.fd, setup)
+            assert len(setup) == 1116, f"uinput_user_dev is {len(setup)} bytes"
+            try:
+                os.write(self.fd, setup)
+            except OSError as exc:
+                raise OSError(f"the uinput_user_dev setup write: {exc}") from exc
             fcntl.ioctl(self.fd, _UI_DEV_CREATE)
         except (OSError, ImportError) as exc:
             self.error = f"{type(exc).__name__}: {exc}"
