@@ -48,21 +48,21 @@ cd "$(dirname "$0")/../.."   # repo root
 # tree-sha pin is the staleness surface; the staged copy's sha and
 # size are the lane-integrity surface.
 if [ "${1:-}" = "--check" ]; then
-	[ "$#" -eq 1 ] || { echo "usage: $0 [--check]" >&2; exit 2; }
-	[ -f ebpf-prebuilt/manifest.toml ] || { echo "stale: ebpf-prebuilt/manifest.toml is missing entirely"; exit 1; }
-	[ -f ebpf-prebuilt/zylaxion-tap ] || { echo "stale: the staged ebpf-prebuilt/zylaxion-tap is missing"; exit 1; }
-	TREE_NOW=$(git ls-files -z -- ebpf/ | LC_ALL=C sort -z | xargs -0 -r sha256sum | sha256sum | awk '{print $1}')
-	STAGED_SHA=$(sha256sum ebpf-prebuilt/zylaxion-tap | awk '{print $1}')
-	STAGED_SIZE=$(stat -c %s ebpf-prebuilt/zylaxion-tap)
-	PIN_TREE=$(awk -F'"' '/^ebpf_tree_sha256 = /{print $2}' ebpf-prebuilt/manifest.toml)
-	PIN_OBJ=$(awk -F'"' '/^sha256 = /{print $2}' ebpf-prebuilt/manifest.toml)
-	PIN_SIZE=$(awk -F' = ' '/^size = /{print $2}' ebpf-prebuilt/manifest.toml)
-	STALE=0
-	[ "$TREE_NOW" = "$PIN_TREE" ] || { echo "stale: manifest ebpf_tree_sha256 lags the ebpf/ tree ($PIN_TREE -> $TREE_NOW)"; STALE=1; }
-	[ "$STAGED_SHA" = "$PIN_OBJ" ] || { echo "stale: the staged ebpf-prebuilt/zylaxion-tap is not the pinned object bytes ($PIN_OBJ -> $STAGED_SHA)"; STALE=1; }
-	[ "$STAGED_SIZE" = "$PIN_SIZE" ] || { echo "stale: the staged object size no longer matches the pin ($PIN_SIZE -> $STAGED_SIZE)"; STALE=1; }
-	[ "$STALE" -eq 0 ] && { echo "in sync: manifest pins match the ebpf/ tree and the staged copy"; exit 0; }
-	exit 1
+        [ "$#" -eq 1 ] || { echo "usage: $0 [--check]" >&2; exit 2; }
+        [ -f ebpf-prebuilt/manifest.toml ] || { echo "stale: ebpf-prebuilt/manifest.toml is missing entirely"; exit 1; }
+        [ -f ebpf-prebuilt/zylaxion-tap ] || { echo "stale: the staged ebpf-prebuilt/zylaxion-tap is missing"; exit 1; }
+        TREE_NOW=$(git ls-files -z -- ebpf/ | LC_ALL=C sort -z | xargs -0 -r sha256sum | sha256sum | awk '{print $1}')
+        STAGED_SHA=$(sha256sum ebpf-prebuilt/zylaxion-tap | awk '{print $1}')
+        STAGED_SIZE=$(stat -c %s ebpf-prebuilt/zylaxion-tap)
+        PIN_TREE=$(awk -F'"' '/^ebpf_tree_sha256 = /{print $2}' ebpf-prebuilt/manifest.toml)
+        PIN_OBJ=$(awk -F'"' '/^sha256 = /{print $2}' ebpf-prebuilt/manifest.toml)
+        PIN_SIZE=$(awk -F' = ' '/^size = /{print $2}' ebpf-prebuilt/manifest.toml)
+        STALE=0
+        [ "$TREE_NOW" = "$PIN_TREE" ] || { echo "stale: manifest ebpf_tree_sha256 lags the ebpf/ tree ($PIN_TREE -> $TREE_NOW)"; STALE=1; }
+        [ "$STAGED_SHA" = "$PIN_OBJ" ] || { echo "stale: the staged ebpf-prebuilt/zylaxion-tap is not the pinned object bytes ($PIN_OBJ -> $STAGED_SHA)"; STALE=1; }
+        [ "$STAGED_SIZE" = "$PIN_SIZE" ] || { echo "stale: the staged object size no longer matches the pin ($PIN_SIZE -> $STAGED_SIZE)"; STALE=1; }
+        [ "$STALE" -eq 0 ] && { echo "in sync: manifest pins match the ebpf/ tree and the staged copy"; exit 0; }
+        exit 1
 fi
 
 OBJ=ebpf/target/bpfel-unknown-none/release/zylaxion-tap
@@ -84,9 +84,13 @@ cat > ebpf-prebuilt/manifest.toml <<EOF
 # ebpf-feature build finds these pins lagging the ebpf/ tree or its
 # freshly built object (night-dinner-4: build/ebpf.rs consults this
 # script's --check verdict and runs this regenerate flow with no
-# human in the loop; scripts/dev/regenerate-ebpf-prebuilt.sh is the
-# one writer, scripts/gates/check-prebuilt-parity.sh enforces the
-# pin at commit time). ebpf_tree_sha256 pins the exact ebpf/
+# human in the loop), or whenever the version bump stales the pin —
+# its own rewrite always does (night-dinner-8, the zelynic
+# NIGHT-improve-70 shape: scripts/dev/version-to.sh runs this flow
+# fail-closed in the bump invocation). Either way
+# scripts/dev/regenerate-ebpf-prebuilt.sh is the one writer and
+# scripts/gates/check-prebuilt-parity.sh enforces the pin at commit
+# time. ebpf_tree_sha256 pins the exact ebpf/
 # source tree the object was built from: the sha256 over the
 # LC_ALL=C byte-sorted (NUL-separated) sha256sum listing of the
 # git-tracked ebpf/ files — one "digest  path" line per file, list
