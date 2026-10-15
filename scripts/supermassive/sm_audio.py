@@ -346,7 +346,7 @@ def _real_usage(ledger: Ledger, binary: str, user: str) -> None:
         if rc == 0 and "tap attached" in out:
             ledger.pass_row("attach hands the tap to the real user", user)
         else:
-            ledger.fail_row("attach hands the tap to the real user", f"rc={rc}: {out[:140]}")
+            ledger.fail_row("attach hands the tap to the real user", f"rc={rc}: {out[:400]}")
             return
 
         posture = _unpriv_bpf_disabled()
@@ -367,7 +367,7 @@ def _real_usage(ledger: Ledger, binary: str, user: str) -> None:
                 ledger.fail_row(
                     "on as the real user refuses at the kernel's "
                     "unprivileged-bpf gate",
-                    f"posture {posture}, rc={rc}: {out[:140]}",
+                    f"posture {posture}, rc={rc}: {out[:400]}",
                 )
             _run([binary, "detach"])
             return
@@ -379,7 +379,7 @@ def _real_usage(ledger: Ledger, binary: str, user: str) -> None:
         else:
             ledger.fail_row(
                 f"{user} turns the sound on (no input group, no sudo)",
-                f"rc={rc}: {out[:140]}",
+                f"rc={rc}: {out[:400]}",
             )
             _run([binary, "detach"])
             return
