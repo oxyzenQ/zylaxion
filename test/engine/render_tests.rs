@@ -20,6 +20,12 @@ fn model_at_default_profile() -> MechanicalClick {
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "UB-poor sample-loop math (pure float work) that miri
+        interprets at orders-of-magnitude cost - the native CI lane and
+        the Supermassive VM battery own the render surface"
+)]
 fn test_process_sample_produces_output() {
     let model = model_at_default_profile();
     let mut pool = VoicePool::new();
@@ -165,6 +171,12 @@ fn test_multiple_voices_mix_correctly() {
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "UB-poor sample-loop math (pure float work) that miri
+        interprets at orders-of-magnitude cost - the native CI lane and
+        the Supermassive VM battery own the render surface"
+)]
 fn test_render_one_second_and_write_wav() {
     let model = model_at_default_profile();
     let mut pool = VoicePool::new();

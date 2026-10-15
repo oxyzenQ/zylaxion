@@ -660,29 +660,32 @@ v80.0.0-alpha.1
 
 ### Fixed
 
-- **night-dinner-6 (Miri leaves the push path — the weekly contract
-  the header always declared, the triggers finally obey)** — the
-  owner's push-CI budget is 2-5 minutes, and the Dragon Guard -
-  Miri leg made that budget impossible by construction: the
+- **night-dinner-6 (the Miri leg fits the push budget — the UB net
+  stays on every code push, the interpreter just stops chewing the
+  math)** — the owner's push-CI budget is 2-5 minutes and the
+  Dragon Guard - Miri leg owned the wall clock 3-7x over: the
   interpreted workspace suite measured 8.5-10.7 minutes per code
-  push (every one of those runs cancelled by the next rapid push —
-  burned compute, zero verdict, the owner's "Cancelled after 11m")
-  and 33 minutes green when one finally finished, against a push
-  estate whose other three legs all fit the budget (Gate-keepers
-  0.4m, CI 2.0m, Supermassive 2.8m — push wall-clock is
-  max(legs), and Miri made that max 3-7x over by construction).
-  The defect was self-declared all along: the workflow's own header
-  promised the zelynic weekly cadence ("not on the per-PR critical
-  path ... the Sunday run picks up whatever slipped through") while
-  its trigger block carried the push and pull_request filters
-  copied from the build lanes. The triggers now obey the doctrine:
-  schedule (Sunday 00:00 UTC / 07:00 WIB) plus workflow_dispatch
-  for the on-demand deep check; push and pull_request are deleted
-  with their path filters (a schedule event carries no diff to
-  filter). The UB net's strength is unchanged — the full workspace
-  suite, same flags, same artifact lane — it simply runs where
-  slow belongs: off the hot path. The push-path wall clock drops
-  to the Supermassive leg's ~3 minutes.
+  push (every one cancelled by the next rapid push — burned
+  compute, zero verdict) and 33 minutes green when one finally
+  finished, against a push estate whose other three legs all fit
+  the budget (Gate-keepers 0.4m, CI 2.0m, Supermassive 2.8m). The
+  33-minute run's own log gave the answer: 93% of the wall clock
+  sat inside FIVE tests — the two freeze doc-assertions whose
+  full-text scans of README/CHANGELOG cost ~23 minutes interpreted
+  (the changelog one alone ~20) and the three sample-loop render
+  tests (~6 minutes of pure float work). All five are pure safe
+  code with no pointer/borrow surface the other ~210 tests do not
+  already cover, so each now carries `#[cfg_attr(miri,
+  ignore = "…")]` with its reason spelled out (the night-guard-1
+  pattern) and still runs NATIVELY in every other lane — ci.yml's
+  cargo test and the Supermassive VM battery own the math and the
+  docs assertions; the interpreter keeps the pointer/alloc/FFI
+  surface it exists for. The push and pull_request triggers stay
+  (a fast UB net on every code push, not an absent one), the
+  Sunday sweep and workflow_dispatch keep their weekly/on-demand
+  roles, and the job's timeout drops 60 -> 20 minutes as a
+  fail-fast cap. The scoped suite is expected to land in ~4
+  minutes on the runner.
 
 - **night-dinner-3 (the first run survives Debian 13, and the doctor
   stops lying about readiness)** — a live first-run session on

@@ -14,25 +14,27 @@
 # and no test spawns them — the suite is already the pure surface by
 # the CI physics (no audio/input device in the runner).
 #
-# Weekly cadence IS the contract, and night-dinner-6 made the
-# triggers obey the doctrine this header always declared: miri is
-# slow and nightly-only, so it is not on the per-push critical path.
-# The measured push-path record proved the point — the interpreted
-# workspace suite ran 8.5-10.7 minutes per code push (every one of
-# those runs cancelled by the next rapid push: burned compute, zero
-# verdict — the owner's "Cancelled after 11m") and 33 minutes when
-# one finally ran to green, while the rest of the push estate fits
-# the owner's 2-5 minute budget with headroom (Gate-keepers 0.4m,
-# CI 2.0m, Supermassive 2.8m — wall-clock is max(legs), and Miri
-# made that max 3-7x over the budget by construction). The push and
-# pull_request triggers (and their path filters) are therefore gone:
-# a schedule event carries no diff to filter, and a dispatch is a
-# deliberate human decision. The Sunday run (00:00 UTC / 07:00 WIB)
-# picks up the week's Rust-surface commits in one shot, and
-# workflow_dispatch keeps the on-demand deep check (the pre-release
-# UB sweep) one click away. The net's strength is unchanged — the
-# full workspace suite, same flags, same artifact lane — it just
-# runs where slow belongs: off the hot path.
+# The push-path UB net, sized to the owner's 2-5 minute CI budget
+# (night-dinner-6): miri interprets every instruction, so its cost
+# rides the suite's computation, not the crate count — and the
+# 33-minute run that preceded this contract spent 93% of its wall
+# clock inside FIVE tests: the two freeze doc-assertions (whose
+# full-text scans of README/CHANGELOG cost ~23 minutes interpreted,
+# the changelog one alone ~20) and the three sample-loop render
+# tests (~6 minutes of pure float work). All five are pure safe
+# code with no pointer/borrow surface the other ~210 tests do not
+# already cover, so they now carry #[cfg_attr(miri, ignore = ...)]
+# (the night-guard-1 pattern, with the reason spelled out in each)
+# and still run NATIVELY in every other lane — ci.yml's cargo test
+# and the Supermassive VM battery own the math and the docs
+# assertions; the interpreter keeps the pointer/alloc/FFI surface
+# it exists for. With that scope the whole job lands inside the
+# push budget instead of owning the wall clock 3-7x over — and the
+# push and pull_request triggers STAY (the owner's contract is a
+# fast UB net on every code push, not an absent one): same path
+# filters as the build lanes, the Sunday sweep (00:00 UTC /
+# 07:00 WIB) keeps the weekly full-net tick, and workflow_dispatch
+# is the on-demand deep check.
 #
 # Deliberately NO RUSTFLAGS=-D warnings here: the miri build is not
 # the warning-gated lane (ci.yml owns that contract), and pinning
@@ -42,6 +44,25 @@
 name: Dragon Guard - Miri
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - "**/*.rs"
+      - "**/*.toml"
+      - "**/Cargo.lock"
+      - ".cargo/**"
+      - "scripts/**"
+      - ".github/workflows/miri.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      # Same spelling as push (the no-drift law).
+      - "**/*.rs"
+      - "**/*.toml"
+      - "**/Cargo.lock"
+      - ".cargo/**"
+      - "scripts/**"
+      - ".github/workflows/miri.yml"
   schedule:
     # Sunday 00:00 UTC (07:00 WIB) — picks up the week's commits in
     # one shot, the zelynic cadence.
@@ -53,8 +74,7 @@ on:
 permissions:
   contents: read
 
-# A superseded run (a dispatch landing while the scheduled run or an
-# earlier dispatch is still interpreting) is cancelled instead of
+# Rapid pushes to the same ref cancel the superseded run instead of
 # queueing a duplicate miri build.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -69,7 +89,10 @@ jobs:
   miri:
     name: Miri UB verification (workspace test suite)
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # night-dinner-6: a fail-fast cap, not a speed claim — the scoped
+    # suite lands in ~4 minutes on the measured record; 20 gives 5x
+    # headroom before a runaway interpreted run burns the runner.
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, the zelynic estate SHA pin

@@ -276,6 +276,12 @@ fn test_reset_clears_all_voices() {
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "UB-poor sample-loop math (pure float work) that miri
+        interprets at orders-of-magnitude cost - the native CI lane and
+        the Supermassive VM battery own the render surface"
+)]
 fn test_all_voices_naturally_decay() {
     let model = model_at_default_profile();
     let mut pool = VoicePool::new();
