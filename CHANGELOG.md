@@ -276,6 +276,38 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-improve-30 (the release page speaks the reference format,
+  and speaks it from the API)** — the depth audit's second finding:
+  the v80.0.0-beta.1 pre-release page shipped a bespoke body (a
+  hand-rolled Artifacts/Platform-labels table) whose Changes section
+  came out EMPTY — the inline renderer read its changelog boundary
+  from the local clone, a shallow checkout carries no previous tag,
+  `git log` answered empty, and nothing downstream noticed — and the
+  page looked nothing like the zelynic releases the owner holds up
+  as the reference. The zelynic cosmostrix release-page shape ports
+  over as one implementation in the tree:
+  `scripts/release/generate-release-notes.sh` — the compare-API
+  renderer (no clone dependency, no local refs), the
+  "Internal research:" classifier with its pinned self-test battery,
+  the category `<details>` sections with per-commit links, the dual
+  range line pre-release testers get (N commits since the previous
+  build · M commits since the last stable), the honest compare-API
+  truncation note, the 120,000-byte body budget that trims the
+  full-changelog listing from its tail instead of losing the
+  Verification section to GitHub's silent ~125,000-character
+  storage cut, and the GPG + checksum policy block rendered last.
+  release.yml's body step now computes the boundary from the tags
+  API (retry-wrapped, three attempts five seconds apart), renders
+  through the generator after its self-test passes, and carries the
+  independent 124,000-byte platform-cap tripwire; the publish step
+  takes its title from the generator's output (the bare tag, the
+  cosmostrix convention). The live v80.0.0-beta.1 page was
+  re-rendered through this exact path and patched in place —
+  1,282 characters of half-empty bespoke body replaced by the
+  6,062-character reference format with all 18 commits since
+  v80.0.0-alpha.1 classified and linked (163 since v11.0.0, the
+  last stable).
+
 - **night-improve-31 (the prebuilt lane enforces itself at commit
   time)** — the depth audit's finding, closed end to end: the release
   commits (v80.0.0-alpha.1, v80.0.0-beta.1) touched `ebpf/Cargo.toml`

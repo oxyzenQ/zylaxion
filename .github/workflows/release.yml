@@ -493,59 +493,138 @@ jobs:
           fi
           echo "dist/ verified: ${TARBALLS} tarballs, ${SIGS} GPG signatures, $(( TARBALLS * 3 )) checksum files"
 
+      # The release body has exactly one implementation in the tree:
+      # scripts/release/generate-release-notes.sh (night-improve-30,
+      # the zelynic cosmostrix release-page shape ported verbatim —
+      # the owner's format-consistency contract). The former inline
+      # renderer died twice for the same root cause: it read the
+      # changelog boundary from the LOCAL clone (a shallow checkout
+      # carries no previous tag, git log answered empty, and the
+      # v80.0.0-beta.1 page shipped with its Changes section empty)
+      # and it invented a bespoke format the reference releases page
+      # never used. This step renders from the compare API JSON — no
+      # local refs, no clone dependency — and the generator's
+      # self-test battery runs first so a drifted classifier fails
+      # the pipeline BEFORE a broken body publishes.
       - name: Generate release body
+        id: body
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.validate.outputs.tag }}
-          VERSION: ${{ needs.validate.outputs.version }}
-          PRERELEASE: ${{ needs.validate.outputs.prerelease }}
         run: |
           set -euo pipefail
-          {
-            echo "## zylaxion ${TAG}"
-            echo ""
-            TAGLINE="Real-time mechanical keyboard acoustic synthesizer for Linux."
-            TAGLINE+=" Pure procedural synthesis, zero audio samples."
-            echo "${TAGLINE}"
-            echo ""
-            echo "### Artifacts"
-            echo ""
-            echo "| File | Purpose |"
-            echo "| ---- | ------- |"
-            for f in dist/*.tar.gz; do
-              base="$(basename "$f")"
-              echo "| \`${base}.sha512sum\` | SHA-512 checksum |"
-              echo "| \`${base}.b2sum\` | BLAKE2b-512 checksum |"
-              echo "| \`${base}.shake256\` | SHAKE256 (quantum-resistant) checksum |"
-              if [ -f "${f}.asc" ]; then
-                echo "| \`${base}.asc\` | GPG detached signature |"
+          TAG="${{ needs.validate.outputs.tag }}"
+          IS_PRERELEASE="${{ needs.validate.outputs.prerelease }}"
+
+          # Bounded retry for the API reads below (the zelynic
+          # NIGHT-improve-32 shape): a just-pushed tag occasionally
+          # answers its first requests with a transient 5xx — the
+          # same-repository API is eventually consistent on fresh
+          # refs. Three attempts, five seconds apart, then the real
+          # error surfaces unchanged.
+          gh_api() {
+            local attempt out
+            for attempt in 1 2 3; do
+              if out=$(gh api "$@"); then
+                printf '%s\n' "$out"
+                return 0
               fi
+              echo "gh api attempt ${attempt} failed — retrying in 5s" >&2
+              sleep 5
             done
-            echo ""
-            echo "### Platform labels"
-            echo ""
-            echo "- \`linux-amd64-v3-gnu\` — x86-64-v3 (AVX2/BMI2/FMA baseline, 2013+ CPUs), dynamic glibc"
-            echo "- \`linux-amd64-v4-gnu\` — x86-64-v4 (AVX-512 baseline), dynamic glibc"
-            echo ""
-            echo "Pick v3 when in doubt: every CPU that runs v4 runs v3. Verify before running:"
-            echo "see [docs/VERIFY_RELEASE.md](https://github.com/oxyzenQ/zylaxion/blob/main/docs/VERIFY_RELEASE.md)."
-            echo ""
-            echo "### Changes"
-            echo ""
-            # The changelog is the truth for release notes: extract the
-            # current version's section when the ledger carries one,
-            # else fall back to the commit range (bounded, retrying the
-            # compare API read).
-            PREV_TAG="$(gh api "repos/${GITHUB_REPOSITORY}/tags?per_page=20" --jq '.[].name' 2>/dev/null \
-              | grep -v "^${TAG}$" | head -1 || true)"
-            if [ -n "${PREV_TAG}" ]; then
-              git log --no-merges --pretty=format:'- %s (%h)' "${PREV_TAG}..HEAD" 2>/dev/null || true
-            else
-              echo "Initial release."
-            fi
-          } > release-body.md
+            return 1
+          }
+
+          # All tag names via the API — no clone, no local refs.
+          TAGS=$(gh_api --paginate "repos/${GITHUB_REPOSITORY}/tags" --jq '.[].name')
+
+          # Previous changelog boundary:
+          # Pre-release: prev = any previous tag by semver (users
+          #   testing pre-release builds want the changes since the
+          #   last build of any channel).
+          # Stable: prev = nearest previous STABLE tag (skip
+          #   pre-releases) — the stable changelog spans from the
+          #   last stable release.
+          # awk (never grep) so a zero-match filter is not a failed
+          # pipeline under pipefail — "no previous tag" is a legal
+          # state, not an error.
+          if [ "${IS_PRERELEASE}" = "true" ]; then
+            PREV_TAG=$(printf '%s\n' "${TAGS}" \
+              | awk -v cur="${TAG}" '$0 != cur' \
+              | sort -V | tail -1)
+          else
+            PREV_TAG=$(printf '%s\n' "${TAGS}" \
+              | awk -v cur="${TAG}" \
+                '$0 != cur && $0 !~ /^v[0-9]+\.[0-9]+\.[0-9]+-(dev|nightly|alpha|beta|rc)[\.-]/' \
+              | sort -V | tail -1)
+          fi
+
+          # The last STABLE tag (the same filter the stable PREV_TAG
+          # branch uses above) — pre-release bodies render the dual
+          # range line with it: "N commits since previous build ·
+          # M commits since last stable".
+          LAST_STABLE=$(printf '%s\n' "${TAGS}" \
+            | awk -v cur="${TAG}" \
+              '$0 != cur && $0 !~ /^v[0-9]+\.[0-9]+\.[0-9]+-(dev|nightly|alpha|beta|rc)[\.-]/' \
+            | sort -V | tail -1)
+
+          # Commits between the boundary and the tag, straight from
+          # the compare API. Merge commits (more than one parent)
+          # are skipped inside the generator, and the API's
+          # 250-commit listing cap carries an honest truncation note.
+          # Zero previous tags = initial release (the generator
+          # renders the marker itself).
+          COMPARE_JSON=""
+          if [ -n "${PREV_TAG}" ]; then
+            gh_api "repos/${GITHUB_REPOSITORY}/compare/${PREV_TAG}...${TAG}" > compare.json
+            COMPARE_JSON=compare.json
+          fi
+
+          # The distance from the last stable tag (one more
+          # retry-wrapped compare call; total_commits semantics —
+          # merge commits included). Only pre-release bodies need it,
+          # and only when the boundaries actually differ.
+          SINCE_STABLE=""
+          if [ -n "${COMPARE_JSON}" ] && [ -n "${LAST_STABLE}" ] \
+            && [ "${LAST_STABLE}" != "${PREV_TAG}" ]; then
+            SINCE_STABLE=$(gh_api \
+              "repos/${GITHUB_REPOSITORY}/compare/${LAST_STABLE}...${TAG}" \
+              --jq '.total_commits')
+          fi
+
+          scripts/release/generate-release-notes.sh --self-test
+
+          scripts/release/generate-release-notes.sh \
+            --tag "${TAG}" \
+            --prerelease "${IS_PRERELEASE}" \
+            --compare-json "${COMPARE_JSON}" \
+            --prev-tag "${PREV_TAG}" \
+            --last-stable "${LAST_STABLE}" \
+            --since-stable "${SINCE_STABLE}" \
+            > release-body.md
+
+          # Release title: the bare tag name (the cosmostrix
+          # convention) — GitHub's own Pre-release badge marks the
+          # channel in the releases list, and the body's WARNING
+          # callout carries the expectation-setting text.
+          echo "title=${TAG}" >> "$GITHUB_OUTPUT"
+
           echo "=== Release body ==="
           cat release-body.md
+
+          # Platform-cap tripwire: GitHub silently truncates a stored
+          # release body over ~125,000 characters. The generator owns
+          # the policy budget (MAX_BODY_CHARS) and refuses over-budget
+          # bodies itself; this is the independent guard on the exact
+          # file the publish step below uploads — drift, a hand edit,
+          # or a future budget bump past the platform cap all die
+          # HERE, red and named, instead of shipping a silently
+          # truncated page.
+          BODY_BYTES=$(wc -c < release-body.md | tr -d ' ')
+          if [ "${BODY_BYTES}" -gt 124000 ]; then
+            echo "::error::Release body is ${BODY_BYTES} bytes — over the 124,000-byte platform cap."
+            echo "Refusing to publish a body GitHub would silently truncate."
+            exit 1
+          fi
 
       # The upload list is what dist/ actually holds, not a wish list.
       # The static glob block used to promise dist/*.tar.gz.asc even
@@ -580,7 +659,10 @@ jobs:
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3, night-improve-8 SHA pin
         with:
           tag_name: ${{ needs.validate.outputs.tag }}
-          name: ${{ needs.validate.outputs.tag }}
+          # The bare tag name the body step emits (the cosmostrix
+          # convention, night-improve-30) — one source of truth for
+          # the title, the body's callout carries the channel text.
+          name: ${{ steps.body.outputs.title }}
           body_path: release-body.md
           prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
           fail_on_unmatched_files: true
