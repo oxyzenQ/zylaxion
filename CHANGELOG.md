@@ -276,6 +276,37 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-improve-31 (the prebuilt lane enforces itself at commit
+  time)** — the depth audit's finding, closed end to end: the release
+  commits (v80.0.0-alpha.1, v80.0.0-beta.1) touched `ebpf/Cargo.toml`
+  and `ebpf/Cargo.lock` and shipped with the prebuilt lane untouched —
+  the manifest's `ebpf_tree_sha256` pinned a tree the checked-out
+  commit no longer matched, and no gate anywhere noticed. The zelynic
+  NIGHT-dinner-1 shape ports over as three files and one wiring:
+  `scripts/gates/check-prebuilt-parity.sh` (the object's ELF sanity +
+  GLOBAL-symbol surface, every manifest row against the disk bytes,
+  the live `ebpf/` tree against the pin, and the phantom-pin guard
+  for assume-unchanged/skip-worktree churn), `scripts/gates/
+  check-commit-gate.sh` (the fail-closed parity and pairing arms — a
+  commit that stages `ebpf/` must stage `ebpf-prebuilt/` in the same
+  commit — plus the advisory actions-pin lane), and the trivial
+  `.githooks/pre-commit` shim. `gate-keepers.sh` self-installs
+  `core.hooksPath=.githooks` (repo-local, never global) on its first
+  wholesale run, so every commit on a clone runs the gate even when
+  the wholesale run is forgotten. The tree-pin recipe moved to the
+  zelynic shape — the sha256 over the LC_ALL=C byte-sorted,
+  NUL-separated sha256sum listing (digest plus path per line) — in
+  the generator and the gate in the same commit, so the two cannot
+  drift: the hashed listing now carries each file's path, and a
+  content-preserving rename under `ebpf/` still stales the pin. The
+  lane itself regenerated honestly: the tap object rebuilt from the
+  current `ebpf/` tree under the pinned toolchain
+  (`nightly-2026-09-18` + `bpf-linker` 0.11.1), the manifest
+  rewritten by the generator (fresh object sha256 `4765f080…`,
+  tree pin `96790f82…`, size unchanged at 2936 bytes), and the gate
+  re-run green after the refresh — the same drift the gate exists to
+  catch is the drift it opened with.
+
 - **night-hunter-5a (the personal-machine lane moves in with the
   package lane)** — `install-on-my-machine.sh` left the repo root
   for `scripts/package/`, beside the baseline installer it mirrors:

@@ -85,6 +85,13 @@ The two residuals this pass does NOT touch, with owners:
   runtime check — enforcing it inside `build/ebpf.rs`'s registry lane
   is a ~15 LOC change to the build lane the freeze pass owns (3.6's
   wording, unchanged).
+  Status update (night-improve-31, 2026-10-15): the enforcement seat
+  landed, one lane earlier than this row asked for — the commit-time
+  prebuilt gate (scripts/gates/check-prebuilt-parity.sh wired through
+  .githooks/pre-commit) proves the manifest against the live `ebpf/`
+  tree on every commit, and the ship-time parity steps keep their
+  seat. The build.rs-internal row this bullet pre-named stays with
+  the freeze pass.
 - The pinned-file permission modes stay INCONCLUSIVE (Dimension 3) —
   no bpffs host here to measure; the fchmod follow-up stays
   pre-named in the same place 3.6 left it.

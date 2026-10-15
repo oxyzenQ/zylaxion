@@ -52,6 +52,15 @@
 #       any casing outside the two legal families: lowercase, and the
 #       identifier family (ZYLAXION_* env vars, the scripts/ banner
 #       titles). A wrong-case name anywhere fails the push)
+#   10. Pre-commit hook self-install (night-improve-31 — the zelynic
+#       NIGHT-dinner-1 shape: the first wholesale run on a clone
+#       points core.hooksPath at .githooks, repo-local, never
+#       --global, so every future commit on that clone executes the
+#       commit-time prebuilt gate (scripts/gates/check-commit-gate.sh:
+#       parity + the ebpf/ <-> ebpf-prebuilt/ pairing rule) even when
+#       this wholesale script is forgotten. The hook enforces the same
+#       lane contract at commit time that sections above enforce at
+#       push time)
 #
 # Usage:
 #   bash scripts/gate-keepers.sh             # full gate run
@@ -91,6 +100,24 @@ run_section() {
 
 echo "zylaxion gate-keepers — the full gate run"
 echo "repository: $REPO_ROOT"
+
+# ── 0. pre-commit hook self-install (night-improve-31) ────────────────────
+# The wiring, not a check: point core.hooksPath at .githooks so every
+# commit on this clone runs the commit gate. Repo-local config, never
+# --global; harmless in CI where the checkout is disposable.
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        hook_path="$(git config --local core.hooksPath || true)"
+        if [ "${hook_path}" != ".githooks" ]; then
+                git config --local core.hooksPath .githooks
+                echo ""
+                echo "── [0] pre-commit hook (self-install) ──────────────────"
+                echo "core.hooksPath=.githooks — every commit now runs the prebuilt commit gate"
+        else
+                echo "core.hooksPath already .githooks — the commit gate is active"
+        fi
+else
+        echo "not inside a git work tree — hook self-install skipped"
+fi
 
 if $FIX_ALL; then
         run_section 1 "File permissions (--fix-all)" \

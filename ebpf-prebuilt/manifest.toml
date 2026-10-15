@@ -5,19 +5,21 @@
 # zelynic NIGHT-ask-2 shape). Generated after the ebpf/ tree build
 # — regenerate after any change under ebpf/ so the embedded object
 # never drifts from the source (scripts/dev/regenerate-ebpf-prebuilt.sh
-# is the generator). ebpf_tree_sha256 pins the exact ebpf/ source tree
-# the object was built from: the sha256 over the byte-order-sorted
-# (LC_ALL=C) per-file sha256 content digests of the git-tracked ebpf/
-# files — one digest per line, list hashed as a whole. These
-# are the same bytes the registry-install binaries embed.
+# is the generator; scripts/gates/check-prebuilt-parity.sh enforces
+# the pin at commit time). ebpf_tree_sha256 pins the exact ebpf/
+# source tree the object was built from: the sha256 over the
+# LC_ALL=C byte-sorted (NUL-separated) sha256sum listing of the
+# git-tracked ebpf/ files — one "digest  path" line per file, list
+# hashed as a whole (night-improve-31 recipe). These are the same
+# bytes the registry-install binaries embed.
 
 schema = 1
-generated = "2026-10-12T19:24:19Z"
+generated = "2026-10-15T05:23:10Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_sha256 = "03d0aea92e1a54fc12b6af47da2aa2a69e546f4cc25a9e0aefb8dcaa34ac5e85"
+ebpf_tree_sha256 = "96790f827de2c978455f4360c97ab9cc6002aaae53ae45633aa6a68d97f162e9"
 
 [[object]]
 name = "zylaxion-tap"
-sha256 = "55d63fb68e56c17c3c144b9e85303879b2a69721a626cea29cf42aca85c9ea03"
+sha256 = "4765f08097a296ef2d4a0757a6c8b72e025604d0f34e4d35817423c6f280449d"
 size = 2936
