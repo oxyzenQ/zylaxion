@@ -594,6 +594,37 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-dinner-3 (the first run survives Debian 13, and the doctor
+  stops lying about readiness)** — a live first-run session on
+  Debian 13 exposed a three-verdict lie: bpffs mounts `mode=700`
+  there, so `attach` handed the pins to the user while the user
+  could not walk to them, `doctor` declared "All checks passed" on
+  an unusable tool, and `on` misread the blocked walk as "the tap is
+  not attached" and prescribed a re-attach that fixed nothing. Fixed
+  in code from every direction: `attach` now completes the hand-over
+  it promises (stats the walk as the sudo user and adds the single
+  `o+x` bit to the mount root when blocked — logged with its undo,
+  never `o+r`); `doctor` gained the `bpffs reach` station evaluated
+  as the identity that runs the verbs; every "not attached" verdict
+  (`on`/`off`/`status`/`preset`/`volume`) now stats the control-pin
+  path first and separates a genuinely absent tap from a
+  walk-blocked mount, each with its own message and fix — `off`
+  under a blocked walk no longer claims "nothing to stop" while a
+  running player keeps playing. The doctor's unprivileged-bpf
+  verdict also stopped asserting a boot-wide lock it never
+  witnessed: the value-2 arm now splits on the
+  `bpf.unprivileged_bpf_disabled=2` boot parameter read from
+  `/proc/cmdline` — a boot-param 2 reads "locked … cannot be
+  re-enabled this boot", the distro-default 2 (the Debian 13 shape
+  the live session flipped with one sysctl) carries the remedy
+  inline. And the root-session doctor downgraded the XDG_RUNTIME_DIR
+  station from a false FAIL to an honest note about the sudo user's
+  actual runtime dir. Documented end to end: README's
+  "First run, end to end (the fast path)", the Debian 13 entry in
+  docs/KERNEL_COMPATIBILITY.md (layout / symptom / fix / status /
+  provenance), the privilege accounting of the front-door relax in
+  docs/ZACTRIX_SECURITY.md, and the glossary's "bpffs front door".
+
 - **night-hunter-8.1 (the audited surfaces stop carrying the
   broken-pipe panic)** — the same status/attach audit noticed the
   output module already documents the law ("`zylaxion -V | head -1`

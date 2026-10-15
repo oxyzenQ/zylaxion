@@ -60,6 +60,7 @@ fn verdict_strings_are_canonical() {
         lockdown_readable: false,
         lockdown_blocks_bpf: false,
         unpriv_bpf_disabled: 0,
+        unpriv_bpf_boot_locked: false,
     };
     assert_eq!(report.verdict(), "verified supported");
     report.parsed = Some((5, 14));
@@ -268,7 +269,7 @@ fn unpriv_bpf_parser_reads_the_sysctl_shapes() {
 
 #[test]
 fn unpriv_bpf_allowed_law() {
-    let report = |raw: u8| KernelReport {
+    let report = |raw: u8, boot_locked: bool| KernelReport {
         release: String::new(),
         parsed: Some((6, 8)),
         btf: false,
@@ -277,15 +278,17 @@ fn unpriv_bpf_allowed_law() {
         lockdown_readable: false,
         lockdown_blocks_bpf: false,
         unpriv_bpf_disabled: raw,
+        unpriv_bpf_boot_locked: boot_locked,
     };
-    assert!(report(0).unpriv_bpf_allowed());
-    assert!(!report(1).unpriv_bpf_allowed());
-    assert!(!report(2).unpriv_bpf_allowed());
+    assert!(report(0, false).unpriv_bpf_allowed());
+    assert!(!report(1, false).unpriv_bpf_allowed());
+    assert!(!report(2, false).unpriv_bpf_allowed());
+    assert!(!report(2, true).unpriv_bpf_allowed());
 }
 
 #[test]
 fn unpriv_map_write_refusal_law() {
-    let report = |raw: u8| KernelReport {
+    let report = |raw: u8, boot_locked: bool| KernelReport {
         release: String::new(),
         parsed: Some((6, 8)),
         btf: false,
@@ -294,31 +297,39 @@ fn unpriv_map_write_refusal_law() {
         lockdown_readable: false,
         lockdown_blocks_bpf: false,
         unpriv_bpf_disabled: raw,
+        unpriv_bpf_boot_locked: boot_locked,
     };
     // Allowed posture: no refusal, whatever the euid.
-    assert!(report(0).unpriv_map_write_refusal(false).is_none());
-    assert!(report(0).unpriv_map_write_refusal(true).is_none());
+    assert!(report(0, false).unpriv_map_write_refusal(false).is_none());
+    assert!(report(0, false).unpriv_map_write_refusal(true).is_none());
     // Root is never gated — the kernel's gate keys on capability,
     // not on the sysctl (the rescue path stays reachable).
-    assert!(report(2).unpriv_map_write_refusal(true).is_none());
+    assert!(report(2, true).unpriv_map_write_refusal(true).is_none());
     // A gated plain user gets the classified refusal, carrying the
     // value and the substring the E2E engine pins (sm_audio.py).
-    let locked = report(2).unpriv_map_write_refusal(false).unwrap();
+    let locked = report(2, true).unpriv_map_write_refusal(false).unwrap();
     assert!(locked.contains("unprivileged bpf"), "{locked}");
     assert!(locked.contains("(2)"), "{locked}");
     assert!(locked.contains("doctor"), "{locked}");
-    let disabled = report(1).unpriv_map_write_refusal(false).unwrap();
+    let disabled = report(1, false).unpriv_map_write_refusal(false).unwrap();
     assert!(disabled.contains("unprivileged bpf"), "{disabled}");
     assert!(disabled.contains("(1)"), "{disabled}");
-    // The recoverable arm names the remedy; the locked arm says the
-    // truth: this boot cannot re-enable it.
+    // The recoverable arm names the remedy; the boot-param-locked arm
+    // says the truth: this boot cannot re-enable it.
     assert!(disabled.contains("re-enable"), "{disabled}");
     assert!(locked.contains("cannot be re-enabled"), "{locked}");
+    // night-dinner-3: a value of 2 WITHOUT the boot param is the
+    // distro default, not a lock — the refusal must NOT claim an
+    // unflippable boot and must carry the sysctl remedy.
+    let defaulted = report(2, false).unpriv_map_write_refusal(false).unwrap();
+    assert!(defaulted.contains("unprivileged bpf"), "{defaulted}");
+    assert!(!defaulted.contains("cannot be re-enabled"), "{defaulted}");
+    assert!(defaulted.contains("sysctl"), "{defaulted}");
 }
 
 #[test]
 fn unpriv_bpf_verdict_law() {
-    let report = |raw: u8| KernelReport {
+    let report = |raw: u8, boot_locked: bool| KernelReport {
         release: String::new(),
         parsed: Some((6, 8)),
         btf: false,
@@ -327,9 +338,72 @@ fn unpriv_bpf_verdict_law() {
         lockdown_readable: false,
         lockdown_blocks_bpf: false,
         unpriv_bpf_disabled: raw,
+        unpriv_bpf_boot_locked: boot_locked,
     };
-    assert!(report(0).unpriv_bpf_verdict().contains("allowed"));
-    assert!(report(1).unpriv_bpf_verdict().contains("disabled (1)"));
-    assert!(report(2).unpriv_bpf_verdict().contains("locked (2)"));
-    assert!(report(9).unpriv_bpf_verdict().contains("disabled (9)"));
+    assert!(report(0, false).unpriv_bpf_verdict().contains("allowed"));
+    assert!(
+        report(1, false)
+            .unpriv_bpf_verdict()
+            .contains("disabled (1)")
+    );
+    // night-dinner-3: the value-2 arm splits on the boot-param lock —
+    // the Debian 13 shape (no boot param) is a flippable default, NOT
+    // a lock; the boot-param shape is the honest "locked" claim.
+    let defaulted = report(2, false).unpriv_bpf_verdict();
+    assert!(defaulted.contains("disabled (2)"), "{defaulted}");
+    assert!(!defaulted.contains("cannot be re-enabled"), "{defaulted}");
+    assert!(defaulted.contains("sysctl"), "{defaulted}");
+    let locked = report(2, true).unpriv_bpf_verdict();
+    assert!(locked.contains("locked (2)"), "{locked}");
+    assert!(locked.contains("cannot be re-enabled"), "{locked}");
+    assert!(
+        report(9, false)
+            .unpriv_bpf_verdict()
+            .contains("disabled (9)")
+    );
+}
+
+#[test]
+fn unpriv_boot_param_lock_law() {
+    // The exact token is the lock.
+    assert!(unpriv_bpf_locked_by_boot_param(
+        "quiet splash bpf.unprivileged_bpf_disabled=2"
+    ));
+    assert!(unpriv_bpf_locked_by_boot_param(
+        "bpf.unprivileged_bpf_disabled=2"
+    ));
+    // A value of 1, a prefix, a suffix, or nothing at all is not.
+    assert!(!unpriv_bpf_locked_by_boot_param(
+        "bpf.unprivileged_bpf_disabled=1"
+    ));
+    assert!(!unpriv_bpf_locked_by_boot_param(
+        "bpf.unprivileged_bpf_disabled=20"
+    ));
+    assert!(!unpriv_bpf_locked_by_boot_param(
+        "xbpf.unprivileged_bpf_disabled=2"
+    ));
+    assert!(!unpriv_bpf_locked_by_boot_param("quiet splash"));
+    assert!(!unpriv_bpf_locked_by_boot_param(""));
+}
+
+#[test]
+fn mode_grants_x_law() {
+    // 0o701: owner rwx, group none, other x — the Debian 13 mount
+    // after the front-door fix.
+    assert!(mode_grants_x(0o701, 0, 0, 1000, 1000));
+    // 0o700: the mount itself — other gets nothing.
+    assert!(!mode_grants_x(0o700, 0, 0, 1000, 1000));
+    // The owner triad decides for the owner, with NO fall-through:
+    // an owner denied by their own triad does not borrow the other
+    // triad's bit.
+    assert!(!mode_grants_x(0o007, 1000, 1000, 1000, 1000));
+    assert!(mode_grants_x(0o100, 1000, 1000, 1000, 1000));
+    // The group triad decides for the group (same no-fall-through
+    // law), other for everyone else.
+    assert!(mode_grants_x(0o010, 0, 1000, 1000, 1000));
+    assert!(!mode_grants_x(0o001, 0, 1000, 1000, 1000));
+    assert!(mode_grants_x(0o001, 0, 0, 1000, 1000));
+    // The setuid/sticky high bits never leak into the decision:
+    // sticky 0o1776 — other reads/writes but does not traverse.
+    assert!(!mode_grants_x(0o1776, 0, 0, 1000, 1000));
 }

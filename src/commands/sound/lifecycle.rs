@@ -11,9 +11,10 @@ use crate::ebpf::pin;
 use crate::session::orphan::pid_alive;
 
 use super::{
-    ENABLED_SLOT, PLAYER_PID_SLOT, PLAYER_SETTLE_BUDGET, PLAYER_SPAWN_VERB, PRESET_ID_SLOT,
-    SETTLE_STEP, STATE_IDLE, STATE_RUNNING, STATE_SLOT, VOLUME_PCT_SLOT, context_volume_percent,
-    init_logger, kernel_policy_gate, on_root_refusal, open_control, preset_index_or_error,
+    ControlPinStat, ENABLED_SLOT, PLAYER_PID_SLOT, PLAYER_SETTLE_BUDGET, PLAYER_SPAWN_VERB,
+    PRESET_ID_SLOT, SETTLE_STEP, STATE_IDLE, STATE_RUNNING, STATE_SLOT, VOLUME_PCT_SLOT,
+    context_volume_percent, init_logger, kernel_policy_gate, on_root_refusal, open_control,
+    preset_index_or_error,
 };
 
 /// Handle `zylaxion on [preset]` — enable the sound.
@@ -208,12 +209,35 @@ pub fn cmd_off() {
 
     let mut control = match open_control() {
         Ok(c) => c,
-        Err(_) => {
-            // Not attached: off is idempotent — nothing to stop is a
-            // success shape, not an error.
-            println!("sound is off (the tap is not attached — nothing to stop)");
-            return;
-        }
+        Err(e) => match control_pin_stat() {
+            // The classified open (night-dinner-3): a genuine "not
+            // attached" is the idempotent success shape it always
+            // was — but a WALK-BLOCKED bpffs mount is a different
+            // world: the enabled gate is untouched and a running
+            // player keeps playing, so "nothing to stop" here would
+            // be a lie with a soundtrack.
+            ControlPinStat::WalkBlocked => {
+                crate::output::error(
+                    "the control plane is unreachable (a mode-0700 bpffs mount — the Debian \
+                     13 default): the enabled gate is UNTOUCHED, and if a player is running \
+                     it keeps playing\n  \
+                     tip: sudo chmod o+x /sys/fs/bpf, then re-run zylaxion off",
+                );
+                process::exit(1);
+            }
+            // The map exists but refused the open: not "nothing to
+            // stop" — surface the classified open error verbatim.
+            ControlPinStat::Reachable => {
+                crate::output::error(format!("cannot reach the control plane: {e}"));
+                process::exit(1);
+            }
+            ControlPinStat::Absent => {
+                // Not attached: off is idempotent — nothing to stop is
+                // a success shape, not an error.
+                println!("sound is off (the tap is not attached — nothing to stop)");
+                return;
+            }
+        },
     };
 
     let pid = control.get(&PLAYER_PID_SLOT, 0).unwrap_or(0);

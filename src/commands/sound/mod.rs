@@ -87,16 +87,65 @@ const PLAYER_SETTLE_BUDGET: Duration = Duration::from_secs(2);
 /// The per-poll step while waiting on the player.
 const SETTLE_STEP: Duration = Duration::from_millis(20);
 
+/// The stat-side fact under every "not attached" shape
+/// (night-dinner-3): `Path::exists` folds EACCES into `false`, so a
+/// mode-0700 bpffs mount (the Debian 13 default) makes an ATTACHED
+/// tap read as absent — status called it "not attached", `off`
+/// claimed "nothing to stop" while the player kept playing, and `on`
+/// prescribed a re-attach that fixes nothing. stat() along the same
+/// path separates the worlds: stat needs only the directories' x
+/// bits, never a permission on the pin itself, so its errno names
+/// the block before any bpf policy is consulted.
+#[cfg(feature = "ebpf")]
+pub(crate) enum ControlPinStat {
+    /// The pin is stat-able — the walk works and something lives
+    /// there (whether the open then succeeds is the map's own
+    /// business: the unpriv gate, the pin's owner).
+    Reachable,
+    /// A parent directory denies the walk — attached or not, this
+    /// user cannot reach the control plane, and NOTHING about the
+    /// tap's presence can be known from here.
+    WalkBlocked,
+    /// Nothing at the path — the honest "not attached".
+    Absent,
+}
+
+/// The one stat every "not attached" verdict must consult first.
+#[cfg(feature = "ebpf")]
+pub(crate) fn control_pin_stat() -> ControlPinStat {
+    match std::fs::metadata(pin::PIN_MAP_CONTROL) {
+        Ok(_) => ControlPinStat::Reachable,
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => ControlPinStat::WalkBlocked,
+        Err(_) => ControlPinStat::Absent,
+    }
+}
+
 /// Open the pinned control map for read-write. Every verb here needs
-/// exactly this; the error names the fix (attach).
+/// exactly this; the error names the world it found (night-dinner-3:
+/// the old single message read a walk-blocked bpffs mount as "not
+/// attached" and sent the user re-attaching a tap that was never the
+/// problem).
 #[cfg(feature = "ebpf")]
 pub(crate) fn open_control() -> Result<Array<MapData, u32>, String> {
-    let data = MapData::from_pin(pin::PIN_MAP_CONTROL).map_err(|e| {
-        format!(
+    let data = MapData::from_pin(pin::PIN_MAP_CONTROL).map_err(|e| match control_pin_stat() {
+        ControlPinStat::WalkBlocked => format!(
+            "your user cannot walk to {} — /sys/fs/bpf is mounted without the \
+             traversal bit (mode 0700, the Debian 13 default); whether the tap is \
+             attached cannot be seen from here\n  \
+             tip: sudo chmod o+x /sys/fs/bpf — one command, then re-run this verb\n  \
+             tip: `zylaxion doctor` verifies the whole walk",
+            pin::PIN_MAP_CONTROL
+        ),
+        ControlPinStat::Reachable => format!(
+            "the pinned control map exists but refused to open: {e}\n  \
+             tip: `zylaxion doctor` classifies the block (unprivileged bpf gate, pin \
+             ownership)"
+        ),
+        ControlPinStat::Absent => format!(
             "the tap is not attached (cannot open {}): {e}\n  \
              tip: sudo zylaxion attach — once per boot, then all verbs are unprivileged",
             pin::PIN_MAP_CONTROL
-        )
+        ),
     })?;
     let owned = aya::maps::Map::Array(data);
     Array::try_from(owned).map_err(|e| format!("the pinned control map is not an array: {e}"))

@@ -7,7 +7,7 @@
 use crate::ebpf::pin;
 use crate::session::orphan::pid_alive;
 
-use super::open_control;
+use super::{ControlPinStat, control_pin_stat, open_control};
 use super::{
     ENABLED_SLOT, PLAYER_PID_SLOT, PRESET_ID_SLOT, STATE_FAILED, STATE_IDLE, STATE_RUNNING,
     STATE_SLOT, STATE_STARTING, TAP_KIND_SLOT, VOLUME_PCT_SLOT,
@@ -47,6 +47,29 @@ pub fn cmd_status(verbose: bool) {
     crate::output::print_stdout_line(&format!("kernel:   {} ({})", kernel.release, verdict));
 
     if !pin::any_pin_present() {
+        // The classified absence (night-dinner-3): exists() folds
+        // EACCES into false, so a mode-0700 bpffs mount makes an
+        // attached tap read as "not attached". A blocked walk cannot
+        // even see whether the pins exist — the line says exactly
+        // that, with the one-command fix, instead of prescribing a
+        // re-attach that fixes nothing.
+        if matches!(control_pin_stat(), ControlPinStat::WalkBlocked) {
+            crate::output::print_stdout_line(&format!(
+                "tap:      {}",
+                crate::output::fail_line(
+                    "unreachable — /sys/fs/bpf is not walkable for your user (mode 0700, the \
+                     Debian 13 default); whether the tap is attached cannot be seen from here",
+                )
+            ));
+            crate::output::print_stdout_line(&format!(
+                "      {}",
+                crate::output::tip_line(
+                    "fix: sudo chmod o+x /sys/fs/bpf, then re-run status (doctor verifies \
+                     the whole walk)"
+                )
+            ));
+            return;
+        }
         crate::output::print_stdout_line(&format!(
             "tap:      {}",
             crate::output::tip_line("not attached (sudo zylaxion attach to plant it)")

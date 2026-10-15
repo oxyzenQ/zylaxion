@@ -499,3 +499,46 @@ kernel tap, D one explicit outbound call — verify against this tree.
 The zero-leakage posture is intact and now enforced one lever
 deeper; the freeze pass is next, and its residual is waiting,
 pre-named, in build/ebpf.rs.
+
+## Addendum — night-dinner-3: the bpffs front door relax
+
+A privilege-boundary change shipped with the Debian 13 fix
+(docs/KERNEL_COMPATIBILITY.md carries the full evidence chain), and
+the security ledger must name it like any other lever.
+
+**What changed.** `sudo zylaxion attach` may now add the
+other-execute bit to the bpffs mount root (`chmod o+x /sys/fs/bpf`)
+— and ONLY that bit — when, and only when, both hold: the pins were
+successfully handed to the invoking sudo user, and that user's walk
+to the pins is blocked by the mount root's mode (the Debian 13
+`mode=700` shape). The relax rides the existing hand-over; it is not
+a standalone lane, not a flag, and it never fires for a plain root
+shell.
+
+**What the bit grants.** A non-root user who already knows a path
+under `/sys/fs/bpf` may now resolve that path — stat() through the
+mount root. Nothing more: without `o+r` there is no listing (the
+mount root's directory contents stay invisible), and every object
+inside keeps its own file mode — zylaxion's pins stay `0600`
+owner-only (they are chowned to the invoking user the moment attach
+plants them), and every other program's kernel objects keep whatever
+their creator chose.
+
+**What the bit does not grant.** No read on the mount root, no
+write anywhere, no new capability on any pin, no access to maps
+whose owner did not hand them over. The kernel's unprivileged-bpf
+gate (the `kernel.unprivileged_bpf_disabled` posture the doctor
+reports) still decides whether a plain user may issue bpf() syscalls
+at all — the walk bit moves the front door, not the gate.
+
+**The residual, named.** Other bpffs consumers that deliberately
+pinned world-readable objects (modes with an `o+r`) behind a 0700
+mount relying on the shut door gain unintended readability for
+walkers who know their paths. That is a system-administrator
+decision surface (the undo is one command — `sudo chmod o-x
+/sys/fs/bpf` — and the doctor names it), and on the distro whose
+default forced this fix the objects under bpffs are root-placed by
+systemd tooling that does not pin world-readable state. The
+trade-off is recorded rather than hidden: one traversal bit against
+the product's core promise ("sudo attach once, then every verb is
+unprivileged"), which a 0700 mount silently broke.

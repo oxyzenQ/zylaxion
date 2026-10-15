@@ -71,6 +71,16 @@ drifts between docs is a bug.
 - **flat archive invariant** — a release tarball carries exactly
   `zylaxion`, `LICENSE`, `README.md` at archive root — nothing else,
   no nesting. The workflow's tripwire asserts it byte-for-byte.
+- **bpffs front door** — the other-execute bit on the bpffs mount
+  root (`/sys/fs/bpf`). stat()-ing through the root needs it; the
+  pins inside stay `0600` and nothing becomes listable (no `o+r`).
+  Debian 13 mounts the root `0700`, which silently broke the
+  "sudo attach once, then every verb is unprivileged" promise —
+  night-dinner-3 has `attach` add the bit when the hand-over's own
+  user is blocked, `doctor` verify the walk (`bpffs reach`), and
+  every "not attached" verdict distinguish a blocked walk from a
+  genuinely absent tap. The evidence chain lives in
+  [KERNEL_COMPATIBILITY.md](KERNEL_COMPATIBILITY.md).
 
 ## The runtime
 

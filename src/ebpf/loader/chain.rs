@@ -247,8 +247,15 @@ fn pin_kprobe_program(bpf: &mut Ebpf) -> Result<(), AttachError> {
 }
 
 /// Chown the pinned files to the invoking sudo user so the unprivileged
-/// player and CLI can open them. Without sudo (a root shell), the pins
-/// stay root-owned — honest about that in the summary.
+/// player and CLI can open them, then verify the owner can actually
+/// WALK to them (night-dinner-3): owning a pin is not reaching a pin —
+/// a bpffs mount in mode 0700 (the Debian 13 default; systemd mounts
+/// the API filesystem shut) blocks every stat() through
+/// `/sys/fs/bpf`, so the hand-over opens the front door by the ONE
+/// missing bit — other-execute, never other-read (a user who knows a
+/// path may walk it; nobody gains listing, and the pins themselves
+/// stay 0600). Without sudo (a root shell), the pins stay root-owned
+/// and nothing is relaxed — honest about that in the summary.
 pub(super) fn hand_pins_to_sudo_user() -> String {
     let Ok(user) = std::env::var("SUDO_USER") else {
         return String::new();
@@ -272,9 +279,45 @@ pub(super) fn hand_pins_to_sudo_user() -> String {
             handed += 1;
         }
     }
-    if handed > 0 {
-        format!(" (pins owned by '{user}' — unprivileged surfaces can open them)")
-    } else {
-        " (pin ownership unchanged — unprivileged surfaces may not open them)".to_string()
+    if handed == 0 {
+        return " (pin ownership unchanged — unprivileged surfaces may not open them)".to_string();
     }
+    let mut note = format!(" (pins owned by '{user}' — unprivileged surfaces can open them)");
+    let reach = crate::session::kernel::bpffs_reach(u32::from(entry.uid), u32::from(entry.gid));
+    if !reach.root_traversable {
+        match relax_bpffs_traversal() {
+            Ok(old) => {
+                log::info!(
+                    "bpffs front door: /sys/fs/bpf was mode {old:o} — set o+x so '{user}' \
+                     reaches the pins (undo: sudo chmod o-x /sys/fs/bpf)"
+                );
+                note.push_str(&format!(
+                    " — bpffs mount relaxed o+x for '{user}' (was mode {old:o})"
+                ));
+            }
+            Err(e) => {
+                log::warn!(
+                    "bpffs front door stayed shut: /sys/fs/bpf is not traversable for \
+                     '{user}' and the chmod failed: {e} — the unprivileged verbs will \
+                     refuse; fix by hand: sudo chmod o+x /sys/fs/bpf"
+                );
+            }
+        }
+    }
+    note
+}
+
+/// Open the bpffs front door by one bit: add other-execute to
+/// `/sys/fs/bpf` (night-dinner-3). Returns the previous permission
+/// bits for the log. Runs inside attach — root, after the pins were
+/// handed to the sudo user — so the relax IS the hand-over's last
+/// step, never a standalone lane.
+fn relax_bpffs_traversal() -> std::io::Result<u32> {
+    use std::os::unix::fs::PermissionsExt;
+    let meta = std::fs::metadata("/sys/fs/bpf")?;
+    let old = meta.permissions().mode() & 0o7777;
+    let mut perms = meta.permissions();
+    perms.set_mode(old | 0o001);
+    std::fs::set_permissions("/sys/fs/bpf", perms)?;
+    Ok(old)
 }
