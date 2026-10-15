@@ -23,6 +23,11 @@
 //!   ebpf-prebuilt/), or the dormant refusal (the `ebpf` feature off).
 //!   The staging machinery lives in build/ebpf.rs (the zelynic build/
 //!   module precedent — the 600-LOC no-mercy cap demands the split).
+//!   Since night-dinner-4 the source-built lane also self-heals the
+//!   ebpf-prebuilt/ mirror: after staging, the generator script's
+//!   --check verdict runs and a stale lane regenerates automatically
+//!   (the one-writer script does the writing; the parity gate still
+//!   enforces the pin at commit time).
 //!
 //! Every fallback degrades gracefully — a missing fact renders as
 //! "unknown", never a failed build.

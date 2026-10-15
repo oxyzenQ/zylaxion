@@ -178,6 +178,25 @@ v80.0.0-alpha.1
 
 ### Added
 
+- **night-dinner-4** — the prebuilt eBPF lane regenerates itself.
+  The manual rule ("regenerate `ebpf-prebuilt/` after any change
+  under `ebpf/`") is now enforced by the build instead of by memory:
+  after every successful source-built staging, `build.rs` runs the
+  generator script's new read-only `--check` verdict
+  (`scripts/dev/regenerate-ebpf-prebuilt.sh` — same tree-sha recipe
+  as the parity gate, so detection and enforcement cannot disagree)
+  and, when the manifest pins lag the `ebpf/` tree (or the staged
+  copy no longer matches its own pins), the script regenerates the
+  lane with no human in the loop — a `cargo:warning` names what refreshed so the refreshed
+  `manifest.toml` and `zylaxion-tap` are committed together with the
+  change that staled them. The v80.0.0-beta.1 incident shape (an
+  `ebpf/` commit riding a stale manifest pin) can no longer be
+  produced by a build-then-commit flow; the parity gate stays as the
+  second line of defense (dormant builds and refresh-less checkouts),
+  and the script stays the one writer of the lane. The refresh is
+  best-effort by law: a checkout where it cannot run degrades to a
+  warning naming the manual command, never a failed build.
+
 - **night-private-research-2xblade-3.5** — the resource footprint:
   the sixth proof, the one pass the LTS certification was missing.
   The instrument (`scripts/audit/zactrix-footprint.sh`, harness

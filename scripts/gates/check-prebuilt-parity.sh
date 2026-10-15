@@ -23,8 +23,14 @@
 #      LC_ALL=C byte-sorted (NUL-separated) sha256sum listing of the
 #      git-tracked ebpf/ files — the STALENESS killer: any change
 #      under ebpf/ (sources, locks, pins, target spec) changes the
-#      tree hash, and the gate fails until
-#      scripts/dev/regenerate-ebpf-prebuilt.sh regenerates the lane.
+#      tree hash, and the gate fails until the lane is regenerated.
+#      Since night-dinner-4 the refresh is automatic: every
+#      ebpf-feature build runs the generator's --check verdict
+#      (build/ebpf.rs refresh_prebuilt_lane) and a stale lane
+#      regenerates itself, so this gate is the second line of defense
+#      (dormant builds and refresh-less checkouts are what it still
+#      catches). scripts/dev/regenerate-ebpf-prebuilt.sh stays the
+#      one writer.
 #      The shipped object can never silently fall behind the sources
 #      it claims to carry. The v80.0.0-beta.1 incident (the finding
 #      that commissioned this gate) rode exactly this shape: the

@@ -203,11 +203,16 @@ workspace cannot ride a registry tarball, so the crate ships
 **`ebpf-prebuilt/`** instead: the maintainer-built kernel object —
 with its provenance (`source-tree hash, toolchain, linker, sha256`)
 in `ebpf-prebuilt/manifest.toml` — which `build.rs` stages for the
-default `ebpf` feature. The lane enforces itself: the commit-time
-parity gate (`scripts/gates/check-prebuilt-parity.sh`, wired through
+default `ebpf` feature. The lane enforces itself twice: every
+ebpf-feature build runs the generator's `--check` verdict and a
+manifest lagging the `ebpf/` tree or the fresh object **regenerates
+automatically** (night-dinner-4 — build, then commit what `git
+status` shows), and the commit-time parity gate
+(`scripts/gates/check-prebuilt-parity.sh`, wired through
 `.githooks/pre-commit` — `gate-keepers.sh` self-installs the hook)
 fails any commit whose `ebpf/` tree no longer matches the manifest
-pin until `scripts/dev/regenerate-ebpf-prebuilt.sh` refreshes it.
+pin; `scripts/dev/regenerate-ebpf-prebuilt.sh` stays the one writer
+(`--check` is its read-only verdict).
 `zylaxion doctor` names the lane
 (`registry-prebuilt`). The dormant lane (stable binary, eBPF surfaces
 disabled) survives as the explicit opt-out: `--no-default-features`.
