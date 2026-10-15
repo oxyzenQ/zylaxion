@@ -212,18 +212,27 @@ pub fn cmd_off() {
         Err(e) => match control_pin_stat() {
             // The classified open (night-dinner-3): a genuine "not
             // attached" is the idempotent success shape it always
-            // was — but a WALK-BLOCKED bpffs mount is a different
-            // world: the enabled gate is untouched and a running
-            // player keeps playing, so "nothing to stop" here would
-            // be a lie with a soundtrack.
+            // was — and the walk-blocked world stays idempotent too
+            // (the rescue path never turns noisy), with the player
+            // caveat carried as a warning. Only a present-but-refused
+            // map is a hard error: that is not "nothing to stop".
             ControlPinStat::WalkBlocked => {
-                crate::output::error(
-                    "the control plane is unreachable (a mode-0700 bpffs mount — the Debian \
-                     13 default): the enabled gate is UNTOUCHED, and if a player is running \
-                     it keeps playing\n  \
-                     tip: sudo chmod o+x /sys/fs/bpf, then re-run zylaxion off",
+                // The rescue path stays idempotent even when the walk
+                // is blocked (night-dinner-3b, the battery's own
+                // lesson): rc 0 and the "sound is off" shape — the
+                // one caveat that matters rides as a warning, because
+                // the unreachable gate is untouched and a running
+                // player would keep playing.
+                println!(
+                    "sound is off (the control plane is unreachable — nothing this user can stop)"
                 );
-                process::exit(1);
+                crate::output::warning(
+                    "a mode-0700 bpffs mount (the Debian 13 default) blocks the walk to the \
+                     pins: the enabled gate is UNTOUCHED, and if a player is running it keeps \
+                     playing\n  \
+                     tip: sudo chmod o+x /sys/fs/bpf, then re-run zylaxion off to be sure",
+                );
+                return;
             }
             // The map exists but refused the open: not "nothing to
             // stop" — surface the classified open error verbatim.
