@@ -218,6 +218,12 @@ pub fn cmd_doctor() {
     }
 
     // 3. XDG_RUNTIME_DIR check.
+    // The audio-session posture (night-total-lts-2): the user's audio
+    // server exposes its sockets under $XDG_RUNTIME_DIR, so a missing
+    // or bogus value breaks the player's audio-server connection even
+    // though zylaxion itself writes no files there (the kernel control
+    // map is the pidfile since night-improve-23 — RULES.md's file
+    // inventory names it).
     println!("\n{}", crate::output::section("[3/4] XDG_RUNTIME_DIR..."));
     match std::env::var("XDG_RUNTIME_DIR") {
         Ok(dir) => {

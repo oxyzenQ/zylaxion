@@ -137,9 +137,13 @@ zylaxion has a **zero-leakage** posture. Hard rules:
   `zylaxion --check-update` subcommand, which fetches one GitHub
   release tag and exits. There is no background phone-home, no
   analytics, no crash-reporter.
-- **No on-disk keystroke storage.** zylaxion writes only two files:
-  `$XDG_RUNTIME_DIR/zylaxion.pid` and `$XDG_RUNTIME_DIR/zylaxion.sock`.
-  No history file, no debug log file, no profile dump.
+- **No on-disk state.** zylaxion writes no files anywhere — no pid
+  file, no socket (the IPC socket was deleted with the daemon in
+  night-improve-23; `docs/GLOSSARY.md`'s socket entry is history),
+  no history file, no debug log, no profile dump. The player's pid
+  lives in the pinned control map's `PLAYER_PID` slot (the "pidfile
+  in the kernel"), and the single-instance and liveness surfaces read
+  that slot — the disk inventory is empty by construction.
 
 Audit verification (run before every release):
 
@@ -204,7 +208,8 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   context — machine-enforced by `scripts/gates/check-name-case.py`.
 - **Badges:** ONLY Ko-fi (`ko-fi/rezky`).
 - **License:** GPL-3.0-only.
-- **Trademark:** See `docs/trademark.md`.
+- **Trademark:** See `TRADEMARK.md` (the repo root — the
+  `docs/trademark.md` path this row used to name does not exist).
 - **File headers:** All `.rs`, `.sh`, `.yml` files MUST carry:
   ```
   Copyright (C) 2026 rezky_nightky

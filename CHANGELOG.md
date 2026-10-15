@@ -542,6 +542,35 @@ v80.0.0-alpha.1
   an upstream choice, not addressable here. README's stale lockfile
   counts (135) synced to the real 150.
 
+- **night-total-lts-2 (the infra audit: the docs state what the
+  tree does)** — the infra half of the total-lts depth audit
+  (stability, hygiene, optimization, hardening, LTS posture across
+  `scripts/`, `.github/`, `build.rs`, the gates, the release lane,
+  and the docs law), with the full five-dimension record,
+  peak-skip justifications, and the sandbox honesty written down in
+  `docs/audit-night-total-lts.md`. Three stale claims fixed, text
+  and one comment, no behavior change: RULES.md's disk inventory
+  named `$XDG_RUNTIME_DIR/zylaxion.pid` and `zylaxion.sock` — both
+  died with the daemon in night-improve-23, and the tree writes no
+  files at all (the pidfile lives in the kernel's `PLAYER_PID`
+  slot), so the row now says exactly that; RULES.md's trademark row
+  pointed at a nonexistent `docs/trademark.md` (the file is
+  `TRADEMARK.md` at the repo root); the GLOSSARY's IPC-socket entry
+  spoke of the deleted socket in present tense and now marks it
+  DELETED with the deletion pass named. The doctor's
+  XDG_RUNTIME_DIR check gained the intent comment its absence
+  invited (the audio-server session posture — zylaxion itself
+  writes nothing there). The audit's dimension verdicts, verbatim
+  from the report: stability PASS (the six proofs' measurand
+  verified byte-identical from the certification commit through
+  HEAD; zero RT-hot-path panic sites), hygiene PEAK (zero stale
+  markers, zero orphaned scripts, all 21 `allow`s documented and
+  spot-verified), optimization PEAK (the freeze bar plus measured
+  hot paths leave nothing to answer), security PASS with the
+  map-pid kill path closed in night-total-lts-1, LTS PASS (the
+  freeze-pin bookkeeping reconciled, the self-enforcement chain
+  verified live during both audit commits).
+
 ### Fixed
 
 - **night-hunter-8.1 (the audited surfaces stop carrying the
