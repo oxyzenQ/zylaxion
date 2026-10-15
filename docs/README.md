@@ -20,7 +20,7 @@ presets. Start there; come back here when you want depth.
 ### ...verify a downloaded binary
 
 [VERIFY_RELEASE.md](VERIFY_RELEASE.md) — the three checksum families
-(SHA-512, BLAKE2b-512, and the quantum-resistant SHAKE256), the GPG
+(SHA-512, BLAKE3-256, and the quantum-resistant SHAKE256), the GPG
 signature lane when the release carries signatures, and the smoke
 check that compares the binary's own `Build:` label against the
 tarball's name.

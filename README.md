@@ -730,15 +730,16 @@ same canonical invocations, on hosted KVM hardware.
 ## Release Verification
 
 Each release ships **three** checksums: classical SHA-512 +
-quantum-resistant BLAKE2b-512 + SHAKE256, and — when the owner's
+quantum-resistant BLAKE3-256 + SHAKE256, and — when the owner's
 signing key is configured — a GPG detached signature (`.asc`):
 
 ```bash
 # Classical (universal)
 sha512sum -c zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.sha512sum
 
-# Quantum-resistant — BLAKE2b (fastest, in coreutils)
-b2sum -c zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.b2sum
+# Quantum-resistant — BLAKE3 (the official b3sum CLI; older
+# releases ship *.b2sum / BLAKE2b instead — verify those with b2sum)
+b3sum -c zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.b3sum
 
 # Quantum-resistant — SHAKE256 (NIST PQ standard, via Python)
 COMPUTED=$(python3 -c "import hashlib; print(hashlib.shake_256(open('zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz','rb').read()).hexdigest(64))")
