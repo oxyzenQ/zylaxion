@@ -617,8 +617,16 @@ def _fds_touching(pid: int, prefix: str) -> list[str]:
 
 
 def _pcm_state(card: str) -> str:
+    # The status file is a block, not a bare word: its first line reads
+    # "state: RUNNING" and the rest is owner/timestamps/pointers. The
+    # whole-file strip-and-compare this helper once used matched no
+    # state on any card, ever - the multi-line evidence the 5f round
+    # finally captured (state: RUNNING, owner_pid 286, hw_ptr advancing
+    # at playback rate) is what named the parse as the last wall.
     try:
         with open(f"/proc/asound/{card}/pcm0p/sub0/status", encoding="utf-8") as fh:
-            return fh.read().strip()
+            content = fh.read()
+        match = re.search(r"state:\s*(\S+)", content)
+        return match.group(1) if match else ""
     except OSError:
         return ""
