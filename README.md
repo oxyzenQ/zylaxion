@@ -336,8 +336,8 @@ the current one (BLAKE3); releases published before the upgrade ship
 (see [Release Verification](#release-verification)):
 
 ```bash
-curl -LO https://github.com/oxyzenQ/zylaxion/releases/latest/download/zylaxion-v80.0.0-linux-amd64-v3-gnu.tar.gz
-curl -LO https://github.com/oxyzenQ/zylaxion/releases/latest/download/zylaxion-v80.0.0-linux-amd64-v3-gnu.tar.gz.b3sum
+curl -LO https://github.com/oxyzenQ/zylaxion/releases/latest/download/zylaxion-v80.0.0-rc.1-amd64-v3-gnu.tar.gz
+curl -LO https://github.com/oxyzenQ/zylaxion/releases/latest/download/zylaxion-v80.0.0-rc.1-amd64-v3-gnu.tar.gz.b3sum
 b3sum -c *.b3sum                    # checksum: OK
 tar xzf zylaxion-*.tar.gz           # the archive carries zylaxion + LICENSE + README, nothing else
 ./zylaxion doctor                   # the honest readiness verdict — fix what it names
