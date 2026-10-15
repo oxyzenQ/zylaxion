@@ -149,3 +149,41 @@ fn player_state_words_ride_the_verdict_tiers() {
     assert_eq!(state_verdict(7), "unknown");
     assert_eq!(state_verdict(9), "unknown");
 }
+
+// ── the errno law behind every "not attached" verdict ───────────────
+
+/// night-total-lts-3: only NotFound earns the absent verdict, only
+/// PermissionDenied earns the walk-block verdict, and every other
+/// errno — None (a successful stat) included — defers to the syscall
+/// that follows instead of folding into the idempotent shapes. The
+/// night-dinner-3 fold sent the exotic errnos (EIO on a dying bpffs
+/// mount, ELOOP on a tampered path) to Absent, which is the "sound
+/// is off while the player plays" lie family for the rare case; this
+/// pin keeps all three verdicts where they belong.
+#[test]
+fn pin_stat_classification_law() {
+    use super::{ControlPinStat, classify_pin_stat};
+    use std::io::ErrorKind;
+
+    assert!(matches!(classify_pin_stat(None), ControlPinStat::Reachable));
+    assert!(matches!(
+        classify_pin_stat(Some(ErrorKind::NotFound)),
+        ControlPinStat::Absent
+    ));
+    assert!(matches!(
+        classify_pin_stat(Some(ErrorKind::PermissionDenied)),
+        ControlPinStat::WalkBlocked
+    ));
+    // The unseen errnos defer — none of them may read as "not attached".
+    for kind in [
+        ErrorKind::Other,
+        ErrorKind::InvalidData,
+        ErrorKind::ConnectionRefused,
+        ErrorKind::TimedOut,
+    ] {
+        assert!(
+            matches!(classify_pin_stat(Some(kind)), ControlPinStat::Reachable),
+            "{kind:?} must defer to the open that follows, never fold into absent"
+        );
+    }
+}

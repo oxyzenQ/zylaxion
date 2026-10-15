@@ -52,23 +52,41 @@ pub fn cmd_status(verbose: bool) {
         // attached tap read as "not attached". A blocked walk cannot
         // even see whether the pins exist — the line says exactly
         // that, with the one-command fix, instead of prescribing a
-        // re-attach that fixes nothing.
-        if matches!(control_pin_stat(), ControlPinStat::WalkBlocked) {
-            crate::output::print_stdout_line(&format!(
-                "tap:      {}",
-                crate::output::fail_line(
-                    "unreachable — /sys/fs/bpf is not walkable for your user (mode 0700, the \
-                     Debian 13 default); whether the tap is attached cannot be seen from here",
-                )
-            ));
-            crate::output::print_stdout_line(&format!(
-                "      {}",
-                crate::output::tip_line(
-                    "fix: sudo chmod o+x /sys/fs/bpf, then re-run status (doctor verifies \
-                     the whole walk)"
-                )
-            ));
-            return;
+        // re-attach that fixes nothing. night-total-lts-3 adds the
+        // third arm: inside this block a Reachable classification can
+        // only be the unseen-errno law (a truly reachable pin would
+        // have made any_pin_present true above), so the honest line
+        // is "cannot be seen", never "not attached".
+        match control_pin_stat() {
+            ControlPinStat::WalkBlocked => {
+                crate::output::print_stdout_line(&format!(
+                    "tap:      {}",
+                    crate::output::fail_line(
+                        "unreachable — /sys/fs/bpf is not walkable for your user (mode 0700, the \
+                         Debian 13 default); whether the tap is attached cannot be seen from here",
+                    )
+                ));
+                crate::output::print_stdout_line(&format!(
+                    "      {}",
+                    crate::output::tip_line(
+                        "fix: sudo chmod o+x /sys/fs/bpf, then re-run status (doctor verifies \
+                         the whole walk)"
+                    )
+                ));
+                return;
+            }
+            ControlPinStat::Reachable => {
+                crate::output::print_stdout_line(&format!(
+                    "tap:      {}",
+                    crate::output::fail_line(
+                        "cannot be seen — the pin path failed with an error this build does not \
+                         classify (an exotic errno, not EACCES and not ENOENT); sudo zylaxion \
+                         doctor names the world",
+                    )
+                ));
+                return;
+            }
+            ControlPinStat::Absent => {}
         }
         crate::output::print_stdout_line(&format!(
             "tap:      {}",
