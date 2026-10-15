@@ -444,6 +444,7 @@ def _real_usage(ledger: Ledger, binary: str, user: str) -> None:
 
         presses = 0
         running = ""
+        states_seen: dict[str, set[str]] = {}
         if injected:
             deadline = time.monotonic() + 12.0
             while time.monotonic() < deadline:
@@ -453,8 +454,17 @@ def _real_usage(ledger: Ledger, binary: str, user: str) -> None:
                     presses = max(presses, int(match.group(1)))
                 for card in ("card0", "card1"):
                     state = _pcm_state(card)
-                    if state == "RUNNING":
-                        running = f"{card}/pcm0p"
+                    if state:
+                        states_seen.setdefault(card, set()).add(state)
+                    # snd-dummy consumes instantly - a zero-latency
+                    # virtual card starves the buffer between the
+                    # renderer's write batches, so the honest "frames
+                    # flowed" set is RUNNING (mid-render at poll time)
+                    # or XRUN (an underrun: frames WERE consumed - a
+                    # stream nobody wrote to can only read OPEN or
+                    # CLOSED, it has nothing to starve on).
+                    if state in ("RUNNING", "XRUN"):
+                        running = f"{card}/pcm0p ({state})"
                         break
                 if presses > 0 and running:
                     break
@@ -475,12 +485,15 @@ def _real_usage(ledger: Ledger, binary: str, user: str) -> None:
         if running:
             ledger.pass_row(
                 "the synthesizer renders real PCM frames",
-                f"{running} state RUNNING on the guest's sound card",
+                f"{running} on the guest's sound card (states seen: "
+                f"{ {c: sorted(s) for c, s in sorted(states_seen.items())} })",
             )
         else:
             ledger.fail_row(
                 "the synthesizer renders real PCM frames",
-                "no ALSA PCM reached RUNNING — is the sound card present?",
+                f"no ALSA PCM reached RUNNING or XRUN — states seen per "
+                f"card: { {c: sorted(s) for c, s in sorted(states_seen.items())} or 'none'} "
+                f"(a stream that never rendered reads OPEN/CLOSED)",
             )
 
         rc, out = _run_as_user(user, binary, ["preset", "--switch", "topre"])
