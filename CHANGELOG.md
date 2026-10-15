@@ -306,6 +306,11 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-dinner-1 (the README signs off in the house voice)** — a
+  closing footer line, `built with curiosity & masterpiece`, set
+  centered under the existing tagline block in README.md. Cosmetic;
+  no technical claim touched.
+
 - **night-dinner-2 (the release checksum lane upgrades from BLAKE2b
   to BLAKE3)** — the release tarballs now carry `*.b3sum` files
   (BLAKE3-256, the official `b3sum` CLI) instead of `*.b2sum`
