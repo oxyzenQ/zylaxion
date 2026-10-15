@@ -260,3 +260,155 @@ inconclusives are measurement gaps a real host closes, not rot.
 3. The full fmt/clippy/test/cargo-audit battery and the six proof
    wrappers on an ALSA-capable host — CI runs the first on every
    push; the six wrappers are the owner's release ritual.
+
+---
+
+# The second pass — night-total-lts-3 (the skill) and -4 (the infra), 2026-10-16
+
+The same pair of surfaces one day later, deeper, with two
+instruments the first pass did not have and one day of fresh tree
+that no pass had seen:
+
+- **The sandbox can now build and run the whole battery locally.**
+  The staged ALSA userspace (`libasound2t64` + `libasound2-dev`
+  1.2.14 extracted from the Debian pool into `~/.local/lib`,
+  reached through `PKG_CONFIG_PATH` + `LD_LIBRARY_PATH` +
+  `RUSTFLAGS="-L native=..."`) closes the alsa-sys gap this file
+  recorded as a hard sandbox limit on 2026-10-15, and `bpf-linker`
+  rides the same PATH. The full `cargo fmt` / `cargo clippy
+  --all-targets --all-features -- -D warnings` / `cargo test`
+  battery is now a LOCAL instrument, not a CI-only one — the first
+  audit in this series able to say so.
+- **shellcheck 0.11.0** (static binary, no root needed) sweeps
+  every repo shell script at severity >= warning.
+- **The fresh tree**: `8aa0b7e..3fe6648` (night-dinner-3 through
+  -6b; 39 files, ~1.6k insertions) had never been under an audit
+  pass — the nd3 privilege/verdict surfaces (the o+x relax, the
+  reach probe, the sudo-user identity), the nd4 auto-refresh lane,
+  the nd5 VM journey and its guest init, and the nd6/6b Miri
+  reshape.
+
+## Dimension 1 — Stability & Crash (second pass)
+
+**Evidence.** The full local battery is green: 224 tests, 0 failed
+(including the eleven new nd3 kernel/pin pins and the new
+classification law pin), fmt clean, clippy `-D warnings` clean
+across `--all-targets --all-features` — the residual item 3 from
+the first pass, closed to the extent a non-ALSA-device host can
+close it. The stress dimension ran LIVE this time, against the real
+binary: 18 hostile argument shapes (traversal, command
+substitution, backticks, unicode, empty, unknown verbs), a 100 KB
+env value, a traversal-shaped env, an injection-shaped env, and the
+broken-pipe law (`-V | head -1`) — zero panics, zero rc 101, the
+pipe contract holds. The fresh nd3 surface reads correct end to
+end: the o+x relax adds exactly one bit (setuid/sticky preserved,
+other-read never granted, root-only path, undo logged), the cmdline
+lock probe is a whole-token match, and the mode triad follows the
+kernel's no-fall-through order.
+
+**Finding: PASS** — no crash, no regression; the battery is now
+stronger than the first pass could measure.
+
+## Dimension 2 — Code Hygiene (second pass)
+
+**Evidence.** The fresh diff adds ZERO `unsafe` bytes. The
+allow-inventory shape is unchanged. Shellcheck across the repo
+scripts found exactly three warning-class items, all fixed in
+night-total-lts-4: the wholesale gate's `cd` without a fail-fast
+(SC2164 — a failed cd would have left every gate policing the wrong
+tree silently), a dead `EDIT_KEYS` variable in the actions-pin gate
+(SC2034), and the parity gate's single-element loop without a
+written reason (SC2043 — deliberate shape, now carries the
+directive and the why). No stale markers, no orphaned scripts, no
+new duplication in the fresh surface.
+
+**Finding: PASS** — three dragons found, three closed, all in gate
+infra (the perstage priority surface).
+
+## Dimension 3 — Optimization (second pass)
+
+**Finding: PEAK — skipped.** The engine remains frozen with no
+profile naming a deficit. The infra scripts run seconds, not hot.
+The one new steady-state cost (the build-time `--check` verdict
+subprocess, night-dinner-4) was measured incidentally: a warm full
+build finishes in ~2.2 s with it in the path — nothing to answer.
+
+## Dimension 4 — Security Hardening (second pass)
+
+**Evidence.** The fresh privilege surfaces, read end to end:
+`reach_identity` trusts `SUDO_UID`/`SUDO_GID` only inside an
+euid-root session, where the environment is root's own or sudo's —
+a non-root caller cannot reach that branch, so the spoof shape has
+no door; the o+x relax grants walk, never list, and the pins stay
+0600 under their owner; the nd5 python harness carries no
+`shell=True`/`os.system`/`eval` anywhere and its root guard is
+intact; every workflow's `run:` blocks are free of
+`${{ github.event.* }}` interpolation (no script-injection class);
+the release lane's checksum loop is pinned (b3sum@1.8.7) and
+quoted; the guest init's privileged ops are scoped to `/dev/snd/*`
+inside the throwaway VM. `mode_grants_x` reads only the primary-gid
+triad — a supplementary-group grant would read as blocked: the
+fail-safe direction (never a false "walkable"), recorded as a
+known simplification.
+
+**FINDING, fixed in night-total-lts-3 (this commit):** the
+night-dinner-3 classifier folded EVERY unknown errno to Absent —
+`EIO` on a dying bpffs mount or `ELOOP` on a tampered path read as
+"not attached" (`status`) and "sound is off — nothing to stop"
+(`off`) while a player kept playing: the exact lie family nd3
+closed for EACCES, resurrected for the rare errnos. The fix is the
+`classify_pin_stat` law — only NotFound earns the absent verdict,
+only PermissionDenied earns the walk-block verdict, every other
+errno defers to the syscall that follows (the classified open,
+which reports its own errno verbatim); `status` gained the matching
+third arm ("cannot be seen"), `off` now routes the unknown world to
+the honest hard error. Pinned by `pin_stat_classification_law`.
+
+**Finding: PASS** with the finding closed in the same audit.
+
+## Dimension 5 — LTS Stability (second pass)
+
+**Evidence.** The self-enforcement chain was exercised live during
+this pass: the wholesale gate-keepers run (green, on the fixed
+`cd`), the commit gate (prebuilt parity, live), the full local
+battery (green). The supply-chain lane stays where the policy put
+it: `cargo audit --deny warnings` runs in CI on every manifest push
+and weekly — a local run here would scan a stale advisory DB, so
+the honest verdict is CI-owned (peak by delegation). The VM battery
+has live-measured pin OWNERSHIP since night-dinner-5; the exact
+mode bits remain the root-host one-liner below.
+
+**Finding: PASS.**
+
+## The fix accounting (second pass)
+
+- **night-total-lts-3**: `src/commands/sound/mod.rs` (the
+  `classify_pin_stat` law + the enum's Reachable contract), 
+  `src/commands/sound/status.rs` (the third arm), 
+  `test/commands/sound_tests.rs` (the law pin), the CHANGELOG
+  Fixed entry. Verified: fmt green, full local suite 224/224
+  (1.2 s native — the classification is a decision surface, the
+  wiring mirrors shapes the pins already hold), clippy `-D
+  warnings` green.
+- **night-total-lts-4**: `scripts/gate-keepers.sh` (fail-fast cd),
+  `scripts/gates/check-actions-pins.sh` (dead variable removed),
+  `scripts/gates/check-prebuilt-parity.sh` (directive + reason),
+  this report, the CHANGELOG Changed entry. Verified: shellcheck
+  clean on all three, tab bytes unchanged in the tab-formatted
+  gate (109/109), wholesale gate-keepers green live.
+- **Benchmark, skipped with the why:** zero engine/render-path
+  bytes changed across both commits; the changed runtime code
+  executes only on error paths (the stat classification), and the
+  native suite's wall time is unchanged at 1.2 s.
+- **Version:** untouched, owner-decided, as always.
+
+## The carried residuals (unchanged + one note)
+
+1. The bpffs pin-MODE bits (0600) on a real root host — pin
+   OWNERSHIP is now live-measured by the VM battery on every
+   Supermassive run (night-dinner-5), narrowing this residual to
+   the mode render only.
+2. The loaded-program hash confirmation (needs root + bpftool).
+3. The six Zactrix proof wrappers on an audio-capable host — the
+   owner's release ritual; the fmt/clippy/test half of this
+   residual is now closed locally (Dimension 1).

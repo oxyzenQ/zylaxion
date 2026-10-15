@@ -373,6 +373,21 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-total-lts-4 (the infra pass tightens its own gates)** —
+  the second depth pass ran shellcheck 0.11.0 over every repo
+  script and closed the three warning-class findings, all in gate
+  infra: the wholesale gate's bare `cd $REPO_ROOT` gained the
+  fail-fast (`|| exit 1` — a failed cd would have left every gate
+  silently policing the wrong tree), the actions-pin gate lost its
+  dead `EDIT_KEYS` variable, and the parity gate's deliberate
+  single-object loop now carries its reason in writing (the
+  shellcheck directive + the growth-path comment). The audit
+  report gained the full second-pass section
+  (docs/audit-night-total-lts.md): the fresh nd3/nd4/nd5/nd6
+  surface read end to end, the hostile-input stress against the
+  real binary, and the first pass's sandbox limit (no local
+  battery) honestly closed.
+
 - **night-dinner-1 (the README signs off in the house voice)** — a
   closing footer line, `built with curiosity & masterpiece`, set
   centered under the existing tagline block in README.md. Cosmetic;
@@ -659,6 +674,25 @@ v80.0.0-alpha.1
   verified live during both audit commits).
 
 ### Fixed
+
+- **night-total-lts-3 (the rare-errno fold — the last door the
+  "not attached" lie family had left)** — the night-dinner-3
+  classifier folded every unknown errno to Absent, so a world this
+  build could not classify (EIO on a dying bpffs mount, ELOOP on a
+  tampered path) read as "not attached" in status and "sound is
+  off — nothing to stop" in off while a player kept playing: the
+  exact lie family nd3 closed for EACCES, resurrected for the
+  exotic errnos. The fix is the `classify_pin_stat` law: only
+  NotFound earns the absent verdict, only PermissionDenied earns
+  the walk-block verdict, and every other errno defers to the
+  syscall that follows — the classified open, which reports its
+  own errno verbatim; status gained the matching third arm
+  ("cannot be seen"), off routes the unknown world to the honest
+  hard error. Found by the second night-total-lts depth pass
+  (docs/audit-night-total-lts.md), pinned by
+  `pin_stat_classification_law`, full local battery green
+  (224 tests, fmt, clippy -D warnings — first audit pass able to
+  run the whole battery in the sandbox).
 
 - **night-dinner-6 (the Miri leg fits the push budget — the UB net
   stays on every code push, the interpreter just stops chewing the
