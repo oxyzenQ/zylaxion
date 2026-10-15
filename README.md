@@ -41,7 +41,7 @@
      it follows at the next owner-host capture session. -->
 
 <p align="center">
-  <img src="assets/zylaxion-help-demo.png"
+  <img src="assets/zylaxion-status-verbose.png"
        alt="zylaxion help - brand-styled CLI with purple headings and grey flags"
        width="800"
        style="border-radius:24px; box-shadow:0 4px 20px rgba(0,0,0,0.15);">
