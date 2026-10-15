@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # zylaxion prebuilt eBPF object manifest (night-improve-23, the
-# zelynic NIGHT-ask-2 shape). Generated after the ebpf/ tree build
-# — regenerate after any change under ebpf/ so the embedded object
-# never drifts from the source (scripts/dev/regenerate-ebpf-prebuilt.sh
-# is the generator; scripts/gates/check-prebuilt-parity.sh enforces
-# the pin at commit time). ebpf_tree_sha256 pins the exact ebpf/
+# zelynic NIGHT-ask-2 shape). Regenerated AUTOMATICALLY whenever an
+# ebpf-feature build finds these pins lagging the ebpf/ tree or its
+# freshly built object (night-dinner-4: build/ebpf.rs consults this
+# script's --check verdict and runs this regenerate flow with no
+# human in the loop; scripts/dev/regenerate-ebpf-prebuilt.sh is the
+# one writer, scripts/gates/check-prebuilt-parity.sh enforces the
+# pin at commit time). ebpf_tree_sha256 pins the exact ebpf/
 # source tree the object was built from: the sha256 over the
 # LC_ALL=C byte-sorted (NUL-separated) sha256sum listing of the
 # git-tracked ebpf/ files — one "digest  path" line per file, list
@@ -14,12 +16,12 @@
 # bytes the registry-install binaries embed.
 
 schema = 1
-generated = "2026-10-15T08:28:09Z"
+generated = "2026-10-15T17:49:09Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_sha256 = "8c66ca0c14438e7d989c6abe1458e6e0df94f01d04232a1886f658ae4f1138c7"
+ebpf_tree_sha256 = "019ddeb14540099bccdf0c75dc0092424ed055c781731b16f4c74d84efa6f109"
 
 [[object]]
 name = "zylaxion-tap"
-sha256 = "4765f08097a296ef2d4a0757a6c8b72e025604d0f34e4d35817423c6f280449d"
+sha256 = "39b4eea690c91166cf369a5d226eda6b362f8d8de93f64eb22edc593a06ef288"
 size = 2936
