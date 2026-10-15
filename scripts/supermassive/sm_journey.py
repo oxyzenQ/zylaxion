@@ -195,7 +195,7 @@ def _stage_walk_block(ledger: Ledger, binary: str, user: str) -> None:
         else:
             ledger.fail_row(
                 "on at mode 0700 names the walk-block (never a false not-attached)",
-                f"rc={rc}, walk-door={walk_door}, misdiagnosed={misdiagnosed}: {out[:140]}",
+                f"rc={rc}, walk-door={walk_door}, misdiagnosed={misdiagnosed}: {out[:400]}",
             )
 
 
@@ -225,7 +225,7 @@ def _stage_self_heal(ledger: Ledger, binary: str, user: str) -> None:
             ledger.fail_row(
                 "attach leaves the front door traversable for the user",
                 f"rc={rc}, mode={oct(mode_now) if mode_now is not None else 'unreadable'}, "
-                f"relax-note={relaxed_note}: {out[:140]}",
+                f"relax-note={relaxed_note}: {out[:400]}",
             )
             _run([binary, "detach"])
             try:
@@ -250,7 +250,7 @@ def _stage_self_heal(ledger: Ledger, binary: str, user: str) -> None:
         else:
             ledger.fail_row(
                 f"{user} turns the sound on through the relaxed door",
-                f"rc={rc}: {out[:140]}",
+                f"rc={rc}: {out[:400]}",
             )
             _run([binary, "detach"])
             return
@@ -302,7 +302,7 @@ def _stage_verdict_honesty(ledger: Ledger, binary: str, user: str) -> None:
             else:
                 ledger.fail_row(
                     "the verdict speaks the allowed arm at value 0",
-                    f"rc={rc}: {out[:140]}",
+                    f"rc={rc}: {out[:400]}",
                 )
         elif boot_locked:
             if "locked (2)" in out and "cannot be re-enabled" in out:
@@ -313,7 +313,7 @@ def _stage_verdict_honesty(ledger: Ledger, binary: str, user: str) -> None:
             else:
                 ledger.fail_row(
                     "the verdict speaks the boot-lock arm when the parameter plants it",
-                    f"rc={rc}: {out[:140]}",
+                    f"rc={rc}: {out[:400]}",
                 )
         else:
             runtime_arm = "disabled (2)" in out and (
@@ -330,5 +330,5 @@ def _stage_verdict_honesty(ledger: Ledger, binary: str, user: str) -> None:
                 ledger.fail_row(
                     "the value-2 verdict is the runtime-default arm (the refuted "
                     "boot-lock claim stays gone)",
-                    f"rc={rc}, runtime-arm={runtime_arm}, boot-claim={boot_claim}: {out[:140]}",
+                    f"rc={rc}, runtime-arm={runtime_arm}, boot-claim={boot_claim}: {out[:400]}",
                 )

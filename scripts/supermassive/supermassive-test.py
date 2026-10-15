@@ -148,6 +148,30 @@ def _ensure_user(ledger: Ledger, user: str) -> None:
                 return
         ledger.pass_row(f"the real user {user} exists", "")
 
+        # The audio surface (night-dinner-5): a desktop user who plays
+        # sound reaches the PCM devices through the audio group — or
+        # through logind's device ACLs, which an initramfs guest does
+        # not have, so the group IS the desktop posture here. Without
+        # it the player's first ALSA open dies EACCES at /dev/snd
+        # (root:audio 0660, the driver's own node mode) — the failure
+        # the posture flip surfaced on the first live chain this guest
+        # ever ran. The no-input-group law is untouched: `input` stays
+        # off the list, the tap is the only keyboard path.
+        run(["groupadd", "-f", "audio"], timeout=15)
+        rc, out = run(["usermod", "-aG", "audio", user], timeout=15)
+        rc_g, groups = run(["id", "-nG", user])
+        has_audio = rc_g == 0 and "audio" in groups.split()
+        if rc == 0 and has_audio:
+            ledger.pass_row(
+                f"{user} reaches the PCM devices (the audio group)",
+                "the desktop posture, minus the input group",
+            )
+        else:
+            ledger.fail_row(
+                f"{user} reaches the PCM devices (the audio group)",
+                f"usermod rc={rc}, groups={groups[:80]}",
+            )
+
 
 def self_test(binary: str) -> int:
     """The rootless lane: everything honest without a tap or root."""

@@ -203,7 +203,16 @@ v80.0.0-alpha.1
   now also assert `regenerate-ebpf-prebuilt.sh --check` after their
   builds — the night-dinner-4 auto-refresh is itself under test, and
   the beta.1 incident shape (a build shipped with the prebuilt lane
-  behind its `ebpf/` tree) is asserted against in CI.
+  behind its `ebpf/` tree) is asserted against in CI. The first live
+  chain the posture flip unlocked also surfaced and closed a
+  guest-assembly gap: `zed` had no path to the PCM devices (the
+  driver's own `root:audio 0660` node mode, no logind ACLs in an
+  initramfs guest), so the player's first ALSA open died EACCES at
+  startup — the engine now grants the real user the audio group (the
+  desktop posture, minus the input group, whose absence stays the
+  law), the guest carries a hostname (killing the resolve noise sudo
+  printed into every captured row), and the journey's failure rows
+  carry the player's own stderr instead of a 140-character truncation.
 
 - **night-dinner-4** — the prebuilt eBPF lane regenerates itself.
   The manual rule ("regenerate `ebpf-prebuilt/` after any change

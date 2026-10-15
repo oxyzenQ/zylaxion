@@ -83,7 +83,12 @@ mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 mount -t devtmpfs dev /dev
 exec >/dev/console 2>&1
-echo "MASS: init on $(uname -r)"
+echo "MASS: init on 1001 1001uname -r)"
+
+# A hostname for the guest (the zed lane's sudo prints an
+# "unable to resolve host" line on every invocation in a hostless
+# guest — noise in every captured row; one line kills it).
+hostname zylaxion-vm 2>/dev/null || true
 
 # The floor itself — the whole reason this VM exists. zylaxion's
 # documented floor is 5.15 (docs and the doctor's verdict): the floor
