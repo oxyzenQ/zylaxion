@@ -83,9 +83,11 @@ drifts between docs is a bug.
 - **orchestrator** — the core module's event loop (`src/core/`): input
   events in,
   voice triggers out, audio batches to the sink; the daemon's core.
-- **IPC socket** — `$XDG_RUNTIME_DIR/zylaxion.sock`, mode `0o600`,
-  length-prefixed, speaking only the documented verbs (`stop`,
-  `status`).
+- **IPC socket** — DELETED (night-improve-23): the daemon-era
+  `$XDG_RUNTIME_DIR/zylaxion.sock` (mode `0o600`, length-prefixed,
+  speaking only the documented verbs) no longer exists; the pinned
+  control map is the only control surface and the entry is kept
+  renamed, not silently dropped, so the term stays answerable.
 - **input-data discipline** — the product's core security promise:
   keystroke events drive synthesis in memory only; nothing persists,
   nothing transmits. See SECURITY.md.
