@@ -145,6 +145,36 @@ v80.0.0-alpha.1
     no preset registry, no CLI surface, no attach chain, no player
     lifecycle change; the version stays owner-decided.
 
+- **night-total-lts-1 (the skill audit: the map-pid kill path,
+  closed)** — the depth audit's security finding, fixed end to end.
+  The detach-side player reaper (night-improve-27) read the pid from
+  the control map — a map the pin-owning user can write — and drove
+  the SIGTERM/SIGKILL escalation at it with no identity check, while
+  the attach-side orphan sweep validated its pids with the exact
+  cmdline matcher: a planted `PLAYER_PID` slot turned `sudo zylaxion
+  detach` into a root-mediated SIGKILL aimed by map data at an
+  arbitrary process the moment an admin ran the documented command.
+  The fix is one identity gate: `orphan::pid_is_our_player` (pure,
+  reusing `cmdline_matches_player`) is called in
+  `reap_player_from_map` after the enabled-gate clear and before the
+  ladder — the candidate's `/proc/<pid>/cmdline` must decode to
+  exactly this binary plus the hidden `_play` verb, and an unreadable
+  cmdline or a failed `current_exe` refuses by construction. A
+  refused candidate loses only the signals: the cleared gate stays
+  the real player's stop signal, and the detach proceeds to the
+  unpins. Pinned by `the_map_pid_gate_admits_only_the_player_shape`
+  (eleven assertions: the honest shape, foreign cmdlines, a
+  different-install player, wrong verb, extra args, empty cmdline,
+  and all three unverifiable shapes); the live stub-reap leg proves
+  the honest path unregressed. The same audit reconciled the freeze
+  bookkeeping: `docs/ZACTRIX_LTS.md`'s closing record now carries the
+  `c028ae6f` re-stamp (night-private-research-2xblade-4) the engine
+  module doc and the CHANGELOG already pinned, with the drift audit
+  that verified it — `git diff` across `3dedb8ab → c028ae6f → HEAD`
+  shows the DSP trees byte-identical at every step, so the six
+  proofs' measurand never moved. `docs/ZACTRIX_SECURITY.md`
+  Dimension 3 carries the addendum naming the gap and its closure.
+
 ### Added
 
 - **night-private-research-2xblade-3.5** — the resource footprint:

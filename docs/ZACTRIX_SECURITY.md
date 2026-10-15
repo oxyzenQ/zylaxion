@@ -266,6 +266,32 @@ one-line `fchmod` in the hand-off path — still pre-named, still owned
 by the pass that can attach. This pass does not guess a fix it
 cannot measure.
 
+### Addendum — night-total-lts-1 (2026-10-15): the map-pid kill path, closed
+
+The dimension's evidence above cited the orphan sweep's exact-match
+contract as the reason `kill()` cannot touch unrelated processes.
+That contract covers the attach/`on` sweep only; the detach-side
+reaper (night-improve-27, landed after this pass's tree) read the
+pid from the control map instead — a map the pin-owning user can
+write — and drove the SIGTERM/SIGKILL ladder at it with no identity
+check: a planted `PLAYER_PID` slot aimed a root-mediated kill at an
+arbitrary process the moment an admin ran `sudo zylaxion detach`.
+Closed in night-total-lts-1: the reaper now reads the candidate's
+`/proc/<pid>/cmdline` and requires the exact player shape through
+the same pure matcher the sweep trusts (`orphan::pid_is_our_player`,
+reusing `cmdline_matches_player`), and refuses to signal anything
+else — the cleared enabled gate stays the real player's stop signal,
+so the fix costs the signals only for a wedged process that is not
+provably zylaxion's. Pinned by
+`the_map_pid_gate_admits_only_the_player_shape` in the orphan test
+tree (the honest shape, foreign cmdlines, a different-install
+player, near misses, and all three unverifiable shapes refuse); the
+live stub-reap leg proves the honest path unregressed. Residual,
+named honestly: the validate-then-kill window is a pid-recycling
+race measured in microseconds — the same order the unvalidated code
+had, inherent to any kill-by-pid design — and the gate's refusal
+direction (skip the kill, keep the unpin) is the safe side of it.
+
 ---
 
 ## Dimension 4 — Network surface (claims B and D)

@@ -37,11 +37,18 @@ const PLAYER_PID_SLOT: u32 = 3;
 /// read the registered pid from the control map, clear the enabled
 /// gate in THAT map (the player's watcher exits on it within its
 /// 100 ms cadence), then drive the orphan escalation ladder until the
-/// pid is gone. Every step logs at info with the pid and the outcome;
-/// the summary line names what happened. Best-effort by contract: an
-/// unreadable control map (foreign pin, raced unpin) logs a warning
-/// and the unpin proceeds — detach's job is unpinning, and a refuse-
-/// to-detach shape would strand the pins forever.
+/// pid is gone — but only through the [`pid_is_our_player`]
+/// identity gate first (night-total-lts-1): the map is writable by
+/// the pin-owning user, so the pid it carries is untrusted input to a
+/// privileged kill, and a planted pid must never turn `sudo zylaxion
+/// detach` into a root-mediated SIGKILL aimed by map data. A refused
+/// candidate logs the refusal and loses only the signals — the
+/// cleared gate above stays the real player's stop signal. Every step
+/// logs at info with the pid and the outcome; the summary line names
+/// what happened. Best-effort by contract: an unreadable control map
+/// (foreign pin, raced unpin) logs a warning and the unpin proceeds —
+/// detach's job is unpinning, and a refuse-to-detach shape would
+/// strand the pins forever.
 fn reap_player_from_map() -> Vec<String> {
     let mut notes = Vec::new();
     let data = match MapData::from_pin(pin::PIN_MAP_CONTROL) {
@@ -70,6 +77,26 @@ fn reap_player_from_map() -> Vec<String> {
     // the fade-out path, not the signal path, whenever it can be.
     if let Err(e) = control.set(ENABLED_SLOT, 0, 0) {
         log::warn!("cannot clear the enabled gate for the player: {e}");
+    }
+    // The identity gate (night-total-lts-1): the signals below fly
+    // with this process's privileges (root, for the sudo detach), so
+    // the candidate must prove the exact player shape before any of
+    // them fly. The cmdline read is the same /proc surface the
+    // attach-side sweep reads; a refused candidate keeps the cleared
+    // gate as its stop signal and the detach proceeds to the unpins.
+    let exe = std::env::current_exe().ok();
+    let cmdline = std::fs::read(format!("/proc/{pid}/cmdline")).ok();
+    if !crate::session::orphan::pid_is_our_player(
+        cmdline.as_deref(),
+        exe.as_deref().map(std::path::Path::as_os_str),
+    ) {
+        let note = format!(
+            "the registered pid {pid} does not carry the player cmdline — signals refused \
+             (identity gate, night-total-lts-1); the cleared gate stays its stop signal"
+        );
+        log::warn!("{note}");
+        notes.push(note);
+        return notes;
     }
     let (outcome, steps) = crate::session::orphan::reap_player(pid as i32);
     for step in &steps {

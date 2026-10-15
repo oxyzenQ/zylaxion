@@ -15,7 +15,10 @@
 //!   0 → SIGTERM → SIGKILL ladder until it is gone. The detach side
 //!   clears the enabled gate in the map the player watches FIRST (the
 //!   player's own watcher exits within 100 ms); the signals are the
-//!   belt under the suspenders.
+//!   belt under the suspenders, and the map pid rides the
+//!   [`pid_is_our_player`] identity gate before any signal flies
+//!   (night-total-lts-1 — the map is untrusted input to a privileged
+//!   kill).
 //! - [`reap_orphans`] — the attach/`on`-side sweep: scan `/proc` for a
 //!   process whose cmdline is EXACTLY this binary followed by the
 //!   [`PLAYER_ARG`] argument, and reap it with the same escalation.
@@ -60,6 +63,29 @@ pub fn cmdline_matches_player(raw: &[u8], exe: &OsStr) -> bool {
         (Some(path), Some(arg), None) => path == exe_bytes && arg == PLAYER_ARG.as_bytes(),
         _ => false,
     }
+}
+
+/// The detach-side identity gate (night-total-lts-1): may the root
+/// reaper send signals to the pid registered in the control map?
+///
+/// The control map is writable by the pin-owning user, so the pid it
+/// carries is untrusted input to a privileged action: without this
+/// gate, a planted pid turns `sudo zylaxion detach` into a
+/// root-mediated SIGKILL aimed by map data at an arbitrary process.
+/// The gate reads the candidate's `/proc/<pid>/cmdline` (the caller
+/// passes the bytes — the pure form is testable) and requires the
+/// exact player shape via [`cmdline_matches_player`] — the same
+/// matcher the attach-side sweep trusts. `None` (an unreadable
+/// cmdline: the process died between the liveness probe and the read,
+/// a zombie, or a kernel-thread shape) and a failed `current_exe` are
+/// refusals by construction: the cleared gate above stays the real
+/// player's stop signal, so the escalation is only ever lost for a
+/// wedged process that is not provably ours.
+pub fn pid_is_our_player(cmdline: Option<&[u8]>, exe: Option<&OsStr>) -> bool {
+    let (Some(raw), Some(exe)) = (cmdline, exe) else {
+        return false;
+    };
+    cmdline_matches_player(raw, exe)
 }
 
 /// Scan `/proc` for orphaned players: every live pid whose cmdline is
