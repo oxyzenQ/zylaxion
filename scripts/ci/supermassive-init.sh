@@ -12,8 +12,10 @@
 # the kernel surfaces, the staged sound/input modules, the install
 # step (the payload lands at /usr/bin/zylaxion the way
 # install-on-my-machine.sh lands it), then the engine's --full
-# battery — CLI/UX, the tap lifecycle, and the real-usage chain with a
-# real user who is in no input group.
+# battery — CLI/UX, the tap lifecycle, the night-dinner-3 repro (the
+# mode-0700 front door, the attach self-heal, the verdict honesty
+# law), and the real-usage chain with a real user who is in no input
+# group.
 #
 # Contract: one MASS-RESULT line per probe plus a final MASS-VERDICT
 # line, all on the serial console (the workflow's Verdict step greps

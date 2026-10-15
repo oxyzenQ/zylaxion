@@ -178,6 +178,33 @@ v80.0.0-alpha.1
 
 ### Added
 
+- **night-dinner-5** — the Supermassive battery now replays the
+  night-dinner-3 first-run frictions on the micro-VM floor
+  (`scripts/supermassive/sm_journey.py`, root lane, between the tap
+  lifecycle and the real-usage chain): the guest's bpffs front door
+  is driven to mode 0700 — the Debian 13 posture from the live
+  transcript — and the battery pins all three night-dinner-3 fixes
+  against the regression that commissioned them: the doctor must FAIL
+  the bpffs reach station instead of the old blanket all-clear, `on`
+  must name the walk-block and its one-command fix instead of the
+  false "the tap is not attached", and root's attach must relax the
+  door by exactly one bit and say so before the real user's player
+  lives and stops behind it (snd-dummy stays the code-chosen sound
+  output for a machine with no audio hardware). The unprivileged-bpf
+  verdict honesty is pinned in all three worlds — value 0 (allowed
+  arm), value 2 with the boot parameter planted (the boot-lock arm),
+  and value 2 without it (the runtime-default arm with the sysctl
+  remedy, the claim the transcript refuted). The journey attempts the
+  transcript's own posture flip (a root write to the runtime default);
+  when the kernel takes it, the real-usage chain after it runs at
+  full depth (uinput, telemetry, the PCM witness), and when the
+  kernel refuses, both batteries ride the classified-refusal branches
+  the product ships for that world. All three release-shape CI lanes
+  now also assert `regenerate-ebpf-prebuilt.sh --check` after their
+  builds — the night-dinner-4 auto-refresh is itself under test, and
+  the beta.1 incident shape (a build shipped with the prebuilt lane
+  behind its `ebpf/` tree) is asserted against in CI.
+
 - **night-dinner-4** — the prebuilt eBPF lane regenerates itself.
   The manual rule ("regenerate `ebpf-prebuilt/` after any change
   under `ebpf/`") is now enforced by the build instead of by memory:
