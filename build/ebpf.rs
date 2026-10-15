@@ -42,6 +42,17 @@ const TAP_OBJECT: &str = "zylaxion-tap";
 //                       nightly pin, and the artifact is staged after
 //                       structural validation (with one self-heal retry).
 //
+// night-dinner-4 adds the lane's self-heal half: after a source-built
+// staging succeeds, refresh_prebuilt_lane consults the generator
+// script's --check verdict and, when ebpf-prebuilt/ lags the ebpf/
+// tree (or its staged copy no longer matches its own pins),
+// regenerates it with no human in the loop
+// — the manual "remember to regenerate" step is retired, and the
+// beta.1 incident shape (an ebpf/ commit riding a stale manifest pin)
+// cannot be produced by a build-then-commit flow anymore. The script
+// stays the one writer; the parity gate stays the commit-time
+// enforcement.
+//
 // The source-built lane keeps the zelynic hardening that earned its
 // place: the prerequisite preflight (fail before compile time with the
 // one-command fix), the RUSTFLAGS poison strip plus the v3 force (env
@@ -124,7 +135,67 @@ pub(super) fn build_ebpf_objects() {
         }
     }
 
+    refresh_prebuilt_lane(&manifest_dir);
+
     println!("cargo:rustc-env=ZYLAXION_EBPF_LANE=source-built");
+}
+
+/// night-dinner-4: the automatic ebpf-prebuilt/ refresh. Any edit under
+/// ebpf/ (a version bump, a comment, a lock) stales the manifest's
+/// tree pin; this runs the generator script's --check verdict after
+/// every successful source-built staging and, on staleness, lets the
+/// script regenerate the lane immediately — so the next `git status`
+/// shows the refreshed manifest.toml and zylaxion-tap to commit
+/// alongside the change that caused them.
+///
+/// Host-independent by the same law the parity gate records: the
+/// freshly built object's bytes are never compared against the pins
+/// (byte reproducibility is a host property — a foreign rebuild must
+/// not churn the lane). Staleness is the tree pin and the staged
+/// copy's integrity; when the tree moved, the regenerate flow below
+/// installs this host's fresh object as the new pinned bytes.
+///
+/// Best-effort by law: a refresh that cannot run (sparse checkout
+/// without scripts/, a read-only tree) degrades to a cargo:warning
+/// naming the manual command — the build itself must not fail for a
+/// meta-lane refresh, because scripts/gates/check-prebuilt-parity.sh
+/// remains the hard stop at commit time. In-sync builds stay silent:
+/// the verdict runs on every build but speaks only when it wrote.
+pub(super) fn refresh_prebuilt_lane(manifest_dir: &std::path::Path) {
+    let script = manifest_dir
+        .join("scripts")
+        .join("dev")
+        .join("regenerate-ebpf-prebuilt.sh");
+    let verdict = match Command::new(&script)
+        .arg("--check")
+        .current_dir(manifest_dir)
+        .output()
+    {
+        Ok(o) => o,
+        Err(e) => {
+            println!(
+                "cargo:warning=ebpf-prebuilt/ staleness check unavailable ({e}) — before \
+                 committing, run: ./scripts/dev/regenerate-ebpf-prebuilt.sh (the parity \
+                 gate scripts/gates/check-prebuilt-parity.sh still enforces the pin)"
+            );
+            return;
+        }
+    };
+    if verdict.status.success() {
+        return; // in sync — silent, this is the every-build steady state
+    }
+    match Command::new(&script).current_dir(manifest_dir).output() {
+        Ok(r) if r.status.success() => println!(
+            "cargo:warning=ebpf-prebuilt/ refreshed automatically: the manifest pins lagged \
+             the ebpf/ tree or the freshly built object — commit the refreshed \
+             manifest.toml and zylaxion-tap together with the change that staled them"
+        ),
+        _ => println!(
+            "cargo:warning=ebpf-prebuilt/ is stale and the automatic refresh failed — run \
+             ./scripts/dev/regenerate-ebpf-prebuilt.sh before committing (the parity gate \
+             scripts/gates/check-prebuilt-parity.sh fails the commit otherwise)"
+        ),
+    }
 }
 
 pub(super) fn stage_object(out_dir: &std::path::Path, data: &[u8]) {
