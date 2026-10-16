@@ -180,6 +180,18 @@ v80.0.0-alpha.1
 
 ### Added
 
+- **night-dinner-13** — the host-truth audit lands:
+  `scripts/audit/zactrix-host.sh` instruments the measurement the
+  security ledger named but could not run (Dimension 3's pinned-file
+  permission matrix on a real bpffs host, plus Dimension 2's
+  loaded-program identity facts), and adds the operational rows a
+  sandbox structurally cannot produce: the boot posture, kernel-log
+  verifier hygiene, claim B live while the player runs, the
+  real-input telemetry delta, the player on the real audio backend,
+  and (with `--full`) the detach/re-attach lifecycle with session
+  state restored. Read-only by default; every INCONCLUSIVE row names
+  its unlock command.
+
 - **night-dinner-5** — the Supermassive battery now replays the
   night-dinner-3 first-run frictions on the micro-VM floor
   (`scripts/supermassive/sm_journey.py`, root lane, between the tap
