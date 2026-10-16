@@ -387,6 +387,30 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-dinner-19** — the boot lane hands the pins over: after a
+  reboot every unprivileged verb stayed broken until the owner ran
+  `sudo chmod o+x /sys/fs/bpf` plus a detach/re-attach cycle. The
+  boot oneshot runs as plain root BEFORE anyone logs in, the
+  hand-over resolved its recipient from `$SUDO_USER` only, and the
+  o+x relax lived inside that same gated lane — so the pins it
+  planted were root-owned behind a shut front door, while
+  `sudo zylaxion attach` early-returned "nothing to do" without
+  healing either. The recipient now resolves in two lanes
+  (`$SUDO_USER` first, then the first `/run/user/<uid>` desktop
+  runtime, lowest uid wins; a named-but-unresolvable `$SUDO_USER`
+  still reads as its own honest note, never a silent fallback), the
+  idempotent early return runs the same hand-over (root only), and a
+  sibling unit pair (`zylaxion-handover.path` + `.service`, installed
+  and enabled by both installers) fires the attach at the first
+  desktop login — boot, log in, `zylaxion on`. The doctor gained the
+  matching ownership verdict (a walkable control map owned by another
+  uid now FAILs with the one-command heal instead of an all-green
+  report the first `on` refutes), the bpffs-reach tip stopped
+  over-promising (the relax fires whenever attach has a recipient,
+  not unconditionally), the attach unit's stale `User=` advice
+  (attach as a non-root user cannot pin anything) is gone, and the
+  uninstaller removes the new units with the old one.
+
 - **night-dinner-18** — `zylaxion on` honors the posture the control
   map holds: the owner hit `on` resetting a stored `alps_skcm` to the
   compiled `technical` right after `preset --switch` had promised

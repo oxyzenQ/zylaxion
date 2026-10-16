@@ -246,7 +246,7 @@ fn pin_kprobe_program(bpf: &mut Ebpf) -> Result<(), AttachError> {
     Ok(())
 }
 
-/// Chown the pinned files to the invoking sudo user so the unprivileged
+/// Chown the pinned files to the desktop user so the unprivileged
 /// player and CLI can open them, then verify the owner can actually
 /// WALK to them (night-dinner-3): owning a pin is not reaching a pin —
 /// a bpffs mount in mode 0700 (the Debian 13 default; systemd mounts
@@ -254,18 +254,41 @@ fn pin_kprobe_program(bpf: &mut Ebpf) -> Result<(), AttachError> {
 /// `/sys/fs/bpf`, so the hand-over opens the front door by the ONE
 /// missing bit — other-execute, never other-read (a user who knows a
 /// path may walk it; nobody gains listing, and the pins themselves
-/// stay 0600). Without sudo (a root shell), the pins stay root-owned
-/// and nothing is relaxed — honest about that in the summary.
-pub(super) fn hand_pins_to_sudo_user() -> String {
-    let Ok(user) = std::env::var("SUDO_USER") else {
-        return String::new();
-    };
-    if user.is_empty() || user == "root" {
-        return String::new();
+/// stay 0600).
+///
+/// The recipient resolves in two lanes (night-dinner-19): the invoking
+/// sudo user (`$SUDO_USER` — the interactive `sudo zylaxion attach`
+/// lane) first, then the first desktop runtime directory
+/// (`/run/user/<uid>`, uid >= 1000, the lowest wins) — the boot lane,
+/// where the systemd oneshot ran before anyone logged in and the
+/// hand-over units fire at the first login. A `$SUDO_USER` that is
+/// set but unresolvable does NOT fall through: the invoking identity
+/// was named and lost, and hiding that behind a scan would be a lie.
+/// With no recipient at all the pins stay root-owned and nothing is
+/// relaxed — honest about that in the summary.
+pub(super) fn hand_pins_to_desktop_user() -> String {
+    if let Ok(user) = std::env::var("SUDO_USER") {
+        if !user.is_empty() && user != "root" {
+            return match nix::unistd::User::from_name(&user).ok().flatten() {
+                Some(entry) => hand_pins_to(&user, &entry, ""),
+                None => format!(" (sudo user '{user}' not resolvable — pins stay root-owned)"),
+            };
+        }
     }
-    let Some(entry) = nix::unistd::User::from_name(&user).ok().flatten() else {
-        return format!(" (sudo user '{user}' not resolvable — pins stay root-owned)");
-    };
+    match first_desktop_runtime_user() {
+        Some((user, entry)) => hand_pins_to(&user, &entry, " — resolved from /run/user"),
+        None => " (no desktop user to receive the pins — they stay root-owned; \
+                  after logging in, `sudo zylaxion attach` hands them over, or the \
+                  hand-over unit fires at the first login)"
+            .to_string(),
+    }
+}
+
+/// The chown + relax workhorse behind [`hand_pins_to_desktop_user`]:
+/// hand every present pin to `entry`, then — when that owner cannot
+/// walk the bpffs mount — relax the front door by the one bit. `lane`
+/// annotates the summary note with where the recipient came from.
+fn hand_pins_to(user: &str, entry: &nix::unistd::User, lane: &str) -> String {
     let mut handed = 0usize;
     for path in pin::ALL_PINS {
         if std::path::Path::new(path).exists()
@@ -282,7 +305,7 @@ pub(super) fn hand_pins_to_sudo_user() -> String {
     if handed == 0 {
         return " (pin ownership unchanged — unprivileged surfaces may not open them)".to_string();
     }
-    let mut note = format!(" (pins owned by '{user}' — unprivileged surfaces can open them)");
+    let mut note = format!(" (pins owned by '{user}'{lane} — unprivileged surfaces can open them)");
     let reach = crate::session::kernel::bpffs_reach(u32::from(entry.uid), u32::from(entry.gid));
     if !reach.root_traversable {
         match relax_bpffs_traversal() {
@@ -307,10 +330,37 @@ pub(super) fn hand_pins_to_sudo_user() -> String {
     note
 }
 
+/// The boot-lane recipient: the first desktop runtime directory under
+/// `/run/user` with uid >= 1000 (systemd-logind creates it at the
+/// user's first login). Non-numeric entries and the system uid range
+/// (the greeter, service accounts) are skipped; on a multi-seat host
+/// the lowest uid wins — deterministic, and the common case is one
+/// desktop user. A resolvable uid whose passwd entry vanished between
+/// the scan and the lookup reads as no recipient: the caller's
+/// root-owned note is the honest answer.
+fn first_desktop_runtime_user() -> Option<(String, nix::unistd::User)> {
+    let mut best: Option<u32> = None;
+    for entry in std::fs::read_dir("/run/user").ok()?.flatten() {
+        let Ok(uid) = entry.file_name().to_string_lossy().parse::<u32>() else {
+            continue;
+        };
+        if uid < 1000 {
+            continue;
+        }
+        if best.is_none_or(|current| uid < current) {
+            best = Some(uid);
+        }
+    }
+    let entry = nix::unistd::User::from_uid(nix::unistd::Uid::from_raw(best?))
+        .ok()
+        .flatten()?;
+    Some((entry.name.clone(), entry))
+}
+
 /// Open the bpffs front door by one bit: add other-execute to
 /// `/sys/fs/bpf` (night-dinner-3). Returns the previous permission
 /// bits for the log. Runs inside attach — root, after the pins were
-/// handed to the sudo user — so the relax IS the hand-over's last
+/// handed to the desktop user — so the relax IS the hand-over's last
 /// step, never a standalone lane.
 fn relax_bpffs_traversal() -> std::io::Result<u32> {
     use std::os::unix::fs::PermissionsExt;

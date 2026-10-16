@@ -104,11 +104,19 @@ A CI runner missing any of these will fail at `cargo clippy` with
   pins do not survive a reboot, so the oneshot replants the tap at
   every boot. The install posture is system-only (night-master-2):
   binary to `/usr/bin`, oneshot to `/etc/systemd/system`, no flags.
+- `assets/zylaxion-handover.path` + `zylaxion-handover.service` are
+  the login hand-over (night-dinner-19): the boot oneshot runs before
+  anyone logs in, so the pins it plants are root-owned; the path unit
+  watches `/run/user/*` and re-runs `zylaxion attach` at the first
+  desktop login, which hands the pins to that user and relaxes the
+  bpffs front door. Both installers deploy and enable the pair; the
+  uninstaller removes it.
 - `scripts/package/install-on-my-machine.sh` is the CPU-tuned variant
   of the same posture (amd64 v3/v4 detection, parity-checked aliases).
 - A hand-planted tap stays available without any installer:
   `sudo zylaxion attach` (which also hands the pin ownership to the
-  invoking user).
+  invoking user — and, since night-dinner-19, heals an
+  already-attached root-owned pin set in place, no detach needed).
 - The user service of the daemon era is gone with the daemon — there is
   nothing to supervise anymore.
 

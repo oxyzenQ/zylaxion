@@ -243,6 +243,15 @@ a daemon**: it runs `zylaxion attach`, exits, and stays dead — what
 remains resident is the kernel side only (one passive BPF program plus
 pinned maps, zero processes).
 
+The boot oneshot runs before anyone logs in, so the pins it plants
+are root-owned; the **login hand-over** (`zylaxion-handover.path` +
+`zylaxion-handover.service`, installed and enabled alongside) fires at
+the first `/run/user/<uid>` and re-runs `zylaxion attach`, which hands
+the pins to that desktop user and opens the bpffs front door — boot,
+log in, `zylaxion on`, nothing in between. Without the units,
+`sudo zylaxion attach` from your session does the same by hand (it
+heals in place — no detach cycle needed).
+
 ### Install from source (manual)
 
 Building needs the pinned Rust toolchain (rustup installs the exact

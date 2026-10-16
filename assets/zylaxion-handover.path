@@ -1,0 +1,31 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# systemd SYSTEM path unit for zylaxion's pin hand-over
+# (night-dinner-19). The boot oneshot (zylaxion-attach.service) runs
+# BEFORE anyone logs in, so the pins it plants are root-owned; this
+# watch fires when the first desktop runtime directory appears under
+# /run/user (systemd-logind creates it at the user's first login) and
+# starts zylaxion-handover.service, whose `zylaxion attach` hands the
+# pins to that desktop user and relaxes the bpffs front door by the
+# one missing bit. Zero-touch: boot, log in, `zylaxion on` — no
+# manual attach in between.
+#
+# Install to:
+#   /etc/systemd/system/zylaxion-handover.path
+#
+# Enable (together with the service unit, done by
+# scripts/package/install.sh and install-on-my-machine.sh):
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now zylaxion-handover.path
+
+[Unit]
+Description=zylaxion pin hand-over trigger (the first /run/user entry)
+Documentation=https://github.com/oxyzenQ/zylaxion
+
+[Path]
+PathExistsGlob=/run/user/*
+Unit=zylaxion-handover.service
+
+[Install]
+WantedBy=multi-user.target

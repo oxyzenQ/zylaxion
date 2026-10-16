@@ -4,11 +4,13 @@
 # Copyright (C) 2026 rezky_nightky
 #
 # Uninstall zylaxion: binary + the tap's boot oneshot (night-improve-23:
-# there is no daemon user service anymore) + a kernel-side sweep.
+# there is no daemon user service anymore) + the login hand-over units
+# (night-dinner-19) + a kernel-side sweep.
 # Auto-detects and removes from all known locations:
-#   binary:  /usr/bin/, ~/.local/bin/
-#   oneshot: /etc/systemd/system/zylaxion-attach.service
-#   kernel:  the pinned tap (sudo zylaxion detach)
+#   binary:    /usr/bin/, ~/.local/bin/
+#   oneshot:   /etc/systemd/system/zylaxion-attach.service
+#   hand-over: /etc/systemd/system/zylaxion-handover.{path,service}
+#   kernel:    the pinned tap (sudo zylaxion detach)
 #   legacy:  /etc/zylaxion/, ~/.config/zylaxion/ (config-era leftovers;
 #            night-improve-22 retired the config file — the binary no
 #            longer reads either directory, uninstall still cleans them)
@@ -55,16 +57,21 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Best-effort: disable the boot oneshot BEFORE its unit file is
-# removed, in exactly the modes that remove the system unit
-# (--system, --all). The attach unit is a SYSTEM unit
-# (/etc/systemd/system), not a user unit, so the disable escalates
+# Best-effort: disable the boot oneshot and the login hand-over BEFORE
+# their unit files are removed, in exactly the modes that remove the
+# system units (--system, --all). The units are SYSTEM units
+# (/etc/systemd/system), not user units, so the disable escalates
 # like every other system-path step — the previous shape gated the
 # disable on NON-root (where systemctl disable cannot succeed and
 # the failure was swallowed) and skipped root (where it could),
 # which made it three lines that never did what they claimed
 # (caught by the night-hunter-5 script audit).
 if [[ "${MODE}" == "--system" || "${MODE}" == "--all" ]]; then
+    if systemctl is-enabled "${PROJECT_NAME}-handover.path" >/dev/null 2>&1; then
+        echo ">> Disabling the login hand-over (system path unit)..."
+        sudo systemctl disable --now "${PROJECT_NAME}-handover.path" 2>/dev/null ||
+            echo "   (could not disable in this session — the unit file below is removed either way)"
+    fi
     if systemctl is-enabled "${PROJECT_NAME}-attach" >/dev/null 2>&1; then
         echo ">> Disabling the boot oneshot (system unit)..."
         sudo systemctl disable --now "${PROJECT_NAME}-attach" 2>/dev/null ||
@@ -104,6 +111,8 @@ case "${MODE}" in
         remove_at "/usr/bin/${PROJECT_NAME}" yes
         remove_at "/etc/${PROJECT_NAME}" yes
         remove_at "/etc/systemd/system/${PROJECT_NAME}-attach.service" yes
+        remove_at "/etc/systemd/system/${PROJECT_NAME}-handover.service" yes
+        remove_at "/etc/systemd/system/${PROJECT_NAME}-handover.path" yes
         ;;
     --user)
         remove_at "${HOME}/.local/bin/${PROJECT_NAME}" no
@@ -128,6 +137,8 @@ case "${MODE}" in
         fi
         # Service
         remove_at "/etc/systemd/system/${PROJECT_NAME}-attach.service" yes
+        remove_at "/etc/systemd/system/${PROJECT_NAME}-handover.service" yes
+        remove_at "/etc/systemd/system/${PROJECT_NAME}-handover.path" yes
         ;;
 esac
 

@@ -3,11 +3,13 @@
 # OS: Linux only - zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 # Copyright (C) 2026 rezky_nightky
 #
-# Install zylaxion: binary + the kernel-side tap's boot oneshot.
+# Install zylaxion: binary + the kernel-side tap's boot oneshot + the
+# login hand-over.
 # night-master-2: the install posture is SYSTEM-ONLY. There are no
 # --system/--user flags anymore - one posture, one destination:
-#   binary  -> /usr/bin/zylaxion
-#   oneshot -> /etc/systemd/system/zylaxion-attach.service
+#   binary    -> /usr/bin/zylaxion
+#   oneshot   -> /etc/systemd/system/zylaxion-attach.service
+#   hand-over -> /etc/systemd/system/zylaxion-handover.{path,service}
 # The build is the portable baseline shape (cargo build --release
 # --locked); the CPU-tuned personal lane is the sibling
 # install-on-my-machine.sh in this directory.
@@ -28,15 +30,20 @@ set -euo pipefail
 PROJECT_NAME="zylaxion"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ATTACH_UNIT_SRC="${REPO_ROOT}/assets/${PROJECT_NAME}-attach.service"
+HANDOVER_PATH_SRC="${REPO_ROOT}/assets/${PROJECT_NAME}-handover.path"
+HANDOVER_SERVICE_SRC="${REPO_ROOT}/assets/${PROJECT_NAME}-handover.service"
 
 usage() {
     cat <<EOF
 Usage: $0
 
 Installs the system posture, no flags:
-  binary  -> /usr/bin/${PROJECT_NAME}
-  oneshot -> /etc/systemd/system/${PROJECT_NAME}-attach.service
-             (enabled: plants the tap at every boot)
+  binary    -> /usr/bin/${PROJECT_NAME}
+  oneshot   -> /etc/systemd/system/${PROJECT_NAME}-attach.service
+               (enabled: plants the tap at every boot)
+  hand-over -> /etc/systemd/system/${PROJECT_NAME}-handover.{path,service}
+               (enabled: re-runs the attach at the first desktop login
+               so the boot pins land owned by your user)
 
 The build step (cargo build --release --locked) ALWAYS runs as the
 current user; sudo is used only for the install steps. For a CPU-tuned
@@ -78,6 +85,10 @@ if [[ ! -f "${ATTACH_UNIT_SRC}" ]]; then
     echo "error: required file not found: ${ATTACH_UNIT_SRC}" >&2
     exit 1
 fi
+if [[ ! -f "${HANDOVER_PATH_SRC}" || ! -f "${HANDOVER_SERVICE_SRC}" ]]; then
+    echo "error: required files not found: ${HANDOVER_PATH_SRC} / ${HANDOVER_SERVICE_SRC}" >&2
+    exit 1
+fi
 
 echo ">> [1/3] Building ${PROJECT_NAME} (release, locked)"
 cargo build --release --locked
@@ -100,20 +111,33 @@ fi
 "${SUDO}" install -Dm755 "${BINARY}" "/usr/bin/${PROJECT_NAME}"
 echo "   installed: /usr/bin/${PROJECT_NAME}"
 
-echo ">> [3/3] Installing the boot oneshot"
+echo ">> [3/3] Installing the boot oneshot + the login hand-over"
 # The system oneshot: plants the tap at every boot (bpffs pins do not
 # survive a reboot). A ONESHOT, not a daemon - it exits and stays dead;
 # the kernel side remains.
 "${SUDO}" install -Dm644 "${ATTACH_UNIT_SRC}" \
     "/etc/systemd/system/${PROJECT_NAME}-attach.service"
+# The login hand-over (night-dinner-19): the boot oneshot runs before
+# anyone logs in, so its pins are root-owned; the path unit watches
+# /run/user and re-runs `zylaxion attach` at the first desktop login,
+# handing the pins to that user and relaxing the bpffs front door.
+"${SUDO}" install -Dm644 "${HANDOVER_SERVICE_SRC}" \
+    "/etc/systemd/system/${PROJECT_NAME}-handover.service"
+"${SUDO}" install -Dm644 "${HANDOVER_PATH_SRC}" \
+    "/etc/systemd/system/${PROJECT_NAME}-handover.path"
 if command -v systemctl >/dev/null 2>&1; then
     "${SUDO}" systemctl daemon-reload
     "${SUDO}" systemctl enable "${PROJECT_NAME}-attach" >/dev/null 2>&1 && \
         echo "   enabled: ${PROJECT_NAME}-attach (plants the tap at every boot)" ||
         echo "   (enable manually: sudo systemctl enable ${PROJECT_NAME}-attach)"
-    echo "   start it now: sudo systemctl start ${PROJECT_NAME}-attach"
+    # --now: the watch fires immediately on a desktop host (a
+    # /run/user entry already exists), so the just-planted or
+    # already-planted pins land owned by this user without a reboot.
+    "${SUDO}" systemctl enable --now "${PROJECT_NAME}-handover.path" >/dev/null 2>&1 && \
+        echo "   enabled: ${PROJECT_NAME}-handover.path (hands the pins over at the first login)" ||
+        echo "   (enable manually: sudo systemctl enable --now ${PROJECT_NAME}-handover.path)"
 else
-    echo "   (systemd not present; the unit file is installed but not enabled)"
+    echo "   (systemd not present; the unit files are installed but not enabled)"
 fi
 
 echo ">> Done."

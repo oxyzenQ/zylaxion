@@ -21,12 +21,14 @@
 # After it runs, every zylaxion verb is unprivileged:
 #   zylaxion on --preset cherryMX
 #
-# The attach hands the pins to the invoking sudo user; this unit runs
-# as plain root, so the pins stay root-owned — the player and CLI then
-# read them as root too? No: this unit exists for the SYSTEM-WIDE
-# posture. For a per-user hand-off run `sudo zylaxion attach` from your
-# session instead (the pins are chowned to $SUDO_USER), or set User=
-# below to your user so the chown lane picks it up.
+# The attach hands the pins to the invoking sudo user. This unit runs
+# as plain root at boot — BEFORE anyone logs in — so there is no
+# recipient yet and the pins stay root-owned (night-dinner-19). The
+# sibling hand-over units close that gap: zylaxion-handover.path
+# fires at the first /run/user/<uid> and re-runs `zylaxion attach`,
+# which resolves the desktop user and hands the pins over. Without
+# them, `sudo zylaxion attach` from your session does the same by
+# hand (it heals in place — no detach needed).
 
 [Unit]
 Description=zylaxion eBPF tap attach (oneshot, not a daemon)
@@ -37,9 +39,10 @@ Wants=systemd-remount-fs.service
 
 [Service]
 Type=oneshot
-# Change this to your username to get the pin ownership hand-off
-# (the attach chowns the pins to the invoking user when it can).
-#User=youruser
+# Leave unset: attach must run as root to load and pin the tap (a
+# non-root attach cannot plant anything). The pin hand-over does not
+# need User= — it resolves the desktop user from $SUDO_USER or from
+# /run/user (night-dinner-19).
 ExecStart=/usr/bin/zylaxion attach
 # A failed attach (locked-down kernel, missing bpffs) must be visible,
 # never silently retried into a loop.
