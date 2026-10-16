@@ -39,6 +39,20 @@
 # event" from "the attachment is dead kernel-side" via the program's
 # run_cnt counter. A silent no-op can no longer score a PASS.
 #
+# night-dinner-15 hardening: three measurement artifacts from the first
+# real-host run (CachyOS, kernel 6.18.50, an older bpftool) are closed.
+# R5 strips journalctl's "-- No entries --" placeholder before the
+# emptiness test, so a unit that never ran this boot reads
+# INCONCLUSIVE with its unlock, never a FAIL. R10's detach-cleanliness
+# row asks the global program table by the pre-detach id instead of
+# re-reading a pin path detach just removed (on some bpftool builds
+# the read error lands on stdout, survives `2>/dev/null || true`, and
+# a clean kernel read as a live program — the empty "(id )" in the
+# old FAIL text was error text parsing no id). R8 and the R10 soak
+# read run_cnt from plain-text output when the JSON field is absent,
+# and the deaf branch carries the keymap census plus the corrected
+# bpftrace unlock (interval:s:3 — the old interval:s3 did not parse).
+#
 # Verdict vocabulary: PASS, FAIL, INCONCLUSIVE (the row cannot be
 # measured here, the exact unlock command is named), HUMAN (the one
 # row only your ear can close), INFO (a recorded fact, no verdict).
@@ -423,6 +437,19 @@ prog_field()     { # prog_field <json> <field> — the first numeric value of a 
     [[ -n "$1" ]] && echo "$1" | grep -oP "\"$2\":\s*\K[0-9]+" | head -1
     return 0
 }
+# night-dinner-15: the pinned tap's run_cnt — JSON first, then the
+# plain-text fallback. Older bpftool builds print run_cnt in text
+# output only (the JSON field is absent), and the firing-vs-gates
+# split dies without it. An empty result is honest emptiness: the
+# deaf branches name both attempts and unlock with bpftrace.
+prog_run_cnt()   {
+    local v
+    v="$(prog_field "$(prog_json)" run_cnt)"
+    if [[ -z "$v" ]]; then
+        v="$(as_root bpftool prog show pinned "$PIN_DIR/tap" 2>/dev/null | grep -oP 'run_cnt \K[0-9]+' | head -1)"
+    fi
+    echo "$v"
+}
 
 # ------------------------------------------------------------------
 # R7 — claim B live: no daemon, no IPC, no socket. The sandbox grep
@@ -466,13 +493,12 @@ P0="$(presses_now)"
 if [[ -z "$P0" ]]; then
     verdict INCONCLUSIVE "R8 real-input telemetry" "no tap planted (status shows no press counter) — Unlock: sudo ${BIN_NAME} attach"
 else
-    PROG8="$(prog_json)"
-    RC0="$(prog_field "$PROG8" run_cnt)"
+    RC0="$(prog_run_cnt)"
     line "      presses so far: ${P0} — TYPE A FEW KEYS NOW (6 s window)..."
     for _ in 1 2 3 4 5 6; do sleep 1; printf '.'; done
     printf '\n'
     P1="$(presses_now)"
-    RC1="$(prog_field "$(prog_json)" run_cnt)"
+    RC1="$(prog_run_cnt)"
     DELTA=$(( P1 - P0 ))
     if (( DELTA > 0 )); then
         verdict PASS "R8 real-input telemetry" \
@@ -495,10 +521,10 @@ else
                 "the tap program FIRED ${RC_D} times in the window but the press counter did not move (${P0} -> ${P1}) — input_event() is invoked, the tap's own gates drop every event: check the R2 control dump (the enabled slot) and the keymap census (${KEYMAP_N} mapped keycodes, expect 255)"
         elif [[ "$RC_D" != "n/a" ]]; then
             verdict FAIL "R8 real-input telemetry" \
-                "the attachment is dead kernel-side: the program fired only ${RC_D} times while you typed (run_cnt ${RC0} -> ${RC1}) — input_event() is not being invoked on this kernel. Unlock: sudo bpftrace -e 'fentry:input_event { @++; } interval:s3 { exit(); }' while typing — if bpftrace counts while this row does not, the kernel moved the delivery path and the chain must fall back to its kprobe step"
+                "the attachment is dead kernel-side: the program fired only ${RC_D} times while you typed (run_cnt ${RC0} -> ${RC1}) — input_event() is not being invoked on this kernel. Unlock: sudo bpftrace -e 'fentry:input_event { @++; } interval:s:3 { exit(); }' while typing — if bpftrace counts while this row does not, the kernel moved the delivery path and the chain must fall back to its kprobe step"
         else
             verdict FAIL "R8 real-input telemetry" \
-                "the press counter did not move (${P0} -> ${P1}) — the tap is planted but deaf; this bpftool cannot read run_cnt, so the firing-vs-gates split needs a newer bpftool"
+                "the press counter did not move (${P0} -> ${P1}; keymap census: ${KEYMAP_N} mapped keycodes, expect 255) — the firing-vs-gates split needs the program's run_cnt, which this bpftool exposes in neither JSON nor plain text. Unlock: sudo bpftrace -e 'fentry:input_event { @++; } interval:s:3 { exit(); }' while typing — counts above zero while the counter stays frozen name the tap's own attachment, not the kernel delivery path"
         fi
     fi
 fi
@@ -664,14 +690,13 @@ if [[ $FULL_MODE -eq 1 ]]; then
         # ── soak — the press delta plus the program's own run counter
         #    as the second, kernel-side witness ──
         if [[ $SOAK_SKIPPED -eq 0 ]]; then
-            SOAK_PROG="$(prog_json)"
-            SRC0="$(prog_field "$SOAK_PROG" run_cnt)"
+            SRC0="$(prog_run_cnt)"
             S0="$(presses_now)"
             line "      soak: player pid ${SOAK_PID} — TYPE NOW (${SOAK_SECONDS} s window)..."
             for (( _s=1; _s<=SOAK_SECONDS; _s++ )); do sleep 1; printf '.'; done
             printf '\n'
             S1="$(presses_now)"
-            SRC1="$(prog_field "$(prog_json)" run_cnt)"
+            SRC1="$(prog_run_cnt)"
             SD=$(( S1 - S0 ))
             RC_D="n/a"
             [[ -n "$SRC0" && -n "$SRC1" ]] && RC_D=$(( SRC1 - SRC0 ))
@@ -686,7 +711,7 @@ if [[ $FULL_MODE -eq 1 ]]; then
                     "the tap did not fire during the soak (run_cnt ${SRC0} -> ${SRC1}) — the attachment is dead kernel-side; see R8's bpftrace unlock"
             else
                 verdict FAIL "R10 soak throughput" \
-                    "player ran but the press counter did not move — the tap-to-player wire is broken (run_cnt unreadable: this bpftool lacks the discriminator)"
+                    "player ran but the press counter did not move — the tap-to-player wire is broken (run_cnt unreadable in JSON and plain text: this bpftool exposes no firing counter)"
             fi
             if command -v ss >/dev/null 2>&1; then
                 SOCKETS="$(ss -tulpn 2>/dev/null | grep -i "$(pgrep_name)" || true)"
