@@ -677,6 +677,30 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-dinner-11 (the tarball carries exactly the lane it serves,
+  and the boot unit stops arguing with systemd)** — two publish-lane
+  repairs in one pass. The registry tarball had no include allowlist,
+  so `cargo package` walked the default file set and the tarball's
+  shape was an accident of that walk: Cargo.toml now declares the
+  include-mode allowlist (an allowlist fails closed, an exclude list
+  fails open) that carries exactly the build lane (src, build.rs +
+  build/*.rs, ebpf-prebuilt/**), the declared targets (examples/** —
+  autoexamples stays on — and the #[path]-wired test/**), the
+  manifest pair with the toolchain pin, and the compliance documents;
+  ebpf/ is deliberately absent — build/ebpf.rs selects the
+  registry-prebuilt lane precisely on its absence, so a plain
+  `cargo install zylaxion` keeps landing full-featured on a stable
+  toolchain. Separately, assets/zylaxion-attach.service carried
+  `RemainAfterExit=no` twice: once in [Service] (correct) and once in
+  [Unit] (a key that section does not know — every daemon-reload on a
+  host running the unit logged `Unknown key 'RemainAfterExit' in
+  section [Unit]`, observed live on the owner's machine). The [Unit]
+  copy is gone; the [Service] copy keeps the contract (the oneshot
+  stays dead, failures stay loud). Verified with `systemd-analyze
+  verify` before and after (the warning reproduces on the old file
+  and disappears on the new one) and with `cargo package` (the
+  tarball's exact file list matches the allowlist).
+
 - **night-total-lts-3 (the rare-errno fold — the last door the
   "not attached" lie family had left)** — the night-dinner-3
   classifier folded every unknown errno to Absent, so a world this
