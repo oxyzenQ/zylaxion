@@ -387,6 +387,24 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-dinner-15** — the host audit's measurement artifacts from
+  the first real-host run (CachyOS, kernel 6.18.50, an older bpftool)
+  closed as one instrument pass: R5 strips journalctl's
+  `-- No entries --` placeholder before the emptiness test, so a unit
+  that never ran this boot reads INCONCLUSIVE with its unlock, never
+  a FAIL; R10's detach-cleanliness row asks the global program table
+  for the pre-detach id (plain text first, JSON second) instead of
+  re-reading a pin path detach just removed — on some bpftool builds
+  the read error lands on stdout, survives `2>/dev/null || true`, and
+  a clean kernel read as a live program (the empty `(id )` in the old
+  FAIL text was error text parsing no id); R8 and the R10 soak read
+  run_cnt from plain-text output when the JSON field is absent (older
+  bpftool builds print it in text only), the deaf branch now carries
+  the keymap census and the corrected bpftrace unlock
+  (`interval:s:3` — the old `interval:s3` one-liner did not parse),
+  and the soak's unreadable-run_cnt branch names both attempts
+  honestly.
+
 - **night-dinner-14** — the host audit's own instrument bugs, caught
   by its first real run: R9's resource-summary awk carried an
   unterminated string (a stray quote after the last field) so the row
