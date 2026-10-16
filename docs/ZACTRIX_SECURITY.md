@@ -574,3 +574,69 @@ recorded preset/volume/player state restored). Its rows:
 
 Until the host run's output lands in this ledger, Dimension 3 stays
 INCONCLUSIVE — the script does not flip the row; the measurement does.
+
+## night-dinner-14 addendum — the host measurement landed, the instrument grew teeth
+
+The first host paste (nightpc, kernel 6.18.50-3-cachyos-lts, tree commit
+363fc85, invoking user rezky uid 1000) closed what this ledger left open.
+
+**Dimension 3 (privilege boundaries): INCONCLUSIVE -> measured.** The
+paste IS the named measurement, verbatim from the live bpffs host:
+
+- The pin matrix: all 6 pins present under `/sys/fs/bpf/zylaxion`
+  (control, events, keymap, stats, tap, tap_link), every one mode 0600,
+  owned by uid 1000 — the documented session hand-off posture (attach
+  chowned them to the invoking sudo user). The directory itself is
+  root-owned 0755.
+- The unprivileged lanes hold on the real host: the plain user lists
+  the pin directory, stats the control pin, and `bpftool map dump
+  pinned /sys/fs/bpf/zylaxion/control` works without privileges —
+  the introspection promise is measured, not argued.
+- The mount root: `/sys/fs/bpf` at mode 1777 (o+x present — either the
+  distro default or the night-dinner-3 ride-along relax; the walk
+  verdict above is the load-bearing row).
+
+**Dimension 2's inconclusive row gets its host facts.** The loaded
+program answered `bpftool prog show` (tracing, `fentry_input_ev`, tag
+`8d3b890c802e1674`, xlated 752B), and the on-disk prebuilt object
+matched the manifest sha256 — what the host loads is what the tree
+certifies. The byte-exact loaded-vs-built hash stays the named
+residual, unchanged.
+
+**What the same paste surfaced (named, not buried).** The telemetry
+rows (R8, R10's soak) found the press counter static across two
+dedicated typing windows — "planted but deaf" — and the `--full`
+lifecycle scored seventeen PASS while carrying an internally
+impossible state: the pinned program's `loaded_at` predated the run's
+own detach/re-attach claims, the recorded player pid outlived the
+off/detach/reap sequence, and the attach had taken its idempotent
+early-return. The instrument had trusted exit codes where it needed
+effects. night-dinner-14 corrects the instrument (script-only; zero
+engine bytes, the freeze untouched):
+
+- Every mutating row now verifies its effect: off must retire the
+  registered pid, detach must leave a kernel that answers no
+  `bpftool prog show pinned` query, attach must replant a NEW program
+  id (ids are monotonic — an unchanged id is the no-op, and the soak
+  is skipped rather than measured against a stale generation), on
+  must register a fresh pid.
+- R8's deaf branch discriminates the two failure shapes via the
+  program's own `run_cnt` (it counts every `input_event()` invocation
+  system-wide): fired-but-gates-dropped (the enabled/keymap gates)
+  versus link-dead (the kernel never calls the attach point), with a
+  keymap census riding the same branch and a bpftrace one-liner as
+  the named unlock.
+- R5 reads journal-native success markers (the old grep wanted
+  systemctl's own rendering, which journalctl never prints) and asks
+  the parse-hygiene question directly: sha256 of the installed unit
+  against the tree's asset, with the journal archaeology scoped to
+  parses after the installed file landed.
+- R0's bpffs stamp matches the fstype (`bpf`/`bpffs`) at the mount
+  point instead of grepping for a word; R9's resource summary awk had
+  an unterminated string that rendered empty parens.
+
+**The open rows the next host run decides.** (a) The deaf tap: R8's
+next run names the layer — gates or kernel path. (b) The boot
+posture: R5's unit-file parity names whether the installed unit is
+the tree's. (c) The loaded-vs-built byte hash stays named. The
+measurement runs; the ledger records what it says.

@@ -385,7 +385,40 @@ v80.0.0-alpha.1
   > maintenance bar: a security fix, a compatibility fix, or a
   > measured improvement proven by the same audit harness.
 
+### Fixed
+
+- **night-dinner-14** — the host audit's own instrument bugs, caught
+  by its first real run: R9's resource-summary awk carried an
+  unterminated string (a stray quote after the last field) so the row
+  rendered empty parens; R0's bpffs stamp grepped for the literal word
+  "bpffs" and printed "<bpffs NOT mounted>" on a host whose pins were
+  very much mounted (the fstype is `bpf` on modern distros); R5's
+  success row grepped for `status=0/SUCCESS` — systemctl's own
+  rendering, which `journalctl` output never carries, so the row could
+  never pass — and its Unknown-key hygiene row grepped the whole
+  boot's journal, failing on historical lines even with the fixed
+  unit installed (now: sha256 of the installed unit against the
+  tree's asset, with the journal archaeology scoped to parses after
+  the installed file landed).
+
 ### Changed
+
+- **night-dinner-14** — the host audit verifies effects, not exit
+  codes: R10's lifecycle now proves each step did what it claims
+  (off must retire the registered player pid, detach must leave a
+  kernel that answers no `bpftool prog show pinned` query, attach
+  must replant a NEW program id — an unchanged id is the attach's
+  idempotent no-op and the soak is skipped rather than measured
+  against a stale generation — and on must register a fresh pid),
+  with a D-state pre-flight naming a wedged player before it can
+  make the rows lie, and the restore reading back what actually
+  stuck. R8's deaf branch discriminates the two failure shapes via
+  the program's own `run_cnt` — fired-but-gates-dropped versus
+  link-dead (the kernel never calls the attach point) — with a
+  keymap census in the same branch and a bpftrace one-liner as the
+  named unlock. The correction the first host paste commissioned:
+  its `--full` run scored seventeen PASS while the pinned program's
+  `loaded_at` predated the run's own lifecycle.
 
 - **night-total-lts-4 (the infra pass tightens its own gates)** —
   the second depth pass ran shellcheck 0.11.0 over every repo
