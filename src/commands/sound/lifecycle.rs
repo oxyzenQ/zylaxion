@@ -53,10 +53,25 @@ pub fn cmd_on(cli_preset: Option<String>) {
         }
     };
 
-    // Resolve the session preset: CLI flag > ZYLAXION_PRESET > default.
-    // The resolver's gain is the ZYLAXION_VOLUME linear factor; the
-    // percent mirror below is what the control map stores.
-    let (_profile_unused_here, preset_name, _gain) =
+    // Resolve the session posture (night-dinner-18): CLI flag >
+    // ZYLAXION_PRESET > the control map's stored selection > the
+    // compiled default; the volume follows the same law
+    // (ZYLAXION_VOLUME > the stored percent > the compiled 100). The
+    // stored lanes are the promise `preset --switch` and `volume`
+    // print while the sound is off — "takes effect on `zylaxion on`"
+    // — so a posture written into the map outranks the defaults
+    // instead of being clobbered by them. The resolver and the
+    // context volume keep the CLI/env lanes and their canonical hard
+    // errors verbatim; the stored lanes are consulted only when both
+    // higher lanes are silent. A fresh attach leaves both slots at
+    // zero, and zero is safe by construction: preset index 0 IS the
+    // compiled default's registry position, and a zero volume slot
+    // reads as the fresh-attach shape (never a user mute), so the
+    // default stands.
+    let preset_env_set = std::env::var(crate::session::preset::PRESET_ENV_VAR)
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false);
+    let (_profile_unused_here, mut preset_name, _gain) =
         match crate::session::preset::resolve(cli_preset.as_deref()) {
             Ok(r) => r,
             Err(e) => {
@@ -64,6 +79,18 @@ pub fn cmd_on(cli_preset: Option<String>) {
                 process::exit(1);
             }
         };
+    if cli_preset.is_none() && !preset_env_set {
+        let stored_index = control.get(&PRESET_ID_SLOT, 0).unwrap_or(0);
+        if let Some(stored) = crate::profiles::registry_all()
+            .get(stored_index as usize)
+            .map(|e| e.name)
+        {
+            if stored != preset_name {
+                log::info!("preset '{stored}' restored from the control map's stored selection");
+            }
+            preset_name = stored;
+        }
+    }
     let preset_index = match preset_index_or_error(preset_name) {
         Ok(i) => i,
         Err(e) => {
@@ -71,11 +98,22 @@ pub fn cmd_on(cli_preset: Option<String>) {
             process::exit(1);
         }
     };
+    let volume_env_set = std::env::var(crate::session::preset::VOLUME_ENV_VAR)
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false);
     let volume_percent = match context_volume_percent() {
         Ok(v) => v,
         Err(e) => {
             crate::output::error(e);
             process::exit(1);
+        }
+    };
+    let volume_percent = if volume_env_set {
+        volume_percent
+    } else {
+        match control.get(&VOLUME_PCT_SLOT, 0).unwrap_or(0) {
+            0 => volume_percent,
+            stored => stored,
         }
     };
     // Write the control plane BEFORE spawning: the player reads its
