@@ -58,11 +58,64 @@ categories = ["command-line-utilities", "multimedia::audio", "os::linux-apis"]
 # by autotests, and the test/ tree is wired by #[path] (Pattern C).
 # autoexamples stays default-ON deliberately (the former lib crates'
 # contract, carried over by night-improve-21): this package ships the
-# same five vetted examples/ targets the gate lane linked before the
+# same three vetted examples/ targets the gate lane linked before the
 # unification — switching it off would retire vetted targets, the
 # opposite of the discipline.
 autotests = false
 autobenches = false
+
+# night-dinner-11: the publish allowlist — include-mode, not
+# exclude-mode. An allowlist fails closed (a new top-level file stays
+# out of the tarball until it is judged here); an exclude list fails
+# open (it ships whatever the author forgot to name). Three lane
+# contracts shaped this list:
+#
+#   1. build/ebpf.rs selects the registry-prebuilt lane precisely
+#      when ebpf/Cargo.toml is absent from the extract — cargo's
+#      package walk cannot carry a nested package, and the lane is
+#      DESIGNED on that absence. ebpf/ is therefore deliberately not
+#      listed: its GPL source rides the git checkout and the GitHub
+#      release archives, while the tarball carries the
+#      maintainer-built object from ebpf-prebuilt/ so a plain
+#      `cargo install zylaxion` stays on the stable toolchain.
+#   2. Declared targets must not dangle: autoexamples stays on (the
+#      contract above), so examples/ rides; the test/ tree is wired
+#      by #[path] (Pattern C), so `cargo test` on an extract
+#      compiles only with test/ present.
+#   3. scripts/ stays out: the one script the build machinery names
+#      (scripts/dev/bootstrap-ebpf.sh, in build/ebpf.rs panic
+#      guidance) serves the source-built lane, which only exists on
+#      a git checkout — a lane the tarball cannot offer anyway.
+include = [
+    # The build lane: sources, the build script, and its #[path]
+    # module (build/ebpf.rs), plus the prebuilt object a registry
+    # extract stages verbatim.
+    "src/**",
+    "build.rs",
+    "build/*.rs",
+    "ebpf-prebuilt/**",
+    # Declared targets and their #[path]-wired test tree.
+    "examples/**",
+    "test/**",
+    # The manifest pair and the toolchain pin (a rustup-driven
+    # extract build reproduces the pinned toolchain exactly).
+    "Cargo.toml",
+    "Cargo.lock",
+    "rust-toolchain.toml",
+    # The registry-facing documentation and compliance set (flat
+    # docs/ only — the archive/ tree stays a repo lane).
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "TRADEMARK.md",
+    "COMMERCIAL_LICENSE.md",
+    "CLA.md",
+    "QA.md",
+    "docs/*.md",
+]
 
 [dependencies]
 # The unified dependency table — the exact union of the six former

@@ -34,8 +34,6 @@ Documentation=https://github.com/oxyzenQ/zylaxion
 # The tap needs bpffs mounted and the input subsystem up.
 After=systemd-remount-fs.service
 Wants=systemd-remount-fs.service
-# A oneshot never restarts into a daemon shape; failures are loud.
-RemainAfterExit=no
 
 [Service]
 Type=oneshot
