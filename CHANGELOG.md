@@ -387,6 +387,27 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-dinner-17** — the host audit reads the boot lane from
+  systemd's own verdict, not from journal text alone: the second
+  run's R5 tail printed five stale Unknown-key parse lines from a
+  unit file the hygiene row had already proven replaced
+  (byte-identical PASS), while the unit had never started this boot —
+  text archaeology and unit state said opposite things. The
+  zero-marker branch now asks `systemctl show` directly: no
+  ExecMainStartTimestamp means the boot lane never fired (FAIL with
+  the start unlock), a non-success Result names ExecMainStatus with
+  the hand-run unlock, and a successful run PASSes on systemd's own
+  Result where the journal's text markers went missing. The journal
+  print is scoped to entries newer than the installed file's mtime,
+  so pre-fix archaeology can no longer masquerade as a live failure.
+  R10 gains the root guard: the lifecycle ends in `zylaxion on`,
+  which spawns the player into the invoking user's audio session —
+  as root the spawn cannot reach the desktop's PipeWire and the soak
+  measures nothing, so the row reads INCONCLUSIVE before mutating
+  anything and names the re-run as the desktop user (the same run
+  measured it live: a sudo'd audit failed the player spawn and left
+  R1/R2 unable to see the hand-off posture they exist to measure).
+
 - **night-dinner-16** — the host audit stops measuring with a dead
   reader: the second real-host run hit a bpftool whose libLLVM soname
   had vanished under it (a partial system upgrade), and the script
