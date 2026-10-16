@@ -542,3 +542,35 @@ systemd tooling that does not pin world-readable state. The
 trade-off is recorded rather than hidden: one traversal bit against
 the product's core promise ("sudo attach once, then every verb is
 unprivileged"), which a 0700 mount silently broke.
+
+## Addendum — night-dinner-13: the host measurement gets its instrument
+
+The one INCONCLUSIVE dimension this ledger carried (Dimension 3 — the
+pinned-file permission modes, unmeasurable without a real bpffs host)
+and the one inconclusive row inside Dimension 2 (the loaded-program
+identity, root + bpftool required) now have their measuring stick:
+`scripts/audit/zactrix-host.sh`.
+
+The script is read-only by default (it measures whatever posture the
+host is already in) and carries a `--full` lane for the mutating
+lifecycle row (off -> detach -> attach -> on -> soak -> off, with the
+recorded preset/volume/player state restored). Its rows:
+
+- R1+R2+R3 — Dimension 3's named measurement: the pin census, the
+  per-pin uid:gid mode matrix on the real bpffs, the mechanical
+  verification of the 0600 owner-only claim (including which posture
+  the host is in: the unit's root lane or the session hand-off lane),
+  the unprivileged walk + stat + control-map dump as the plain user,
+  and the mount-root mode (the o+x relax lever above).
+- R4 — Dimension 2's host facts: `bpftool prog show` of the loaded
+  program (id/tag/verifier instructions, recorded for the ledger) and
+  the on-disk prebuilt object against the manifest sha256.
+- R5-R9 — the operational rows a sandbox structurally cannot produce:
+  the boot posture (unit enabled, this boot's attach SUCCESS, journal
+  clean of the Unknown-key class), kernel-log verifier hygiene, claim
+  B live (no socket while the player runs), the real-input telemetry
+  delta, and the player on the real audio backend (whose audible
+  verdict is HUMAN on purpose).
+
+Until the host run's output lands in this ledger, Dimension 3 stays
+INCONCLUSIVE — the script does not flip the row; the measurement does.
