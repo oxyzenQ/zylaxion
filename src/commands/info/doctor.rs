@@ -189,7 +189,7 @@ pub fn cmd_doctor() {
                     "      {}",
                     crate::output::tip_line(
                         "fix: sudo chmod o+x /sys/fs/bpf (one command; attach does this \
-                         automatically since night-dinner-3)"
+                         automatically whenever it has a desktop user to hand the pins to)"
                     )
                 );
                 ok = false;
@@ -218,6 +218,44 @@ pub fn cmd_doctor() {
                         reach.root_mode
                     ))
                 );
+                // The ownership verdict (night-dinner-19): reaching is
+                // not OPENING — the boot oneshot ran before the first
+                // login, so a walkable pin set can still be root-owned
+                // and the first `zylaxion on` refuses at BPF_OBJ_GET
+                // while every reach row reads green. Root is skipped:
+                // the capability law opens everything for root (the
+                // head-of-report note already names that bias).
+                if !crate::session::privilege::euid_is_root() {
+                    if let Some(owner) = std::fs::metadata(crate::ebpf::pin::PIN_MAP_CONTROL)
+                        .ok()
+                        .map(|m| std::os::unix::fs::MetadataExt::uid(&m))
+                    {
+                        if owner == uid {
+                            println!(
+                                "      {}",
+                                crate::output::ok_line(&format!(
+                                    "PASS: pin ownership: the control map is yours (uid {uid})"
+                                ))
+                            );
+                        } else {
+                            println!(
+                                "      {}",
+                                crate::output::fail_line(&format!(
+                                    "FAIL: pin ownership: the control map is owned by uid {owner}, \
+                                     not you (uid {uid}) — the boot attach ran before your login"
+                                ))
+                            );
+                            println!(
+                                "      {}",
+                                crate::output::tip_line(
+                                    "fix: sudo zylaxion attach (heals in place — it hands the \
+                                     pins over without a detach cycle)"
+                                )
+                            );
+                            ok = false;
+                        }
+                    }
+                }
             }
         } else {
             println!(

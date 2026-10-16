@@ -232,8 +232,12 @@ have it.
 **The source-level facts hold, re-confirmed at this tree.** `attach`
 is the one root-requiring surface (REQUIRE gate, polarity
 test-pinned); under root it loads, pins, and chowns every pin file to
-`SUDO_USER` — after attach returns, nothing of zylaxion is resident
-in userspace. The chown transfers uid/gid only; the invoking user's
+the desktop user — resolved from `SUDO_USER` (the interactive sudo
+lane) first, then from the first `/run/user/<uid>` desktop runtime
+(the boot lane, night-dinner-19: the boot oneshot runs before anyone
+logs in, and the hand-over units deliver the pins at the first
+login) — after attach returns, nothing of zylaxion is resident
+in userspace. The chown transfers uid/gid only; the desktop user's
 player and CLI open the pinned maps, which IS the control plane by
 design. The kernel's own gates stack on top:
 `kernel.unprivileged_bpf_disabled` (classified in

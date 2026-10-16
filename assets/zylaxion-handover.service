@@ -1,0 +1,28 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# systemd SYSTEM oneshot unit for zylaxion's pin hand-over
+# (night-dinner-19). NOT a daemon: it re-runs `zylaxion attach` when
+# the trigger unit (zylaxion-handover.path) fires — the first
+# /run/user/<uid> desktop runtime after boot — and the attach's
+# idempotent lane hands the root-owned boot pins to that desktop user
+# (or plants the tap fresh if the boot attach failed: the same run is
+# the self-heal). No RemainAfterExit: the oneshot goes inactive after
+# every run so the path watch re-arms for the next login.
+#
+# Install to:
+#   /etc/systemd/system/zylaxion-handover.service
+#
+# Enabled together with zylaxion-handover.path by
+# scripts/package/install.sh and install-on-my-machine.sh.
+
+[Unit]
+Description=zylaxion pin hand-over at the first desktop login (oneshot)
+Documentation=https://github.com/oxyzenQ/zylaxion
+After=systemd-remount-fs.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/zylaxion attach
+StandardOutput=journal
+StandardError=journal

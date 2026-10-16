@@ -10,7 +10,7 @@ use aya::Ebpf;
 use crate::ebpf::attach_error::AttachError;
 use crate::ebpf::pin;
 
-use super::chain::{hand_pins_to_sudo_user, plant};
+use super::chain::{hand_pins_to_desktop_user, plant};
 use super::{TAP_ELF, last_attach_error};
 
 /// Attach the tap: the privileged one-shot.
@@ -47,12 +47,22 @@ pub fn attach() -> Result<String, AttachError> {
     // 2. Idempotence + self-heal: a complete set IS attached — the
     //    second attach is a success shape, nothing to do. A partial
     //    set (crashed attach) is cleaned and replanted.
+    //    night-dinner-19: the early return still runs the hand-over
+    //    (root only — a plain-user no-op has nothing to hand). The
+    //    boot oneshot runs before anyone logs in, so the pins it
+    //    plants are root-owned, and this lane is the one-command
+    //    heal: `sudo zylaxion attach` after login hands them over
+    //    without the detach cycle.
     if pin::all_pins_present() {
-        return Ok(
+        let ownership = if crate::session::privilege::euid_is_root() {
+            hand_pins_to_desktop_user()
+        } else {
+            String::new()
+        };
+        return Ok(format!(
             "tap is already attached — nothing to do (all pins present; `zylaxion detach` \
-             removes it)"
-                .to_string(),
-        );
+             removes it){ownership}"
+        ));
     }
     // The pre-clean keeps the attach-failure marker planted (night-improve-26:
     // the evidence the doctor reads back is not swept with the rest).
@@ -141,9 +151,11 @@ pub fn attach() -> Result<String, AttachError> {
     let planted = plant(&mut bpf);
     match planted {
         Ok(kind) => {
-            // 7. Hand the pins to the invoking sudo user (if any) so the
-            //    unprivileged player and CLI can open them afterwards.
-            let ownership = hand_pins_to_sudo_user();
+            // 7. Hand the pins to the desktop user (the invoking sudo
+            //    user, or — the boot lane — the first /run/user desktop
+            //    session, night-dinner-19) so the unprivileged player
+            //    and CLI can open them afterwards.
+            let ownership = hand_pins_to_desktop_user();
             Ok(format!(
                 "attach: {}\ntap attached: program {} ({} bytes), link pinned, control plane \
                  live (preset: {}, volume: 100%, sound: off){ownership}",

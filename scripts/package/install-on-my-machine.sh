@@ -36,6 +36,8 @@ PROJECT_NAME="zylaxion"
 # there, and the systemd unit comes from assets/).
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ATTACH_UNIT_SRC="${REPO_ROOT}/assets/${PROJECT_NAME}-attach.service"
+HANDOVER_PATH_SRC="${REPO_ROOT}/assets/${PROJECT_NAME}-handover.path"
+HANDOVER_SERVICE_SRC="${REPO_ROOT}/assets/${PROJECT_NAME}-handover.service"
 
 usage() {
     cat <<EOF
@@ -43,9 +45,12 @@ Usage: $0
 
 One command, no flags: detect the CPU level (amd64 v3/v4), build the
 matching release shape, and install:
-  binary  -> /usr/bin/${PROJECT_NAME}
-  oneshot -> /etc/systemd/system/${PROJECT_NAME}-attach.service
-             (enabled: plants the kernel-side tap at every boot)
+  binary    -> /usr/bin/${PROJECT_NAME}
+  oneshot   -> /etc/systemd/system/${PROJECT_NAME}-attach.service
+               (enabled: plants the kernel-side tap at every boot)
+  hand-over -> /etc/systemd/system/${PROJECT_NAME}-handover.{path,service}
+               (enabled: re-runs the attach at the first desktop login
+               so the boot pins land owned by your user)
 
 The build runs as the current user; sudo escalates only the install
 steps. Presets are compiled in: pass --preset on the CLI or export
@@ -122,6 +127,10 @@ if [[ ! -f "${ATTACH_UNIT_SRC}" ]]; then
     echo "error: required file not found: ${ATTACH_UNIT_SRC}" >&2
     exit 1
 fi
+if [[ ! -f "${HANDOVER_PATH_SRC}" || ! -f "${HANDOVER_SERVICE_SRC}" ]]; then
+    echo "error: required files not found: ${HANDOVER_PATH_SRC} / ${HANDOVER_SERVICE_SRC}" >&2
+    exit 1
+fi
 if ! command -v cargo >/dev/null 2>&1; then
     echo "error: cargo not found on PATH." >&2
     echo "  install the Rust toolchain first:  curl https://sh.rustup.rs -sSf | sh" >&2
@@ -168,12 +177,20 @@ fi
 "${SUDO}" install -Dm755 "${BIN}" "/usr/bin/${PROJECT_NAME}"
 echo "   installed: /usr/bin/${PROJECT_NAME}"
 
-echo ">> [4/4] Installing the boot oneshot to /etc/systemd/system/"
+echo ">> [4/4] Installing the boot oneshot + the login hand-over to /etc/systemd/system/"
 # The system oneshot plants the kernel-side tap at every boot (bpffs
 # pins do not survive a reboot). A oneshot, not a daemon: it runs
 # `zylaxion attach`, exits, and stays dead.
 "${SUDO}" install -Dm644 "${ATTACH_UNIT_SRC}" \
     "/etc/systemd/system/${PROJECT_NAME}-attach.service"
+# The login hand-over (night-dinner-19): the boot oneshot runs before
+# anyone logs in, so its pins are root-owned; the path unit watches
+# /run/user and re-runs `zylaxion attach` at the first desktop login,
+# handing the pins to that user and relaxing the bpffs front door.
+"${SUDO}" install -Dm644 "${HANDOVER_SERVICE_SRC}" \
+    "/etc/systemd/system/${PROJECT_NAME}-handover.service"
+"${SUDO}" install -Dm644 "${HANDOVER_PATH_SRC}" \
+    "/etc/systemd/system/${PROJECT_NAME}-handover.path"
 if command -v systemctl >/dev/null 2>&1; then
     "${SUDO}" systemctl daemon-reload
     if "${SUDO}" systemctl enable "${PROJECT_NAME}-attach" >/dev/null 2>&1; then
@@ -181,8 +198,16 @@ if command -v systemctl >/dev/null 2>&1; then
     else
         echo "   (enable manually: sudo systemctl enable ${PROJECT_NAME}-attach)"
     fi
+    # --now: the watch fires immediately on a desktop host (a
+    # /run/user entry already exists), so the just-planted or
+    # already-planted pins land owned by this user without a reboot.
+    if "${SUDO}" systemctl enable --now "${PROJECT_NAME}-handover.path" >/dev/null 2>&1; then
+        echo "   enabled: ${PROJECT_NAME}-handover.path (hands the pins over at the first login)"
+    else
+        echo "   (enable manually: sudo systemctl enable --now ${PROJECT_NAME}-handover.path)"
+    fi
 else
-    echo "   (systemd not present; the unit file is installed but not enabled)"
+    echo "   (systemd not present; the unit files are installed but not enabled)"
 fi
 
 echo ">> Done."
