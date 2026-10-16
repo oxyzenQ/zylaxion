@@ -387,6 +387,23 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-dinner-16** — the host audit stops measuring with a dead
+  reader: the second real-host run hit a bpftool whose libLLVM soname
+  had vanished under it (a partial system upgrade), and the script
+  turned the loader's error text into verdicts — R2 and R4 failed with
+  loader noise, R8's keymap census reported `0 mapped keycodes` out of
+  a tool that never ran, and R10 declared `no tap is planted` while
+  the R1 census counted all six pins and the stats counter answered
+  status. R0 now probes bpftool once (`bpftool version` must exit 0),
+  stamps the health on the environment line, and every
+  bpftool-dependent row routes through the fault: rows that can still
+  measure (the unprivileged walk and stat, the parity hash, the
+  stats-map press counter) keep measuring, the rows that cannot read
+  INCONCLUSIVE with the repair unlock. R5's failed-marker branch
+  prints the unit journal's last lines, so the paste itself names why
+  the boot lane never completed (a start with all pins present is the
+  idempotent no-op — it still logs `Finished` and the row passes).
+
 - **night-dinner-15** — the host audit's measurement artifacts from
   the first real-host run (CachyOS, kernel 6.18.50, an older bpftool)
   closed as one instrument pass: R5 strips journalctl's

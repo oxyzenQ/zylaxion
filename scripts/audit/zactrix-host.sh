@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # OS: Linux only — zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 #
-# zactrix-host.sh — the host-truth audit (night-dinner-13).
+# zactrix-host.sh — the host-truth audit (night-dinner-16).
 #
 # The security ledger (docs/ZACTRIX_SECURITY.md) closed the sandbox
 # pass with one INCONCLUSIVE dimension and one inconclusive row:
@@ -52,6 +52,20 @@
 # read run_cnt from plain-text output when the JSON field is absent,
 # and the deaf branch carries the keymap census plus the corrected
 # bpftrace unlock (interval:s:3 — the old interval:s3 did not parse).
+#
+# night-dinner-16 hardening: the second real-host run hit a bpftool
+# whose libLLVM soname had vanished under it (a partial system upgrade).
+# R0 stamped the binary, R2 and R4 failed with loader noise, R8's
+# keymap census read "0 mapped keycodes" out of a tool that never ran,
+# and R10 declared "no tap is planted" while the R1 census counted all
+# six pins and the stats counter answered status. A dead reader cannot
+# measure zylaxion — it can only lie. R0 now probes bpftool once
+# (version must exit 0) and every bpftool-dependent row routes through
+# the fault: rows that can still measure (the walk, the stat, the
+# parity hash, the stats-map counter) keep measuring; the rows that
+# cannot read INCONCLUSIVE with the repair unlock. R5's failed-marker
+# branch prints the unit journal's last lines, so the paste itself
+# names why the boot lane never completed.
 #
 # Verdict vocabulary: PASS, FAIL, INCONCLUSIVE (the row cannot be
 # measured here, the exact unlock command is named), HUMAN (the one
@@ -112,10 +126,32 @@ KERNEL_REL="$(uname -r)"
 # "<bpffs NOT mounted>" on a host whose pins were very much mounted).
 BPFFS_LINE="$(awk '$2 == "/sys/fs/bpf" && ($3 == "bpf" || $3 == "bpffs")' /proc/mounts | head -1 || true)"
 BPFTOOL_ABS="$(command -v bpftool 2>/dev/null || true)"
+# night-dinner-16: presence is not health. A bpftool whose shared
+# library vanished (the partial-upgrade shape) answers every probe
+# with a loader error and zero information — and the rows below would
+# happily turn that error text into verdicts. Probe once, before any
+# row measures.
+BPFTOOL_OK=1
+BPFTOOL_FAULT=""
+if [[ -n "$BPFTOOL_ABS" ]]; then
+    if ! bpftool version >/dev/null 2>&1; then
+        BPFTOOL_OK=0
+        BPFTOOL_FAULT="$(bpftool version 2>&1 | head -1 | sed 's/^bpftool: //' || true)"
+    fi
+fi
+# The one-line block every bpftool-dependent row shares. Empty means
+# bpftool can measure; non-empty means the row reads INCONCLUSIVE with
+# this text instead of measuring with a dead (or absent) tool.
+BPFTOOL_BLOCK=""
+if [[ -z "$BPFTOOL_ABS" ]]; then
+    BPFTOOL_BLOCK="bpftool missing — see the R0 unlock"
+elif [[ $BPFTOOL_OK -eq 0 ]]; then
+    BPFTOOL_BLOCK="bpftool is installed but cannot run: ${BPFTOOL_FAULT} — this shape is a partial system upgrade; the full system sync of your distro (e.g. pacman -Syu) repairs it, then 'bpftool version' must exit 0"
+fi
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo not-a-checkout)"
 
 hr
-line "zactrix-host — the host-truth audit (night-dinner-13)"
+line "zactrix-host — the host-truth audit (night-dinner-16)"
 hr
 line "R0 environment stamp:"
 line "      kernel:          ${KERNEL_REL}"
@@ -124,7 +160,13 @@ line "      binary:          ${BIN_ABS:-<not found in PATH>}"
 [[ -n "$BIN_ABS" ]] && line "      binary version:  $("$BIN_ABS" -V 2>/dev/null | head -1 || true)"
 line "      invoking user:   ${INVOKER_NAME} (uid ${INVOKER_UID})"
 line "      bpffs mount:     ${BPFFS_LINE:-<bpffs NOT mounted>}"
-line "      bpftool:         ${BPFTOOL_ABS:-<not installed>}"
+if [[ -z "$BPFTOOL_ABS" ]]; then
+    line "      bpftool:         <not installed>"
+elif [[ $BPFTOOL_OK -eq 1 ]]; then
+    line "      bpftool:         ${BPFTOOL_ABS} (answers)"
+else
+    line "      bpftool:         ${BPFTOOL_ABS} (BROKEN: ${BPFTOOL_FAULT})"
+fi
 line ""
 
 if [[ -z "$BIN_ABS" ]]; then
@@ -134,6 +176,9 @@ fi
 if [[ -z "$BPFTOOL_ABS" ]]; then
     verdict INCONCLUSIVE "R0 bpftool presence" \
         "bpftool is not installed — R2 (unprivileged map read) and R4 (loaded-program identity) need it. Unlock: install bpftool (the bpf tools package of your distro)."
+elif [[ $BPFTOOL_OK -eq 0 ]]; then
+    verdict INCONCLUSIVE "R0 bpftool health" \
+        "bpftool is installed but cannot run: ${BPFTOOL_FAULT} — every bpftool-dependent row below reads INCONCLUSIVE instead of measuring with a dead tool. Unlock: repair the host bpftool (a partial system upgrade usually did this — full system sync), then 'bpftool version' must exit 0."
 fi
 
 # ------------------------------------------------------------------
@@ -229,8 +274,9 @@ else
         verdict FAIL "R2 unprivileged stat" \
             "the invoking user cannot stat $PIN_DIR/control — the status surface and the player lanes would degrade; check the mount-root mode (R3) and the pin owner (R1)"
     fi
-    DUMP_HEAD="$(bpftool map dump pinned "$PIN_DIR/control" 2>&1 | head -6 || true)"
-    if bpftool map dump pinned "$PIN_DIR/control" >/dev/null 2>&1; then
+    if [[ -n "$BPFTOOL_BLOCK" ]]; then
+        verdict INCONCLUSIVE "R2 unprivileged control-map dump" "$BPFTOOL_BLOCK"
+    elif bpftool map dump pinned "$PIN_DIR/control" >/dev/null 2>&1; then
         verdict PASS "R2 unprivileged control-map dump" \
             "bpftool map dump pinned works as the plain user (the introspection promise holds on the real host)"
         line "       first lines of the dump:"
@@ -286,15 +332,19 @@ if [[ -z "$BPFTOOL_ABS" ]]; then
 elif ! as_root test -e "$PIN_DIR/tap" 2>/dev/null; then
     verdict INCONCLUSIVE "R4 loaded-program identity" "no tap planted — Unlock: sudo ${BIN_NAME} attach"
 else
-    PROG_SHOW="$(as_root bpftool prog show pinned "$PIN_DIR/tap" 2>&1 || true)"
-    line "$PROG_SHOW" | sed 's/^/      /'
-    if echo "$PROG_SHOW" | grep -q "tag "; then
-        PROG_TAG="$(echo "$PROG_SHOW" | grep -oP 'tag \K[0-9a-f]+' | head -1)"
-        verdict PASS "R4 loaded program present" \
-            "the live program answered bpftool prog show (tag ${PROG_TAG} — recorded for the ledger; the loaded-vs-built byte hash stays the named residual)"
+    if [[ -n "$BPFTOOL_BLOCK" ]]; then
+        verdict INCONCLUSIVE "R4 loaded program present" "$BPFTOOL_BLOCK"
     else
-        verdict FAIL "R4 loaded program present" \
-            "bpftool could not show the pinned program: $(echo "$PROG_SHOW" | head -1)"
+        PROG_SHOW="$(as_root bpftool prog show pinned "$PIN_DIR/tap" 2>&1 || true)"
+        line "$PROG_SHOW" | sed 's/^/      /'
+        if echo "$PROG_SHOW" | grep -q "tag "; then
+            PROG_TAG="$(echo "$PROG_SHOW" | grep -oP 'tag \K[0-9a-f]+' | head -1)"
+            verdict PASS "R4 loaded program present" \
+                "the live program answered bpftool prog show (tag ${PROG_TAG} — recorded for the ledger; the loaded-vs-built byte hash stays the named residual)"
+        else
+            verdict FAIL "R4 loaded program present" \
+                "bpftool could not show the pinned program: $(echo "$PROG_SHOW" | head -1)"
+        fi
     fi
     if [[ -f "ebpf-prebuilt/zylaxion-tap" && -f "ebpf-prebuilt/manifest.toml" ]]; then
         MEASURED_SHA="$(sha256sum ebpf-prebuilt/zylaxion-tap | awk '{print $1}')"
@@ -351,7 +401,9 @@ else
                 "the unit's ExecStart completed this boot (the journal-native Finished/Deactivated markers)"
         else
             verdict FAIL "R5 this boot's attach" \
-                "no completed-attach marker in this boot's unit journal — the boot lane did not plant the tap; whatever is planted now came from a manual attach (R4's loaded_at names when). Unlock: sudo systemctl start ${UNIT_NAME}, then re-run"
+                "no completed-attach marker in this boot's unit journal — the boot lane did not complete (a manual attach did, or the unit's start failed); the journal's last lines name which:"
+            echo "$BOOT_LOG" | tail -5 | sed 's/^/         /'
+            line "       Unlock: sudo systemctl start ${UNIT_NAME}, then re-run (a start with all pins present is the idempotent no-op — it still logs Finished and this row passes)"
         fi
         # The parse-hygiene row, two legs (night-dinner-14): the direct
         # question first — is the installed unit byte-identical to the
@@ -512,8 +564,12 @@ else
         # alone, or even mouse movement, explodes it when the
         # attachment is alive. A keymap census rides the same branch:
         # an empty or partial keymap starves the tap silently.
-        KEYMAP_N="$(bpftool map dump pinned "$PIN_DIR/keymap" 2>/dev/null | grep -c 'key:')"
-        KEYMAP_N="${KEYMAP_N:-?}"
+        if [[ -n "$BPFTOOL_BLOCK" ]]; then
+            KEYMAP_N="unavailable (${BPFTOOL_FAULT})"
+        else
+            KEYMAP_N="$(bpftool map dump pinned "$PIN_DIR/keymap" 2>/dev/null | grep -c 'key:')"
+            KEYMAP_N="${KEYMAP_N:-?}"
+        fi
         RC_D="n/a"
         [[ -n "$RC0" && -n "$RC1" ]] && RC_D=$(( RC1 - RC0 ))
         if [[ "$RC_D" != "n/a" ]] && (( RC_D >= 100 )); then
@@ -522,6 +578,9 @@ else
         elif [[ "$RC_D" != "n/a" ]]; then
             verdict FAIL "R8 real-input telemetry" \
                 "the attachment is dead kernel-side: the program fired only ${RC_D} times while you typed (run_cnt ${RC0} -> ${RC1}) — input_event() is not being invoked on this kernel. Unlock: sudo bpftrace -e 'fentry:input_event { @++; } interval:s:3 { exit(); }' while typing — if bpftrace counts while this row does not, the kernel moved the delivery path and the chain must fall back to its kprobe step"
+        elif [[ -n "$BPFTOOL_BLOCK" ]]; then
+            verdict INCONCLUSIVE "R8 real-input telemetry" \
+                "the press counter did not move (${P0} -> ${P1}) and every discriminating witness (run_cnt, the keymap census) reads through bpftool, which cannot run on this host: ${BPFTOOL_FAULT} — a frozen counter here cannot be split into did-not-type versus a dead tap. Unlock: repair bpftool (full system sync) and re-run, or answer it directly while typing: sudo bpftrace -e 'fentry:input_event { @++; } interval:s:3 { exit(); }'"
         else
             verdict FAIL "R8 real-input telemetry" \
                 "the press counter did not move (${P0} -> ${P1}; keymap census: ${KEYMAP_N} mapped keycodes, expect 255) — the firing-vs-gates split needs the program's run_cnt, which this bpftool exposes in neither JSON nor plain text. Unlock: sudo bpftrace -e 'fentry:input_event { @++; } interval:s:3 { exit(); }' while typing — counts above zero while the counter stays frozen name the tap's own attachment, not the kernel delivery path"
@@ -596,7 +655,10 @@ if [[ $FULL_MODE -eq 1 ]]; then
     PRE_PROG_ID="$(prog_field "$PROG_BEFORE" id)"
     SOAK_SKIPPED=0
 
-    if [[ -z "$PRE_PROG_ID" ]]; then
+    if [[ -n "$BPFTOOL_BLOCK" ]]; then
+        verdict INCONCLUSIVE "R10 the full lifecycle" \
+            "the replant witness reads program ids through bpftool, which cannot run on this host: ${BPFTOOL_FAULT} — this is NOT a missing tap (the R1 census counted the pins; the stats counter answers status); the check just cannot see. Unlock: repair bpftool (full system sync), then re-run with --full"
+    elif [[ -z "$PRE_PROG_ID" ]]; then
         verdict INCONCLUSIVE "R10 the full lifecycle" \
             "no tap is planted (bpftool sees no pinned program) — the lifecycle's replant check needs a planted generation. Unlock: sudo ${BIN_NAME} attach, then re-run with --full"
     else
@@ -775,6 +837,8 @@ line "      recorded; the byte-exact loaded-vs-built hash stays named)."
 line "      night-dinner-14: the mutating rows verify effects, not exit codes"
 line "      (replant = a new program id; off = the pid is gone), and R8's deaf"
 line "      branch splits gate-dropped from link-dead via the program's run_cnt."
+line "      night-dinner-16: a broken host bpftool reads INCONCLUSIVE, not"
+line "      FAIL — a dead reader cannot measure zylaxion, it can only lie."
 line "      Exit code carries the FAIL count only — INCONCLUSIVE never fails"
 line "      the run, it names its unlock command."
 hr
