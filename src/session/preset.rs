@@ -15,10 +15,19 @@
 //!   2. `ZYLAXION_PRESET=<name>` in the environment (persistent
 //!      selection — shell profile, systemd `Environment=`, wrapper
 //!      script; the standard env-var contract, zero parsing of ours)
-//!   3. the compiled default preset ("technical") from the registry
+//!   3. the control map's stored selection — what `preset --switch`
+//!      wrote while the sound was off (night-dinner-18: the promise
+//!      "takes effect on `zylaxion on`" is honored by `cmd_on`, which
+//!      reads the preset slot when the CLI and the environment are
+//!      silent; a fresh attach leaves the slot at zero and index 0 IS
+//!      the compiled default's registry position, so the read is safe
+//!      by construction)
+//!   4. the compiled default preset ("technical") from the registry
 //!
-//! There is no fourth layer at process start: a preset is resolved
-//! once when a surface boots. While the player runs, the runtime
+//! The resolver itself ([`resolve`]) still owns lanes 1, 2 and 4 —
+//! its contract is unchanged; the stored-slot lane lives in `cmd_on`,
+//! which layers it between the resolver's verdict and the default.
+//! While the player runs, the runtime
 //! `zylaxion preset <name>` command applies changes live — it writes
 //! the preset slot of the pinned control map and the player's watcher
 //! thread swaps the model through the ArcSwap within 100 ms, no
@@ -26,7 +35,10 @@
 //!
 //! The master output volume follows the same law: `ZYLAXION_VOLUME`
 //! in the environment, the compiled laptop-speaker default (5.5)
-//! otherwise. An invalid value is a hard error — the no-silent-
+//! otherwise — and at `on` the stored percent slot rides the same
+//! promise (night-dinner-18): env > the map's stored percent > the
+//! compiled default; a zero slot is the fresh-attach shape, never a
+//! user mute. An invalid value is a hard error — the no-silent-
 //! fallback contract the config era honored survives here.
 //!
 //! Unknown preset names produce the canonical GNU-shaped error with
@@ -92,6 +104,9 @@ pub fn volume_gate(percent: u32, force: bool) -> Result<u32, String> {
 /// Resolve the active preset and master volume.
 ///
 /// Priority: `cli_preset` > `ZYLAXION_PRESET` > the compiled default.
+/// (The `on` verb layers the control map's stored selection between
+/// this verdict and the default — night-dinner-18; see the module
+/// header.)
 ///
 /// # Returns
 ///
