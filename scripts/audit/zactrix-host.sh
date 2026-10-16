@@ -599,15 +599,23 @@ if [[ $FULL_MODE -eq 1 ]]; then
         fi
 
         # ── detach — verify the KERNEL is empty, not just the dir ──
+        # night-dinner-15: the unloaded-leg probe asks the GLOBAL program
+        # table for the pre-detach id (plain text first, JSON second).
+        # The old probe re-read the pin path detach had just removed — on
+        # some bpftool builds the read error lands on stdout, survives
+        # `2>/dev/null || true`, and the pin directory's absence read as
+        # a live program.
         if as_root "$BIN_ABS" detach >/dev/null 2>&1 && ! as_root test -d "$PIN_DIR" 2>/dev/null; then
-            PROG_GONE="$(prog_json)"
             if [[ -z "$BPFTOOL_ABS" ]]; then
                 verdict PASS "R10 detach cleanliness" "the pin directory is gone (bpftool missing — the program-unloaded leg is unmeasured)"
-            elif [[ -z "$PROG_GONE" ]]; then
-                verdict PASS "R10 detach cleanliness" "the pin directory is gone AND the pinned program is unloaded — nothing of zylaxion remains in the kernel"
-            else
+            elif [[ -z "$PRE_PROG_ID" ]]; then
+                verdict PASS "R10 detach cleanliness" "the pin directory is gone (the pre-detach program id was not captured — the program-unloaded leg is unmeasured)"
+            elif as_root bpftool prog show 2>/dev/null | grep -qE "^${PRE_PROG_ID}: " \
+                || as_root bpftool -j prog show 2>/dev/null | grep -oP "\"id\":\s*${PRE_PROG_ID}\b" | grep -q .; then
                 verdict FAIL "R10 detach cleanliness" \
-                    "the pins are gone but a program still answers bpftool (id $(prog_field "$PROG_GONE" id)) — a live link or a held reference outlived the unpin"
+                    "the pins are gone but program id ${PRE_PROG_ID} still answers bpftool — a live link or a held reference outlived the unpin"
+            else
+                verdict PASS "R10 detach cleanliness" "the pin directory is gone AND the detached generation's program (id ${PRE_PROG_ID}) is unloaded — nothing of zylaxion remains in the kernel"
             fi
         else
             verdict FAIL "R10 detach cleanliness" "detach left $PIN_DIR behind (or detach failed) — inspect: ls $PIN_DIR"
