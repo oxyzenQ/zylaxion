@@ -387,6 +387,29 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-dinner-18** — `zylaxion on` honors the posture the control
+  map holds: the owner hit `on` resetting a stored `alps_skcm` to the
+  compiled `technical` right after `preset --switch` had promised
+  "takes effect on `zylaxion on`" — the resolver's lanes stopped at
+  the compiled default and then wrote over the slot. `cmd_on` now
+  layers the stored selection between the environment and the
+  default (CLI flag > `ZYLAXION_PRESET` > the map's preset slot >
+  the compiled default), and the volume follows the same law
+  (`ZYLAXION_VOLUME` > the map's percent slot > the compiled 100).
+  A fresh attach leaves both slots at zero, and zero is safe by
+  construction — preset index 0 IS the compiled default's registry
+  position, and a zero volume slot reads as the fresh-attach shape,
+  never a user mute. The already-playing `on` becomes a true tuning
+  no-op: the stored lanes round-trip what is playing instead of
+  resetting it live. Same round, the host audit's own regression:
+  night-dinner-16's gate restructure dropped R2's dump-preview
+  capture and `set -u` killed the preview subshell under a PASS
+  verdict ("DUMP_HEAD: unbound variable") — the capture rides in
+  front of the gate again, and the R10 volume restore rides the
+  `--force-this` lane when the recorded posture exceeds the 200%
+  safety cap, so a force-authored live state is returned instead of
+  silently downgraded to 100%.
+
 - **night-dinner-17** — the host audit reads the boot lane from
   systemd's own verdict, not from journal text alone: the second
   run's R5 tail printed five stale Unknown-key parse lines from a

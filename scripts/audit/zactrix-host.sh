@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # OS: Linux only — zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 #
-# zactrix-host.sh — the host-truth audit (night-dinner-17).
+# zactrix-host.sh — the host-truth audit (night-dinner-18).
 #
 # The security ledger (docs/ZACTRIX_SECURITY.md) closed the sandbox
 # pass with one INCONCLUSIVE dimension and one inconclusive row:
@@ -80,6 +80,13 @@
 # root player cannot reach the desktop's PipeWire — the row reads
 # INCONCLUSIVE and names the re-run instead of failing a spawn that
 # was doomed before it started.
+#
+# night-dinner-18 hardening: R2's dump-preview capture rides in front
+# of the bpftool gate again (the night-dinner-16 restructure dropped
+# it and set -u killed the preview subshell under a PASS verdict), and
+# the R10 volume restore rides the --force-this lane when the recorded
+# posture exceeds the 200% safety cap — a force-authored live state is
+# returned, not silently downgraded to 100%.
 #
 # Verdict vocabulary: PASS, FAIL, INCONCLUSIVE (the row cannot be
 # measured here, the exact unlock command is named), HUMAN (the one
@@ -165,7 +172,7 @@ fi
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo not-a-checkout)"
 
 hr
-line "zactrix-host — the host-truth audit (night-dinner-17)"
+line "zactrix-host — the host-truth audit (night-dinner-18)"
 hr
 line "R0 environment stamp:"
 line "      kernel:          ${KERNEL_REL}"
@@ -288,6 +295,12 @@ else
         verdict FAIL "R2 unprivileged stat" \
             "the invoking user cannot stat $PIN_DIR/control — the status surface and the player lanes would degrade; check the mount-root mode (R3) and the pin owner (R1)"
     fi
+    # night-dinner-18: the capture rides IN FRONT of the gate — the
+    # PASS branch's preview and the FAIL branch's error line both read
+    # it, and set -u turned a missing capture into an unbound-variable
+    # subshell kill right under a PASS verdict (the paste showed the
+    # "first lines of the dump:" header with nothing under it).
+    DUMP_HEAD="$(bpftool map dump pinned "$PIN_DIR/control" 2>&1 | head -6 || true)"
     if [[ -n "$BPFTOOL_BLOCK" ]]; then
         verdict INCONCLUSIVE "R2 unprivileged control-map dump" "$BPFTOOL_BLOCK"
     elif bpftool map dump pinned "$PIN_DIR/control" >/dev/null 2>&1; then
@@ -839,7 +852,13 @@ if [[ $FULL_MODE -eq 1 ]]; then
         if [[ -n "$PRE_RESTORE_PRESET" ]]; then
             "$BIN_ABS" preset --switch "$PRE_RESTORE_PRESET" >/dev/null 2>&1 || true
         fi
-        if [[ -n "$PRE_RESTORE_VOLUME" ]]; then
+        if [[ -n "$PRE_RESTORE_VOLUME" ]] && (( PRE_RESTORE_VOLUME > 200 )); then
+            # The recorded posture exceeds the 200% safety cap: it was
+            # force-authored live (the plain write refuses above 200),
+            # so the restore rides the same lane — the state-restored
+            # read-back below still names what actually stuck.
+            "$BIN_ABS" volume --percent "$PRE_RESTORE_VOLUME" --force-this >/dev/null 2>&1 || true
+        elif [[ -n "$PRE_RESTORE_VOLUME" ]]; then
             "$BIN_ABS" volume --percent "$PRE_RESTORE_VOLUME" >/dev/null 2>&1 || true
         fi
         REST_PLAYER="off"
