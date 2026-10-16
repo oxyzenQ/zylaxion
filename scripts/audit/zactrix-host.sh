@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # OS: Linux only — zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 #
-# zactrix-host.sh — the host-truth audit (night-dinner-16).
+# zactrix-host.sh — the host-truth audit (night-dinner-17).
 #
 # The security ledger (docs/ZACTRIX_SECURITY.md) closed the sandbox
 # pass with one INCONCLUSIVE dimension and one inconclusive row:
@@ -66,6 +66,20 @@
 # cannot read INCONCLUSIVE with the repair unlock. R5's failed-marker
 # branch prints the unit journal's last lines, so the paste itself
 # names why the boot lane never completed.
+#
+# night-dinner-17 hardening: the R5 zero-marker branch stops judging
+# from journal text alone — stale parse lines from a replaced unit
+# file read like a live failure, and a start whose lines journald
+# never attributed leaves nothing to judge. It asks systemd directly
+# (ExecMainStartTimestamp, Result, ExecMainStatus): never started,
+# started-and-failed, or started-and-succeeded (PASS on systemd's
+# verdict), and the journal print scopes to entries newer than the
+# installed file's mtime, so pre-fix archaeology cannot masquerade as
+# a live failure. R10 refuses to mutate as root: the lifecycle's `on`
+# spawns the player into the invoking user's audio session, and a
+# root player cannot reach the desktop's PipeWire — the row reads
+# INCONCLUSIVE and names the re-run instead of failing a spawn that
+# was doomed before it started.
 #
 # Verdict vocabulary: PASS, FAIL, INCONCLUSIVE (the row cannot be
 # measured here, the exact unlock command is named), HUMAN (the one
@@ -151,7 +165,7 @@ fi
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo not-a-checkout)"
 
 hr
-line "zactrix-host — the host-truth audit (night-dinner-16)"
+line "zactrix-host — the host-truth audit (night-dinner-17)"
 hr
 line "R0 environment stamp:"
 line "      kernel:          ${KERNEL_REL}"
@@ -400,10 +414,34 @@ else
             verdict PASS "R5 this boot's attach" \
                 "the unit's ExecStart completed this boot (the journal-native Finished/Deactivated markers)"
         else
-            verdict FAIL "R5 this boot's attach" \
-                "no completed-attach marker in this boot's unit journal — the boot lane did not complete (a manual attach did, or the unit's start failed); the journal's last lines name which:"
-            echo "$BOOT_LOG" | tail -5 | sed 's/^/         /'
-            line "       Unlock: sudo systemctl start ${UNIT_NAME}, then re-run (a start with all pins present is the idempotent no-op — it still logs Finished and this row passes)"
+            # night-dinner-17: the journal tail alone misleads twice —
+            # stale parse lines from a unit file that has since been
+            # replaced read like a live failure (this boot's tail was
+            # five pre-fix Unknown-key lines sitting under a
+            # byte-identical hygiene PASS), and a start whose lines
+            # journald never attributed leaves no text to judge. Ask
+            # systemd directly what the unit DID this boot.
+            UNIT_FILE="/etc/systemd/system/${UNIT_NAME}.service"
+            UNIT_FILE_MTIME="$(as_root stat -c %Y "$UNIT_FILE" 2>/dev/null || true)"
+            RAN_AT="$(systemctl show ${UNIT_NAME} -p ExecMainStartTimestamp --value 2>/dev/null || true)"
+            RUN_RESULT="$(systemctl show ${UNIT_NAME} -p Result --value 2>/dev/null || true)"
+            RUN_STATUS="$(systemctl show ${UNIT_NAME} -p ExecMainStatus --value 2>/dev/null || true)"
+            SCOPED_TAIL=""
+            [[ -n "$UNIT_FILE_MTIME" ]] && SCOPED_TAIL="$(journalctl -b -u ${UNIT_NAME} --no-pager --since "@${UNIT_FILE_MTIME}" 2>/dev/null | tail -5 || true)"
+            if [[ -z "$RAN_AT" || "$RAN_AT" == "n/a" ]]; then
+                verdict FAIL "R5 this boot's attach" \
+                    "the unit has not started at all this boot (systemd records no ExecMainStartTimestamp — the boot lane never fired; the earlier journal lines were parse warnings from before the installed file landed)${SCOPED_TAIL:+ — and nothing newer than the installed file exists either:}"
+                [[ -n "$SCOPED_TAIL" ]] && echo "$SCOPED_TAIL" | sed 's/^/         /'
+                line "       Unlock: sudo systemctl start ${UNIT_NAME}, then re-run"
+            elif [[ "$RUN_RESULT" != "success" ]]; then
+                verdict FAIL "R5 this boot's attach" \
+                    "the unit's start failed this boot (started ${RAN_AT}; systemd Result: ${RUN_RESULT:-unknown}, ExecMainStatus: ${RUN_STATUS:-unknown}):"
+                [[ -n "$SCOPED_TAIL" ]] && echo "$SCOPED_TAIL" | sed 's/^/         /'
+                line "       Unlock: sudo ${BIN_NAME} attach by hand for the full error, then re-run"
+            else
+                verdict PASS "R5 this boot's attach" \
+                    "the unit started this boot (${RAN_AT}) and systemd records Result=${RUN_RESULT} (ExecMainStatus ${RUN_STATUS}) — systemd's own verdict stands where the journal's text markers did not"
+            fi
         fi
         # The parse-hygiene row, two legs (night-dinner-14): the direct
         # question first — is the installed unit byte-identical to the
@@ -655,7 +693,10 @@ if [[ $FULL_MODE -eq 1 ]]; then
     PRE_PROG_ID="$(prog_field "$PROG_BEFORE" id)"
     SOAK_SKIPPED=0
 
-    if [[ -n "$BPFTOOL_BLOCK" ]]; then
+    if [[ ${EUID} -eq 0 ]]; then
+        verdict INCONCLUSIVE "R10 the full lifecycle" \
+            "this audit is running as root — the lifecycle ends in 'zylaxion on', which spawns the player into the INVOKING user's audio session (PipeWire/WirePlumber live under your desktop user; a root player cannot reach them, so the spawn fails and the soak measures nothing). Re-run as your desktop user without the leading sudo — the rows prompt for it where they need it. If this host genuinely plays audio as root, run the lifecycle by hand."
+    elif [[ -n "$BPFTOOL_BLOCK" ]]; then
         verdict INCONCLUSIVE "R10 the full lifecycle" \
             "the replant witness reads program ids through bpftool, which cannot run on this host: ${BPFTOOL_FAULT} — this is NOT a missing tap (the R1 census counted the pins; the stats counter answers status); the check just cannot see. Unlock: repair bpftool (full system sync), then re-run with --full"
     elif [[ -z "$PRE_PROG_ID" ]]; then
@@ -839,6 +880,9 @@ line "      (replant = a new program id; off = the pid is gone), and R8's deaf"
 line "      branch splits gate-dropped from link-dead via the program's run_cnt."
 line "      night-dinner-16: a broken host bpftool reads INCONCLUSIVE, not"
 line "      FAIL — a dead reader cannot measure zylaxion, it can only lie."
+line "      night-dinner-17: R5 judges from systemd's own verdict, and R10"
+line "      refuses to mutate as root — a root player cannot reach the"
+line "      desktop's audio session, so that lifecycle would measure nothing."
 line "      Exit code carries the FAIL count only — INCONCLUSIVE never fails"
 line "      the run, it names its unlock command."
 hr
