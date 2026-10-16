@@ -317,7 +317,11 @@ else
         verdict FAIL "R5 unit enabled" \
             "is-enabled says '${ENABLED:-nothing}' — the boot lane is off. Unlock: sudo systemctl enable zylaxion-attach"
     fi
-    BOOT_LOG="$(journalctl -b -u zylaxion-attach --no-pager 2>/dev/null || true)"
+    # night-dinner-15: journalctl prints a "-- No entries --" placeholder
+    # (on stdout, not silence) for a unit that never ran this boot; strip
+    # it before the emptiness test or a never-started unit reads as FAIL
+    # instead of INCONCLUSIVE.
+    BOOT_LOG="$(journalctl -b -u zylaxion-attach --no-pager 2>/dev/null | sed '/^-- No entries --$/d' || true)"
     if [[ -z "$BOOT_LOG" ]]; then
         verdict INCONCLUSIVE "R5 this boot's attach" \
             "no journal entries for the unit this boot (or the journal is not readable by this user — try re-running with sudo cached) — Unlock: sudo systemctl start zylaxion-attach, then re-run"
