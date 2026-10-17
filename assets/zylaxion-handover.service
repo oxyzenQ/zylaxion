@@ -2,13 +2,21 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # systemd SYSTEM oneshot unit for zylaxion's pin hand-over
-# (night-dinner-19). NOT a daemon: it re-runs `zylaxion attach` when
-# the trigger unit (zylaxion-handover.path) fires — the first
-# /run/user/<uid> desktop runtime after boot — and the attach's
-# idempotent lane hands the root-owned boot pins to that desktop user
-# (or plants the tap fresh if the boot attach failed: the same run is
-# the self-heal). No RemainAfterExit: the oneshot goes inactive after
-# every run so the path watch re-arms for the next login.
+# (night-dinner-19, re-forged night-dinner-20). NOT a daemon: it runs
+# `zylaxion attach` once when the trigger unit (zylaxion-handover.path)
+# fires — the first /run/user/<uid> desktop runtime after boot — and
+# the attach's idempotent lane hands the root-owned boot pins to that
+# desktop user (or plants the tap fresh if the boot attach failed: the
+# same run is the self-heal).
+#
+# RemainAfterExit=yes is load-bearing, not cosmetic: a path unit
+# re-evaluates its watch at every re-arm, and PathExistsGlob stays
+# true for the whole login session — a oneshot that goes inactive
+# after each run gets re-fired immediately, in a loop, until the
+# start limit trips ("Start request repeated too quickly", observed
+# live on nightpc). Staying active (exited) turns every later trigger
+# into a no-op start job: the hand-over runs once per boot, at the
+# first desktop login — exactly what the Description promises.
 #
 # Install to:
 #   /etc/systemd/system/zylaxion-handover.service
@@ -24,5 +32,6 @@ After=systemd-remount-fs.service
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/zylaxion attach
+RemainAfterExit=yes
 StandardOutput=journal
 StandardError=journal

@@ -387,6 +387,26 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-dinner-20** — two defects the green-light commit carried
+  home. (1) The CI `check` job went red on the aa9316c push:
+  `clippy::collapsible_if` twice (the `$SUDO_USER` gate in
+  `chain.rs`, the pin-ownership gate in `doctor.rs`) under
+  `-D warnings` — both nested gate pairs collapse into let-chains,
+  semantics identical; the documented sandbox gate gap (no
+  libasound2-dev, so clippy cannot run in-sandbox) is what let them
+  through, and CI owns the full battery. (2)
+  `zylaxion-handover.service` looped itself into systemd's start
+  limit on the real host ("Start request repeated too quickly"):
+  a path unit re-evaluates its watch at every re-arm and
+  `PathExistsGlob=/run/user/*` stays true for the whole login
+  session, so a oneshot without `RemainAfterExit` gets re-fired
+  immediately after every exit — five starts in ten seconds, every
+  boot. The unit now stays `active (exited)` with
+  `RemainAfterExit=yes`, every later trigger is a no-op start job,
+  and the hand-over runs once per boot at the first desktop login —
+  exactly what the unit's own Description promises. The hand-over
+  lane itself was never the patient: every loop iteration exited
+  `0/SUCCESS`.
 - **night-dinner-19** — the boot lane hands the pins over: after a
   reboot every unprivileged verb stayed broken until the owner ran
   `sudo chmod o+x /sys/fs/bpf` plus a detach/re-attach cycle. The
