@@ -114,7 +114,10 @@
 # spawn. It measures whatever posture the host is already in.
 
 set -uo pipefail
-cd "$(dirname "$0")/../.."
+# night-last-total-lts-6: a failed cd must never leave the audit
+# measuring the wrong tree (the same fail-fast the wholesale gates
+# adopted in night-total-lts-4).
+cd "$(dirname "$0")/../.." || exit 1
 
 BIN_NAME="${ZYLAXION_BIN:-zylaxion}"
 UNIT_NAME="zylaxion-attach"
