@@ -225,35 +225,34 @@ pub fn cmd_doctor() {
                 // while every reach row reads green. Root is skipped:
                 // the capability law opens everything for root (the
                 // head-of-report note already names that bias).
-                if !crate::session::privilege::euid_is_root() {
-                    if let Some(owner) = std::fs::metadata(crate::ebpf::pin::PIN_MAP_CONTROL)
+                if !crate::session::privilege::euid_is_root()
+                    && let Some(owner) = std::fs::metadata(crate::ebpf::pin::PIN_MAP_CONTROL)
                         .ok()
                         .map(|m| std::os::unix::fs::MetadataExt::uid(&m))
-                    {
-                        if owner == uid {
-                            println!(
-                                "      {}",
-                                crate::output::ok_line(&format!(
-                                    "PASS: pin ownership: the control map is yours (uid {uid})"
-                                ))
-                            );
-                        } else {
-                            println!(
-                                "      {}",
-                                crate::output::fail_line(&format!(
-                                    "FAIL: pin ownership: the control map is owned by uid {owner}, \
-                                     not you (uid {uid}) — the boot attach ran before your login"
-                                ))
-                            );
-                            println!(
-                                "      {}",
-                                crate::output::tip_line(
-                                    "fix: sudo zylaxion attach (heals in place — it hands the \
-                                     pins over without a detach cycle)"
-                                )
-                            );
-                            ok = false;
-                        }
+                {
+                    if owner == uid {
+                        println!(
+                            "      {}",
+                            crate::output::ok_line(&format!(
+                                "PASS: pin ownership: the control map is yours (uid {uid})"
+                            ))
+                        );
+                    } else {
+                        println!(
+                            "      {}",
+                            crate::output::fail_line(&format!(
+                                "FAIL: pin ownership: the control map is owned by uid {owner}, \
+                                 not you (uid {uid}) — the boot attach ran before your login"
+                            ))
+                        );
+                        println!(
+                            "      {}",
+                            crate::output::tip_line(
+                                "fix: sudo zylaxion attach (heals in place — it hands the \
+                                 pins over without a detach cycle)"
+                            )
+                        );
+                        ok = false;
                     }
                 }
             }
