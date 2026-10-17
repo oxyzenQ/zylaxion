@@ -387,6 +387,29 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-dinner-21** — the host audit's R5 judged through a door the
+  invoking user may not hold. The "this boot's attach" row gated
+  everything behind `journalctl -b -u zylaxion-attach` run as the
+  invoking user: on the reference host (uid 1000 without the
+  systemd-journal group) the read came back empty and the row read
+  INCONCLUSIVE while `systemctl status` said `0/SUCCESS` — the row's
+  "try re-running with sudo cached" hint was false (this one
+  journalctl was never wrapped in `as_root`, unlike R6's), its
+  start-unlock could not flip the row either (the same user re-read
+  the same empty journal), and the parse-hygiene leg (byte-identity
+  sha256, also journal-free) hid behind the same gate and vanished
+  from the output entirely. The evidence order is inverted:
+  systemd's own verdict (`systemctl show`: `ExecMainStartTimestamp`
+  / `Result` / `ExecMainStatus`, readable by any user) is asked
+  first and decides; the journal text is corroboration, reported as
+  such when readable and named as absent when not; the
+  never-started and start-failed FAIL lanes keep the night-dinner-17
+  scoped-tail archaeology as depth, not as a gate — which also makes
+  the never-started unlock actually work, since the re-run no longer
+  needs the journal to read the verdict. Per night-dinner-16: the
+  reader is not dead here, so there is nothing INCONCLUSIVE about
+  it. On the reference host with zero posture changes the R5 lane
+  now emits three rows, all PASS: PASS 23 / FAIL 0 / INCONCLUSIVE 0.
 - **night-dinner-20** — two defects the green-light commit carried
   home. (1) The CI `check` job went red on the aa9316c push:
   `clippy::collapsible_if` twice (the `$SUDO_USER` gate in
