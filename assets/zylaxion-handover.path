@@ -11,6 +11,15 @@
 # one missing bit. Zero-touch: boot, log in, `zylaxion on` — no
 # manual attach in between.
 #
+# The glob speaks the same uid law as the attach's recipient filter
+# (uid >= 1000, night-last-total-lts-6): a greeter or service runtime
+# directory (system uid range, e.g. /run/user/120 on GDM hosts) must
+# NOT fire this watch — the attach would find no desktop recipient,
+# and with RemainAfterExit=yes the spent start keeps the unit active
+# so the REAL login's trigger becomes a no-op, leaving the pins
+# root-owned. Four-plus digits starting 1-9 never match the system
+# uid range and always match the desktop range.
+#
 # Install to:
 #   /etc/systemd/system/zylaxion-handover.path
 #
@@ -20,11 +29,11 @@
 #   sudo systemctl enable --now zylaxion-handover.path
 
 [Unit]
-Description=zylaxion pin hand-over trigger (the first /run/user entry)
+Description=zylaxion pin hand-over trigger (the first desktop /run/user entry)
 Documentation=https://github.com/oxyzenQ/zylaxion
 
 [Path]
-PathExistsGlob=/run/user/*
+PathExistsGlob=/run/user/[1-9][0-9][0-9][0-9]*
 Unit=zylaxion-handover.service
 
 [Install]

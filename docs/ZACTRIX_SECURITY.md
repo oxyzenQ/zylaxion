@@ -644,3 +644,50 @@ next run names the layer — gates or kernel path. (b) The boot
 posture: R5's unit-file parity names whether the installed unit is
 the tree's. (c) The loaded-vs-built byte hash stays named. The
 measurement runs; the ledger records what it says.
+
+## night-dinner-21 addendum — the ledger's first fully green run
+
+The fourth host paste (nightpc, kernel 6.18.55-2-cachyos-lts, tree
+commit `5eac83c`, invoking user rezky uid 1000, full sudo) is the
+milestone this ledger has been converging on since the first 17-FAIL
+run: **PASS 23 / FAIL 0 / INCONCLUSIVE 0** — the `--full` battery's
+first run with every row measured and none inconclusive.
+
+**R5, the boot lane, reads systemd's own verdict.** The
+night-dinner-21 rewrite of the zero-marker branch is in action: the
+three rows all PASS with the new honest wording — "systemd records
+Result=success (ExecMainStatus 0) — systemd's own verdict is the
+evidence" — and the journal text rides along as corroboration, never
+as the judge. The empty-journal INCONCLUSIVE branch that produced the
+first R5 verdict in this series is gone: a `systemctl show` state any
+user can read decides first, the parse-hygiene row runs unconditionally
+(PASS — the installed unit byte-identical to the tree's asset), and
+the FAIL channel keeps the scoped-tail archaeology as depth, not as a
+gate. The hand-over lane this boot is the night-dinner-19/20 shape
+measured live: the attach unit fired once (RemainAfterExit, no start
+loop), the path unit handed the pins to uid 1000 at the first desktop
+login, and `zylaxion on` worked with zero commands in between.
+
+**The telemetry rows are real passes, not absence-of-failure.** R8's
+delta: 25 presses inside the dedicated window against a live
+run_cnt-bearing generation. R10's full lifecycle: off retired the
+registered pid, detach left a kernel answering no pinned-program query,
+attach replanted a fresh generation (program id 163 → 297, monotonic —
+the effect-verified shape night-dinner-14 demanded), the 10-second
+soak counted 48 presses, and the state restored to the pre-run posture
+(preset alps_skcm, volume 250%). Claim B held throughout: no socket,
+no inbound, the keystroke bytes never left the process.
+
+**What stays on the record.** The 25-second attach-path sleep observed
+once in the night-dinner-20 boot did not reproduce this boot — it stays
+named, unexplained, one reboot's observation against two boots without
+it. The R8/R10 soak-silence split (a delta-0 window with an
+unreadable run_cnt should read INCONCLUSIVE, not PASS-by-absence) is
+proposed, not implemented — a future numbered change. The
+loaded-vs-built byte hash remains the one residual a root host closes
+with a one-liner. And the night-last-total-lts-6 pass tightened the
+hand-over watch's glob to the desktop uid range (the greeter-uid
+failure mode — Dimension 1 of the third pass in
+docs/audit-night-total-lts.md): hosts that installed the earlier unit
+refresh it with the install lane before the next audit run so the
+parse-hygiene row keeps its byte-identical verdict.
