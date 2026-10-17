@@ -187,3 +187,28 @@ fn pin_stat_classification_law() {
         );
     }
 }
+
+// ── the stored-volume law behind the `on` restore ────────────────────
+
+/// night-last-total-lts-5: the plant seeds the volume slot at attach
+/// (the compiled default, 100 — loader/chain.rs's control init), so a
+/// successful read is always user-meaningful: `Some(0)` is a
+/// deliberate mute (`zylaxion volume 0`), never an unset shape, and
+/// the `on` restore must honor it verbatim. The night-dinner-18 draft
+/// folded `Ok(0)` into the default lane on the false "never a user
+/// mute" premise — a stored mute came back as the compiled 100 on the
+/// next `on`, breaking the promise `volume` prints while the sound is
+/// off. Only a FAILED read defers to the resolved default.
+#[test]
+fn stored_volume_law_honors_the_mute() {
+    use super::stored_volume_or_fallback;
+
+    // A stored mute is a mute — never the compiled default.
+    assert_eq!(stored_volume_or_fallback(Some(0), 100), 0);
+    // A stored percent is honored verbatim.
+    assert_eq!(stored_volume_or_fallback(Some(42), 100), 42);
+    assert_eq!(stored_volume_or_fallback(Some(250), 100), 250);
+    // An unreadable map defers to the already-resolved default.
+    assert_eq!(stored_volume_or_fallback(None, 100), 100);
+    assert_eq!(stored_volume_or_fallback(None, 55), 55);
+}

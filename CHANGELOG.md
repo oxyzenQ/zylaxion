@@ -387,6 +387,29 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-last-total-lts-5 (the zero-mute clobber — the stored
+  posture's blind spot)** — the night-dinner-18 restore lane folded
+  `Ok(0)` into the default volume lane on the comment's premise that
+  "a zero volume slot reads as the fresh-attach shape (never a user
+  mute)". The premise was false twice over: the plant SEEDS the
+  control plane at attach (the loader's init writes the default
+  preset id and volume 100, so a fresh attach never leaves a zero
+  volume slot), and the only way a stored zero exists is
+  `zylaxion volume 0` — a deliberate mute that `on` then silently
+  restored as the compiled default, breaking the exact "takes effect
+  on `zylaxion on`" promise the lane exists to keep. The fix is the
+  `stored_volume_or_fallback` law: a successful read is always
+  user-meaningful and is honored verbatim (a mute is a mute); only a
+  FAILED read defers to the resolved default, and the posture writes
+  that follow fail loudly if the map stays dead. The false comments
+  in lifecycle.rs and the preset module header are corrected in the
+  same commit — a doc lie that blessed the behavior was half the
+  bug. Found by the third night-total-lts depth pass
+  (docs/audit-night-total-lts.md), pinned by
+  `stored_volume_law_honors_the_mute`, full local battery green
+  (225 tests, fmt, clippy -D warnings across --all-targets
+  --all-features on the ebpf-feature build).
+
 - **night-dinner-21** — the host audit's R5 judged through a door the
   invoking user may not hold. The "this boot's attach" row gated
   everything behind `journalctl -b -u zylaxion-attach` run as the
@@ -548,6 +571,27 @@ v80.0.0-alpha.1
   the installed file landed).
 
 ### Changed
+
+- **night-last-total-lts-6 (the infra pass closes the greeter-uid
+  watch)** — the hand-over path unit's trigger and the attach's
+  recipient filter spoke different laws:
+  `PathExistsGlob=/run/user/*` matched ANY runtime directory while
+  `first_desktop_runtime_user` accepts uid >= 1000 only — on a host
+  whose login manager creates its own runtime directory (GDM's
+  greeter user, the classic /run/user/120), the watch fired at the
+  greeter login, the attach found no desktop recipient, and
+  RemainAfterExit kept the service active so the REAL login's
+  trigger became a no-op: the pins stayed root-owned and zero-touch
+  silently degraded to the doctor's FAIL row plus a manual attach.
+  The fix is one glob — `/run/user/[1-9][0-9][0-9][0-9]*` — four-plus
+  digits starting 1-9 never match the system uid range and always
+  match the desktop range, so the trigger speaks the same law as the
+  filter. The same pass killed the audit script's bare `cd`
+  (SC2164 — the fail-fast class night-total-lts-4 established for
+  the gates) and appended the third-pass section to
+  docs/audit-night-total-lts.md. Host note: installed units predate
+  the fix — the install lane refreshes them, and the audit's
+  parse-hygiene row names the byte mismatch until it runs.
 
 - **night-dinner-14** — the host audit verifies effects, not exit
   codes: R10's lifecycle now proves each step did what it claims

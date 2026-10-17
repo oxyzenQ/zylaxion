@@ -14,7 +14,7 @@ use super::{
     ControlPinStat, ENABLED_SLOT, PLAYER_PID_SLOT, PLAYER_SETTLE_BUDGET, PLAYER_SPAWN_VERB,
     PRESET_ID_SLOT, SETTLE_STEP, STATE_IDLE, STATE_RUNNING, STATE_SLOT, VOLUME_PCT_SLOT,
     context_volume_percent, control_pin_stat, init_logger, kernel_policy_gate, on_root_refusal,
-    open_control, preset_index_or_error,
+    open_control, preset_index_or_error, stored_volume_or_fallback,
 };
 
 /// Handle `zylaxion on [preset]` — enable the sound.
@@ -63,11 +63,15 @@ pub fn cmd_on(cli_preset: Option<String>) {
     // instead of being clobbered by them. The resolver and the
     // context volume keep the CLI/env lanes and their canonical hard
     // errors verbatim; the stored lanes are consulted only when both
-    // higher lanes are silent. A fresh attach leaves both slots at
-    // zero, and zero is safe by construction: preset index 0 IS the
-    // compiled default's registry position, and a zero volume slot
-    // reads as the fresh-attach shape (never a user mute), so the
-    // default stands.
+    // higher lanes are silent. A fresh attach does NOT leave the slots
+    // at zero — the plant seeds the compiled defaults (the default
+    // preset's registry position, volume 100), so every successful
+    // read is user-meaningful: preset slot 0 IS the compiled default's
+    // registry position (seeded or zero-initialized, the same verdict),
+    // and a stored volume 0 is a deliberate mute (`zylaxion volume 0`)
+    // the promise honors verbatim (night-last-total-lts-5); only an
+    // unreadable map defers to the resolved default, and the posture
+    // writes below fail loudly if the map stays dead.
     let preset_env_set = std::env::var(crate::session::preset::PRESET_ENV_VAR)
         .map(|v| !v.trim().is_empty())
         .unwrap_or(false);
@@ -111,10 +115,7 @@ pub fn cmd_on(cli_preset: Option<String>) {
     let volume_percent = if volume_env_set {
         volume_percent
     } else {
-        match control.get(&VOLUME_PCT_SLOT, 0).unwrap_or(0) {
-            0 => volume_percent,
-            stored => stored,
-        }
+        stored_volume_or_fallback(control.get(&VOLUME_PCT_SLOT, 0).ok(), volume_percent)
     };
     // Write the control plane BEFORE spawning: the player reads its
     // initial posture from the map at startup.

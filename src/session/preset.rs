@@ -19,9 +19,8 @@
 //!      wrote while the sound was off (night-dinner-18: the promise
 //!      "takes effect on `zylaxion on`" is honored by `cmd_on`, which
 //!      reads the preset slot when the CLI and the environment are
-//!      silent; a fresh attach leaves the slot at zero and index 0 IS
-//!      the compiled default's registry position, so the read is safe
-//!      by construction)
+//!      silent; the plant seeds the compiled default's registry
+//!      position at attach, so the read is safe by construction)
 //!   4. the compiled default preset ("technical") from the registry
 //!
 //! The resolver itself ([`resolve`]) still owns lanes 1, 2 and 4 —
@@ -37,8 +36,11 @@
 //! in the environment, the compiled laptop-speaker default (5.5)
 //! otherwise — and at `on` the stored percent slot rides the same
 //! promise (night-dinner-18): env > the map's stored percent > the
-//! compiled default; a zero slot is the fresh-attach shape, never a
-//! user mute. An invalid value is a hard error — the no-silent-
+//! compiled default. The plant seeds the compiled 100 at attach
+//! (night-last-total-lts-5), so a stored 0 is a deliberate mute
+//! (`zylaxion volume 0`) and the restore honors it verbatim; only an
+//! unreadable map defers to the resolved default. An invalid value is
+//! a hard error — the no-silent-
 //! fallback contract the config era honored survives here.
 //!
 //! Unknown preset names produce the canonical GNU-shaped error with
