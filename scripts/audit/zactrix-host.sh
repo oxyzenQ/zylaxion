@@ -88,6 +88,22 @@
 # posture exceeds the 200% safety cap — a force-authored live state is
 # returned, not silently downgraded to 100%.
 #
+# night-dinner-21 hardening: R5's "this boot's attach" row stopped
+# judging through a door the invoking user may not hold. The old
+# order gated the whole row (and the parse-hygiene leg with it)
+# behind `journalctl -b` run as the invoking user — on the reference
+# host (uid 1000 without the systemd-journal group) that read came
+# back empty and the row read INCONCLUSIVE while systemctl status
+# said 0/SUCCESS, its sudo-cached hint was false (this one journalctl
+# was never wrapped in as_root, unlike R6's), and its start-unlock
+# could not flip the row (the same user re-read the same empty
+# journal). Now systemd's own verdict (systemctl show:
+# ExecMainStartTimestamp / Result / ExecMainStatus, readable by any
+# user) is asked first and decides; the journal text is
+# corroboration, reported as such when readable, named as absent
+# when not; the never-started and start-failed FAIL lanes keep the
+# scoped-tail archaeology as depth, not as a gate.
+#
 # Verdict vocabulary: PASS, FAIL, INCONCLUSIVE (the row cannot be
 # measured here, the exact unlock command is named), HUMAN (the one
 # row only your ear can close), INFO (a recorded fact, no verdict).
@@ -392,8 +408,11 @@ line ""
 
 # ------------------------------------------------------------------
 # R5 — the boot posture: the oneshot is enabled, this boot's attach
-# ended SUCCESS, and the journal carries no Unknown-key lines (the
-# night-dinner-8 class of warning — the unit file must parse clean).
+# ended SUCCESS (judged from systemd's own record first — no journal
+# access required, night-dinner-21), and the installed unit file is
+# byte-identical to the tree's (the night-dinner-8 class of parse
+# warning cannot live in it — a check that no longer hides behind a
+# journal read either).
 # ------------------------------------------------------------------
 hr
 line "R5 — the boot posture (the oneshot lane)"
@@ -408,85 +427,97 @@ else
         verdict FAIL "R5 unit enabled" \
             "is-enabled says '${ENABLED:-nothing}' — the boot lane is off. Unlock: sudo systemctl enable zylaxion-attach"
     fi
-    # night-dinner-15: journalctl prints a "-- No entries --" placeholder
-    # (on stdout, not silence) for a unit that never ran this boot; strip
-    # it before the emptiness test or a never-started unit reads as FAIL
-    # instead of INCONCLUSIVE.
+    # night-dinner-21: the evidence order is inverted. The old order
+    # gated this row behind a journal read the invoking user may not
+    # hold (observed live on nightpc: uid 1000 without the
+    # systemd-journal group read INCONCLUSIVE while systemctl status
+    # said 0/SUCCESS) — and the row's sudo-cached hint was false (this
+    # one journalctl was never wrapped in as_root, unlike R6's), while
+    # the start-unlock could not flip the row either (the same user
+    # re-read the same empty journal). Now systemd's own verdict —
+    # systemctl show: ExecMainStartTimestamp / Result / ExecMainStatus,
+    # readable by any user — is asked FIRST and decides; the journal
+    # text is corroboration. night-dinner-15's placeholder strip
+    # stays: "-- No entries --" prints on stdout, not silence, and
+    # must not read as text.
     BOOT_LOG="$(journalctl -b -u zylaxion-attach --no-pager 2>/dev/null | sed '/^-- No entries --$/d' || true)"
-    if [[ -z "$BOOT_LOG" ]]; then
-        verdict INCONCLUSIVE "R5 this boot's attach" \
-            "no journal entries for the unit this boot (or the journal is not readable by this user — try re-running with sudo cached) — Unlock: sudo systemctl start zylaxion-attach, then re-run"
+    UNIT_FILE="/etc/systemd/system/${UNIT_NAME}.service"
+    RAN_AT="$(systemctl show ${UNIT_NAME} -p ExecMainStartTimestamp --value 2>/dev/null || true)"
+    RUN_RESULT="$(systemctl show ${UNIT_NAME} -p Result --value 2>/dev/null || true)"
+    RUN_STATUS="$(systemctl show ${UNIT_NAME} -p ExecMainStatus --value 2>/dev/null || true)"
+    # The journal-native success markers ("Finished <unit>" and
+    # "Deactivated successfully") are what journalctl actually prints;
+    # the old grep also kept systemctl's own rendering
+    # ("status=0/SUCCESS"), which the raw journal never carries, as a
+    # third marker for a pasted systemctl view (night-dinner-14).
+    CORROB=""
+    if [[ -n "$BOOT_LOG" ]] && echo "$BOOT_LOG" | grep -qE "Finished ${UNIT_NAME}\.service|Deactivated successfully|status=0/SUCCESS"; then
+        CORROB=" — the journal text corroborates (the Finished/Deactivated markers)"
+    fi
+    if [[ -z "$RAN_AT" || "$RAN_AT" == "n/a" ]]; then
+        # night-dinner-17's archaeology survives as FAIL-lane depth,
+        # not as a gate: stale parse lines from a unit file that has
+        # since been replaced read like a live failure, so the tail is
+        # scoped to parses AFTER the installed file landed.
+        UNIT_FILE_MTIME="$(as_root stat -c %Y "$UNIT_FILE" 2>/dev/null || true)"
+        SCOPED_TAIL=""
+        [[ -n "$UNIT_FILE_MTIME" ]] && SCOPED_TAIL="$(journalctl -b -u ${UNIT_NAME} --no-pager --since "@${UNIT_FILE_MTIME}" 2>/dev/null | tail -5 || true)"
+        verdict FAIL "R5 this boot's attach" \
+            "the unit has not started at all this boot (systemd records no ExecMainStartTimestamp — the boot lane never fired)${SCOPED_TAIL:+ — and nothing newer than the installed file exists either:}"
+        [[ -n "$SCOPED_TAIL" ]] && echo "$SCOPED_TAIL" | sed 's/^/         /'
+        line "       Unlock: sudo systemctl start ${UNIT_NAME}, then re-run"
+    elif [[ "$RUN_RESULT" != "success" ]]; then
+        UNIT_FILE_MTIME="$(as_root stat -c %Y "$UNIT_FILE" 2>/dev/null || true)"
+        SCOPED_TAIL=""
+        [[ -n "$UNIT_FILE_MTIME" ]] && SCOPED_TAIL="$(journalctl -b -u ${UNIT_NAME} --no-pager --since "@${UNIT_FILE_MTIME}" 2>/dev/null | tail -5 || true)"
+        verdict FAIL "R5 this boot's attach" \
+            "the unit's start failed this boot (started ${RAN_AT}; systemd Result: ${RUN_RESULT:-unknown}, ExecMainStatus: ${RUN_STATUS:-unknown}):"
+        [[ -n "$SCOPED_TAIL" ]] && echo "$SCOPED_TAIL" | sed 's/^/         /'
+        line "       Unlock: sudo ${BIN_NAME} attach by hand for the full error, then re-run"
+    elif [[ -n "$CORROB" ]]; then
+        verdict PASS "R5 this boot's attach" \
+            "the unit started this boot (${RAN_AT}) and systemd records Result=${RUN_RESULT} (ExecMainStatus ${RUN_STATUS})${CORROB}"
+    elif [[ -z "$BOOT_LOG" ]]; then
+        verdict PASS "R5 this boot's attach" \
+            "the unit started this boot (${RAN_AT}) and systemd records Result=${RUN_RESULT} (ExecMainStatus ${RUN_STATUS}) — the journal text carried nothing readable for the unit (the read was denied or the lines went unattributed); systemd's own verdict is the evidence"
     else
-        # The journal-native success markers: "Finished <unit>" and
-        # "Deactivated successfully" are what journalctl actually
-        # prints; the old grep looked for systemctl's own rendering
-        # ("status=0/SUCCESS"), which the raw journal never carries,
-        # so the row could never pass on journalctl output (kept as a
-        # third marker for a pasted systemctl view, night-dinner-14).
-        if echo "$BOOT_LOG" | grep -qE "Finished ${UNIT_NAME}\.service|Deactivated successfully|status=0/SUCCESS"; then
-            verdict PASS "R5 this boot's attach" \
-                "the unit's ExecStart completed this boot (the journal-native Finished/Deactivated markers)"
+        verdict PASS "R5 this boot's attach" \
+            "the unit started this boot (${RAN_AT}) and systemd records Result=${RUN_RESULT} (ExecMainStatus ${RUN_STATUS}) — the journal text carries no Finished marker (attribution may be partial); systemd's own verdict stands"
+    fi
+    # The parse-hygiene row, two legs (night-dinner-14; un-gated in
+    # night-dinner-21 — it needs no journal read either, and gating it
+    # behind one hid the row entirely from non-journal users): the
+    # direct question first — is the installed unit byte-identical to
+    # the tree's fixed one? — then, only when the tree is not here,
+    # the journal archaeology scoped to parses AFTER the installed
+    # file landed (the whole-boot grep failed on historical lines even
+    # with the fixed unit installed).
+    INSTALLED_SHA="$(as_root sha256sum "$UNIT_FILE" 2>/dev/null | awk '{print $1}')"
+    if [[ -n "$INSTALLED_SHA" && -f "assets/${UNIT_NAME}.service" ]]; then
+        TREE_SHA="$(sha256sum "assets/${UNIT_NAME}.service" | awk '{print $1}')"
+        if [[ "$INSTALLED_SHA" == "$TREE_SHA" ]]; then
+            verdict PASS "R5 journal parse hygiene" \
+                "the installed unit is byte-identical to the tree's fixed one (the night-dinner-8 class cannot live in this file)"
         else
-            # night-dinner-17: the journal tail alone misleads twice —
-            # stale parse lines from a unit file that has since been
-            # replaced read like a live failure (this boot's tail was
-            # five pre-fix Unknown-key lines sitting under a
-            # byte-identical hygiene PASS), and a start whose lines
-            # journald never attributed leaves no text to judge. Ask
-            # systemd directly what the unit DID this boot.
-            UNIT_FILE="/etc/systemd/system/${UNIT_NAME}.service"
-            UNIT_FILE_MTIME="$(as_root stat -c %Y "$UNIT_FILE" 2>/dev/null || true)"
-            RAN_AT="$(systemctl show ${UNIT_NAME} -p ExecMainStartTimestamp --value 2>/dev/null || true)"
-            RUN_RESULT="$(systemctl show ${UNIT_NAME} -p Result --value 2>/dev/null || true)"
-            RUN_STATUS="$(systemctl show ${UNIT_NAME} -p ExecMainStatus --value 2>/dev/null || true)"
-            SCOPED_TAIL=""
-            [[ -n "$UNIT_FILE_MTIME" ]] && SCOPED_TAIL="$(journalctl -b -u ${UNIT_NAME} --no-pager --since "@${UNIT_FILE_MTIME}" 2>/dev/null | tail -5 || true)"
-            if [[ -z "$RAN_AT" || "$RAN_AT" == "n/a" ]]; then
-                verdict FAIL "R5 this boot's attach" \
-                    "the unit has not started at all this boot (systemd records no ExecMainStartTimestamp — the boot lane never fired; the earlier journal lines were parse warnings from before the installed file landed)${SCOPED_TAIL:+ — and nothing newer than the installed file exists either:}"
-                [[ -n "$SCOPED_TAIL" ]] && echo "$SCOPED_TAIL" | sed 's/^/         /'
-                line "       Unlock: sudo systemctl start ${UNIT_NAME}, then re-run"
-            elif [[ "$RUN_RESULT" != "success" ]]; then
-                verdict FAIL "R5 this boot's attach" \
-                    "the unit's start failed this boot (started ${RAN_AT}; systemd Result: ${RUN_RESULT:-unknown}, ExecMainStatus: ${RUN_STATUS:-unknown}):"
-                [[ -n "$SCOPED_TAIL" ]] && echo "$SCOPED_TAIL" | sed 's/^/         /'
-                line "       Unlock: sudo ${BIN_NAME} attach by hand for the full error, then re-run"
-            else
-                verdict PASS "R5 this boot's attach" \
-                    "the unit started this boot (${RAN_AT}) and systemd records Result=${RUN_RESULT} (ExecMainStatus ${RUN_STATUS}) — systemd's own verdict stands where the journal's text markers did not"
-            fi
+            verdict FAIL "R5 journal parse hygiene" \
+                "the installed unit is NOT the tree's fixed unit — reinstall: sudo cp assets/${UNIT_NAME}.service ${UNIT_FILE} && sudo systemctl daemon-reload"
         fi
-        # The parse-hygiene row, two legs (night-dinner-14): the direct
-        # question first — is the installed unit byte-identical to the
-        # tree's fixed one? — then, only when the tree is not here, the
-        # journal archaeology scoped to parses AFTER the installed file
-        # landed (the whole-boot grep failed on historical lines even
-        # with the fixed unit installed).
-        UNIT_FILE="/etc/systemd/system/${UNIT_NAME}.service"
-        INSTALLED_SHA="$(as_root sha256sum "$UNIT_FILE" 2>/dev/null | awk '{print $1}')"
-        if [[ -n "$INSTALLED_SHA" && -f "assets/${UNIT_NAME}.service" ]]; then
-            TREE_SHA="$(sha256sum "assets/${UNIT_NAME}.service" | awk '{print $1}')"
-            if [[ "$INSTALLED_SHA" == "$TREE_SHA" ]]; then
-                verdict PASS "R5 journal parse hygiene" \
-                    "the installed unit is byte-identical to the tree's fixed one (the night-dinner-8 class cannot live in this file)"
-            else
-                verdict FAIL "R5 journal parse hygiene" \
-                    "the installed unit is NOT the tree's fixed unit — reinstall: sudo cp assets/${UNIT_NAME}.service ${UNIT_FILE} && sudo systemctl daemon-reload"
-            fi
-        elif ! as_root test -e "$UNIT_FILE" 2>/dev/null; then
+    elif ! as_root test -e "$UNIT_FILE" 2>/dev/null; then
+        verdict INCONCLUSIVE "R5 journal parse hygiene" \
+            "the unit is not installed at ${UNIT_FILE} — Unlock: sudo cp assets/${UNIT_NAME}.service ${UNIT_FILE} && sudo systemctl daemon-reload && sudo systemctl enable ${UNIT_NAME}"
+    else
+        UNIT_MTIME="$(as_root stat -c %Y "$UNIT_FILE" 2>/dev/null || true)"
+        SCOPED_LOG=""
+        [[ -n "$UNIT_MTIME" ]] && SCOPED_LOG="$(journalctl -b -u "$UNIT_NAME" --since "@${UNIT_MTIME}" --no-pager 2>/dev/null || true)"
+        if echo "$SCOPED_LOG" | grep -q "Unknown key"; then
+            verdict FAIL "R5 journal parse hygiene" \
+                "the unit journal carries Unknown-key lines newer than the installed file — systemd parsed a unit that does not parse clean; reinstall from assets/${UNIT_NAME}.service"
+        elif [[ -z "$SCOPED_LOG" ]]; then
             verdict INCONCLUSIVE "R5 journal parse hygiene" \
-                "the unit is not installed at ${UNIT_FILE} — Unlock: sudo cp assets/${UNIT_NAME}.service ${UNIT_FILE} && sudo systemctl daemon-reload && sudo systemctl enable ${UNIT_NAME}"
+                "cannot compare the installed unit to the tree (running outside a checkout?) and the unit's journal is not readable by this user — inspect ${UNIT_FILE} by hand"
         else
-            UNIT_MTIME="$(as_root stat -c %Y "$UNIT_FILE" 2>/dev/null || true)"
-            SCOPED_LOG=""
-            [[ -n "$UNIT_MTIME" ]] && SCOPED_LOG="$(journalctl -b -u "$UNIT_NAME" --since "@${UNIT_MTIME}" --no-pager 2>/dev/null || true)"
-            if echo "$SCOPED_LOG" | grep -q "Unknown key"; then
-                verdict FAIL "R5 journal parse hygiene" \
-                    "the unit journal carries Unknown-key lines newer than the installed file — systemd parsed a unit that does not parse clean; reinstall from assets/${UNIT_NAME}.service"
-            else
-                verdict INCONCLUSIVE "R5 journal parse hygiene" \
-                    "cannot compare the installed unit to the tree (running outside a checkout?) and no Unknown-key lines after the file landed — inspect ${UNIT_FILE} by hand"
-            fi
+            verdict INCONCLUSIVE "R5 journal parse hygiene" \
+                "cannot compare the installed unit to the tree (running outside a checkout?) and no Unknown-key lines after the file landed — inspect ${UNIT_FILE} by hand"
         fi
     fi
 fi
@@ -902,6 +933,10 @@ line "      FAIL — a dead reader cannot measure zylaxion, it can only lie."
 line "      night-dinner-17: R5 judges from systemd's own verdict, and R10"
 line "      refuses to mutate as root — a root player cannot reach the"
 line "      desktop's audio session, so that lifecycle would measure nothing."
+line "      night-dinner-21: R5's verdict comes from systemd's own record,"
+line "      read without the journal — a user outside the systemd-journal"
+line "      group gets a verdict, not an INCONCLUSIVE whose unlock could"
+line "      never unlock."
 line "      Exit code carries the FAIL count only — INCONCLUSIVE never fails"
 line "      the run, it names its unlock command."
 hr
