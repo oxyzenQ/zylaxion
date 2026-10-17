@@ -146,6 +146,25 @@ pub(crate) fn classify_pin_stat(kind: Option<std::io::ErrorKind>) -> ControlPinS
     }
 }
 
+/// The stored-volume law behind `on`'s restore lane
+/// (night-last-total-lts-5): the plant seeds the volume slot at attach
+/// (the compiled default, 100 — loader/chain.rs's control init), so a
+/// successful read is always user-meaningful and `Some(0)` is a
+/// deliberate mute (`zylaxion volume 0`), never an unset shape — the
+/// restore honors it verbatim. Only a read that FAILED (the map is
+/// unreadable) defers to the already-resolved default, and the posture
+/// writes that follow fail loudly if the map stays dead, so the
+/// fallback can never silently lie. The night-dinner-18 draft folded
+/// `Ok(0)` into the default lane on the false "never a user mute"
+/// premise — a stored mute came back as the compiled 100.
+#[cfg(feature = "ebpf")]
+pub(crate) fn stored_volume_or_fallback(read: Option<u32>, fallback: u32) -> u32 {
+    match read {
+        Some(stored) => stored,
+        None => fallback,
+    }
+}
+
 /// Open the pinned control map for read-write. Every verb here needs
 /// exactly this; the error names the world it found (night-dinner-3:
 /// the old single message read a walk-blocked bpffs mount as "not
