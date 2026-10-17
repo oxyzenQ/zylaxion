@@ -20,7 +20,7 @@
 
 [package]
 name = "zylaxion"
-version = "80.0.0-rc.2"
+version = "80.0.0"
 # night-improve-4: edition 2024 across the whole tree so the repo speaks
 # one edition (the zelynic lineage). The 2024 floor is Rust 1.85; the
 # pinned toolchain below (1.98.1) rides far above it.
