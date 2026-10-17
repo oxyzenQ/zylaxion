@@ -267,13 +267,14 @@ fn pin_kprobe_program(bpf: &mut Ebpf) -> Result<(), AttachError> {
 /// With no recipient at all the pins stay root-owned and nothing is
 /// relaxed — honest about that in the summary.
 pub(super) fn hand_pins_to_desktop_user() -> String {
-    if let Ok(user) = std::env::var("SUDO_USER") {
-        if !user.is_empty() && user != "root" {
-            return match nix::unistd::User::from_name(&user).ok().flatten() {
-                Some(entry) => hand_pins_to(&user, &entry, ""),
-                None => format!(" (sudo user '{user}' not resolvable — pins stay root-owned)"),
-            };
-        }
+    if let Ok(user) = std::env::var("SUDO_USER")
+        && !user.is_empty()
+        && user != "root"
+    {
+        return match nix::unistd::User::from_name(&user).ok().flatten() {
+            Some(entry) => hand_pins_to(&user, &entry, ""),
+            None => format!(" (sudo user '{user}' not resolvable — pins stay root-owned)"),
+        };
     }
     match first_desktop_runtime_user() {
         Some((user, entry)) => hand_pins_to(&user, &entry, " — resolved from /run/user"),
