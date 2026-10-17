@@ -664,3 +664,18 @@ refresh on already-installed hosts.
 5. The installed-handover-unit refresh on existing hosts — the
    install lane's job before the next `--full` host run, so the
    parse-hygiene row reads byte-identical against the fixed glob.
+
+## The owner's acceptance — the third pass closes (2026-10-17)
+
+The owner reviewed the third pass's ledger and accepted it as it
+stands: the residuals above are named findings, not blockers. The
+acceptance names each one — the loaded-vs-built byte hash (the
+security ledger's Dimension 2 residual, named by design), the
+audio-capable proof rows (only the owner's ears close those), the
+25-second attach-path sleep (unreproduced, still on the record), and
+the soak-silence split (proposed, not implemented). The third pass is
+closed on that acceptance. Nothing was silently waved through: every
+residual keeps the lane that owns it in the worklist above, the
+worklist carries over unchanged, and the stable release stays
+owner-decided — the all-green audit is the readiness verdict, the
+timing call is not.
