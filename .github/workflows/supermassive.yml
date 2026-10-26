@@ -311,9 +311,12 @@ jobs:
 
   # ═══════════════════════════════════════════════════════════════════
   # night-master-3: the real-usage E2E on the KVM micro-VM floor.
-  # Two legs cross the kernel span (the documented 5.15 floor, the
-  # newest kernel the archive serves); the battery inside is the same
-  # whole-chaos engine both times. The envelope derives from the
+  # Three legs cross the kernel span (night-dragon-maintenance-4:
+  # below the floor, the focal 5.4 refusal witness; the documented
+  # 5.15 floor, jammy's 5.15.0 line; the newest kernel the archive
+  # serves); the battery inside is the same whole-chaos engine, and
+  # the below-floor leg runs the refusal walk instead. The envelope
+  # derives from the
   # runner at boot (the zelynic dynamic doctrine — never pin one
   # era's hardware): the best leg takes every core and three quarters
   # of the RAM; the floor leg takes the LOW envelope (one quarter of

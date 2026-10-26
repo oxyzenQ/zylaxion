@@ -32,8 +32,8 @@ Python engine, two lanes.
                                 writes, off, the zero-process state),
                                 and the realtime depth stresstest
                                 (night-dragon-maintenance-2, the
-                                zejtron storm lineage: two concurrent
-                                uinput writers, telemetry and the
+                                zejtron storm lineage: three
+                                concurrent uinput writers, telemetry and the
                                 whole volume boundary lattice asserted
                                 UNDER LOAD, the PCM witness read
                                 mid-storm).
