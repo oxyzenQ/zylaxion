@@ -137,10 +137,11 @@ impl Orchestrator<crate::audio::CpalSink> {
     /// Returns [`OrchestratorError::Audio`] if no audio device is available
     /// or the stream cannot be started.
     // night-improve-21: production constructs through
-    // with_master_volume (the daemon always applies the config
-    // volume); this default-volume constructor stays as the documented
-    // no-config entry — the zylaxion_live example is its caller, so
-    // the marker is an allow, not an expect.
+    // with_master_volume; this default-volume constructor stays as the
+    // documented no-config entry. night-dragon-lts: the old comment
+    // named the zylaxion_live example as its caller — no such example
+    // exists in the tree; the constructor is caller-free today, kept
+    // as the documented entry point and honestly marked.
     #[allow(dead_code)]
     pub fn new() -> Result<Self, OrchestratorError> {
         let sink = crate::audio::CpalSink::new().map_err(OrchestratorError::Audio)?;

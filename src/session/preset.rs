@@ -160,29 +160,18 @@ pub fn resolve_from(
     Ok((preset.profile, preset.name, volume))
 }
 
-/// The preset name the resolver would pick right now without a CLI
-/// flag: the environment selection when it names a registered preset,
-/// the compiled default otherwise. A malformed environment value does
-/// NOT fail here — the diagnostic surfaces at `resolve` time when a
-/// session actually starts. night-hunter-2: this is the FALLBACK lane
-/// of the active-row marker — `list-presets` and the overview consult
-/// it only when no live player holds the control plane; a live
-/// session's map slot outranks it (see
-/// `commands::info::active_preset_name_from`).
-// night-improve-22: consumed by the commands tree wired in this same
-// night (list-presets, overview).
-#[allow(dead_code)]
-pub fn context_preset_name() -> &'static str {
-    let preset_env = std::env::var(PRESET_ENV_VAR).ok();
-    context_preset_name_from(preset_env.as_deref())
-}
-
-/// The pure core of [`context_preset_name`]: same contract, the
-/// environment value passed in explicitly (no process-env access —
-/// see [`resolve_from`] for the race-free testing rationale).
-// night-improve-22: consumed by the commands tree wired in this same
-// night (list-presets, overview).
-#[allow(dead_code)]
+/// The active-row marker's fallback lane (night-hunter-2): the preset
+/// name the context would resolve to — the environment selection when
+/// it names a registered preset, the compiled default otherwise. A
+/// malformed environment value does NOT fail here — the diagnostic
+/// surfaces at `resolve` time when a session actually starts.
+/// `list-presets` and the overview consult it only when no live player
+/// holds the control plane; a live session's map slot outranks it (see
+/// `commands::info::active_preset_name_from`). The environment value
+/// is passed in explicitly (no process-env access — see
+/// [`resolve_from`] for the race-free testing rationale).
+/// night-dragon-lts: the dead env-reading wrapper around this fn is
+/// gone — the commands tree consumes the pure core directly.
 pub fn context_preset_name_from(preset_env: Option<&str>) -> &'static str {
     match preset_env.map(str::trim).filter(|v| !v.is_empty()) {
         Some(name) => match registry_lookup(name) {

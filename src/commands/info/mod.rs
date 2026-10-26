@@ -64,7 +64,7 @@ fn active_preset_name_from(live: Option<&'static str>, preset_env: Option<&str>)
 }
 
 /// The env-reading shell around [`active_preset_name_from`] (the
-/// thin-shell precedent — see [`preset::context_preset_name`]).
+/// thin-shell precedent — see [`preset::context_preset_name_from`]).
 pub(super) fn active_preset_name(live: Option<&'static str>) -> &'static str {
     let preset_env = std::env::var(preset::PRESET_ENV_VAR).ok();
     active_preset_name_from(live, preset_env.as_deref())

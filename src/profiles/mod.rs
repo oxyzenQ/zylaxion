@@ -17,21 +17,16 @@
 //! - [`ZactrixEngine`] — the reference implementation for mechanical
 //!   switches (the Zactrix Engine; [`MechanicalClick`] is its
 //!   historical-name alias).
-//! - `TptSvf` — topology-preserving SVF for numerically stable filtering
-//!   (the `tpt` module is internal; its filter rides the registry's
-//!   compiled presets).
 mod mechanical;
 mod model;
 mod params;
 mod profile;
 mod registry;
-mod tpt;
 
 // night-improve-22: the registry re-exports are consumed by the
-// session preset resolver and the commands tree wired in this same
-// night; the non-test compilation flags them until those consumers
-// land, so the bridge carries the family-standard scoped allow.
-#[allow(unused_imports)]
+// session preset resolver and the commands tree (night-dragon-lts:
+// every name verified live in the non-test compilation — the scoped
+// allow that hid future rot is gone).
 pub use registry::{
     DEFAULT_PRESET, Preset, all as registry_all, lookup as registry_lookup,
     names_sorted as registry_names,
@@ -49,10 +44,11 @@ pub use params::{
     AmbientParams, ClickParams, DecayParams, HousingParams, KeyTrigger, MAX_POLYPHONY, SAMPLE_RATE,
     SpringParams,
 };
-// night-improve-21: the `tpt::TptSvf` root re-export is retired —
-// zero consumers in the unified tree; the item stays available
-// through its home module. The bare path is read by the wired test
-// tree only, so the non-test compilation flags it unused.
+// night-improve-21: the tpt root re-export is retired (night-dragon-lts
+// went further: the whole zombie module is gone — the render path
+// inlines the identical TPT math). This bridge stays: KeyProfile is
+// live in the non-test compilation, `ranges` is read by the wired test
+// tree only, so the scoped allow remains honest.
 #[allow(unused_imports)]
 pub use profile::{KeyProfile, ranges};
 

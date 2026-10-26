@@ -141,10 +141,9 @@ pub mod control {
 /// The ring buffer record — layout contract with `KeyRingEvent` in
 /// ebpf/src/main.rs (24 bytes: repr(C) puts ts_us at 0 and the three
 /// u32s at 8/12/16, four trailing pad bytes — identical shape on both
-/// sides is the contract). The player parses ring items into this
-/// shape; until the player lane lands it exists as the pinned contract
-/// the tests pin.
-#[allow(dead_code)]
+/// sides is the contract). The player parses ring items into THIS
+/// type directly (night-dragon-lts: the private mirror in the player
+/// lane is gone — one wire struct, the one the loader tests pin).
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct KeyRingEvent {
