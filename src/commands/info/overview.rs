@@ -165,9 +165,18 @@ pub fn cmd_overview() {
                     )
                 );
             } else {
+                // night-dragon-maintenance-4: an unreadable device
+                // config is a caution — the warning yellow tier, the
+                // same lane the no-device arm below already rides.
                 println!(
                     "{}",
-                    crate::output::kv("audio:", &format!("{name} (config unavailable)"))
+                    crate::output::kv(
+                        "audio:",
+                        &format!(
+                            "{name} {}",
+                            crate::output::warn_line("(config unavailable)")
+                        )
+                    )
                 );
             }
         }

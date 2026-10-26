@@ -322,7 +322,17 @@ pub fn cmd_doctor() {
         // unprivileged-bpf row applies to its verdict string.
         let raw_tap: &str = &kernel.input_tap;
         let tap_value = raw_tap.strip_prefix("input tap: ").unwrap_or(raw_tap);
-        println!("{}", crate::output::kv("tap chain:", tap_value));
+        // night-dragon-maintenance-4: the chain preflight is a verdict,
+        // not a fact row — a verified step (fentry or either kprobe
+        // lane) rides the status-green tier, an exhausted chain
+        // (UNAVAILABLE) rides the error-red tier. Plain bytes on a
+        // non-terminal stdout, the same gate every other tier rides.
+        let tap_colored = if tap_value.starts_with("UNAVAILABLE") {
+            crate::output::fail_line(tap_value)
+        } else {
+            crate::output::ok_line(tap_value)
+        };
+        println!("{}", crate::output::kv("tap chain:", &tap_colored));
         // The last attach failure, if one left its marker
         // (night-improve-25): a failed attach plants a small pinned map
         // carrying the classified error code; naming it here is the
@@ -573,7 +583,11 @@ pub fn cmd_doctor() {
     // the exit verdict.
     if !warnings.is_empty() {
         println!();
-        println!("Warnings:");
+        // night-dragon-maintenance-4: the block's header rides the
+        // warning tier with its rows — the caution block reads as one
+        // yellow lane, scannable on a color terminal, byte-identical
+        // plain otherwise.
+        println!("{}", crate::output::warn_line("Warnings:"));
         for w in &warnings {
             println!("{}", crate::output::warn_bullet(w));
         }
