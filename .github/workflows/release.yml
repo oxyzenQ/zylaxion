@@ -73,11 +73,13 @@ jobs:
   # ===========================================================================
   # Validate Release Tag (fail fast, before any build cost)
   # ===========================================================================
-  # Release channel contract: a tag is either a stable release (plain
-  # vX.Y.Z) or a pre-release restricted to the dev / nightly / alpha /
-  # beta / rc channels (vX.Y.Z-<channel>[.N]). Any other suffix fails
+  # Release channel contract (night-dragon-maintenance-3): the tag is
+  # the whole truth. A plain vX.Y.Z is a stable release; vX.Y.Z-<any
+  # suffix> is a pre-release — the hyphen after the patch segment is
+  # the ONLY signal, so no channel list exists to maintain (a new
+  # suffix shape needs zero workflow edits). Any other shape fails
   # validation here, so no binary is built and no GitHub release is
-  # ever created for an unsupported channel.
+  # ever created for a malformed tag.
   validate:
     name: Validate Release Tag
     runs-on: ubuntu-24.04
@@ -94,20 +96,38 @@ jobs:
         run: |
           set -euo pipefail
           TAG="$REF"
-          VERSION="${TAG#v}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
-            echo "stable release tag: $TAG"
-          elif [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-(dev|nightly|alpha|beta|rc)(\.[0-9]+)?$ ]]; then
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
-            echo "pre-release tag (allowed channel): $TAG"
-          else
-            echo "::error::unsupported release channel in tag '$TAG'"
-            echo "allowed: vX.Y.Z (stable) or vX.Y.Z-{dev,nightly,alpha,beta,rc}[.N]"
+          # The strict gate (the zejtron night-total-lts-2 law): the
+          # case below only CLASSIFIES the pre-release split — it was
+          # never a validator. A glob * crosses dots, semicolons and
+          # quotes, so a crafted refname must never ride its * into
+          # the build jobs' string interpolations. Only a strict
+          # vX.Y.Z(-suffix) refname reaches the release lane.
+          if ! printf '%s' "${TAG}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$'; then
+            echo "::error::tag ${TAG} is not a strict v-prefixed semver (vX.Y.Z or vX.Y.Z-suffix)"
             exit 1
           fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          # The hyphen law: FIRST match wins in a bash case, and a
+          # glob * crosses '-', so the pre-release branch MUST come
+          # first — the reversed order classified every vX.Y.Z-suffix
+          # tag stable (the zejtron night-dragon-1S incident:
+          # v80.0.0-nightly.1 shipped a stable-flagged release
+          # through exactly that hole).
+          case "${TAG}" in
+            v[0-9]*.[0-9]*.[0-9]*-*)
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+              echo "pre-release tag (hyphen after the patch): ${TAG}"
+              ;;
+            v[0-9]*.[0-9]*.[0-9]*)
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+              echo "stable release tag: ${TAG}"
+              ;;
+            *)
+              echo "::error::tag ${TAG} is not a v-prefixed semver (vX.Y.Z or vX.Y.Z-suffix)"
+              exit 1
+              ;;
+          esac
 
   # ===========================================================================
   # Build (the arch-baseline matrix)
@@ -545,13 +565,14 @@ jobs:
           # All tag names via the API — no clone, no local refs.
           TAGS=$(gh_api --paginate "repos/${GITHUB_REPOSITORY}/tags" --jq '.[].name')
 
-          # Previous changelog boundary:
+          # Previous changelog boundary (the hyphen law — the same
+          # rule the validate step holds):
           # Pre-release: prev = any previous tag by semver (users
           #   testing pre-release builds want the changes since the
-          #   last build of any channel).
-          # Stable: prev = nearest previous STABLE tag (skip
-          #   pre-releases) — the stable changelog spans from the
-          #   last stable release.
+          #   last build of any kind).
+          # Stable: prev = nearest previous STABLE tag (skip every
+          #   pre-release — the hyphen is the only signal) — the
+          #   stable changelog spans from the last stable release.
           # awk (never grep) so a zero-match filter is not a failed
           # pipeline under pipefail — "no previous tag" is a legal
           # state, not an error.
@@ -562,7 +583,7 @@ jobs:
           else
             PREV_TAG=$(printf '%s\n' "${TAGS}" \
               | awk -v cur="${TAG}" \
-                '$0 != cur && $0 !~ /^v[0-9]+\.[0-9]+\.[0-9]+-(dev|nightly|alpha|beta|rc)[\.-]/' \
+                '$0 != cur && $0 !~ /^v[0-9]+\.[0-9]+\.[0-9]+-/' \
               | sort -V | tail -1)
           fi
 
@@ -572,7 +593,7 @@ jobs:
           # M commits since last stable".
           LAST_STABLE=$(printf '%s\n' "${TAGS}" \
             | awk -v cur="${TAG}" \
-              '$0 != cur && $0 !~ /^v[0-9]+\.[0-9]+\.[0-9]+-(dev|nightly|alpha|beta|rc)[\.-]/' \
+              '$0 != cur && $0 !~ /^v[0-9]+\.[0-9]+\.[0-9]+-/' \
             | sort -V | tail -1)
 
           # Commits between the boundary and the tag, straight from
