@@ -76,10 +76,12 @@ blunted anyway.
 The honest arithmetic is not "fewer crates is better" — it is which
 crates the binary needs to do its one job.
 
-- The current tree: 11 direct dependencies, 150 lockfile crates, and
-  every feature gate mapped to a live call site (night-security-1
-  audited them gate by gate). The Linux-resolved graph is 52 crates;
-  the rest of the lock is cpal's target-gated backends for platforms
+- The current tree: 11 portable direct dependencies plus one
+  Linux-gated link (alsa-sys, the ALSA stderr guard), 129 lockfile
+  crates, and every feature gate mapped to a live call site
+  (night-security-1 audited them gate by gate). The Linux-resolved
+  graph is 52 crates; the rest of the lock is the other platforms'
+  target-gated trees (cpal's backends among them) for platforms
   zylaxion never runs on.
 - The daemon era carried, among others: libinput + udev (capture),
   toml + serde (config), notify (watcher), daemonize, and the
