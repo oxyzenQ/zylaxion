@@ -7,7 +7,7 @@
 > license - nothing between.
 
 <p align="center">
-  <img src="assets/zylaxion-logo-master.png" alt="zylaxion logo" width="260">
+  <img src="assets/zylaxion-original-logo-2026.png" alt="zylaxion logo" width="260">
 </p>
 
 <h1 align="center">zylaxion</h1>
