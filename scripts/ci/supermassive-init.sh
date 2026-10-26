@@ -83,7 +83,18 @@ mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 mount -t devtmpfs dev /dev
 exec >/dev/console 2>&1
-echo "MASS: init on 1001 1001uname -r)"
+# night-dragon-maintenance-4: the boot evidence line carries the REAL
+# kernel release and the leg name (the old line was corrupted static
+# text, "1001 1001uname -r)", evidence of nothing). The leg rides the
+# kernel command line (massleg=), the same channel the console and
+# panic flags ride - no rootfs rebuild per leg.
+leg=floor-or-latest
+for word in $(cat /proc/cmdline 2>/dev/null); do
+        case "$word" in
+        massleg=*) leg="${word#massleg=}" ;;
+        esac
+done
+echo "MASS: init booted, kernel $(uname -r), leg ${leg}"
 
 # A hostname for the guest (the zed lane's sudo prints an
 # "unable to resolve host" line on every invocation in a hostless
@@ -92,17 +103,106 @@ hostname zylaxion-vm 2>/dev/null || true
 echo "127.0.0.1 zylaxion-vm" >> /etc/hosts 2>/dev/null || true
 
 # The floor itself — the whole reason this VM exists. zylaxion's
-# documented floor is 5.15 (docs and the doctor's verdict): the floor
-# leg boots the true 5.15 jammy kernel, the latest leg boots the
-# newest kernel the archive serves, so one numeric check serves both
-# ends of the span.
+# documented floor is 5.15 (docs and the doctor's verdict). The legs
+# witness BOTH directions of the floor law (night-dragon-maintenance-4,
+# the zejtron kernel-witnesses lineage):
+#   floor       - the true 5.15 jammy kernel: at-floor, and the EXACT
+#                 family witness (5.15.*) - a drift to a newer minor
+#                 means the resolver broke and the leg says so loudly;
+#   latest      - the newest kernel the archive serves: above-floor;
+#   below-floor - the focal 5.4 GA kernel: BELOW the floor, and the
+#                 leg's battery is the REFUSAL walk - doctor, attach,
+#                 and on must all refuse honestly naming the floor,
+#                 the direction every other lane can only compute.
 kver=$(uname -r)
 major=${kver%%.*}
 minor=$(echo "$kver" | cut -d. -f2 | grep -oE '^[0-9]+' || echo 0)
+at_or_above_floor=false
 if [ "${major:-0}" -gt 5 ] || { [ "${major:-0}" -eq 5 ] && [ "${minor:-0}" -ge 15 ]; }; then
-        note "kernel $kver (the 5.15+ documented floor)" PASS
-else
-        note "kernel (uname -r = $kver, wanted >= 5.15)" FAIL
+        at_or_above_floor=true
+fi
+case "$leg" in
+below-floor)
+        if [ "$at_or_above_floor" = false ]; then
+                note "kernel $kver is below the 5.15 documented floor (the refusal world, expected)" PASS
+        else
+                note "kernel (uname -r = $kver, wanted BELOW 5.15 — the below-floor leg booted a supported kernel, the witness is void)" FAIL
+        fi
+        ;;
+floor)
+        if [ "$at_or_above_floor" = true ] && [ "${kver#5.15.}" != "$kver" ]; then
+                note "kernel $kver (the 5.15 documented floor, the exact GA family)" PASS
+        elif [ "$at_or_above_floor" = true ]; then
+                note "kernel (uname -r = $kver, above the floor but NOT the 5.15 family — the floor leg's resolver drifted)" FAIL
+        else
+                note "kernel (uname -r = $kver, wanted >= 5.15)" FAIL
+        fi
+        ;;
+*)
+        if [ "$at_or_above_floor" = true ]; then
+                note "kernel $kver (the 5.15+ documented floor)" PASS
+        else
+                note "kernel (uname -r = $kver, wanted >= 5.15)" FAIL
+        fi
+        ;;
+esac
+
+# The below-floor leg is the refusal witness: no tap can attach, so
+# the module/sound staging and the whole-chaos engine are void. The
+# walk below proves the refusal direction end to end instead.
+if [ "$leg" = "below-floor" ]; then
+        if install -Dm755 "$Z/zylaxion" /usr/bin/zylaxion &&
+                /usr/bin/zylaxion -V >/dev/null 2>&1; then
+                note "the payload is installed and answers -V at /usr/bin/zylaxion" PASS
+        else
+                note "install -Dm755 \$Z/zylaxion /usr/bin/zylaxion" FAIL
+        fi
+
+        # The kernel surfaces are all the refusal walk needs.
+        # doctor: rc 1 naming the floor (the kernel row is the first
+        # failure; the report keeps its other rows honest).
+        doctor_out=$(/usr/bin/zylaxion doctor 2>&1); doctor_rc=$?
+        if [ "$doctor_rc" -eq 1 ] && echo "$doctor_out" | grep -q "below the 5.15 minimum"; then
+                note "doctor refuses below the floor (rc 1, the 5.15 minimum named)" PASS
+        else
+                note "doctor refuses below the floor (rc $doctor_rc, wanted 1 + 'below the 5.15 minimum')" FAIL
+        fi
+        # attach: the kernel gate fires before any BPF syscall.
+        attach_out=$(/usr/bin/zylaxion attach 2>&1); attach_rc=$?
+        if [ "$attach_rc" -ne 0 ] && echo "$attach_out" | grep -q "below the 5.15 minimum"; then
+                note "attach refuses below the floor (rc $attach_rc, the floor named before the chain)" PASS
+        else
+                note "attach refuses below the floor (rc $attach_rc, wanted non-zero + 'below the 5.15 minimum')" FAIL
+        fi
+        # on: the spawn door refuses with the canonical verdict. The
+        # verb runs AS A REAL USER — as root the privilege refusal
+        # would fire before the kernel gate ever speaks, and the
+        # witness wants the KERNEL refusal direction, not the root
+        # door (the battery's no-input-group law, the same shape).
+        groupadd -f audio 2>/dev/null || true
+        useradd -m -s /bin/bash zed 2>/dev/null || true
+        usermod -aG audio zed 2>/dev/null || true
+        on_out=$(sudo -u zed /usr/bin/zylaxion on 2>&1); on_rc=$?
+        if [ "$on_rc" -eq 1 ] && echo "$on_out" | grep -q "verified unsupported"; then
+                note "on refuses below the floor (rc 1, verified unsupported)" PASS
+        else
+                note "on refuses below the floor (rc $on_rc, wanted 1 + 'verified unsupported')" FAIL
+        fi
+        # status: still answers honestly on a dying kernel - the
+        # posture report is the one surface that never refuses.
+        status_out=$(/usr/bin/zylaxion status 2>&1); status_rc=$?
+        if [ "$status_rc" -eq 0 ] && echo "$status_out" | grep -q "verified unsupported"; then
+                note "status answers honestly below the floor (rc 0, the verdict named)" PASS
+        else
+                note "status answers honestly below the floor (rc $status_rc, wanted 0 + 'verified unsupported')" FAIL
+        fi
+
+        if [ "$FAILURES" -eq 0 ]; then
+                echo "MASS-VERDICT: PASS (the refusal direction proven on kernel $(uname -r))"
+        else
+                echo "MASS-VERDICT: FAIL (refusal walk: $FAILURES failed)"
+        fi
+        guest_exit
 fi
 
 # Everything the batteries need (PID 1 owns them all): tmpfs scratch,

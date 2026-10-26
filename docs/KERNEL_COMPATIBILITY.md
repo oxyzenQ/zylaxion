@@ -15,17 +15,26 @@ kernel's own surfaces at attach time (fentry when the kernel carries
 BTF for the target function, kprobe otherwise) and refuses honestly
 when nothing probes — `zylaxion doctor` names the verdict either way.
 
-The floor is not a paper number: the Supermassive CI's low-specs leg
-boots the REAL minimum — the jammy GA release-day 5.15.0 kernel,
-resolved from the jammy main pocket only (frozen by archive policy;
-the weekly jammy-updates ABI bumps are deliberately not configured, a
-newest-5.15 is the floor family, not the floor) — inside the KVM
-micro-VM, on the low envelope (a quarter of the runner's cores, an
-eighth of its RAM), and runs the whole E2E battery on it: the tap
-lifecycle, the real-user chain, the realtime storm. The at-floor
-direction of the compatibility verdict is proven live on every push,
-not computed; the best-specs leg crosses the other end of the span on
-the newest kernel the archive serves.
+The floor is not a paper number: the Supermassive CI's e2e-vm job
+crosses the WHOLE span live, one leg per direction (the zejtron
+kernel-witnesses lineage). The floor leg boots the REAL minimum — the
+jammy GA release-day 5.15.0 kernel, resolved from the jammy main
+pocket only (frozen by archive policy; the weekly jammy-updates ABI
+bumps are deliberately not configured, a newest-5.15 is the floor
+family, not the floor) — inside the KVM micro-VM, on the low envelope
+(a quarter of the runner's cores, an eighth of its RAM), and runs the
+whole E2E battery on it: the tap lifecycle, the real-user chain, the
+realtime storm. The at-floor direction of the compatibility verdict
+is proven live on every push, not computed; the best-specs leg
+crosses the other end of the span on the newest kernel the archive
+serves; and the below-floor leg (night-dragon-maintenance-4) boots
+the focal 5.4 GA kernel — BELOW the floor — to prove the refusal
+direction live: doctor, attach, and on must all refuse on that
+kernel, each naming the 5.15 minimum, while status still answers
+honestly. Every leg's init also witnesses its own resolved kernel
+family (5.15.* on the floor leg, sub-5.15 on the refusal leg), so a
+resolver drift fails loudly instead of quietly testing the wrong
+kernel.
 
 ## CachyOS: nested bpffs (bpf-on-bpf)
 
