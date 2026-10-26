@@ -75,6 +75,7 @@ for platform in $PLATFORMS; do
         ALIAS_C="$(
                 python3 - "$platform" <<'PYEOF'
 import sys
+import csv
 import tomllib
 
 platform = sys.argv[1]
@@ -90,7 +91,10 @@ if alias is None:
 
 # Walk the alias args; the rustflags ride a --config value shaped
 # build.rustflags=["-C","tok",...]. Strip the key, unbracket the
-# value, split on commas, unquote the tokens.
+# value, split on the QUOTED field boundaries - not on bare commas.
+# A codegen token may itself carry commas (e.g. -Wl,-z,now), so a
+# naive .split(",") shreds it; csv.reader parses the quoted list
+# exactly like TOML array-of-string semantics.
 flags = []
 i = 0
 while i < len(alias):
@@ -99,8 +103,7 @@ while i < len(alias):
         kv = alias[i + 1]
         if ".rustflags=" in kv or kv.startswith("build.rustflags="):
             raw = kv.split("=", 1)[1].strip()
-            vals = [v.strip().strip('"') for v in raw[1:-1].split(",") if v.strip()]
-            flags.extend(vals)
+            flags.extend(next(csv.reader([raw[1:-1]])))
             i += 2
             continue
     i += 1

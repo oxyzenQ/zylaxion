@@ -41,7 +41,7 @@ pro-native-gnu = [
   "--profile",
   "pro-native-gnu",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=native\",\"-C\",\"link-arg=-Wl,-z,now\"]",
 ]
 # The portable baseline gnu shape (no CPU floor): the release
 # optimization tier on the shipping triple, runnable on every
@@ -75,8 +75,10 @@ pro-linux-amd64-gnu = [
 # untouched). The -D warnings lint token is deliberately OUT of the
 # alias (a local build has no business failing on warnings); the parity
 # contract between these aliases and the release matrix is held by
-# scripts/gates/check-release-parity.sh, which compares only the -C
-# codegen tokens.
+# scripts/gates/check-release-parity.sh, which compares the full -C
+# token set — the codegen tokens AND the full-RELRO hardening token
+# (-Wl,-z,now: GOT resolved eagerly, mapped read-only before main;
+# the glibc dynamic-binary hardening posture the release legs ship).
 pro-linux-amd64-v3-gnu = [
   "build",
   "--profile",
@@ -86,7 +88,7 @@ pro-linux-amd64-v3-gnu = [
   "--config",
   "env.ZYLAXION_BUILD=\"local-linux-amd64-v3-gnu\"",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v3\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v3\",\"-C\",\"link-arg=-Wl,-z,now\"]",
 ]
 pro-linux-amd64-v4-gnu = [
   "build",
@@ -97,7 +99,7 @@ pro-linux-amd64-v4-gnu = [
   "--config",
   "env.ZYLAXION_BUILD=\"local-linux-amd64-v4-gnu\"",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\",\"-C\",\"link-arg=-Wl,-z,now\"]",
 ]
 
 # The zactrix audit harness (scripts/audit/harness — the standalone
