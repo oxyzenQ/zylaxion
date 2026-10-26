@@ -73,6 +73,12 @@ class _KeyboardInjector:
         self.stop = threading.Event()
         self.thread: threading.Thread | None = None
         self.error = ""
+        # The emit counter (night-dragon-2, the deaf-replant witness):
+        # a writer thread that returns on OSError is a DEAD writer, but
+        # an alive thread whose writes succeed proves the keystrokes
+        # entered the kernel input core - which turns "the replanted tap
+        # heard nothing" from an assumption into a measured fact.
+        self.presses = 0
 
     def start(self) -> bool:
         try:
@@ -142,11 +148,17 @@ class _KeyboardInjector:
                     self._emit(_EV_SYN, 0, 0)
                     self._emit(_EV_KEY, key, 0)  # release
                     self._emit(_EV_SYN, 0, 0)
+                    self.presses += 1
                 except OSError as exc:
                     self.error = f"{type(exc).__name__}: {exc}"
                     return
                 time.sleep(0.05)
             time.sleep(0.1)
+
+    def summary(self) -> str:
+        """One-line writer witness: thread aliveness, emits, errors."""
+        alive = self.thread.is_alive() if self.thread is not None else False
+        return f"alive={alive} emitted={self.presses} err={self.error or 'none'}"
 
     def shutdown(self) -> None:
         self.stop.set()
