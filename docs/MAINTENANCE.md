@@ -108,11 +108,20 @@ precedent).
 
 | Secret | Used by | Absent behavior |
 |--------|---------|-----------------|
+| `CRATES_IO_TOKEN` | crates.io publish job (`CARGO_REGISTRY_TOKEN` mapping) | the publish fails fast on the presence check |
 | `GPG_PRIVATE_KEY` | release build job | releases ship checksums-only |
 | `GPG_PASSPHRASE` | release build job | key imported without a passphrase |
 
 Neither blocks a release. The signing lane is the upgrade, not the
-dependency.
+dependency. `CRATES_IO_TOKEN` is the one hard requirement on its own
+lane: the tag-driven publish job refuses to run without it (the
+secret maps onto cargo's `CARGO_REGISTRY_TOKEN` inside the workflow —
+the repository secret is always named `CRATES_IO_TOKEN`, the same
+one-name law the sibling zejtron estate keeps, so no workflow ever
+grows a second spelling of the same token). The `GITHUB_TOKEN` the
+workflows read is GitHub's built-in `${{ github.token }}` — it is
+never a repository secret to configure and never appears under
+another name.
 
 <!-- ZYLAXION-DISCLAIMER -->
 <!--
