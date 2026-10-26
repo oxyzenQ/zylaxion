@@ -4,37 +4,42 @@
 # Dragon Guard - Miri — undefined-behavior verification of the pure-Rust core
 # =============================================================================
 #
-# night-improve-12d (the zelynic miri lineage, sized to zylaxion): miri
-# interprets every instruction, so it is the UB net under the pure-
-# computation surface — the string/math/logic core (the Hinnant clock
+# The runner contract (night-dragon-maintenance-1, the sibling zejtron's
+# mature shape ported to this estate): the scope logic lives in the
+# repo (scripts/lib/miri.sh, dispatched by ./scripts/build.sh miri),
+# and this workflow only installs the toolchain and calls it with
+# --no-install — one implementation, two surfaces: a contributor runs
+# the same command locally, and the stamp file contract
+# (target/miri-stamp) means CI's verdict and the local banner read
+# from the same source of truth.
+#
+# Scope: the audited pure families (MIRI_AUDIT_MODULES in
+# scripts/lib/miri.sh) — the string/math/logic core (the Hinnant clock
 # lanes, the config parser/validator, the preset tuning tables, the
 # engine pool math, the CLI contracts) where an unsafe-adjacent
-# refactor would first lie. The hardware lanes (evdev/libinput
-# capture, the cpal audio callback) cannot run under an interpreter
-# and no test spawns them — the suite is already the pure surface by
-# the CI physics (no audio/input device in the runner).
+# refactor would first lie. The admission law lives with the list: a
+# test that full-text scans README/CHANGELOG, burns an unbounded
+# numeric/render loop, or calls the foreign libc/kernel ABI must
+# never enter the families without #[cfg_attr(miri, ignore =
+# "reason")] — it keeps running NATIVELY in every other lane (ci.yml's
+# cargo test and the Supermassive VM battery own the docs assertions,
+# the math loops, and the kernel surface).
 #
-# The push-path UB net, sized to the owner's 2-5 minute CI budget
-# (night-dinner-6): miri interprets every instruction, so its cost
-# rides the suite's computation, not the crate count — and the
-# 33-minute run that preceded this contract spent 93% of its wall
-# clock inside FIVE tests: the two freeze doc-assertions (whose
-# full-text scans of README/CHANGELOG cost ~23 minutes interpreted,
-# the changelog one alone ~20) and the three sample-loop render
-# tests (~6 minutes of pure float work). All five are pure safe
-# code with no pointer/borrow surface the other ~210 tests do not
-# already cover, so they now carry #[cfg_attr(miri, ignore = ...)]
-# (the night-guard-1 pattern, with the reason spelled out in each)
-# and still run NATIVELY in every other lane — ci.yml's cargo test
-# and the Supermassive VM battery own the math and the docs
-# assertions; the interpreter keeps the pointer/alloc/FFI surface
-# it exists for. With that scope the whole job lands inside the
-# push budget instead of owning the wall clock 3-7x over — and the
-# push and pull_request triggers STAY (the owner's contract is a
+# The incident record (night-dinner-6, this estate): a miri run hung
+# past 30 minutes with 93% of its wall clock inside FIVE tests — the
+# two freeze doc-assertions (whose full-text scans of README/CHANGELOG
+# cost ~23 minutes interpreted, the changelog one alone ~20) and the
+# three sample-loop render tests (~6 minutes of pure float work). All
+# five carry the ignore attribute today (verified 2026-10-26 against
+# the tree); the audited-families default is the structural guard —
+# a future burden test that slips past the admission law dies loudly
+# inside the fail-fast cap below instead of hanging the runner.
+#
+# The push and pull_request triggers STAY (the owner's contract is a
 # fast UB net on every code push, not an absent one): same path
-# filters as the build lanes, the Sunday sweep (00:00 UTC /
-# 07:00 WIB) keeps the weekly full-net tick, and workflow_dispatch
-# is the on-demand deep check.
+# filters as the build lanes, the Sunday sweep (00:00 UTC / 07:00 WIB)
+# keeps the weekly full-net tick, and workflow_dispatch is the
+# on-demand deep check.
 #
 # Deliberately NO RUSTFLAGS=-D warnings here: the miri build is not
 # the warning-gated lane (ci.yml owns that contract), and pinning
@@ -87,7 +92,7 @@ env:
 
 jobs:
   miri:
-    name: Miri UB verification (workspace test suite)
+    name: Miri UB verification (the audited pure families)
     runs-on: ubuntu-24.04
     # night-dinner-6: a fail-fast cap, not a speed claim — the scoped
     # suite lands in ~4 minutes on the measured record; 20 gives 5x
@@ -119,12 +124,12 @@ jobs:
             libasound2-dev pkg-config
 
       # night-improve-24: the default `ebpf` feature makes every root
-      # build embed the kernel object through the source-built lane,
-      # whose preflight hard-requires the dated nightly pin and
-      # bpf-linker — the moving `nightly` above does not satisfy it
-      # (that mismatch was the 55-second red Miri run). The bootstrap
-      # is the canonical installer; the ebpf/target cache is shared
-      # with the ci.yml check and ebpf lanes.
+      # build embed the kernel object through the prebuilt lane, whose
+      # preflight hard-requires the dated nightly pin and bpf-linker —
+      # the moving `nightly` above does not satisfy it (that mismatch
+      # was the 55-second red Miri run). The bootstrap is the
+      # canonical installer; the ebpf/target cache is shared with the
+      # ci.yml check and ebpf lanes.
       - name: Restore the eBPF build prerequisites cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, the zelynic estate SHA pin
         with:
@@ -150,24 +155,14 @@ jobs:
           restore-keys: |
             miri-
 
-      # The interpreted run: every workspace test suite under miri's
-      # engine. Miri flags: -Zmiri-disable-isolation is NOT set (the
-      # suite must stay deterministic — a test needing host isolation
-      # would be a test bug, and miri failing loudly is the contract);
-      # the backtrace flag keeps a UB report actionable in the log.
-      - name: Run Miri over the workspace test suite
+      # The interpreted run: the audited pure families under miri's
+      # engine, through the same runner a contributor uses locally.
+      # --no-install is the CI contract: the pinned toolchain above is
+      # the only nightly this lane may ride, so a missing component
+      # must fail loudly rather than silently download a moving one.
+      - name: Run Miri (scripts/build.sh miri --no-install)
         run: |
-          set -euo pipefail
-          # tee opens its output the moment the pipeline starts, before
-          # cargo has materialized target/ on a cold cache - so on a
-          # cache miss tee cannot open the log, streams to stdout only,
-          # and exits 1 at EOF owning the pipeline status (the red run
-          # pattern: every suite interpreted clean, the job red anyway,
-          # and the artifact upload found nothing).
-          mkdir -p target
-          cargo +nightly miri test --workspace 2>&1 | tee target/miri-log.txt
-          echo ""
-          echo "=== Miri verdict: all suites interpreted clean ==="
+          ./scripts/build.sh miri --no-install
 
       # The failure evidence outlives the runner: the interpreted log
       # (which test, which allocation, which borrow).

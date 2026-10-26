@@ -4,13 +4,20 @@
 # OS: Linux only - zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 #
 # zylaxion build gatekeeper — local CI before commit/push.
-# Usage: ./scripts/build.sh check-all [-q]
+# Usage:
+#   ./scripts/build.sh check-all [-q]
+#   ./scripts/build.sh miri [--filter <pat>|--no-install|--full] [-q]
 #
-# Runs four checks in order:
+# check-all runs four checks in order:
 #   1. cargo fmt --check   — formatting must be clean.
 #   2. cargo clippy        — zero warnings allowed (-D warnings).
 #   3. cargo test          — all unit + doc tests must pass.
 #   4. cargo audit         — supply-chain CVE scan (v5.0.0+).
+#
+# miri dispatches the undefined-behavior runner (scripts/lib/miri.sh
+# owns the scope: the audited pure families, the admission law, and
+# the stamp file contract) - the same command CI runs, so the local
+# verdict and the CI verdict read from one implementation.
 #
 # -q / --quiet is the essentials-only shape (the zelynic interface):
 # the per-step banners are suppressed, verdict-bearing lines still
@@ -30,6 +37,12 @@ MANIFEST="${WORKSPACE_ROOT}/Cargo.toml"
 
 MODE="${1:---check-all}"
 QUIET=0
+# The miri runner's own flags (consumed by scripts/lib/miri.sh; the
+# entry script only parses them so --filter's argument cannot be
+# mistaken for a mode).
+MIRI_FILTER=""
+MIRI_NO_INSTALL=0
+MIRI_FULL=0
 
 case "$MODE" in
     check-all | --check-all)
@@ -39,8 +52,47 @@ case "$MODE" in
         # for either project work unchanged.
         shift || true
         ;;
+    miri | --miri)
+        # night-dragon-maintenance-1: the miri mode - the audited
+        # pure-families runner (night-dinner-6's containment, now with
+        # the sibling zejtron's one-implementation-two-surfaces shape).
+        shift || true
+        while [ "$#" -gt 0 ]; do
+            case "$1" in
+                --filter)
+                    if [ "$#" -lt 2 ]; then
+                        echo "error: --filter needs a pattern argument" >&2
+                        exit 1
+                    fi
+                    MIRI_FILTER="$2"
+                    shift 2
+                    ;;
+                --no-install)
+                    MIRI_NO_INSTALL=1
+                    shift
+                    ;;
+                --full)
+                    MIRI_FULL=1
+                    shift
+                    ;;
+                -q | --quiet)
+                    QUIET=1
+                    shift
+                    ;;
+                *)
+                    echo "Usage: ./scripts/build.sh miri [--filter <pat>|--no-install|--full] [-q|--quiet]" >&2
+                    exit 1
+                    ;;
+            esac
+        done
+        # shellcheck source=lib/miri.sh
+        source "${SCRIPT_DIR}/lib/miri.sh"
+        run_miri
+        exit 0
+        ;;
     *)
         echo "Usage: ./scripts/build.sh check-all [-q]"
+        echo "       ./scripts/build.sh miri [--filter <pat>|--no-install|--full] [-q]"
         exit 1
         ;;
 esac
@@ -49,6 +101,13 @@ esac
 if [ "${1:-}" = "-q" ] || [ "${1:-}" = "--quiet" ]; then
     QUIET=1
 fi
+
+# The miri stamp banner (the sibling zejtron's contract): every
+# build.sh invocation shows where the UB verification stands, so a
+# contributor sees a STALE stamp before trusting a green run.
+# shellcheck source=lib/miri.sh
+source "${SCRIPT_DIR}/lib/miri.sh"
+show_miri_status
 
 banner() {
     # Verdict-bearing lines always emit; step banners honor -q.
