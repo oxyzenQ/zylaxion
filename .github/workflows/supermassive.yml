@@ -93,6 +93,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+        with:
+          # night-dragon-maintenance-6: the checkout token never
+          # outlives this step — no later step can read it back.
+          persist-credentials: false
 
       - name: Install system dependencies
         run: |
@@ -157,6 +161,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+        with:
+          # night-dragon-maintenance-6: the checkout token never
+          # outlives this step — no later step can read it back.
+          persist-credentials: false
 
       - name: Install system dependencies
         run: |
@@ -241,6 +249,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+        with:
+          # night-dragon-maintenance-6: the checkout token never
+          # outlives this step — no later step can read it back.
+          persist-credentials: false
 
       - name: Install system dependencies
         run: |
@@ -378,6 +390,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+        with:
+          # night-dragon-maintenance-6: the checkout token never
+          # outlives this step — no later step can read it back.
+          persist-credentials: false
 
       # The zelynic doctrine, verbatim: /dev/kvm is a GitHub runner
       # guarantee, but the node ships 0660 root:kvm — the job opens it
