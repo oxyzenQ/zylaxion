@@ -39,7 +39,7 @@ tap estate:
     FREEZE witness (after the writers stop, the counter must not move
     a single press - telemetry reflects reality, it never runs away);
   the close — the injectors stop, the accumulated telemetry clears the
-    two-writer floor, `off` stops the sound, the player self-exits, and
+    three-writer floor, `off` stops the sound, the player self-exits, and
     the lane ends detached: nothing of zylaxion remains.
 
 Root lane only (it drives root's attach). It rides the micro-VM's

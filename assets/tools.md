@@ -6,8 +6,8 @@
 The owner's local image/demo toolkit, carried from the sibling
 zejtron estate's assets/tools.md. These are the commands that
 produce the assets this repo ships - the rounded-corner logo
-(`assets/zylaxion-logo-master.png`, 1254x1254 with the 68px corner
-radius) and the terminal demo captures (`assets/zylaxion-*.png`,
+(`assets/zylaxion-original-logo-2026.png`, 1254x1254 with the 68px
+corner radius) and the terminal demo captures (`assets/zylaxion-*.png`,
 the 120x40 grid every demo screenshot uses). Nothing here builds or
 tests the binary; the tools page exists so the asset shapes
 reproduce exactly instead of drifting by hand.
