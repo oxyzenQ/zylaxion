@@ -70,6 +70,20 @@ const PREFILL_SILENCE_FRAMES: usize = 2048;
 /// zero baseline before the stream is torn down.
 const FADEOUT_SILENCE_FRAMES: usize = 1024;
 
+/// Hard ceiling on the total wall time `fade_out_before_drop` may spend
+/// waiting for the ring buffer to drain.
+///
+/// The healthy path needs one pad length (~23 ms at 44.1 kHz) plus
+/// scheduler slack; the ceiling is ~10x that. The pathological path is
+/// real: when the audio device disconnects, the cpal error callback
+/// flips the paused flag and the audio callback stops popping the ring
+/// buffer entirely — `producer_vacancy()` then reads 0 forever. Without
+/// the ceiling, `zylaxion off` (and the channel-disconnected exit)
+/// spins in the fade-out sleep loop for the rest of the process's life:
+/// a hung shutdown is a worse outcome than a skipped silence pad on a
+/// device that is not producing sound anyway.
+const FADEOUT_MAX_WAIT: Duration = Duration::from_millis(300);
+
 /// If the ring buffer has fewer vacant frames than this threshold,
 /// the buffer is considered "mostly full" and the producer yields.
 /// 128 frames ≈ 2.9 ms — enough for the ALSA callback to drain a
@@ -546,10 +560,33 @@ impl<S: AudioSink> Orchestrator<S> {
     /// for the duration of the silence pad at the end so the cpal
     /// callback has time to actually drain it before `CpalSink::drop`
     /// tears down the stream.
+    ///
+    /// # The deadline (night-dragon-maintenance-6)
+    ///
+    /// The retry loop is bounded by [`FADEOUT_MAX_WAIT`]. On a
+    /// disconnected device the cpal error callback pauses output and
+    /// the audio callback stops popping the ring buffer — vacancy
+    /// reads 0 forever, and an unbounded retry here would hang the
+    /// stop path (`zylaxion off`, SIGTERM, bridge death) for the rest
+    /// of the process's life. Past the deadline the fade-out gives up
+    /// and the drop proceeds: the missed pad can only produce a pop
+    /// artifact on a device that no longer plays anything, while the
+    /// hang denied the user their stop verb.
     fn fade_out_before_drop(&mut self) {
         let silence = [0.0f32; 2];
+        let deadline = std::time::Instant::now() + FADEOUT_MAX_WAIT;
         let mut written = 0usize;
         while written < FADEOUT_SILENCE_FRAMES {
+            if std::time::Instant::now() >= deadline {
+                log::warn!(
+                    "fade-out deadline reached after {} of {} silence frames — \
+                     the audio callback is not draining (paused or disconnected \
+                     device); dropping the stream without the full pad",
+                    written,
+                    FADEOUT_SILENCE_FRAMES,
+                );
+                break;
+            }
             let vacancy = self.sink.producer_vacancy();
             if vacancy == 0 {
                 // Buffer is full — wait for the cpal callback to drain
@@ -567,15 +604,17 @@ impl<S: AudioSink> Orchestrator<S> {
 
         // Give the cpal callback time to actually drain the silence pad
         // before `CpalSink::drop` tears down the stream. The sleep
-        // duration is the silence-pad duration plus a small margin for
-        // scheduler jitter. Without this, dropping the sink immediately
-        // after writing the silence can leave it half-consumed in the
-        // ring buffer, and PipeWire's drain behavior on stream teardown
-        // is implementation-defined.
-        let drain_ms = (FADEOUT_SILENCE_FRAMES as f64 / self.sink.sample_rate() as f64 * 1000.0)
-            .ceil() as u64
-            + 5; // 5 ms jitter margin
-        std::thread::sleep(Duration::from_millis(drain_ms));
+        // duration is the pad's own duration plus a small margin for
+        // scheduler jitter — proportional to what was actually written,
+        // so a wedged stream that got zero frames in waits zero. Without
+        // this, dropping the sink immediately after writing the silence
+        // can leave it half-consumed in the ring buffer, and PipeWire's
+        // drain behavior on stream teardown is implementation-defined.
+        if written > 0 {
+            let drain_ms =
+                (written as f64 / self.sink.sample_rate() as f64 * 1000.0).ceil() as u64 + 5; // 5 ms jitter margin
+            std::thread::sleep(Duration::from_millis(drain_ms));
+        }
     }
 }
 
