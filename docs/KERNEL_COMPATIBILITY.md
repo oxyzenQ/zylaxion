@@ -15,6 +15,18 @@ kernel's own surfaces at attach time (fentry when the kernel carries
 BTF for the target function, kprobe otherwise) and refuses honestly
 when nothing probes — `zylaxion doctor` names the verdict either way.
 
+The floor is not a paper number: the Supermassive CI's low-specs leg
+boots the REAL minimum — the jammy GA release-day 5.15.0 kernel,
+resolved from the jammy main pocket only (frozen by archive policy;
+the weekly jammy-updates ABI bumps are deliberately not configured, a
+newest-5.15 is the floor family, not the floor) — inside the KVM
+micro-VM, on the low envelope (a quarter of the runner's cores, an
+eighth of its RAM), and runs the whole E2E battery on it: the tap
+lifecycle, the real-user chain, the realtime storm. The at-floor
+direction of the compatibility verdict is proven live on every push,
+not computed; the best-specs leg crosses the other end of the span on
+the newest kernel the archive serves.
+
 ## CachyOS: nested bpffs (bpf-on-bpf)
 
 **Layout.** On CachyOS, `findmnt -t bpf` shows `/sys/fs/bpf` mounted

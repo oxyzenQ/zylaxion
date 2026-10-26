@@ -300,7 +300,11 @@ jobs:
   # newest kernel the archive serves); the battery inside is the same
   # whole-chaos engine both times. The envelope derives from the
   # runner at boot (the zelynic dynamic doctrine — never pin one
-  # era's hardware): every core, three quarters of the RAM.
+  # era's hardware): the best leg takes every core and three quarters
+  # of the RAM; the floor leg takes the LOW envelope (one quarter of
+  # the cores floored at 1, one eighth of the RAM floored at 1024 MB)
+  # — night-dragon-maintenance-2's audit: low specs is BOTH axes, the
+  # minimum kernel AND the small machine.
   #
   # night-dragon-maintenance-2 deepens the leg twice, the owner's
   # asks: (1) the from-source law — the payload is built with the
@@ -323,11 +327,15 @@ jobs:
       fail-fast: false
       matrix:
         # night-badas-5: the leg titles ride the zelynic supermassive
-        # lineage's low/best specs shape — the floor kernel (the
-        # documented 5.15 minimum, jammy's pockets) and the archive's
-        # head. zylaxion has no musl twins: the musl lane is the
-        # documented dormant lane (the .cargo/config.toml header), so
-        # each spec tier is one gnu leg.
+        # lineage's low/best specs shape. night-dragon-maintenance-2's
+        # audit sharpened both ends: the floor leg boots the REAL
+        # minimum (the jammy GA release-day 5.15.0 kernel, the jammy
+        # main pocket only) on the LOW envelope (quarter cores /
+        # eighth RAM, floored) — low specs on BOTH axes, the kernel and
+        # the machine; the best leg boots the archive's head on the
+        # full envelope. zylaxion has no musl twins: the musl lane is
+        # the documented dormant lane (the .cargo/config.toml header),
+        # so each spec tier is one gnu leg.
         leg:
           - title: supermassive test - low specs (the 5.15 documented floor)
             pocket: floor
@@ -416,9 +424,18 @@ jobs:
         run: ./scripts/dev/regenerate-ebpf-prebuilt.sh --check
 
       # ── the guest kernel, per leg ─────────────────────────────────
-      # floor: the documented 5.15 floor — jammy's pockets carry the
-      #   5.15.0 line, resolver picks the highest 5.15 (still the
-      #   documented floor: 5.15.x).
+      # floor: the documented 5.15 floor, the REAL minimum — the
+      #   jammy GA release-day image (5.15.0-25), resolved from the
+      #   jammy main pocket ONLY. The GA suite is frozen by archive
+      #   policy, so the resolution cannot drift with the weekly
+      #   jammy-updates ABI bumps — which are deliberately NOT
+      #   configured (night-dragon-maintenance-2's audit: the former
+      #   resolver picked the NEWEST 5.15.0-x from jammy-updates, the
+      #   floor family but not the floor; the owner's law is the
+      #   minimum the docs promise, never the newest kernel the
+      #   archive still serves under the same minor number). Fails
+      #   LOUDLY with the discovery evidence if the pocket ever stops
+      #   carrying the floor kernel.
       # latest: the newest kernel the runner's own distro pockets
       #   serve (the zelynic dynamic-resolver doctrine, scoped to the
       #   runner's distro — same userland, the kernel is the leg's
@@ -428,10 +445,12 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/kfloor && cd /tmp/kfloor
           if [ "${{ matrix.leg.pocket }}" = "floor" ]; then
-            {
-              echo "deb http://archive.ubuntu.com/ubuntu/ jammy main"
-              echo "deb http://archive.ubuntu.com/ubuntu/ jammy-updates main"
-            } | sudo tee /etc/apt/sources.list.d/jammy-floor.list >/dev/null
+            # jammy main ONLY — the GA suite, frozen by archive
+            # policy. jammy-updates is deliberately NOT configured:
+            # its weekly 5.15.0-x ABI bumps would drag the "floor"
+            # leg onto the newest 5.15, and the floor is the MINIMUM.
+            echo "deb http://archive.ubuntu.com/ubuntu/ jammy main" \
+              | sudo tee /etc/apt/sources.list.d/jammy-floor.list >/dev/null
             sudo apt-get -o Acquire::Retries=5 update \
               -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/jammy-floor.list \
               -o Dir::Etc::sourceparts=/dev/null \
@@ -571,8 +590,21 @@ jobs:
           cd /tmp/kfloor
           CORES=$(nproc)
           TOTAL_MB=$(free -m | awk '/^Mem:/{print $2}')
-          SMP=$CORES
-          MEM=$(( TOTAL_MB * 3 / 4 )); [ "$MEM" -lt 2048 ] && MEM=2048
+          if [ "${{ matrix.leg.pocket }}" = "floor" ]; then
+            # The LOW envelope (the low leg's own math, the zejtron
+            # low-shape): one quarter of the cores floored at 1, one
+            # eighth of the RAM floored at 1024 MB — the floor leg
+            # proves the tool on a SMALL machine wearing the OLD
+            # kernel (the low-specs contract on both axes).
+            SMP=$(( CORES / 4 )); [ "$SMP" -lt 1 ] && SMP=1
+            MEM=$(( TOTAL_MB / 8 )); [ "$MEM" -lt 1024 ] && MEM=1024
+          else
+            # The BEST envelope (the zelynic dynamic doctrine — never
+            # pin one era's hardware): every core, three quarters of
+            # the RAM.
+            SMP=$CORES
+            MEM=$(( TOTAL_MB * 3 / 4 )); [ "$MEM" -lt 2048 ] && MEM=2048
+          fi
           echo "envelope: $SMP vCPU / $MEM MB (of $CORES cores / $TOTAL_MB MB on the runner)"
           set +e
           timeout 1500 qemu-system-x86_64 \
