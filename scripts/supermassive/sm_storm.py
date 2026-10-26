@@ -248,7 +248,12 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
         _control_write(
             ledger, binary, user,
             "volume 201 refused by the session gate mid-storm",
-            ["volume", "--percent", "201"], 1, "safety cap",
+            # The gate refusal is fatal INPUT (the parser's exit-2
+            # convention, the same polarity the fatal-input matrix
+            # pins): the CI VM legs caught the probe wanting rc 1 -
+            # the probe drifted from the source it audits, the product
+            # did not move.
+            ["volume", "--percent", "201"], 2, "safety cap",
         )
         _control_write(
             ledger, binary, user,
@@ -258,7 +263,7 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
         _control_write(
             ledger, binary, user,
             "volume 10001 --force-this refused at the force ceiling mid-storm",
-            ["volume", "--percent", "10001", "--force-this"], 1, "force cap",
+            ["volume", "--percent", "10001", "--force-this"], 2, "force cap",
         )
         _control_write(ledger, binary, user, "volume restored to 42 mid-storm",
                        ["volume", "--percent", "42"], 0, "")
