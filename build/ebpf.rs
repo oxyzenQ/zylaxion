@@ -33,13 +33,17 @@ fn ebpf_toolchain() -> &'static str {
         });
         for line in text.lines() {
             let line = line.trim();
-            if let Some(rest) = line.strip_prefix("channel") {
-                if let Some(value) = rest.trim_start().strip_prefix('=') {
-                    let value = value.trim().trim_matches('"');
-                    if !value.is_empty() {
-                        return value.to_string();
-                    }
-                }
+            // The flat let-else ladder (the night-dragon-2 clippy
+            // lesson: nested if-let collapses under -D warnings).
+            let Some(rest) = line.strip_prefix("channel") else {
+                continue;
+            };
+            let Some(value) = rest.trim_start().strip_prefix('=') else {
+                continue;
+            };
+            let value = value.trim().trim_matches('"');
+            if !value.is_empty() {
+                return value.to_string();
             }
         }
         panic!(
