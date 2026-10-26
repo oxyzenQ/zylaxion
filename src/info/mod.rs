@@ -12,3 +12,4 @@
 
 pub mod build;
 pub mod clock;
+pub mod version;

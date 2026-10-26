@@ -110,6 +110,9 @@ SKIP_DIRS = {
     "dist",
     "node_modules",
     "__pycache__",  # compiled bytecode embeds source string constants
+    "corpus",  # the fuzz lane's grown corpus - fuzzer-generated binary
+               # input data, never prose (the seeds stay scanned; a
+               # discovery is data, a seed is a contract)
 }
 SKIP_FILES = {
     "CHANGELOG.md",

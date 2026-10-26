@@ -1,0 +1,72 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# The fuzz lane's workspace (night-dragon-maintenance-5, the sibling
+# zejtron's mature shape ported to this estate: "fuzzer/hacker mode,
+# on CI if the owner is lazy on local tests"). A separate cargo
+# workspace on purpose: the fuzzer's dependency graph (libfuzzer-sys
+# and its bundled runtime) never touches the main crate's Cargo.lock,
+# and the main crate's stable/MSRV lanes never see the fuzzer's
+# nightly-only needs. The two never build together - the root
+# manifest is a single package, this directory is its own workspace
+# root, and .github/workflows/fuzz.yml is the only automation that
+# enters here.
+#
+# The crate under test is NOT a path dependency: zylaxion is a
+# bin-only crate (no lib target), and inventing one for the fuzzer's
+# sake would reshape the main build the whole CI estate vets. Instead
+# each target path-includes the exact pure source it protects - the
+# harness compiles the same src/session/kernel.rs, src/info/version.rs
+# and src/info/clock.rs bytes the binary ships, so a guarantee the
+# lane proves is a guarantee the binary carries, with no harness
+# drift and no copied grammar. Every included file is std-only and
+# crate-import-free (the include law: an included file must compile
+# standalone - no `crate::` paths; the one exception inside the
+# included files is the `#[cfg(test)]` test-module wiring, which the
+# fuzz build never compiles). The eBPF kernel-side code is
+# deliberately not fuzzed: it runs behind the kernel verifier, not
+# in userspace.
+#
+# The committed seed anchors (fuzz/seeds/) ride the sibling's
+# tracked-definition law: hand-built inputs the workflow copies into
+# the working corpus before every run, so the fuzzer starts inside
+# the parse paths from run one. The corpus the fuzzer grows stays
+# untracked (the fuzz/.gitignore law) - a seed is a contract, a
+# discovery is not.
+
+[package]
+name = "zylaxion-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+# The marker cargo-fuzz itself demands (it refuses to drive a
+# manifest without it - the guard against fuzzing the wrong crate).
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[[bin]]
+name = "kernel_release"
+path = "fuzz_targets/kernel_release.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "version_grammar"
+path = "fuzz_targets/version_grammar.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "clock_date"
+path = "fuzz_targets/clock_date.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]

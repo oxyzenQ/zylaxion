@@ -34,7 +34,7 @@ pub(crate) fn iso_utc_millis() -> String {
 /// Pure formatter — unix-epoch seconds + sub-second millis to
 /// `YYYY-MM-DDTHH:MM:SS.mmmZ`. Separated from the clock read so the
 /// algorithm is unit-testable without depending on the wall clock.
-pub(crate) fn iso_from_unix_secs(total_secs: i64, millis: u32) -> String {
+pub fn iso_from_unix_secs(total_secs: i64, millis: u32) -> String {
     let days_since_epoch = total_secs.div_euclid(86_400);
     let secs_of_day = total_secs.rem_euclid(86_400);
     let hour = secs_of_day / 3_600;
@@ -50,7 +50,7 @@ pub(crate) fn iso_from_unix_secs(total_secs: i64, millis: u32) -> String {
 /// to (year, month, day) in the proleptic Gregorian calendar. All
 /// arithmetic is on `i64` — the signed core keeps pre-epoch inputs
 /// well-defined instead of panicking or underflowing.
-fn civil_from_days(days_since_epoch: i64) -> (i64, u32, u32) {
+pub fn civil_from_days(days_since_epoch: i64) -> (i64, u32, u32) {
     let z = days_since_epoch + 719_468;
     let era = z.div_euclid(146_097);
     let doe = z - era * 146_097; // [0, 146096]
