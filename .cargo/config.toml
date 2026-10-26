@@ -5,11 +5,9 @@
 # this project's real build shapes (night-improve-11).
 #
 # zylaxion ships ONE release target: x86_64-unknown-linux-gnu (see
-# release.yml — the musl lane is permanently absent because cpal's
-# alsa-sys needs pkg-config against glibc's libasound2-dev, and a
-# "static" binary still linking libasound would not be static anyway).
-# The config therefore carries no musl [target.*] block and no
-# static-crt flags — the honest delta from the zelynic reference.
+# release.yml — glibc is the only libc the matrix builds, dynamic
+# against the system's libasound). The config carries no static-crt
+# flags: dynamic glibc IS the shipping shape, by decision.
 #
 # No build-level rustflags either: [profile.release] already pins
 # codegen-units = 1 (the zelynic [build] rustflags exists to force
@@ -19,7 +17,7 @@
 # victim here — there are no [target.*] blocks to shadow.
 #
 # -V naming needs no env stamp: BUILD_TARGET (cli.rs) is cfg-derived
-# ("linux-amd64-gnu" / "linux-amd64-musl") and rides every binary, so
+# ("linux-amd64-gnu") and rides every binary, so
 # the Build: line names the shape the same way for alias builds as for
 # release builds. The zelynic aliases carry env labels only because
 # their build.rs overrides the platform id; zylaxion's derives it.
@@ -64,9 +62,8 @@ pro-linux-amd64-gnu = [
 #    pro-linux lineage) ─────────────────────────────────────────────────
 #
 # Owner contract: `cargo pro-linux-amd64-v3-gnu` / `pro-linux-amd64-v4-gnu`
-# compile the EXACT release shapes release.yml ships (the two gnu legs
-# of the matrix; the musl legs are the documented dormant lane — the
-# empirical blocker lives in release.yml's matrix header). Each alias
+# compile the EXACT release shapes release.yml ships (the two gnu legs,
+# the only legs the matrix has). Each alias
 # carries its own profile so the two artifacts land in separate target
 # dirs and never clobber each other or target/release/zylaxion, and a
 # ZYLAXION_BUILD label that is the platform id under the `local-`

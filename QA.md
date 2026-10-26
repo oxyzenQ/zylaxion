@@ -111,16 +111,9 @@ Build facts that match the release page's declared platform label).
 The release lane builds `x86_64` gnu binaries at the x86-64-v3 and v4
 optimization baselines — pick the artifact whose label matches your
 CPU (v3: AVX2-era; v4: AVX-512-era); when in doubt, v3 runs
-everywhere v4 does. The musl lane is documented dormant: the C audio
-stack (alsa-lib) has no shipped static musl answer — the static .a
-build was proven solvable once (night-improve-12c), but no mainstream
-distribution ships it and maintaining one per release is a burden
-disproportionate to the value; the reason and the unlock paths live
-in the README's Install section, the build evidence in the release
-workflow's matrix header (`release.yml`, the
-night-improve-12c evidence block). night-improve-23 removed the
-libinput/libudev half of that blocker (the eBPF tap needs no input
-libraries); alsa remains the gate. Every artifact self-reports its
+everywhere v4 does. glibc is the only libc the release lane builds —
+every artifact is a dynamic glibc build, and that is the whole matrix.
+Every artifact self-reports its
 platform id through the `ZYLAXION_BUILD` stamp, and the local alias
 parity is gate-enforced (`scripts/gates/check-release-parity.sh`).
 

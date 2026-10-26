@@ -46,8 +46,7 @@ contract, build the x86-64-v3/v4 gnu legs with `--locked` and the
 execution, v4 by byte-grep — the AVX-512 runner rule), package the
 flat tarball, three checksums, GPG signatures when the key secret is
 configured, then the inventory tripwire and the publish. The full
-contract, including the musl dormant lane's evidence, lives in the
-workflow header (`.github/workflows/release.yml`).
+contract lives in the workflow header (`.github/workflows/release.yml`).
 
 Before pushing a tag, run locally:
 

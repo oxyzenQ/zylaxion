@@ -104,42 +104,28 @@ impl BuildInfo {
 }
 
 /// Dynamic build target: detects arch + libc env at compile time.
-/// Returns the `<arch>-<libc>` token — e.g. "amd64-gnu" (glibc,
-/// dynamic) or "amd64-musl" (static) for x86_64 Linux builds — WITHOUT
-/// the OS prefix: [`build_string`] composes the full
-/// `linux-amd64-gnu`-shape label by joining `std::env::consts::OS` in
-/// front (the zelynic chain shape; keeping an OS prefix here produced
-/// the double-`linux` label the smoke run caught).
+/// Returns the `<arch>-<libc>` token — "amd64-gnu" (glibc, dynamic)
+/// for x86_64 Linux builds — WITHOUT the OS prefix: [`build_string`]
+/// composes the full `linux-amd64-gnu`-shape label by joining
+/// `std::env::consts::OS` in front (the zelynic chain shape; keeping
+/// an OS prefix here produced the double-`linux` label the smoke run
+/// caught). glibc is the only libc zylaxion builds: the gnu arms name
+/// the shipping shapes, and any other Linux env falls back to the
+/// bare arch token so the function stays total on every target.
 pub fn build_target() -> &'static str {
-    #[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "musl"))]
-    {
-        "amd64-musl"
-    }
     #[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "gnu"))]
     {
         "amd64-gnu"
     }
-    #[cfg(all(
-        target_os = "linux",
-        target_arch = "x86_64",
-        not(any(target_env = "musl", target_env = "gnu"))
-    ))]
+    #[cfg(all(target_os = "linux", target_arch = "x86_64", not(target_env = "gnu")))]
     {
         "amd64"
-    }
-    #[cfg(all(target_os = "linux", target_arch = "aarch64", target_env = "musl"))]
-    {
-        "aarch64-musl"
     }
     #[cfg(all(target_os = "linux", target_arch = "aarch64", target_env = "gnu"))]
     {
         "aarch64-gnu"
     }
-    #[cfg(all(
-        target_os = "linux",
-        target_arch = "aarch64",
-        not(any(target_env = "musl", target_env = "gnu"))
-    ))]
+    #[cfg(all(target_os = "linux", target_arch = "aarch64", not(target_env = "gnu")))]
     {
         "aarch64"
     }
