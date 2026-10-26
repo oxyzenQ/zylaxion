@@ -15,6 +15,11 @@ property of **rezky_nightky (oxyzenQ)**. The source code is licensed under the
 GNU General Public License v3 only (GPL-3.0-only). The Marks are NOT covered
 by the GPL and are reserved by the owner.
 
+The zylaxion logo was created through AI-assisted generation under
+the direct, original creative direction and specific prompting of
+the owner. It is claimed and used exclusively as the brand identity
+(Trademark) of this project.
+
 This project is NOT for sale. Source-code theft, rebranding, or
 re-distribution under a different license without the express written
 consent of rezky_nightky (oxyzenQ) is strictly prohibited.
