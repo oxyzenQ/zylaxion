@@ -572,21 +572,16 @@ rezky_nightky (oxyzenQ).
 
 Companies using zylaxion in production need a commercial license.
 zylaxion is dual-licensed: **GPL-3.0-only** for open-source use, and a
-**Commercial License** for proprietary use.
+**Commercial License** for proprietary use. **Unauthorized use is
+theft.** The honest paths are exactly two: comply with GPL-3.0-only
+(free, first-class), or buy the tier your revenue honestly matches.
 
-| Tier       | Price          | Target                                              |
-| ---------- | -------------- | --------------------------------------------------- |
-| Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, contributions      |
-| Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year        |
-| Business   | $2,199/year    | Individual businesses and small teams (SMB)         |
-| Company    | $9,199/year    | Companies and enterprise, OR redistribution rights  |
-
-**Unauthorized use is theft.** The honest paths are exactly two:
-comply with GPL-3.0-only (free, first-class), or buy the tier your
-revenue honestly matches.
-
-Payment is USD-pegged crypto (Solana / Ethereum / Bitcoin). Licensing
-contact: [with.rezky@gmail.com](mailto:with.rezky@gmail.com).
+The tiers, their prices, and what each grants are defined ONCE, in
+[COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) — the tell-once law
+keeps the pricing table in its canonical home so a price can never
+drift between two docs. Payment is USD-pegged crypto
+(Solana / Ethereum / Bitcoin). Licensing contact:
+[with.rezky@gmail.com](mailto:with.rezky@gmail.com).
 
 ## License
 

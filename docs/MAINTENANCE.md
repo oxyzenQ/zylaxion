@@ -104,6 +104,35 @@ without it. Feature-flag off what a dependency pulls but zylaxion
 never uses (the env_logger `default-features = false` shape is the
 precedent).
 
+## The tell-once law (the docs' dedup rule)
+
+Every fact, story, and claim lives in ONE canonical home: the kernel
+floor story in KERNEL_COMPATIBILITY.md, the licensing tiers and prices
+in COMMERCIAL_LICENSE.md, the law book in RULES.md, the threat model
+in ZACTRIX_SECURITY.md. Every other doc that needs the fact either
+links the home or carries a summary row that cannot drift silently —
+never a second full copy. A duplicated table is a drift waiting to
+happen; the pricing table that once lived in the README's licensing
+section had already drifted from its canonical twin when this rule
+landed, which is the whole argument for the rule in one example.
+
+The sanctioned exceptions, by law rather than by accident:
+
+- the per-file disclaimer block — injected, identical by
+  construction, and the injector gate holds its placement;
+- the doc-header block (owner/repository/license) — structural
+  boilerplate every document carries;
+- the CHANGELOG and the frozen audit records — they QUOTE the
+  canonical docs as historical evidence; they never retell.
+
+When a doc must repeat a number, it repeats it with its home named,
+so the next reader knows which copy wins. The audit that landed this
+rule (night-dragon-maintenance-5) walked every 12-word narrative
+shingle shared by two living docs and classified each pair; the
+remaining shared text is lawful reference (summary rows that name
+their home, threat-model table rows, quoted command recipes, the
+historical records above).
+
 ## Secrets the pipeline expects
 
 | Secret | Used by | Absent behavior |
