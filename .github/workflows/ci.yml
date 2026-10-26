@@ -4,38 +4,22 @@
 # CI Pipeline — the code-push build estate
 # =============================================================================
 #
-# night-badas-6 (the zelynic NIGHT-improve-13 + boost-10 doctrine): the
-# `paths:` filter is the single trigger gate — the former `changes` job
-# (a full fetch-depth: 0 clone plus a git-diff regex re-implementing
-# what GitHub's native path filter already knows) is gone. Every push
-# to main spent a depth-0 clone detecting what the event itself
-# carries; now the filter costs nothing and the estate reads one
-# spelling: the shared surface globs — '**/*.rs', '**/*.toml',
-# '**/Cargo.lock', '.cargo/**', 'ebpf/**', 'scripts/**' — plus this
-# file's own name (the hunt-34 law: a workflow that can change its own
-# contract owes itself a run). The same spelling on pull_request (the
-# no-drift law).
+# night-dragon-maintenance-2 (the owner's unfiltered-CI simplification,
+# the zejtron estate's mature shape): every push burns this lane — no
+# path filter, no branch filter, the same blind posture every
+# push-triggered lane in the estate now carries. The former surface
+# globs (the night-badas-6 spelling) retired with it: the estate-wide
+# spelling's sync tax across every build workflow cost more than the
+# runner minutes it saved, and a filtered lane can always be blindsided
+# by a change its globs never named (a build.rs helper outside the
+# glob set, a new toolchain pin shape, a rename that outran the
+# spelling). A docs-only commit now buys a few idle minutes; a missed
+# break buys a red main. The asymmetry is the whole argument, and the
+# concurrency group keeps a fresh push from stacking on a running
+# lane.
 #
-# Coverage facts (the zelynic boost-10 header, sized to zylaxion):
-# '**/*.rs' spans src/, ebpf/, test/, and build.rs; '**/*.toml' spans
-# both Cargo manifests, the root cargo config, and both toolchain
-# pins; '**/Cargo.lock' spans the root and ebpf locks; 'ebpf/**' keeps
-# the target-spec JSON no extension glob reaches; 'scripts/**' is ONE
-# directory glob (the boost-9 one-glob law — never a list of script
-# filenames; every new script a lane consumes is covered on landing).
-#
-# A docs-only change matches nothing here: the wholesale non-code
-# gates live in gate-keepers.yml, which runs on EVERY push unfiltered —
-# a docs-only change never skips the gates that police it, and this
-# workflow buys zero minutes on a docs-only push. The supply-chain
-# scan lives in audit.yml (the scanner rule: a scanner workflow
-# carries the surface it scans — manifests and locks, plus the weekly
-# advisory-DB clock).
-#
-# The former "Workflow lint + codespell" job moved to gate-keepers.yml
-# (night-badas-6): under this file's path-filtered shape a
-# workflow-file-only change matched no glob and skipped the very gates
-# that could catch it; the unfiltered wholesale home closes that hole.
+# pull_request stays (the fast lane owns PR verdicts); workflow runs
+# ride the pinned toolchain through rust-toolchain.toml.
 #
 # Toolchain: no rustup override anywhere — rust-toolchain.toml's pin
 # governs every cargo invocation, so every lane tests the exact
@@ -50,29 +34,7 @@ name: Dragon Guard - CI
 
 "on":
   push:
-    branches: [main]
-    paths:
-      # night-badas-6: the estate-wide trigger spelling (the zelynic
-      # boost-10 one-spelling law) — the shared surface globs plus
-      # this file's own name. A docs-only change matches nothing here.
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'ebpf/**'
-      - 'scripts/**'
-      - '.github/workflows/ci.yml'
   pull_request:
-    branches: [main]
-    paths:
-      # Same spelling as push (the no-drift law).
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'ebpf/**'
-      - 'scripts/**'
-      - '.github/workflows/ci.yml'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"

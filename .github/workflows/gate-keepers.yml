@@ -8,12 +8,14 @@
 # doctrine): the non-code gates — permissions, SPDX headers, the LOC
 # caps, language discipline, the emoji sweep, the actions pins health,
 # release parity, the name-case rule, plus the workflow lint quad —
-# run on EVERY push, UNFILTERED. A docs-only change matches nothing in
-# the path-filtered build estate (ci.yml, supermassive.yml), but it can
-# break exactly the gates that police docs and file plumbing — so this
-# workflow never sleeps. Zero build minutes (no Rust toolchain, no
-# compile): bash, git, python3 and four pinned lint tools are the whole
-# budget.
+# run on EVERY push and pull request, UNFILTERED. Since
+# night-dragon-maintenance-2 the whole estate carries that posture
+# (the owner's unfiltered-CI simplification retired the build lanes'
+# path filters together with this file's branch scoping — a push to
+# any ref burns every gate); a docs-only or workflow-only change never
+# skips the gates that police it. Zero build minutes (no Rust
+# toolchain, no compile): bash, git, python3 and four pinned lint
+# tools are the whole budget.
 #
 # The workflow lint quad (actionlint, yamllint, codespell) moved here
 # from ci.yml's "Workflow lint + codespell" job (night-badas-6): under
@@ -30,9 +32,7 @@ name: Dragon Guard - Gate-keepers
 
 "on":
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
