@@ -245,7 +245,7 @@ def main() -> int:
     binary = os.path.abspath(binary)
     if not os.path.isfile(binary) or not os.access(binary, os.X_OK):
         print(f"the binary under test is missing or not executable: {binary}")
-        print("build it first (./scripts/build.sh release) or pass --binary PATH")
+        print("build it first (cargo build --release) or pass --binary PATH")
         return 2
 
     print(f"supermassive — binary under test: {binary}")

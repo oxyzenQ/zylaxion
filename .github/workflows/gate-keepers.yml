@@ -80,7 +80,7 @@ jobs:
             codespell --skip './.git,./target,./assets,./dist,./node_modules' .
           fi
 
-      # The wholesale run: all nine sections in one shot — exit code 0
+      # The wholesale run: all eleven sections in one shot — exit code 0
       # or the push is blocked. bash + git + python3 only; every gate
       # script it drives lives under scripts/gates/.
       - name: Run gate-keepers.sh (wholesale)

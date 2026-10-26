@@ -98,6 +98,13 @@ The two residuals this pass does NOT touch, with owners:
   verifies the staged object's blake3 against the manifest pin before
   embedding (build/prebuilt.rs) — the row's original ask is fully
   retired.
+  Status update (night-dragon-lts, 2026-10-27): the commit-time chain
+  reads differently than this row's night-improve-31 note recorded —
+  .githooks/pre-commit now execs scripts/gates/check-commit-gate.sh,
+  whose prebuilt lane runs scripts/dev/regenerate-ebpf-prebuilt.sh
+  --check (the one-writer discipline: the generator script owns the
+  verdict). check-prebuilt-parity.sh stays in the tree as the dev
+  tool scripts/dev/version-to.sh drives, not as the wired gate.
 - The pinned-file permission modes stay INCONCLUSIVE (Dimension 3) —
   no bpffs host here to measure; the fchmod follow-up stays
   pre-named in the same place 3.6 left it.
