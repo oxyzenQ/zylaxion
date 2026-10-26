@@ -92,6 +92,12 @@ The two residuals this pass does NOT touch, with owners:
   tree on every commit, and the ship-time parity steps keep their
   seat. The build.rs-internal row this bullet pre-named stays with
   the freeze pass.
+  Status update (night-dragon-maintenance-0, 2026-10-26): the digest
+  algorithm is blake3 (manifest keys ebpf_tree_blake3/blake3, schema
+  2, the reference b3sum binary), and the registry lane itself now
+  verifies the staged object's blake3 against the manifest pin before
+  embedding (build/prebuilt.rs) — the row's original ask is fully
+  retired.
 - The pinned-file permission modes stay INCONCLUSIVE (Dimension 3) —
   no bpffs host here to measure; the fchmod follow-up stays
   pre-named in the same place 3.6 left it.
@@ -171,7 +177,9 @@ model's outsider; both are named.
 
 The eBPF object's verifier story, map lifetimes, the ring buffer
 producer/consumer contract, the atomic update path. Unchanged by this
-pass — no byte of `ebpf/` moved (the manifest's `ebpf_tree_sha256`
+pass — no byte of `ebpf/` moved (the manifest's tree pin —
+`ebpf_tree_sha256` at the time of this pass, `ebpf_tree_blake3` since
+night-dragon-maintenance-0 —
 still matches the tree's own digest discipline, and the prebuilt
 object hash re-verified: `55d63fb6…9ea03`, byte for byte).
 
@@ -404,6 +412,10 @@ reject paths. No new counterexample in the dimension.
   named, not done.
 - The manifest-sha256 enforcement inside `build/ebpf.rs`'s registry
   lane — owned by the freeze pass, unchanged from 3.6.
+  Status update (night-dragon-maintenance-0, 2026-10-26): landed —
+  build/prebuilt.rs verifies the staged object's blake3 against the
+  manifest pin before embedding; the digest algorithm is blake3
+  end to end.
 
 ---
 

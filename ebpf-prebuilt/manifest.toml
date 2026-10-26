@@ -2,30 +2,38 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # zylaxion prebuilt eBPF object manifest (night-improve-23, the
-# zelynic NIGHT-ask-2 shape). Regenerated AUTOMATICALLY whenever an
-# ebpf-feature build finds these pins lagging the ebpf/ tree or its
-# freshly built object (night-dinner-4: build/ebpf.rs consults this
-# script's --check verdict and runs this regenerate flow with no
-# human in the loop), or whenever the version bump stales the pin —
-# its own rewrite always does (night-dinner-8, the zelynic
-# NIGHT-improve-70 shape: scripts/dev/version-to.sh runs this flow
-# fail-closed in the bump invocation). Either way
-# scripts/dev/regenerate-ebpf-prebuilt.sh is the one writer and
-# scripts/gates/check-prebuilt-parity.sh enforces the pin at commit
-# time. ebpf_tree_sha256 pins the exact ebpf/
-# source tree the object was built from: the sha256 over the
-# LC_ALL=C byte-sorted (NUL-separated) sha256sum listing of the
-# git-tracked ebpf/ files — one "digest  path" line per file, list
-# hashed as a whole (night-improve-31 recipe). These are the same
-# bytes the registry-install binaries embed.
+# zelynic NIGHT-ask-2 shape; schema 2 since night-dragon-maintenance-0
+# - the digest algorithm is blake3, upgraded from sha256). Regenerated
+# ONLY by scripts/dev/regenerate-ebpf-prebuilt.sh - the one writer of
+# the lane; scripts/gates/check-prebuilt-parity.sh enforces the pins
+# at commit time through the same script's read-only --check verdict,
+# and build/ebpf.rs's registry lane verifies the object blake3 against
+# the staged bytes before embedding them. ebpf_tree_blake3 pins the
+# exact ebpf/ source tree the object was built from: the blake3 over
+# the LC_ALL=C byte-sorted (NUL-separated) b3sum listing of the
+# git-tracked ebpf/ files - one "digest  path" line per file, list
+# hashed as a whole (the night-improve-31 recipe, re-hashed). The
+# [contract] version is the version mirror law: it must equal the
+# root Cargo.toml and ebpf/Cargo.toml versions, and the --check
+# verdict fails the commit when the three disagree. These are the
+# bytes a registry-install build embeds.
 
-schema = 1
-generated = "2026-10-17T06:55:43Z"
+schema = 2
+generated = "2026-10-26T05:47:18Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_sha256 = "8ae6e930e67bb69c0c42e23a0c923f95285189c7b40acfd96d582452f1ba7cfe"
+ebpf_tree_blake3 = "650ac8489bfbe162dc592988f20b6029b41c338680f7098a2d1adde496cfd973"
+built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zylaxion-tap"
-sha256 = "59735233eff30aa2ec963ae9ad3705a16a0ef9aa6226d3cad676e2713c4123f8"
+blake3 = "bf87a1f1e73880983f7439d1325e567346cb05a109dd877dce1473748c229b69"
 size = 2936
+
+[contract]
+# The attach chain the loader plants (src/ebpf/loader/chain.rs and
+# src/ebpf/loader/mod.rs: fentry first, the kprobe fallback second),
+# documented for the registry consumer; a chain change rewrites this
+# list in the same commit that changes the ebpf/ tree.
+attach_targets = ["fentry:input_event", "kprobe:input_event"]
+version = "80.0.0"

@@ -17,10 +17,10 @@
 #      minimum size). A missing or truncated object would make the
 #      registry lane's build.rs panic on every `cargo install`.
 #   2. Every manifest [[object]] row matches the file on disk
-#      (sha256 + size). A tampered or partially refreshed directory
+#      (blake3 + size). A tampered or partially refreshed directory
 #      fails here instead of shipping an unaccounted artifact.
-#   3. The manifest's ebpf_tree_sha256 equals the sha256 over the
-#      LC_ALL=C byte-sorted (NUL-separated) sha256sum listing of the
+#   3. The manifest's ebpf_tree_blake3 equals the blake3 over the
+#      LC_ALL=C byte-sorted (NUL-separated) b3sum listing of the
 #      git-tracked ebpf/ files — the STALENESS killer: any change
 #      under ebpf/ (sources, locks, pins, target spec) changes the
 #      tree hash, and the gate fails until the lane is regenerated.
@@ -56,7 +56,14 @@
 # The recipe here is kept in lockstep with
 # scripts/dev/regenerate-ebpf-prebuilt.sh (which is the one way the
 # pin is made), so the two implementations cannot drift apart
-# silently. Path sensitivity is the property that earns the shape:
+# silently. The digest algorithm is blake3 since
+# night-dragon-maintenance-0 (upgraded from sha256): the reference
+# b3sum binary at the pinned version, the same tool the writer and
+# the release-archive lane use.
+#
+# Usage: bash scripts/gates/check-prebuilt-parity.sh
+#
+# Path sensitivity is the property that earns the shape:
 # the hashed listing carries each file's path, so a content-preserving
 # rename under ebpf/ still stales the pin — the pin describes the
 # tree, not just its content multiset.
@@ -72,15 +79,15 @@ MANIFEST="${PREBUILT_DIR}/manifest.toml"
 FAILED=0
 
 fail() {
-	echo "FAIL: $*"
-	FAILED=$((FAILED + 1))
+        echo "FAIL: $*"
+        FAILED=$((FAILED + 1))
 }
 
 pass() {
-	echo "PASS: $*"
+        echo "PASS: $*"
 }
 
-# sha256 over the LC_ALL=C byte-sorted (NUL-separated) sha256sum
+# blake3 over the LC_ALL=C byte-sorted (NUL-separated) b3sum
 # listing of the git-tracked ebpf/ files. The LC_ALL=C pin is
 # load-bearing: a bare `sort -z` follows the invoking shell's
 # collation, and a UTF-8 desktop locale reorders the very list a C
@@ -88,134 +95,143 @@ pass() {
 # `git status` on both sides, hashed to two different pins. LC_ALL=C
 # makes the pin deterministic on every Linux, the property the
 # manifest header always claimed.
-ebpf_tree_sha() {
-	git ls-files -z -- ebpf/ |
-		LC_ALL=C sort -z |
-		xargs -0 -r sha256sum |
-		sha256sum |
-		awk '{print $1}'
+ebpf_tree_blake3() {
+        git ls-files -z -- ebpf/ |
+                LC_ALL=C sort -z |
+                xargs -0 -r b3sum |
+                b3sum |
+                awk '{print $1}'
 }
 
 # ── 1. the lane exists and its object is structurally sane ────────
 if [ ! -d "$PREBUILT_DIR" ]; then
-	fail "ebpf-prebuilt/ is missing — the registry lane cannot ship. Run ./scripts/dev/regenerate-ebpf-prebuilt.sh"
-	echo "FAIL: 1 of 4 checks (lane missing)"
-	exit 1
+        fail "ebpf-prebuilt/ is missing — the registry lane cannot ship. Run ./scripts/dev/regenerate-ebpf-prebuilt.sh"
+        echo "FAIL: 1 of 4 checks (lane missing)"
+        exit 1
 fi
 if [ ! -f "$MANIFEST" ]; then
-	fail "ebpf-prebuilt/manifest.toml is missing — regenerate with ./scripts/dev/regenerate-ebpf-prebuilt.sh"
-	FAILED=$((FAILED + 1))
+        fail "ebpf-prebuilt/manifest.toml is missing — regenerate with ./scripts/dev/regenerate-ebpf-prebuilt.sh"
+        FAILED=$((FAILED + 1))
 else
-	pass "manifest present (${MANIFEST})"
+        pass "manifest present (${MANIFEST})"
+fi
+
+# The digest tool gate, before any row is read: the pinned reference
+# b3sum the writer and this gate both hash with (the same contract
+# regenerate-ebpf-prebuilt.sh enforces in both of its modes).
+if ! b3sum --version 2>/dev/null | grep -q '1.8.7'; then
+        fail "b3sum 1.8.7 is not on PATH — the lane's digest tool (install: ./scripts/dev/bootstrap-ebpf.sh)"
+        echo "FAIL: 1 of 4 checks (digest tool missing)"
+        exit 1
 fi
 
 # One object today; the loop stays the manifest's growth path (a
 # second pinned object slots in here without a rewrite).
 # shellcheck disable=SC2043
 for name in zylaxion-tap; do
-	file="${PREBUILT_DIR}/${name}"
-	if [ ! -f "$file" ]; then
-		fail "${file} is missing — regenerate with ./scripts/dev/regenerate-ebpf-prebuilt.sh"
-		continue
-	fi
-	magic="$(head -c 4 "$file" | od -An -tx1 | tr -d ' \n')"
-	if [ "$magic" != "7f454c46" ]; then
-		fail "${file} is not an ELF file (magic ${magic})"
-		continue
-	fi
-	size="$(stat -c%s "$file")"
-	if [ "$size" -lt 64 ]; then
-		fail "${file} is only ${size} bytes — too short for an ELF64 header"
-		continue
-	fi
-	pass "${name} is a structurally sane ELF (${size} bytes)"
-	# The RELOCATABLE-SYMBOL killer: aya's loader resolves map
-	# relocations and in-section function relocations; any GLOBAL
-	# UNDEFINED FUNC symbol it must instead refuse with
-	# "function 0xADDR not found while relocating <prog>" at LOAD
-	# time — on the CI VMs, the only place the object ever loads.
-	# A plain `readelf -s` over the shipped object catches the class
-	# BEFORE the push: the null symbol (index 0) and pure-NOTYPE
-	# locals are the ELF spec's own furniture; a GLOBAL UNDEFINED
-	# symbol is a call the loader cannot make. readelf is a binutils
-	# tool the GitHub runner image carries; a host without it gets an
-	# honest skip note, never a false-green claim.
-	if command -v readelf >/dev/null 2>&1; then
-		undef_globals="$(readelf -sW "$file" 2>/dev/null |
-			awk '$7 == "UND" && $5 == "GLOBAL" {print $8}' |
-			grep -v '^$' || true)"
-		if [ -n "$undef_globals" ]; then
-			fail "${name} carries undefined GLOBAL symbols the aya loader cannot relocate: ${undef_globals}"
-		else
-			pass "${name} has no undefined GLOBAL symbols (the loader's relocation surface is closed)"
-		fi
-	else
-		echo "SKIP: readelf not found — the GLOBAL-symbol row on ${name} is unverified here (CI carries binutils and runs this row)"
-	fi
+        file="${PREBUILT_DIR}/${name}"
+        if [ ! -f "$file" ]; then
+                fail "${file} is missing — regenerate with ./scripts/dev/regenerate-ebpf-prebuilt.sh"
+                continue
+        fi
+        magic="$(head -c 4 "$file" | od -An -tx1 | tr -d ' \n')"
+        if [ "$magic" != "7f454c46" ]; then
+                fail "${file} is not an ELF file (magic ${magic})"
+                continue
+        fi
+        size="$(stat -c%s "$file")"
+        if [ "$size" -lt 64 ]; then
+                fail "${file} is only ${size} bytes — too short for an ELF64 header"
+                continue
+        fi
+        pass "${name} is a structurally sane ELF (${size} bytes)"
+        # The RELOCATABLE-SYMBOL killer: aya's loader resolves map
+        # relocations and in-section function relocations; any GLOBAL
+        # UNDEFINED FUNC symbol it must instead refuse with
+        # "function 0xADDR not found while relocating <prog>" at LOAD
+        # time — on the CI VMs, the only place the object ever loads.
+        # A plain `readelf -s` over the shipped object catches the class
+        # BEFORE the push: the null symbol (index 0) and pure-NOTYPE
+        # locals are the ELF spec's own furniture; a GLOBAL UNDEFINED
+        # symbol is a call the loader cannot make. readelf is a binutils
+        # tool the GitHub runner image carries; a host without it gets an
+        # honest skip note, never a false-green claim.
+        if command -v readelf >/dev/null 2>&1; then
+                undef_globals="$(readelf -sW "$file" 2>/dev/null |
+                        awk '$7 == "UND" && $5 == "GLOBAL" {print $8}' |
+                        grep -v '^$' || true)"
+                if [ -n "$undef_globals" ]; then
+                        fail "${name} carries undefined GLOBAL symbols the aya loader cannot relocate: ${undef_globals}"
+                else
+                        pass "${name} has no undefined GLOBAL symbols (the loader's relocation surface is closed)"
+                fi
+        else
+                echo "SKIP: readelf not found — the GLOBAL-symbol row on ${name} is unverified here (CI carries binutils and runs this row)"
+        fi
 done
 
 # ── 2. every manifest row matches the file on disk ───────────────
 if [ -f "$MANIFEST" ]; then
-	# One line per [[object]] block: "name sha256 size"
-	while read -r name want_sha want_size; do
-		[ -n "$name" ] || continue
-		file="${PREBUILT_DIR}/${name}"
-		if [ ! -f "$file" ]; then
-			fail "manifest names ${name} but the file is absent"
-			continue
-		fi
-		got_sha="$(sha256sum "$file" | awk '{print $1}')"
-		got_size="$(stat -c%s "$file")"
-		if [ "$got_sha" != "$want_sha" ]; then
-			fail "${name} sha256 drift: manifest ${want_sha}, disk ${got_sha}"
-		elif [ "$got_size" != "$want_size" ]; then
-			fail "${name} size drift: manifest ${want_size}, disk ${got_size}"
-		else
-			pass "${name} matches its manifest row (sha256 + size)"
-		fi
-	done < <(
-		awk '
-			/^\[\[object\]\]/ {
-				if (name != "") print name, sha, size
-				name = ""; sha = ""; size = ""
-			}
-			/^name = / { gsub(/"/, "", $3); name = $3 }
-			/^sha256 = / { gsub(/"/, "", $3); sha = $3 }
-			/^size = / { size = $3 }
-			END { if (name != "") print name, sha, size }
-		' "$MANIFEST"
-	)
+        # One line per [[object]] block: "name blake3 size"
+        while read -r name want_sha want_size; do
+                [ -n "$name" ] || continue
+                file="${PREBUILT_DIR}/${name}"
+                if [ ! -f "$file" ]; then
+                        fail "manifest names ${name} but the file is absent"
+                        continue
+                fi
+                got_sha="$(b3sum "$file" | awk '{print $1}')"
+                got_size="$(stat -c%s "$file")"
+                if [ "$got_sha" != "$want_sha" ]; then
+                        fail "${name} blake3 drift: manifest ${want_sha}, disk ${got_sha}"
+                elif [ "$got_size" != "$want_size" ]; then
+                        fail "${name} size drift: manifest ${want_size}, disk ${got_size}"
+                else
+                        pass "${name} matches its manifest row (blake3 + size)"
+                fi
+        done < <(
+                awk '
+                        /^\[\[object\]\]/ {
+                                if (name != "") print name, sha, size
+                                name = ""; sha = ""; size = ""
+                        }
+                        /^name = / { gsub(/"/, "", $3); name = $3 }
+                        /^blake3 = / { gsub(/"/, "", $3); sha = $3 }
+                        /^size = / { size = $3 }
+                        END { if (name != "") print name, sha, size }
+                ' "$MANIFEST"
+        )
 
-	# ── 3. the manifest's tree pin equals the live ebpf/ tree ──────
-	want_tree="$(awk -F'"' '/^ebpf_tree_sha256 = /{print $2}' "$MANIFEST")"
-	got_tree="$(ebpf_tree_sha)"
-	if [ -z "$want_tree" ]; then
-		fail "manifest carries no ebpf_tree_sha256 — regenerate with ./scripts/dev/regenerate-ebpf-prebuilt.sh"
-	elif [ "$want_tree" != "$got_tree" ]; then
-		fail "ebpf/ changed after the prebuilt lane was generated (tree ${got_tree} vs manifest ${want_tree}) — run: cd ebpf && cargo build --release && ./scripts/dev/regenerate-ebpf-prebuilt.sh, then commit ebpf-prebuilt/. A locally MODIFIED tracked file under ebpf/ trips this too (a local pro build rewriting ebpf/Cargo.lock is the known shape): git status -- ebpf/ shows the churn — restore it before refreshing, or the refresh pins the churn"
-	else
-		pass "prebuilt objects pin the live ebpf/ tree (${got_tree:0:12}...)"
-	fi
+        # ── 3. the manifest's tree pin equals the live ebpf/ tree ──────
+        want_tree="$(awk -F'"' '/^ebpf_tree_blake3 = /{print $2; exit}' "$MANIFEST")"
+        got_tree="$(ebpf_tree_blake3)"
+        if [ -z "$want_tree" ]; then
+                fail "manifest carries no ebpf_tree_blake3 — regenerate with ./scripts/dev/regenerate-ebpf-prebuilt.sh"
+        elif [ "$want_tree" != "$got_tree" ]; then
+                fail "ebpf/ changed after the prebuilt lane was generated (tree ${got_tree} vs manifest ${want_tree}) — run: cd ebpf && cargo build --release && ./scripts/dev/regenerate-ebpf-prebuilt.sh, then commit ebpf-prebuilt/. A locally MODIFIED tracked file under ebpf/ trips this too (a local pro build rewriting ebpf/Cargo.lock is the known shape): git status -- ebpf/ shows the churn — restore it before refreshing, or the refresh pins the churn"
+        else
+                pass "prebuilt objects pin the live ebpf/ tree (${got_tree:0:12}...)"
+        fi
 
-	# ── 4. no tracked file under ebpf/ hides churn from the pin ────
-	# The phantom-pin guard: the tree hash in row 3 reads ON-DISK
-	# content over the tracked list, so a file hidden behind
-	# assume-unchanged (h) or skip-worktree (S) hashes its local churn
-	# into the pin while the commit stages the old bytes — the pin
-	# passes locally, then fails CI's clean checkout. The row refuses
-	# that shape here, at commit time, with the unhide remedy named.
-	hidden_churn="$(git ls-files -v -- ebpf/ | awk '$1 ~ /^[hS]$/ {print $2}')"
-	if [ -n "$hidden_churn" ]; then
-		fail "tracked ebpf/ file(s) hide behind assume-unchanged/skip-worktree flags — the tree pin may describe churn the commit cannot carry ($(echo "$hidden_churn" | tr '\n' ' ')) — unhide each (git update-index --no-assume-unchanged --no-skip-worktree <file>), restore or stage the change, and re-run ./scripts/dev/regenerate-ebpf-prebuilt.sh"
-	else
-		pass "no hidden-churn flags under ebpf/ (the pin describes a shippable tree)"
-	fi
+        # ── 4. no tracked file under ebpf/ hides churn from the pin ────
+        # The phantom-pin guard: the tree hash in row 3 reads ON-DISK
+        # content over the tracked list, so a file hidden behind
+        # assume-unchanged (h) or skip-worktree (S) hashes its local churn
+        # into the pin while the commit stages the old bytes — the pin
+        # passes locally, then fails CI's clean checkout. The row refuses
+        # that shape here, at commit time, with the unhide remedy named.
+        hidden_churn="$(git ls-files -v -- ebpf/ | awk '$1 ~ /^[hS]$/ {print $2}')"
+        if [ -n "$hidden_churn" ]; then
+                fail "tracked ebpf/ file(s) hide behind assume-unchanged/skip-worktree flags — the tree pin may describe churn the commit cannot carry ($(echo "$hidden_churn" | tr '\n' ' ')) — unhide each (git update-index --no-assume-unchanged --no-skip-worktree <file>), restore or stage the change, and re-run ./scripts/dev/regenerate-ebpf-prebuilt.sh"
+        else
+                pass "no hidden-churn flags under ebpf/ (the pin describes a shippable tree)"
+        fi
 fi
 
 if [ "$FAILED" -eq 0 ]; then
-	echo "OK: ebpf-prebuilt lane in parity (object + manifest + ebpf/ tree pin)"
-	exit 0
+        echo "OK: ebpf-prebuilt lane in parity (object + manifest + ebpf/ tree pin, blake3)"
+        exit 0
 else
-	echo "FAIL: ${FAILED} prebuilt-parity failure(s) — the registry lane is not shippable"
-	exit 1
+        echo "FAIL: ${FAILED} prebuilt-parity failure(s) — the registry lane is not shippable"
+        exit 1
 fi

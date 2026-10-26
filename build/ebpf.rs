@@ -20,8 +20,9 @@ const EBPF_TOOLCHAIN: &str = "nightly-2026-09-18";
 /// fix message so a drifted host install is diagnosable in one read.
 const BPF_LINKER_VERSION: &str = "0.11.1";
 
-/// The one production BPF object (night-improve-23): the tap.
-const TAP_OBJECT: &str = "zylaxion-tap";
+/// The one production BPF object (night-improve-23): the tap. The
+/// staged name is the registry lane's constant - one name, two lanes.
+const TAP_OBJECT: &str = crate::prebuilt::STAGED_OBJECT_NAME;
 
 // ── night-improve-23: the eBPF object staging lanes ─────────────────────
 //
@@ -33,10 +34,13 @@ const TAP_OBJECT: &str = "zylaxion-tap";
 //   registry-prebuilt — a registry tarball (cargo's package walk cannot
 //                       carry nested packages, so no ebpf/ tree rides the
 //                       extract): the maintainer-built object tracked in
-//                       ebpf-prebuilt/ is staged verbatim, provenance in
-//                       ebpf-prebuilt/manifest.toml. This is the lane
-//                       that lets a plain `cargo install zylaxion` land
-//                       the full-featured binary on a stable toolchain.
+//                       ebpf-prebuilt/ is staged from build/prebuilt.rs,
+//                       manifest-verified (the object blake3 must match
+//                       the ebpf-prebuilt/manifest.toml pin before the
+//                       bytes are embedded; provenance in the manifest).
+//                       This is the lane that lets a plain
+//                       `cargo install zylaxion` land the full-featured
+//                       binary on a stable toolchain.
 //   source-built      — a git checkout: the ebpf/ crate is cross-compiled
 //                       by a nested cargo invocation under the dated
 //                       nightly pin, and the artifact is staged after
@@ -85,9 +89,13 @@ pub(super) fn build_ebpf_objects() {
         return;
     }
 
-    // Registry lane: no ebpf/ tree rides a crates.io extract.
+    // Registry lane: no ebpf/ tree rides a crates.io extract. The
+    // staging (and the manifest verification that guards it) lives in
+    // build/prebuilt.rs - the same split the zejtron reference runs.
     if !ebpf_dir.join("Cargo.toml").is_file() {
-        stage_registry_prebuilt_objects(&manifest_dir);
+        let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR"));
+        crate::prebuilt::stage_prebuilt_object(&manifest_dir, &out_dir);
+        println!("cargo:rustc-env=ZYLAXION_EBPF_LANE=registry-prebuilt");
         return;
     }
 
@@ -161,6 +169,10 @@ pub(super) fn build_ebpf_objects() {
 /// meta-lane refresh, because scripts/gates/check-prebuilt-parity.sh
 /// remains the hard stop at commit time. In-sync builds stay silent:
 /// the verdict runs on every build but speaks only when it wrote.
+/// ZYLAXION_SKIP_PREBUILT_REGEN=1 is the shared escape hatch (the
+/// commit gate honors the same variable): under it the verdict still
+/// runs, but the heal is skipped and the warning names the manual
+/// command instead.
 pub(super) fn refresh_prebuilt_lane(manifest_dir: &std::path::Path) {
     let script = manifest_dir
         .join("scripts")
@@ -184,6 +196,14 @@ pub(super) fn refresh_prebuilt_lane(manifest_dir: &std::path::Path) {
     if verdict.status.success() {
         return; // in sync — silent, this is the every-build steady state
     }
+    if std::env::var_os("ZYLAXION_SKIP_PREBUILT_REGEN").is_some_and(|v| v == "1") {
+        println!(
+            "cargo:warning=ebpf-prebuilt/ is stale and ZYLAXION_SKIP_PREBUILT_REGEN=1 skips \
+             the refresh — run ./scripts/dev/regenerate-ebpf-prebuilt.sh before committing \
+             (the parity gate fails the commit otherwise)"
+        );
+        return;
+    }
     match Command::new(&script).current_dir(manifest_dir).output() {
         Ok(r) if r.status.success() => println!(
             "cargo:warning=ebpf-prebuilt/ refreshed automatically: the manifest pins lagged \
@@ -202,31 +222,6 @@ pub(super) fn stage_object(out_dir: &std::path::Path, data: &[u8]) {
     let dst = out_dir.join(TAP_OBJECT);
     std::fs::write(&dst, data)
         .unwrap_or_else(|e| panic!("failed to stage {} into OUT_DIR: {e}", dst.display()));
-}
-
-/// Registry lane: stage the maintainer-built object from ebpf-prebuilt/.
-/// A missing or damaged prebuilt object is an INCOMPLETE crate — panic
-/// with the honest diagnosis and the two working remedies.
-pub(super) fn stage_registry_prebuilt_objects(manifest_dir: &std::path::Path) {
-    let prebuilt_dir = manifest_dir.join("ebpf-prebuilt");
-    // Watched only on the lane that consumes it: a git checkout builds
-    // its object from ebpf/ and never reads this directory.
-    println!("cargo:rerun-if-changed={}", prebuilt_dir.display());
-    let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR"));
-    let data =
-        read_validated_ebpf_object(&prebuilt_dir.join(TAP_OBJECT)).unwrap_or_else(|problem| {
-            panic!(
-                "the ebpf feature was requested from a registry tarball (no ebpf/ \
-             workspace rides a registry package), and the prebuilt object \
-             {TAP_OBJECT} is missing or damaged ({problem}). This crate is INCOMPLETE: \
-             the ebpf-prebuilt/ lane that makes `cargo install zylaxion` full-featured \
-             did not survive packaging. Meanwhile build from a git checkout \
-             (git clone https://github.com/oxyzenQ/zylaxion, then cargo build --release) \
-             or install the binary from GitHub Releases"
-            )
-        });
-    stage_object(&out_dir, &data);
-    println!("cargo:rustc-env=ZYLAXION_EBPF_LANE=registry-prebuilt");
 }
 
 /// Verify the two source-build prerequisites BEFORE the nested build

@@ -366,7 +366,7 @@ line ""
 # R4 — Dimension 2's residual: the loaded-program identity, root +
 # bpftool required. Measure and record what bpftool exposes of the
 # loaded program (id, tag, verifier instruction count) and pin the
-# on-disk prebuilt object against the manifest sha256. The byte-exact
+# on-disk prebuilt object against the manifest blake3. The byte-exact
 # loaded-vs-built hash stays NAMED, not claimed — the ledger wording
 # stands until a hash lane exists; this row produces the host facts.
 # ------------------------------------------------------------------
@@ -393,11 +393,11 @@ else
         fi
     fi
     if [[ -f "ebpf-prebuilt/zylaxion-tap" && -f "ebpf-prebuilt/manifest.toml" ]]; then
-        MEASURED_SHA="$(sha256sum ebpf-prebuilt/zylaxion-tap | awk '{print $1}')"
-        PINNED_SHA="$(grep -A1 'name = "zylaxion-tap"' ebpf-prebuilt/manifest.toml | grep 'sha256' | grep -oP '"\K[0-9a-f]+' | head -1)"
+        MEASURED_SHA="$(b3sum ebpf-prebuilt/zylaxion-tap | awk '{print $1}')"
+        PINNED_SHA="$(grep -A1 'name = "zylaxion-tap"' ebpf-prebuilt/manifest.toml | grep 'blake3' | grep -oP '"\K[0-9a-f]+' | head -1)"
         if [[ -n "$PINNED_SHA" && "$MEASURED_SHA" == "$PINNED_SHA" ]]; then
             verdict PASS "R4 prebuilt object parity" \
-                "sha256 ${MEASURED_SHA:0:16}... matches the manifest pin (what this host loads is what the tree certifies)"
+                "blake3 ${MEASURED_SHA:0:16}... matches the manifest pin (what this host loads is what the tree certifies)"
         else
             verdict FAIL "R4 prebuilt object parity" \
                 "measured ${MEASURED_SHA:0:16}... vs pinned ${PINNED_SHA:0:16}... — the prebuilt lane is stale; run scripts/dev/regenerate-ebpf-prebuilt.sh"
