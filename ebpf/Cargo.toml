@@ -31,7 +31,7 @@
 
 [package]
 name = "zylaxion-ebpf"
-version = "80.0.0"
+version = "80.0.1-zylaxion.1"
 edition = "2024"
 publish = false
 license = "GPL-3.0-only"
