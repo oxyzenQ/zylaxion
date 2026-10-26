@@ -493,15 +493,11 @@ pub(super) fn strip_host_poison(value: &str, sep: char) -> Option<String> {
             || tt.contains("linker=")
             || tt.contains("link-self-contained")
             || tt.contains("-Wl,");
-        if poisoned {
+        if poisoned && tokens.last().is_some_and(|last| last.trim() == "-C") {
             // The flag name immediately before a poisoned value is the
             // half of that flag — it goes too.
-            if let Some(last) = tokens.last() {
-                if last.trim() == "-C" {
-                    tokens.pop();
-                }
-            }
-        } else {
+            tokens.pop();
+        } else if !poisoned {
             tokens.push(t);
         }
     }
