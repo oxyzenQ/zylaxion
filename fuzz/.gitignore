@@ -1,0 +1,8 @@
+# The grown corpus stays out of git (the sibling estate law):
+# a seed is a contract, a discovery is not.
+corpus/
+coverage/
+Artifacts
+
+# The fuzzer build tree (the root /target law, workspace-scoped).
+target/
