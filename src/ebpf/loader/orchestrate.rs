@@ -19,7 +19,37 @@ use super::{TAP_ELF, last_attach_error};
 /// failure is a classified [`AttachError`] and never leaves a partial
 /// pin set (only the failure marker, for the doctor).
 pub fn attach() -> Result<String, AttachError> {
-    // 1. The kernel gate (night-improve-23, the eBPF-only floor): one
+    // 1. Idempotence outranks the gate (night-dragon-lts): a complete
+    //    pin set IS a working tap. A transient probe hiccup (an
+    //    unreadable osrelease, a bpffs stat that times out) must never
+    //    route through fail() and tear down what already works —
+    //    fail() unpins, and unpinning a healthy tap is the one
+    //    outcome attach can never walk back. The kernel gate below
+    //    still refuses every fresh attach on an unsupported kernel;
+    //    this early return only answers "attach again" on a machine
+    //    where the answer is already yes.
+    //
+    //    The second attach is a success shape, nothing to do. A
+    //    partial set (crashed attach) is cleaned and replanted below.
+    //    night-dinner-19: the early return still runs the hand-over
+    //    (root only — a plain-user no-op has nothing to hand). The
+    //    boot oneshot runs before anyone logs in, so the pins it
+    //    plants are root-owned, and this lane is the one-command
+    //    heal: `sudo zylaxion attach` after login hands them over
+    //    without the detach cycle.
+    if pin::all_pins_present() {
+        let ownership = if crate::session::privilege::euid_is_root() {
+            hand_pins_to_desktop_user()
+        } else {
+            String::new()
+        };
+        return Ok(format!(
+            "tap is already attached — nothing to do (all pins present; `zylaxion detach` \
+             removes it){ownership}"
+        ));
+    }
+
+    // 2. The kernel gate (night-improve-23, the eBPF-only floor): one
     //    probe feeds both the doctor and this refusal, so the verdicts
     //    can never drift.
     let kernel = crate::session::kernel::probe();
@@ -44,26 +74,8 @@ pub fn attach() -> Result<String, AttachError> {
         return fail(AttachError::BpffsUnavailable);
     }
 
-    // 2. Idempotence + self-heal: a complete set IS attached — the
-    //    second attach is a success shape, nothing to do. A partial
-    //    set (crashed attach) is cleaned and replanted.
-    //    night-dinner-19: the early return still runs the hand-over
-    //    (root only — a plain-user no-op has nothing to hand). The
-    //    boot oneshot runs before anyone logs in, so the pins it
-    //    plants are root-owned, and this lane is the one-command
-    //    heal: `sudo zylaxion attach` after login hands them over
-    //    without the detach cycle.
-    if pin::all_pins_present() {
-        let ownership = if crate::session::privilege::euid_is_root() {
-            hand_pins_to_desktop_user()
-        } else {
-            String::new()
-        };
-        return Ok(format!(
-            "tap is already attached — nothing to do (all pins present; `zylaxion detach` \
-             removes it){ownership}"
-        ));
-    }
+    // 3. Self-heal for the partial set: a crashed attach left pins
+    //    behind — clean them before replanting.
     // The pre-clean keeps the attach-failure marker planted (night-improve-26:
     // the evidence the doctor reads back is not swept with the rest).
     if pin::any_pin_present() {
@@ -121,20 +133,20 @@ pub fn attach() -> Result<String, AttachError> {
         }
     }
 
-    // 3. The pin directory must exist before anything pins into it.
+    // 4. The pin directory must exist before anything pins into it.
     if let Err(e) = std::fs::create_dir(pin::PIN_DIR) {
         return fail(AttachError::PinFailed {
             path: format!("{} (is bpffs mounted?): {e}", pin::PIN_DIR),
         });
     }
 
-    // 4. The alignment preflight (the AlignedElf contract): structurally
+    // 5. The alignment preflight (the AlignedElf contract): structurally
     //    impossible now, kept so a regression diagnoses in one line.
     if let Some(violation) = crate::ebpf::embedded::alignment_violation(TAP_ELF, "zylaxion-tap") {
         return fail(AttachError::Unknown { detail: violation });
     }
 
-    // 5. Load the object (map relocations happen here; programs load
+    // 6. Load the object (map relocations happen here; programs load
     //    per-chain-step below).
     let mut bpf = match Ebpf::load(TAP_ELF) {
         Ok(b) => b,
@@ -145,13 +157,13 @@ pub fn attach() -> Result<String, AttachError> {
         }
     };
 
-    // 6. THE CHAIN (fentry -> kprobe -> kprobe-alt), then the control
+    // 7. THE CHAIN (fentry -> kprobe -> kprobe-alt), then the control
     //    plane init and the map pins — all inside plant(), so any
     //    failure cleans every pin before returning.
     let planted = plant(&mut bpf);
     match planted {
         Ok(kind) => {
-            // 7. Hand the pins to the desktop user (the invoking sudo
+            // 8. Hand the pins to the desktop user (the invoking sudo
             //    user, or — the boot lane — the first /run/user desktop
             //    session, night-dinner-19) so the unprivileged player
             //    and CLI can open them afterwards.
@@ -184,6 +196,15 @@ fn fail(e: AttachError) -> Result<String, AttachError> {
         "attach failed ({e}); cleaned {} pin(s) — nothing of zylaxion remains half-attached",
         removed.len()
     );
+    // night-dragon-lts: a clean sweep rmdirs an EMPTY pin directory —
+    // and a first-ever failure (no old marker to keep the directory
+    // non-empty) leaves no directory for the plant below, so the
+    // marker ENOENTs and the doctor reads nothing. Recreate it
+    // best-effort: an existing directory fails with EEXIST and the
+    // error is ignored; a recreate that genuinely fails surfaces
+    // through the plant error and its warn. The doctor reads a
+    // verdict whenever the kernel allows one.
+    let _ = std::fs::create_dir(pin::PIN_DIR);
     if let Err(marker_err) =
         crate::ebpf::bpf_syscall::plant_error_marker(e.code(), pin::PIN_MAP_ERROR)
     {
