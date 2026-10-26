@@ -34,8 +34,8 @@
 # NIGHT-improve-70 shape): the ebpf crate's version is part of the tree
 # ebpf-prebuilt/manifest.toml pins, so THIS script's own sibling rewrite
 # stales the lane by construction — and when it does, the refresh runs in
-# the same invocation: the validated root build (cargo build --release
-# --locked --features ebpf, whose build.rs drives the prerequisite
+# the same invocation: the validated root build (cargo
+# pro-linux-amd64-gnu --locked, whose build.rs drives the prerequisite
 # preflight, the nested nightly cross-compile and the structural ELF
 # validation), then the one-writer regenerate, then the parity gate as the
 # fail-closed verdict. One command leaves a committable tree; a refresh
@@ -365,7 +365,7 @@ for f in "${SIBLING_TOUCHED[@]:-}"; do
 done
 if [ "${EBPF_CHANGED}" = "true" ] && ! bash scripts/gates/check-prebuilt-parity.sh >/dev/null 2>&1; then
     echo -e "  ${YELLOW}..${NC} ebpf-prebuilt/     → the version rewrite staled the lane's tree pin — auto-refreshing through the validated build pipeline"
-    if cargo build --release --locked --features ebpf \
+    if cargo pro-linux-amd64-gnu --locked \
         && bash scripts/dev/regenerate-ebpf-prebuilt.sh > /dev/null \
         && bash scripts/gates/check-prebuilt-parity.sh; then
         echo -e "  ${GREEN}OK${NC} ebpf-prebuilt/     → lane regenerated in parity (commit ./ebpf/ + ./ebpf-prebuilt/ together)"
@@ -374,7 +374,7 @@ if [ "${EBPF_CHANGED}" = "true" ] && ! bash scripts/gates/check-prebuilt-parity.
         echo -e "  the refresh drives the eBPF build; its once-per-machine prerequisites:"
         echo -e "    ./scripts/dev/bootstrap-ebpf.sh"
         echo -e "  then finish the bump manually and commit the lane with its sources:"
-        echo -e "    cargo build --release --locked --features ebpf && ./scripts/dev/regenerate-ebpf-prebuilt.sh"
+        echo -e "    cargo pro-linux-amd64-gnu --locked && ./scripts/dev/regenerate-ebpf-prebuilt.sh"
         echo -e "    git add ./ebpf/Cargo.toml ./ebpf/Cargo.lock ./ebpf-prebuilt/ && git commit"
         exit 1
     fi
@@ -382,7 +382,7 @@ elif bash scripts/gates/check-prebuilt-parity.sh >/dev/null 2>&1; then
     echo -e "  ${GREEN}OK${NC} ebpf-prebuilt/     → parity green (the lane pins the live ebpf/ tree)"
 else
     echo -e "  ${YELLOW}!${NC} ebpf-prebuilt/     → STALE: ebpf/ changed after the lane was generated (not by this run)"
-    echo -e "     run 'cargo build --release --locked --features ebpf && ./scripts/dev/regenerate-ebpf-prebuilt.sh' and commit ./ebpf/ + ./ebpf-prebuilt/ together (the parity gate fails the commit until the refresh lands)"
+    echo -e "     run 'cargo pro-linux-amd64-gnu --locked && ./scripts/dev/regenerate-ebpf-prebuilt.sh' and commit ./ebpf/ + ./ebpf-prebuilt/ together (the parity gate fails the commit until the refresh lands)"
 fi
 
 echo ""
@@ -412,7 +412,7 @@ if [ "${COMMIT}" = "true" ]; then
     # closed in the refresh block for its own verdict).
     if ! bash scripts/gates/check-prebuilt-parity.sh >/dev/null 2>&1; then
         echo -e "${RED}FAIL:${NC} refusing to commit — the prebuilt lane is stale (ebpf/ changed, ebpf-prebuilt/ has not)."
-        echo -e "  1. cargo build --release --locked --features ebpf && ./scripts/dev/regenerate-ebpf-prebuilt.sh"
+        echo -e "  1. cargo pro-linux-amd64-gnu --locked && ./scripts/dev/regenerate-ebpf-prebuilt.sh"
         echo -e "  2. git add ${STAGE_FILES[*]} ./ebpf/Cargo.toml ./ebpf/Cargo.lock ./ebpf-prebuilt/"
         echo -e "  3. git commit -m \"release: v${NEW_VERSION}\""
         exit 1

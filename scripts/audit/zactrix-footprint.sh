@@ -59,7 +59,10 @@ log() { tee -a "$EVIDENCE" <<< "$*"; }
 
 # ── Build ────────────────────────────────────────────────────────────
 log "== build =="
-cargo build --release -q --manifest-path scripts/audit/harness/Cargo.toml
+# The harness rides the named alias (the build-from-source law — no
+# bare `cargo build --release` in the script lanes; the alias pins the
+# manifest path, so the invocation stays repo-root relative).
+cargo pro-audit-harness -q
 log "harness built: $BIN"
 
 # ── Environment facts ────────────────────────────────────────────────
