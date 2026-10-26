@@ -14,19 +14,31 @@ env:
   CARGO_TERM_COLOR: always
 
 permissions:
-  contents: write
+  contents: read
+
+# night-dragon-lts: the weekly lane now refuses to stack — a scheduled
+# run and a dispatch racing the same ref double-push the dep update.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   update-deps:
     runs-on: ubuntu-latest
+    # night-dragon-lts: bounded patience + the write scope lives HERE,
+    # on the one job that pushes — the top level stays read-only.
+    timeout-minutes: 30
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
+          # The supermassive apt idiom (retries + connect timeout).
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 update -qq
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
       - name: Install Rust toolchain
@@ -59,7 +71,10 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
+        # night-dragon-lts: --all-features, the same surface ci.yml's
+        # clippy lane runs — a feature-gated warning must fail BOTH
+        # lanes or the weekly lane lies about what main's bar is.
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Run tests
         run: cargo test

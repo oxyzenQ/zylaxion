@@ -152,8 +152,9 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
+          # The supermassive apt idiom (retries + connect timeout).
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 update -qq
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
       # night-badas-1: the ebpf feature went default in night-improve-23,
