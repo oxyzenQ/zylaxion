@@ -525,16 +525,39 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
                 pins = (
                     sorted(os.listdir(PIN_DIR)) if os.path.isdir(PIN_DIR) else []
                 )
-                status_head = (
-                    last_out.splitlines()[0][:80] if last_out.strip() else "empty"
+                status_body = " | ".join(
+                    line.strip()[:64]
+                    for line in last_out.splitlines()[:8]
+                    if line.strip()
+                )
+                # The execution witness: run_cnt on the pinned program
+                # separates 'the program never runs' (link/trampoline
+                # problem) from 'the program runs but the counters
+                # freeze' (map-identity problem). Absent bpftool says so
+                # and costs nothing.
+                prog_rc, prog_out = _run(
+                    ["bpftool", "prog", "show", "pinned", f"{PIN_DIR}/tap"]
+                )
+                prog_witness = (
+                    prog_out.replace("\n", " ")[:180]
+                    if prog_rc == 0
+                    else f"bpftool rc={prog_rc}"
+                )
+                link_rc, link_out = _run(
+                    ["bpftool", "link", "show", "pinned", f"{PIN_DIR}/tap_link"]
+                )
+                link_witness = (
+                    link_out.replace("\n", " ")[:140]
+                    if link_rc == 0
+                    else f"bpftool rc={link_rc}"
                 )
                 ledger.fail_row(
                     f"the churn cycle {cycle} catches again on the fresh maps",
                     f"the fresh counter never moved within "
                     f"{CATCH_WINDOW_SECONDS:.0f}s while the writers ran - "
-                    f"evidence: writers [{writers[:220]}]; "
-                    f"status rc={last_rc}: {status_head}; "
-                    f"pins={pins}",
+                    f"evidence: writers [{writers[:200]}]; "
+                    f"status[{status_body[:220]}]; pins={pins}; "
+                    f"prog[{prog_witness}]; link[{link_witness}]",
                 )
                 break
 
