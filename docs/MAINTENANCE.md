@@ -45,8 +45,14 @@ contract, build the x86-64-v3/v4 gnu legs with `--locked` and the
 `ZYLAXION_BUILD` platform stamp, verify each artifact (v3 by
 execution, v4 by byte-grep — the AVX-512 runner rule), package the
 flat tarball, three checksums, GPG signatures when the key secret is
-configured, then the inventory tripwire and the publish. The full
-contract lives in the workflow header (`.github/workflows/release.yml`).
+configured, then the inventory tripwire, the DRAFT release, and the
+un-draft publish. night-dragon-maintenance-6: the release is created
+as a draft and only un-drafted after every asset has uploaded —
+GitHub's immutable-release feature locks assets at publish time, so
+publish-on-creation would reject the tail of a multi-asset upload
+(the mature estate's v80.0.1 incident). A red pipeline leaves a
+draft behind, never a half-published release. The full contract
+lives in the workflow header (`.github/workflows/release.yml`).
 
 Before pushing a tag, run locally:
 
