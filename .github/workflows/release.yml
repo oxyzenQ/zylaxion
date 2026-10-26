@@ -6,6 +6,19 @@
 # the x86-64-v3/v4 arch-baseline pair, and the pipeline gains the
 # version contract, the embedded-label verification, the flat tarball
 # invariant, and the GPG detached-signature lane.
+#
+# night-dragon-maintenance-6 (the sibling's immutable-release law):
+# the release is created as a DRAFT and un-drafted by a follow-up
+# step only after every asset has uploaded. GitHub's immutable-release
+# feature locks assets the moment a release becomes published, and
+# the publish action publishes on creation — on an immutable repo the
+# tail of a multi-asset upload gets rejected once the first asset
+# trips the publish event (the sibling's v80.0.1 incident: 7 of 10
+# assets landed, 3 rejected). Draft-then-publish keeps the whole
+# upload window mutable and makes the final state atomic: a red
+# pipeline leaves a draft behind, never a silent half-published
+# release. Pre-releases are also pinned off the "latest" pointer
+# explicitly at un-draft time.
 name: Dragon Guard - Release
 
 on:
@@ -676,7 +689,17 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Publish the GitHub release
+      # night-dragon-maintenance-6, the first half of the
+      # immutable-release law: create as a DRAFT. GitHub's
+      # immutable-release feature locks assets the moment the release
+      # becomes published, and the publish action publishes on
+      # creation — so on an immutable repo the tail of a multi-asset
+      # upload gets rejected once the first asset trips the publish
+      # event (the sibling's v80.0.1 incident: 7 of 10 assets landed,
+      # 3 rejected). With draft: true the release stays mutable for
+      # the whole upload, and the next step publishes it atomically
+      # after every asset is in place.
+      - name: Create Release (draft)
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64  # v3, night-improve-8 SHA pin
         with:
           tag_name: ${{ needs.validate.outputs.tag }}
@@ -687,4 +710,34 @@ jobs:
           body_path: release-body.md
           prerelease: ${{ needs.validate.outputs.prerelease == 'true' }}
           fail_on_unmatched_files: true
+          # The immutable-release half-one: the draft shape survives
+          # asset locking (see the step comment above).
+          draft: true
+          # Pre-releases are never marked "latest" — the latest pointer
+          # only tracks stable releases. The un-draft step below is the
+          # authoritative final state; this input keeps the action's
+          # own bookkeeping honest for the draft window.
+          make_latest: ${{ needs.validate.outputs.prerelease != 'true' }}
           files: ${{ steps.assets.outputs.list }}
+
+      # night-dragon-maintenance-6, the second half of the
+      # immutable-release law: flip the draft to published only AFTER
+      # every asset has uploaded, setting the prerelease and latest
+      # flags explicitly so the post-publish state is exactly what the
+      # pre-fix workflow intended. The post-condition view is the
+      # tripwire — a release that is still a draft here is a red
+      # pipeline, never a silent half-publish.
+      - name: Publish Release (un-draft)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if [ "${IS_PRERELEASE}" = "true" ]; then
+            gh release edit "${TAG}" --draft=false --prerelease=true --latest=false
+          else
+            gh release edit "${TAG}" --draft=false --prerelease=false --latest=true
+          fi
+          echo "--- Published release ---"
+          gh release view "${TAG}" --json url,isDraft,isPrerelease,isImmutable --jq '.'

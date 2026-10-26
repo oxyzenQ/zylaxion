@@ -179,6 +179,34 @@ v80.0.0-alpha.1
   proofs' measurand never moved. `docs/ZACTRIX_SECURITY.md`
   Dimension 3 carries the addendum naming the gap and its closure.
 
+### Changed
+
+- **night-dragon-maintenance-6 (the sibling's two CI laws land)** —
+  the leak and the lock, both taken from the mature estate's shape
+  (zejtron). (1) Credential-leak closure: actions/checkout persists
+  the runner token in the local git config by default, so every
+  step after the checkout — and every third-party action — could
+  read the repository token back out of `.git/config`. Fourteen
+  checkouts across eight workflows (audit, ci, crates-io,
+  gate-keepers, miri, release, supermassive) now run with
+  `persist-credentials: false`; the one maintenance checkout that
+  feeds the weekly `git push` keeps its credentials by design, the
+  same push-lane exception the sibling estate runs. Token lifetime
+  is now step-scoped estate-wide. (2) Immutable-release survival:
+  GitHub's immutable-release feature locks assets the moment a
+  release becomes published, and the publish action publishes on
+  creation — on an immutable repo the tail of a multi-asset upload
+  gets rejected mid-flight (the sibling's v80.0.1 incident: 7 of 10
+  assets landed, 3 rejected). The release lane now creates the
+  release as a DRAFT, uploads every asset against the still-mutable
+  draft, and a follow-up step un-drafts it atomically — with the
+  prerelease and latest flags set explicitly at un-draft time
+  (pre-releases are pinned off the latest pointer) and a
+  post-condition `gh release view` tripwire that turns a
+  still-draft state into a red pipeline instead of a silent
+  half-publish. A red pipeline now leaves a draft behind, never a
+  broken published release.
+
 ### Added
 
 - **night-dinner-13** — the host-truth audit lands:
