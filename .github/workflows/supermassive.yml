@@ -359,9 +359,8 @@ jobs:
         # main pocket only) on the LOW envelope (quarter cores /
         # eighth RAM, floored) — low specs on BOTH axes, the kernel and
         # the machine; the best leg boots the archive's head on the
-        # full envelope. zylaxion has no musl twins: the musl lane is
-        # the documented dormant lane (the .cargo/config.toml header),
-        # so each spec tier is one gnu leg.
+        # full envelope. Each spec tier is one gnu leg — glibc is the
+        # only libc the matrix ships.
         # night-dragon-maintenance-4 adds the third seat, the zejtron
         # kernel-witnesses lineage's refusal direction: the below-floor
         # leg boots the focal 5.4 GA kernel (BELOW the documented
