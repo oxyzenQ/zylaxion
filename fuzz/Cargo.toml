@@ -36,7 +36,7 @@
 
 [package]
 name = "zylaxion-fuzz"
-version = "80.0.1-zylaxion.1"
+version = "80.0.1"
 publish = false
 edition = "2024"
 
