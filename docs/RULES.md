@@ -164,17 +164,21 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 
 ## CI/CD (GitHub Actions)
 
-- **CI paths filter (code-push workflows):** the shared surface globs
-  — `**/*.rs`, `**/*.toml`, `**/Cargo.lock`, `.cargo/**`, `ebpf/**`,
-  `scripts/**` — plus the workflow's own file (night-badas-2, the
-  zelynic boost-10 one-spelling law). `*.md`, `*.txt` and `docs/`
-  match nothing: a docs-only commit never buys a code lane.
+- **Unfiltered CI (night-dragon-maintenance-2, the owner's call, the
+  zejtron estate's mature shape):** every push-triggered lane — CI,
+  Miri, Supermassive (deep battery + the KVM E2E legs), Security
+  Audit — burns on EVERY push, no path filter, no branch filter. The
+  former surface globs (night-badas-2/6, the zelynic boost-10
+  one-spelling law) retired: the estate-wide spelling's sync tax
+  across every build workflow cost more than the runner minutes it
+  saved, and a filtered lane can be blindsided by a change its globs
+  never named. A docs-only commit buys a few idle minutes; a missed
+  break buys a red main — the asymmetry is the whole argument.
 - **No detector job:** the former `changes` job (a full
   `fetch-depth: 0` clone plus a git-diff regex re-implementing
   GitHub's native path filter) is gone (night-badas-6, the zelynic
-  NIGHT-improve-13 lineage). The `paths:` filter IS the single
-  trigger gate — no depth-0 clone is spent detecting what GitHub
-  already knows.
+  NIGHT-improve-13 lineage) and stays gone — unfiltered needs no
+  detector at all.
 - **Gate-keepers CI (night-badas-5):** `Dragon Guard - Gate-keepers`
   (gate-keepers.yml) runs on EVERY push and PR, UNFILTERED — the
   wholesale non-code gates (permissions, headers, LOC caps, language,
@@ -184,11 +188,15 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   build minutes: bash, git, python3 and four pinned lint tools.
 - **Scanner rule:** a scanner workflow carries the surface it scans
   (the zelynic NIGHT-improve-11 law) — `Dragon Guard - Security
-  Audit` (audit.yml, cargo-audit `--deny warnings`) triggers on
-  `**/*.toml` + `**/Cargo.lock` + its own file, with the weekly
-  Monday 07:00 UTC clock as the between-pushes advisory-DB watch.
+  Audit` (audit.yml, cargo-audit `--deny warnings`) scans on every
+  push and PR unfiltered, with the weekly Monday 07:00 UTC clock as
+  the between-pushes advisory-DB watch.
   It is the canonical CVE verdict; the local gatekeeper skips
   cargo-audit per policy.
+- **Publish lanes are the ONE gated exception:** `crates-io.yml` and
+  `release.yml` wake ONLY on a pushed `v*` tag (the tag-means-publish
+  contract, the zelynic NIGHT-ask-1 shape) — never blind-triggered by
+  ordinary pushes.
 - **Node.js:** `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` in all workflow env.
 - **Dependabot:** REMOVED. Do not use Dependabot.
 - **Dependency updates:** Custom `maintenance.yml` workflow auto-updates deps

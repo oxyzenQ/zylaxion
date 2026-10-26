@@ -7,13 +7,14 @@
 # night-badas-5 (the zelynic audit.yml lineage): the cargo-audit scan
 # moves out of ci.yml into its own scanner workflow. The scanner rule
 # (the zelynic NIGHT-improve-11 law): a scanner workflow carries the
-# surface it scans — here the manifests and the lockfiles — so a
-# manifest or lockfile change gets an advisory scan the same push the
-# dependency surface moved, instead of waiting for Monday's clock. The
-# weekly schedule stays as the between-pushes watch over the advisory
-# DB itself (cargo-audit's database updates out-of-band; a quiet week
-# can still grow a new CVE). Rust source, scripts, and docs all leave
-# this workflow asleep; gate-keepers.yml (unfiltered) polices the rest.
+# surface it scans. Since night-dragon-maintenance-2 the surface is
+# the WHOLE tree on every push — the owner's unfiltered-CI
+# simplification (no path filter, no branch filter; a manifest-adjacent
+# change the globs never named — a vendored lock, a workspace split —
+# could ride straight past a filtered scanner). The weekly schedule
+# stays as the between-pushes watch over the advisory DB itself
+# (cargo-audit's database updates out-of-band; a quiet week can still
+# grow a new CVE).
 #
 # This is the canonical source for vulnerability scanning — the local
 # gatekeeper (build.sh check-all) skips cargo-audit per policy; this
@@ -28,18 +29,7 @@ name: Dragon Guard - Security Audit
 
 "on":
   push:
-    branches: [main]
-    paths:
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.github/workflows/audit.yml'
   pull_request:
-    branches: [main]
-    paths:
-      # Same spelling as push (the no-drift law).
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.github/workflows/audit.yml'
   schedule:
     - cron: "0 7 * * 1"  # Monday 07:00 UTC
   workflow_dispatch: {}

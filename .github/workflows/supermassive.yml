@@ -5,17 +5,22 @@
 # peak LTS; the name and the seat are the zelynic lineage).
 # =============================================================================
 #
-# night-badas-2 (the owner's call; the zelynic NIGHT-reject-1 lineage):
-# the weekly clock is retired and the deep battery joins the push
-# estate. The trigger spelling is the estate's shared surface globs —
-# the zelynic boost-10 one-spelling law: '**/*.rs', '**/*.toml',
-# '**/Cargo.lock', '.cargo/**', 'ebpf/**' (this repo's core kernel
-# surface) and 'scripts/**' — plus this file's own name (the hunt-34
-# law: a workflow that can change its own contract owes itself a
-# run). A docs-only commit matches nothing here; a code commit runs
-# the whole battery it can break. workflow_dispatch stays for the
-# on-demand deep run, and the concurrency group rides the workflow
-# name so a fresh push never stacks on a running battery.
+# night-dragon-maintenance-2 (the owner's unfiltered-CI
+# simplification, the zejtron estate's mature shape): the weekly
+# clock is gone (night-badas-2) AND the surface globs are gone —
+# every push burns the deep battery, no path filter, no branch
+# filter, the same blind posture every push-triggered lane in the
+# estate now carries. The former trigger spelling ('**/*.rs',
+# '**/*.toml', '**/Cargo.lock', '.cargo/**', 'ebpf/**', 'scripts/**'
+# plus this file's own name — the zelynic boost-10 one-spelling law)
+# retired with the rest: the estate-wide spelling's sync tax across
+# every build workflow cost more than the runner minutes it saved,
+# and a deep battery that can be blinded by a change its globs never
+# named is a battery the estate cannot trust. workflow_dispatch
+# stays for the on-demand deep run, and the concurrency group rides
+# the workflow name so a fresh push never stacks on a running
+# battery. No pull_request trigger on purpose: the fast lane
+# (ci.yml) owns PR verdicts.
 #
 # night-master-3 adds the THIRD seat, the one this workflow could never
 # hold before: the real-usage E2E on the KVM micro-VM floor (the
@@ -67,19 +72,6 @@ name: Dragon Guard - Supermassive
 
 "on":
   push:
-    branches: [main]
-    paths:
-      # night-badas-2: the estate-wide trigger spelling (the zelynic
-      # boost-10 one-spelling law) — the shared surface globs plus this
-      # file's own name, the same shape as the zelynic supermassive. A
-      # docs-only change matches nothing here.
-      - '**/*.rs'
-      - '**/*.toml'
-      - '**/Cargo.lock'
-      - '.cargo/**'
-      - 'ebpf/**'
-      - 'scripts/**'
-      - '.github/workflows/supermassive.yml'
   workflow_dispatch: {}
 
 env:

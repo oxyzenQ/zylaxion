@@ -36,10 +36,13 @@
 # inside the fail-fast cap below instead of hanging the runner.
 #
 # The push and pull_request triggers STAY (the owner's contract is a
-# fast UB net on every code push, not an absent one): same path
-# filters as the build lanes, the Sunday sweep (00:00 UTC / 07:00 WIB)
-# keeps the weekly full-net tick, and workflow_dispatch is the
-# on-demand deep check.
+# fast UB net on every code push, not an absent one): UNFILTERED since
+# night-dragon-maintenance-2 (the owner's unfiltered-CI
+# simplification — no path filter, no branch filter, the same blind
+# posture every push-triggered lane in the estate now carries; the
+# surface globs' sync tax cost more than the runner minutes they
+# saved), the Sunday sweep (00:00 UTC / 07:00 WIB) keeps the weekly
+# full-net tick, and workflow_dispatch is the on-demand deep check.
 #
 # Deliberately NO RUSTFLAGS=-D warnings here: the miri build is not
 # the warning-gated lane (ci.yml owns that contract), and pinning
@@ -50,24 +53,7 @@ name: Dragon Guard - Miri
 
 on:
   push:
-    branches: ["main"]
-    paths:
-      - "**/*.rs"
-      - "**/*.toml"
-      - "**/Cargo.lock"
-      - ".cargo/**"
-      - "scripts/**"
-      - ".github/workflows/miri.yml"
   pull_request:
-    branches: ["main"]
-    paths:
-      # Same spelling as push (the no-drift law).
-      - "**/*.rs"
-      - "**/*.toml"
-      - "**/Cargo.lock"
-      - ".cargo/**"
-      - "scripts/**"
-      - ".github/workflows/miri.yml"
   schedule:
     # Sunday 00:00 UTC (07:00 WIB) — picks up the week's commits in
     # one shot, the zelynic cadence.
