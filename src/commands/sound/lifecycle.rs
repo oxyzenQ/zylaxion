@@ -130,12 +130,43 @@ pub fn cmd_on(cli_preset: Option<String>) {
 
     // Already playing? A live player needs no spawn — the map writes
     // above already applied (and enabled comes below).
-    let existing_pid = control.get(&PLAYER_PID_SLOT, 0).unwrap_or(0);
+    // night-dragon-lts: an unreadable slot is UNKNOWN state, not "no
+    // player" — folding a read error into 0 sent a transient failure
+    // down the spawn lane, whose orphan sweep kills by exact cmdline
+    // match and would have murdered a healthy running player. The
+    // honest verdict refuses and asks for a re-run; guessing is the
+    // one thing this decision may not do.
+    let existing_pid = match control.get(&PLAYER_PID_SLOT, 0) {
+        Ok(pid) => pid,
+        Err(e) => {
+            crate::output::error(format!(
+                "cannot read the player registration: {e} — refusing to spawn a second \
+                 player blind; re-run zylaxion on"
+            ));
+            process::exit(1);
+        }
+    };
     let already_running = existing_pid != 0
         && pid_alive(existing_pid as i32)
-        && control.get(&STATE_SLOT, 0).unwrap_or(0) == STATE_RUNNING;
+        && match control.get(&STATE_SLOT, 0) {
+            Ok(state) => state == STATE_RUNNING,
+            Err(e) => {
+                crate::output::error(format!(
+                    "cannot read the player state: {e} — player pid {existing_pid} may be \
+                     live; refusing to spawn a second player blind; re-run zylaxion on"
+                ));
+                process::exit(1);
+            }
+        };
     if already_running {
-        let _ = control.set(ENABLED_SLOT, 1, 0);
+        // night-dragon-lts: the verdict below is only true if the gate
+        // write actually landed — the sibling slot writes above exit on
+        // error, so this one does too. A swallowed failure used to
+        // print "sound already on" while the kernel gate stayed 0.
+        if let Err(e) = control.set(ENABLED_SLOT, 1, 0) {
+            crate::output::error(format!("cannot write the enabled slot: {e}"));
+            process::exit(1);
+        }
         // night-improve-27 wording: the map writes above already applied,
         // so this surface is an UPDATE, not a spawn — say so, and keep
         // the contrast with the fresh-spawn line below ("new player").
@@ -316,10 +347,32 @@ pub fn cmd_off() {
         },
     };
 
-    let pid = control.get(&PLAYER_PID_SLOT, 0).unwrap_or(0);
+    // night-dragon-lts: the same unknown-state law as `on` — an
+    // unreadable registration is NOT "no player". A clearance written
+    // blind here would stop a live player (the gate clear is the stop
+    // signal) while reporting "no player was running"; the honest
+    // verdict refuses and names the read error.
+    let pid = match control.get(&PLAYER_PID_SLOT, 0) {
+        Ok(pid) => pid,
+        Err(e) => {
+            crate::output::error(format!(
+                "cannot read the player registration: {e} — refusing to report the sound \
+                 off blind; re-run zylaxion off"
+            ));
+            process::exit(1);
+        }
+    };
     if pid == 0 || !pid_alive(pid as i32) {
         // No live player: clear the gate and any stale registration.
-        let _ = control.set(ENABLED_SLOT, 0, 0);
+        // night-dragon-lts: the ENABLED clear is load-bearing — a gate
+        // left on with no player makes every later "is the sound on"
+        // read lie — so it is checked. The registration clears are
+        // hygiene for an already-dead pid and stay best-effort: the
+        // next `on` re-clears them on its spawn path.
+        if let Err(e) = control.set(ENABLED_SLOT, 0, 0) {
+            crate::output::error(format!("cannot clear the enabled flag: {e}"));
+            process::exit(1);
+        }
         let _ = control.set(PLAYER_PID_SLOT, 0, 0);
         let _ = control.set(STATE_SLOT, STATE_IDLE, 0);
         // night-dragon-maintenance-4: the no-player shape is passive
