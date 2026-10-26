@@ -41,6 +41,12 @@ use crate::profiles::MechanicalClick;
 /// a human and costs ~10 Hz of tiny map reads.
 const CONTROL_POLL_MS: u16 = 100;
 
+/// night-dragon-lts: how many consecutive failed control-map reads the
+/// watcher tolerates before declaring the pinned map genuinely gone.
+/// 100 reads at the 100 ms cadence = 10 s of patience — far beyond any
+/// transient lookup hiccup, far short of an immortal orphan.
+const WATCHER_READ_FAILURE_BUDGET: u32 = 100;
+
 /// The percent-of-default gain law: the control map carries a percent,
 /// the pool wants a linear gain. 100 percent means the compiled laptop
 /// default (5.5x); 0 percent is silence.
@@ -237,6 +243,16 @@ pub fn cmd_play() {
                         if item.len() < std::mem::size_of::<KeyRingEventRaw>() {
                             continue;
                         }
+                        // night-dragon-lts: aya hands out 8-byte-aligned
+                        // ring records (the ring buf consumer pages are
+                        // aligned); the cast below relies on it. The
+                        // length check above guards the size half of the
+                        // contract — this asserts the alignment half in
+                        // debug builds and compiles out on the release
+                        // hot path.
+                        debug_assert!(
+                            item.as_ptr() as usize % std::mem::align_of::<KeyRingEventRaw>() == 0
+                        );
                         let raw = unsafe { &*(item.as_ptr() as *const KeyRingEventRaw) };
                         let event = crate::core::KeyEvent {
                             scancode: raw.keycode,
@@ -286,16 +302,45 @@ pub fn cmd_play() {
             .spawn(move || {
                 let mut last_preset = preset_index;
                 let mut last_volume = volume_percent;
+                // night-dragon-lts: a failed map read is UNKNOWN state,
+                // not "disabled" — one transient lookup error used to
+                // end the session because the error was folded into
+                // enabled=0. The two are now distinct: a successful read
+                // resets the budget, a failed read spends it, and only a
+                // successful read of a cleared flag stops the player.
+                // The spent budget (10 s of consecutive failures) is the
+                // "the pinned map is genuinely gone" lane — the honest
+                // self-termination beats an immortal orphan spinning on
+                // a dead fd.
+                let mut read_failures: u32 = 0;
                 loop {
                     std::thread::sleep(Duration::from_millis(CONTROL_POLL_MS.into()));
                     if stop_flag.load(Ordering::Relaxed) {
                         return;
                     }
-                    let enabled = watch_control.get(&ENABLED_SLOT, 0).unwrap_or(0);
-                    if enabled != 1 {
-                        log::info!("control map cleared the enabled flag — stopping");
-                        stop_flag.store(true, Ordering::Relaxed);
-                        return;
+                    match watch_control.get(&ENABLED_SLOT, 0) {
+                        Ok(1) => read_failures = 0,
+                        Ok(_) => {
+                            log::info!("control map cleared the enabled flag — stopping");
+                            stop_flag.store(true, Ordering::Relaxed);
+                            return;
+                        }
+                        Err(e) => {
+                            read_failures += 1;
+                            if read_failures == 1 || read_failures % 25 == 0 {
+                                log::warn!(
+                                    "control map read failed {read_failures} consecutive time(s): {e}"
+                                );
+                            }
+                            if read_failures >= WATCHER_READ_FAILURE_BUDGET {
+                                log::error!(
+                                    "control map unreadable for {read_failures} consecutive reads \
+                                     — the pinned map is gone; stopping"
+                                );
+                                stop_flag.store(true, Ordering::Relaxed);
+                                return;
+                            }
+                        }
                     }
                     // Preset switch: rebuild the model and swap it in —
                     // running voices finish on the old model, new
