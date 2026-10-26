@@ -182,8 +182,14 @@ BUILD host. One command readies the whole host:
 git clone https://github.com/oxyzenQ/zylaxion.git
 cd zylaxion
 ./scripts/dev/bootstrap-ebpf.sh
-cargo build --release --locked
+cargo pro-linux-amd64-gnu --locked
 ```
+
+The alias is the build-from-source law in action — a named,
+parity-checked shape, never a bare `cargo build --release`. On an
+x86-64-v3/v4 CPU the tuned tiers are `cargo pro-linux-amd64-v3-gnu`
+and `cargo pro-linux-amd64-v4-gnu`, or let the installer's CPU-level
+detection pick for you.
 
 The one-command installer detects the CPU's x86-64 level, builds the
 matching parity-checked shape through the cargo aliases, and lands the

@@ -45,10 +45,12 @@ pro-native-gnu = [
   "--config",
   "build.rustflags=[\"-C\",\"target-cpu=native\"]",
 ]
-# The exact CI release shape — release.yml builds
-# `cargo build --release --target x86_64-unknown-linux-gnu` verbatim.
-# One command, byte-identical contract to the release package: same
-# profile, same target triple, no local-only flags. With --target the
+# The portable baseline gnu shape (no CPU floor): the release
+# optimization tier on the shipping triple, runnable on every
+# x86_64 host. One named command per the build-from-source law
+# (night-dragon-maintenance-3): every script that builds the product
+# rides a parity-checked alias — never a bare `cargo build --release`.
+# With --target the
 # binary lands in target/x86_64-unknown-linux-gnu/release/zylaxion,
 # isolated from any host-default build in target/release/.
 pro-linux-amd64-gnu = [
@@ -99,4 +101,18 @@ pro-linux-amd64-v4-gnu = [
   "env.ZYLAXION_BUILD=\"local-linux-amd64-v4-gnu\"",
   "--config",
   "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\"]",
+]
+
+# The zactrix audit harness (scripts/audit/harness — the standalone
+# measurement crate; the main package gains no dependency and no new
+# build target). The audit scripts build it through this alias so no
+# script lane runs a bare `cargo build --release`: the named path is
+# the contract, the same law the pro-linux-* aliases serve for the
+# product binary. Runs from the repo root — the manifest path is
+# repo-relative, like every alias consumer.
+pro-audit-harness = [
+  "build",
+  "--release",
+  "--manifest-path",
+  "scripts/audit/harness/Cargo.toml",
 ]

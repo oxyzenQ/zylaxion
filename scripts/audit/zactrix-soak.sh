@@ -26,7 +26,10 @@ cd "$(dirname "$0")/../.."
 OUT=scripts/audit/out
 mkdir -p "$OUT"
 
-cargo build --release -q --manifest-path scripts/audit/harness/Cargo.toml
+# The harness rides the named alias (the build-from-source law — no
+# bare `cargo build --release` in the script lanes; the alias pins the
+# manifest path, so the invocation stays repo-root relative).
+cargo pro-audit-harness -q
 BIN=scripts/audit/harness/target/release/zactrix-audit
 
 "$BIN" --soak > "$OUT/soak-run1.txt" 2>&1 &

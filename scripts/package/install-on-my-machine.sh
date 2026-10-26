@@ -14,10 +14,14 @@
 # sibling); the portable lanes are the GitHub release tarballs and
 # `cargo install zylaxion`.
 #
-# Build shapes, by detection result:
+# Build shapes, by detection result (the build-from-source law — no
+# bare `cargo build --release` anywhere in the script lanes):
 #   x86-64-v4 (full AVX-512 set) -> cargo pro-linux-amd64-v4-gnu
 #   x86-64-v3 (AVX2/FMA/BMI set) -> cargo pro-linux-amd64-v3-gnu
-#   anything else / non-amd64    -> cargo build --release --locked
+#   x86-64 below v3              -> cargo pro-linux-amd64-gnu (the
+#                                   portable baseline shape)
+#   anything else (non-amd64)    -> refused: the shipping shapes are
+#                                   the amd64 gnu aliases only
 #
 # The v3/v4 lanes reuse the exact aliases .cargo/config.toml defines
 # (night-improve-12c) so a locally installed binary is the same
@@ -151,14 +155,15 @@ case "${ARCH}:${LEVEL}" in
         cargo pro-linux-amd64-v3-gnu --locked
         BIN="target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/${PROJECT_NAME}"
         ;;
+    x86_64:base)
+        echo ">> [2/4] Building the baseline release shape (cargo pro-linux-amd64-gnu — no v3/v4 flags detected)"
+        cargo pro-linux-amd64-gnu --locked
+        BIN="target/x86_64-unknown-linux-gnu/release/${PROJECT_NAME}"
+        ;;
     *)
-        if [[ "${ARCH}" == "x86_64" ]]; then
-            echo ">> [2/4] Building the baseline release shape (no v3/v4 flags detected)"
-        else
-            echo ">> [2/4] Building the baseline release shape (${ARCH}: the amd64 v3/v4 lanes do not apply)"
-        fi
-        cargo build --release --locked
-        BIN="target/release/${PROJECT_NAME}"
+        echo "error: no parity-checked alias exists for ${ARCH} — zylaxion ships the amd64 gnu shapes only." >&2
+        echo "  build the host dev tier manually if you must: cargo build --release --locked" >&2
+        exit 1
         ;;
 esac
 

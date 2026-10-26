@@ -31,9 +31,14 @@ arc-swap = "1.7"
 # runs the REAL production audio stack - CpalSink and the Orchestrator
 # run loop - against the sandbox's ALSA null PCM. These three are the
 # exact crates the main package already pins (main Cargo.lock: cpal
-# 0.15.3, ringbuf 0.5.3, crossbeam-channel 0.5.17); the main package's
-# own dependency set gains nothing.
-cpal = "0.15"
+# 0.18, ringbuf 0.5, crossbeam-channel 0.5); the main package's
+# own dependency set gains nothing. The cpal spec rides the main
+# package's 0.18 move (night-dinner-10): the #[path]-included audio
+# tree speaks the 0.18 API (the SampleRate tuple struct, the by-value
+# StreamConfig, the unified Error) - the forgotten 0.15 pin here was
+# how the harness lane died silently until the alias law rebuilt it
+# (night-dragon-maintenance-3).
+cpal = "0.18"
 ringbuf = "0.5"
 crossbeam-channel = "0.5"
 
