@@ -231,16 +231,21 @@ pub fn run_check_update() {
         }
     };
 
-    let status_text = match compare_versions(CURRENT_VERSION, &latest_tag) {
-        UpdateStatus::UpToDate => "up to date",
-        UpdateStatus::UpdateAvailable => "update available",
-        UpdateStatus::CurrentIsNewer => "current is newer than latest release",
-    };
-
     // The report opens with the family banner (the zelynic output
     // law, night-dragon-maintenance-1): the update check is a report
     // surface, so it reads as one report alongside the doctor and the
     // overview — one frame, one key/value geometry.
+    // night-dragon-maintenance-4: the Status verdict rides its tier —
+    // green for the affirmative up-to-date, yellow for a finding with
+    // action implied (an update exists), grey for the passive
+    // informational shape — instead of bare white.
+    let status_colored = match compare_versions(CURRENT_VERSION, &latest_tag) {
+        UpdateStatus::UpToDate => crate::output::ok_line("up to date"),
+        UpdateStatus::UpdateAvailable => crate::output::warn_line("update available"),
+        UpdateStatus::CurrentIsNewer => {
+            crate::output::tip_line("current is newer than latest release")
+        }
+    };
     println!("{}\n", crate::output::section("zylaxion update check"));
     println!(
         "{}",
@@ -250,6 +255,6 @@ pub fn run_check_update() {
         "{}",
         crate::output::kv("Latest:", &normalize_version(&latest_tag))
     );
-    println!("{}", crate::output::kv("Status:", status_text));
+    println!("{}", crate::output::kv("Status:", &status_colored));
     println!("{}", crate::output::kv("Source:", RELEASES_URL));
 }

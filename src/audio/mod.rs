@@ -280,8 +280,17 @@ impl CpalSink {
         let paused = Arc::new(AtomicBool::new(false));
         let paused_for_err = Arc::clone(&paused);
         let err_fn = move |err: cpal::Error| {
-            eprintln!("zylaxion: warning: Audio stream error: {err}");
-            eprintln!("zylaxion: warning: Audio device disconnected. Pausing output.");
+            // night-dragon-maintenance-4: the stream-error lane rides
+            // the log lane (the journal surface env_logger renders with
+            // its auto-color TTY tier), not a hand-rolled eprintln that
+            // bypassed every palette. `log` is the one lane valid in
+            // BOTH compilation contexts of this module — the binary
+            // crate root and the examples' include harness, which wire
+            // no `output` module — and uninitialized contexts (the
+            // examples) drop the record silently, exactly what a demo
+            // wants. Bytes stay plain wherever stderr is not a terminal.
+            log::warn!("Audio stream error: {err}");
+            log::warn!("Audio device disconnected. Pausing output.");
             paused_for_err.store(true, Ordering::Relaxed);
         };
 

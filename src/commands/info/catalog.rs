@@ -102,11 +102,20 @@ pub fn cmd_list_backends() {
                     )
                 ),
                 Err(e) => {
+                    // night-dragon-maintenance-4: a present-but-closed
+                    // backend is a caution — the warning yellow tier
+                    // names it (the fact stays plain, the verdict
+                    // carries the lane).
                     println!(
                         "{}",
                         crate::output::kv(
                             "output:",
-                            &format!("{name} (present but not openable: {e})")
+                            &format!(
+                                "{name} {}",
+                                crate::output::warn_line(&format!(
+                                    "(present but not openable: {e})"
+                                ))
+                            )
                         )
                     )
                 }

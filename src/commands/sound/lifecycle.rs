@@ -139,9 +139,16 @@ pub fn cmd_on(cli_preset: Option<String>) {
         // night-improve-27 wording: the map writes above already applied,
         // so this surface is an UPDATE, not a spawn — say so, and keep
         // the contrast with the fresh-spawn line below ("new player").
+        // night-dragon-maintenance-4: the confirmation rides the
+        // status-green tier, the same lane the `preset set to` and
+        // `volume set to` confirmations already carry — every verb's
+        // affirmative verdict speaks the same color now.
         println!(
-            "sound already on: preset {preset_name}, volume {volume_percent}% \
-             (player pid {existing_pid} kept — preset updated live)"
+            "{}",
+            crate::output::ok_line(&format!(
+                "sound already on: preset {preset_name}, volume {volume_percent}% \
+                 (player pid {existing_pid} kept — preset updated live)"
+            ))
         );
         return;
     }
@@ -226,9 +233,15 @@ pub fn cmd_on(cli_preset: Option<String>) {
     let child_pid = child.id();
     drop(child);
 
+    // night-dragon-maintenance-4: the spawn confirmation rides the
+    // status-green tier (the affirmative verdict law — the same lane
+    // the `preset set to` confirmation carries), not bare white.
     println!(
-        "sound on: preset {preset_name}, volume {volume_percent}% (new player pid {child_pid}, \
-         detached; `zylaxion off` to stop)"
+        "{}",
+        crate::output::ok_line(&format!(
+            "sound on: preset {preset_name}, volume {volume_percent}% (new player pid {child_pid}, \
+             detached; `zylaxion off` to stop)"
+        ))
     );
 }
 
@@ -262,8 +275,15 @@ pub fn cmd_off() {
                 // one caveat that matters rides as a warning, because
                 // the unreachable gate is untouched and a running
                 // player would keep playing.
+                // night-dragon-maintenance-4: an unreachable control
+                // plane is a finding, not a quiet fact — the warning
+                // yellow tier names it (the same lane the doctor's
+                // cautions ride).
                 println!(
-                    "sound is off (the control plane is unreachable — nothing this user can stop)"
+                    "{}",
+                    crate::output::warn_line(
+                        "sound is off (the control plane is unreachable — nothing this user can stop)"
+                    )
                 );
                 crate::output::warning(
                     "a mode-0700 bpffs mount (the Debian 13 default) blocks the walk to the \
@@ -282,7 +302,15 @@ pub fn cmd_off() {
             ControlPinStat::Absent => {
                 // Not attached: off is idempotent — nothing to stop is
                 // a success shape, not an error.
-                println!("sound is off (the tap is not attached — nothing to stop)");
+                // night-dragon-maintenance-4: the passive not-attached
+                // shape rides the calm-grey tier, the same lane the
+                // status surface paints its "off" word with.
+                println!(
+                    "{}",
+                    crate::output::tip_line(
+                        "sound is off (the tap is not attached — nothing to stop)"
+                    )
+                );
                 return;
             }
         },
@@ -294,7 +322,12 @@ pub fn cmd_off() {
         let _ = control.set(ENABLED_SLOT, 0, 0);
         let _ = control.set(PLAYER_PID_SLOT, 0, 0);
         let _ = control.set(STATE_SLOT, STATE_IDLE, 0);
-        println!("sound is off (no player was running)");
+        // night-dragon-maintenance-4: the no-player shape is passive
+        // — the calm-grey tier, matching the not-attached arm above.
+        println!(
+            "{}",
+            crate::output::tip_line("sound is off (no player was running)")
+        );
         return;
     }
 
@@ -313,10 +346,17 @@ pub fn cmd_off() {
                 "the player (pid {pid}) is still alive after the stop budget — \
                  kill -TERM {pid} if it stays wedged"
             ));
-            println!("sound off (stop pending)");
+            // night-dragon-maintenance-4: a wedged stop is a caution
+            // the reader must not miss — the warning yellow tier.
+            println!("{}", crate::output::warn_line("sound off (stop pending)"));
             return;
         }
         std::thread::sleep(SETTLE_STEP);
     }
-    println!("sound off (no processes remain; the tap stays attached)");
+    // night-dragon-maintenance-4: the clean-stop completion is the
+    // verb's affirmative verdict — the status-green tier.
+    println!(
+        "{}",
+        crate::output::ok_line("sound off (no processes remain; the tap stays attached)")
+    );
 }
