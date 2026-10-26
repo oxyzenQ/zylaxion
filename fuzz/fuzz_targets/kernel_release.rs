@@ -50,7 +50,7 @@ fuzz_target!(|data: &[u8]| {
              {major}.{minor} reported supported={supported}"
         );
     } else {
-        // An unparseable release is honest None - and None must never
+        // An unparsable release is honest None - and None must never
         // read as supported (the floor's fail-closed direction).
         assert!(!supported, "None parsed but reported supported");
     }

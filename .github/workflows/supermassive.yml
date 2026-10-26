@@ -101,7 +101,7 @@ jobs:
           # mirror dies loudly inside its budget, never a silent burn.
           sudo timeout 240 apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 update -qq
-          sudo timeout 300 apt-get -o Acquire::Retries=5 \
+          sudo timeout 600 apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
@@ -165,7 +165,7 @@ jobs:
           # mirror dies loudly inside its budget, never a silent burn.
           sudo timeout 240 apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 update -qq
-          sudo timeout 300 apt-get -o Acquire::Retries=5 \
+          sudo timeout 600 apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
@@ -249,7 +249,7 @@ jobs:
           # mirror dies loudly inside its budget, never a silent burn.
           sudo timeout 240 apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 update -qq
-          sudo timeout 300 apt-get -o Acquire::Retries=5 \
+          sudo timeout 600 apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
@@ -403,7 +403,7 @@ jobs:
         run: >-
           sudo timeout 240 apt-get -o Acquire::Retries=5
           -o Acquire::http::Timeout=45 update -qq &&
-          sudo timeout 300 apt-get -o Acquire::Retries=5
+          sudo timeout 600 apt-get -o Acquire::Retries=5
           -o Acquire::http::Timeout=45 install -y
           --no-install-recommends qemu-system-x86 cpio
           libasound2-dev pkg-config
@@ -542,7 +542,7 @@ jobs:
           fi
           echo "resolved: $IMG"
           KVER="${IMG#linux-image-unsigned-}"
-          sudo timeout 300 apt-get -o Acquire::Retries=5 \
+          sudo timeout 600 apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 download "linux-image-unsigned-$KVER"
           # The below-floor leg fetches the image deb ONLY (the
           # refusal walk needs no module chain); every other leg
@@ -636,7 +636,7 @@ jobs:
             ALSA_RUNTIME=libasound2t64
           fi
           echo "ALSA runtime package: $ALSA_RUNTIME"
-          docker exec zylaxion-rootfs timeout 300 apt-get -o Acquire::Retries=5 \
+          docker exec zylaxion-rootfs timeout 600 apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 install -y -qq \
             --no-install-recommends python3 sudo kmod passwd "$ALSA_RUNTIME" iproute2
           docker exec zylaxion-rootfs python3 -c 'import sys; assert sys.version_info >= (3, 10)'
