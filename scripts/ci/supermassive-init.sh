@@ -316,6 +316,30 @@ else
         note "install -Dm755 \$Z/zylaxion /usr/bin/zylaxion" FAIL
 fi
 
+# ── the counter witness (night-dragon-lts) ─────────────────────────────
+# The churn catch reads the tap's run counters (sm_storm calls
+# `bpftool prog show pinned ...`), but noble ships bpftool as a
+# uname-keyed wrapper: /usr/sbin/bpftool execs
+# /usr/lib/linux-tools/$(uname -r)/bpftool and exits 2 for any other
+# kernel — and this guest boots ARCHIVE kernels no noble tools package
+# names. The versioned binary itself is kernel-agnostic (prog show
+# pinned / link show pinned ride stable ioctls), so the init promotes
+# the highest installed versioned binary onto PATH; sm_storm's bare
+# `bpftool` resolves through /usr/local/bin and the instrument's
+# evidence lines stay verbatim. Best-effort: a guest image without any
+# versioned binary keeps today's rc=127 degradation, named as the
+# informational line it is.
+BPFTOOL_BIN="$(ls /usr/lib/linux-tools/*/bpftool 2>/dev/null | sort -V | tail -1)"
+if [ -n "$BPFTOOL_BIN" ]; then
+        if ln -sf "$BPFTOOL_BIN" /usr/local/bin/bpftool; then
+                note "the counter witness rides bpftool ($BPFTOOL_BIN)" PASS
+        else
+                note "bpftool symlink onto /usr/local/bin" FAIL
+        fi
+else
+        echo "MASS: bpftool absent in the guest image — the churn catch degrades to rc=127 evidence"
+fi
+
 # ── the engine: the whole chaos ────────────────────────────────────────
 # The engine prints its own MASS rows (same contract); its exit code
 # folds into this init's verdict line — the ONLY line the workflow's
