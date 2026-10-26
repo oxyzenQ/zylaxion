@@ -17,6 +17,7 @@
 mod alsa_guard;
 mod catalog;
 mod doctor;
+mod doctor_kernel;
 mod overview;
 
 pub use catalog::{cmd_list_backends, cmd_list_presets};
