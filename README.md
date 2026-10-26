@@ -491,7 +491,7 @@ battery, the micro-VM legs prove the rest inside a real kernel:
 | [the workspace test tree](scripts/build.sh) | Unit + doc tests, plus fmt and clippy | `./scripts/build.sh check-all -q` |
 | [the gate suite](scripts/gate-keepers.sh) | Permissions, SPDX headers, LOC caps, language, release parity | `./scripts/gate-keepers.sh` |
 
-### The world-first claims battery
+### The claims battery
 
 The extraordinary claims get their own independent verification lane
 (`scripts/supermassive/sm_static.py`):

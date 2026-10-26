@@ -77,8 +77,8 @@ Notes:
   individual, whichever applies), not your zylaxion-specific revenue.
 - **Multi-year discount** (owner discretion): 20% off a 2-year term,
   30% off a 3-year term.
-- **The ladder climbs with the work.** zylaxion is a masterpiece and its
-  value increases year by year; the owner re-prices the business end of
+- **The ladder climbs with the work.** zylaxion's value increases
+  year by year; the owner re-prices the business end of
   the ladder as the project compounds. Grandfathering is the standing
   rule: buyers who paid before any move keep the price they paid, for
   the term they bought. The business end moves with the work: Business
