@@ -484,6 +484,31 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
                     f"rc={rc}: {out[:200]}",
                 )
                 break
+            # night-dragon-lts root fix: the replant seeds a FRESH
+            # control map whose enabled gate reads 0 - attach is
+            # 'sound: off' by contract, and the kernel counts NOTHING
+            # behind a closed gate (the tap returns before the stats
+            # fetch-adds). The original flow left the gate closed and
+            # measured exactly that: the catch window could never
+            # pass, on any kernel, at any tap health. The storm's own
+            # posture now returns the sound on EVERY replant - the
+            # contract under test is 'the tap AND the synth survive
+            # the teardown together', so the gate opens before the
+            # window; the close's final row keeps its shape (it now
+            # rides the already-running verdict on a healthy storm).
+            rc, out = _run_as_user(user, binary, ["on", "--preset", "topre"])
+            if rc == 0 and ("sound on:" in out or "sound already on:" in out):
+                ledger.pass_row(
+                    f"the churn cycle {cycle} returns the sound on the fresh maps",
+                    out.splitlines()[0][:70],
+                )
+            else:
+                storm_dir_ok = False
+                ledger.fail_row(
+                    f"the churn cycle {cycle} returns the sound on the fresh maps",
+                    f"rc={rc}: {out[:200]}",
+                )
+                break
             time.sleep(1.5)
             # Poll the fresh counter across the bounded catch window -
             # one instantaneous read after a fixed nap would measure the
@@ -567,12 +592,16 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
         # brings the sound back after the final replant - the
         # surveillance AND the synth survive the teardown together,
         # and the close's `off` row stops a real player, not a
-        # vacuous shape.
+        # vacuous shape. (night-dragon-lts: the churn cycles return
+        # the sound themselves now - the gate-open root fix - so on
+        # a healthy storm this final on rides the already-running
+        # shape; the row's real assertion is the live pid rendering
+        # under the replanted tap.)
         if storm_dir_ok:
             rc, out = _run_as_user(user, binary, ["on", "--preset", "topre"])
             time.sleep(1.0)
             pid = _player_pid(user)
-            if rc == 0 and "sound on:" in out and pid:
+            if rc == 0 and ("sound on:" in out or "sound already on:" in out) and pid:
                 ledger.pass_row(
                     "the storm's sound returns after the churn (the player respawns)",
                     f"pid {pid} renders under the replanted tap",
