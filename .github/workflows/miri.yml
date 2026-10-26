@@ -87,6 +87,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, the zelynic estate SHA pin
+        with:
+          # night-dragon-maintenance-6: the checkout token never
+          # outlives this step — no later step can read it back.
+          persist-credentials: false
 
       # The moving `nightly` tag with the miri component — the
       # interpreter build rides nightly by construction; the

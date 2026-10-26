@@ -143,6 +143,9 @@ jobs:
           # env!("CARGO_PKG_VERSION")), so depth 1 is the high-speed
           # checkout.
           fetch-depth: 1
+          # night-dragon-maintenance-6: the checkout token never
+          # outlives this step — no later step can read it back.
+          persist-credentials: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, the zelynic estate SHA
@@ -465,6 +468,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
         with:
           fetch-depth: 1
+          # night-dragon-maintenance-6: the checkout token never
+          # outlives this step — no later step can read it back.
+          persist-credentials: false
 
       - name: Download artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, the zelynic estate SHA pin
