@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  The first Keyboard sound for Linux, computed in the kernel. A passive eBPF input tap voices every keystroke through pure procedural synthesis — zero samples, zero daemons, zero config files.
+  Keyboard sound for Linux, computed in the kernel. A passive eBPF input tap voices every keystroke through pure procedural synthesis — zero samples, zero daemons, zero config files.
 </p>
 
 <div align="center">
