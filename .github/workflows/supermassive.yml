@@ -220,7 +220,7 @@ jobs:
           "${BIN}" -h | head -20
 
   # ═══════════════════════════════════════════════════════════════════
-  # night-master-1: the world-first claims battery, rootless, on the
+  # night-master-1: the claims battery, rootless, on the
   # exact release shape. The extraordinary claims get their own
   # independent verification lane: pure-math synthesis (no decoder is
   # linked — the process physically cannot play a sample), the eBPF
@@ -233,7 +233,7 @@ jobs:
   # cache + bootstrap pair the release-shape job uses.
   # ═══════════════════════════════════════════════════════════════════
   claims:
-    name: supermassive test - the world-first claims (rootless)
+    name: supermassive test - the claims (rootless)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -284,7 +284,7 @@ jobs:
       - name: The prebuilt lane is in parity after the build
         run: ./scripts/dev/regenerate-ebpf-prebuilt.sh --check
 
-      - name: The world-first claims battery (rootless self-test lane)
+      - name: The claims battery (rootless self-test lane)
         run: |
           set -o pipefail
           ./scripts/supermassive/supermassive-test.sh --self-test \
@@ -295,7 +295,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "## supermassive — the world-first claims (rootless)"
+            echo "## supermassive — the claims (rootless)"
             echo
             echo '```'
             grep -E '^MASS-(RESULT|VERDICT)' /tmp/claims.log || true

@@ -627,7 +627,7 @@ v80.0.0-alpha.1
   battery) honestly closed.
 
 - **night-dinner-1 (the README signs off in the house voice)** — a
-  closing footer line, `built with curiosity & masterpiece`, set
+  closing footer line, `built with curiosity`, set
   centered under the existing tagline block in README.md. Cosmetic;
   no technical claim touched.
 
@@ -1507,7 +1507,7 @@ v80.0.0-alpha.1
   actionlint's shellcheck SC2012 in the kernel resolver's module
   listing (`ls` piped into `tr`); the listing now comes from `find`,
   and the two yamllint comment-spacing warnings in crates-io.yml are
-  cleaned with it. (4) The world-first claims probe "doctor prints
+  cleaned with it. (4) The claims battery probe "doctor prints
   the kernel verdict" modeled the doctor's exit code as the KERNEL
   verdict's polarity and failed on every runner: the doctor's actual
   contract is the WHOLE report's health (rc 0 ⇔ "All checks passed",
@@ -1775,7 +1775,7 @@ v80.0.0-alpha.1
   philosophy lists, the branches table, Contributing (CLA + DCO),
   the private security-reporting pointer, the documentation shelf
   under the master index, the Test Results harness table with the
-  world-first claims battery spelled out, and the ZYLAXION-DISCLAIMER
+  claims battery spelled out, and the ZYLAXION-DISCLAIMER
   documentation-disclaimer block. The trademark section was rewritten
   to say what TRADEMARK.md actually says — every fork must rename and
   rebrand (the zelynic two-category fork policy does not exist here;
@@ -1885,7 +1885,7 @@ v80.0.0-alpha.1
   and `supermassive test - best specs (the archive's head)` — no musl
   twins, the musl lane being the documented dormant lane.
 
-- **night-master-1** — the world-first claims battery: the
+- **night-master-1** — the claims battery: the
   extraordinary claims get their own independent, statically-verifiable
   proof lane (`scripts/supermassive/sm_static.py`), wired into both
   supermassive lanes and given its own rootless CI job. The battery
@@ -2278,7 +2278,7 @@ v80.0.0-alpha.1
   at the owner's prices — Business $2,199/year (individual businesses
   and small teams), Company $9,199/year (companies and enterprise, or
   redistribution rights); Personal free, Individual holds at
-  $99/year — with the rationale (a masterpiece whose value increases
+  $99/year — with the rationale (a body of work whose value increases
   year by year; the price tracks the value; grandfathering protects
   earlier buyers) and the unauthorized-use warning in the owner's own
   wording: stealing, illegal forking, or building closed-source

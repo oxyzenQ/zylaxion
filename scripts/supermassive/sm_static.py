@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-"""The world-first claims battery (night-master-1) — the static half of
+"""The claims battery (night-master-1) — the static half of
 the supermassive proof.
 
 The project's headline claims are extraordinary, so they get their own

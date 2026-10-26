@@ -2,14 +2,14 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 """supermassive — the whole E2E on the micro-VM floor (night-master-3,
-the world-first claims battery rides since night-master-1).
+the claims battery rides since night-master-1).
 
 The zylaxion supermassive engine, the zelynic lineage's shape: one
 Python engine, two lanes.
 
   --self-test [--binary PATH]   the rootless lane: the CLI/UX battery,
                                 the pure-math proof, the zero-config
-                                proof, and the world-first claims
+                                proof, and the claims
                                 battery (no decoder linked, the eBPF
                                 tap embedded as an ELF-BPF object,
                                 zero daemon-era strings, a
@@ -216,7 +216,7 @@ def main() -> int:
         "--self-test",
         action="store_true",
         help="the rootless lane: CLI/UX battery + pure-math + zero-config "
-        "proofs + the world-first claims battery",
+        "proofs + the claims battery",
     )
     mode.add_argument(
         "--full",
