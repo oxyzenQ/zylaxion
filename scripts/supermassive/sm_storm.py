@@ -86,6 +86,15 @@ HEARTBEAT_FLOOR = 2
 RATE_BURST_SECONDS = 2.0
 RATE_FLOOR = 15.0
 CHURN_CYCLES = 3
+# The fresh-map catch window (seconds): the churn contract says the
+# replanted tap "catches again within seconds", not instantly. Kernel
+# trampoline/RCU settle time after an immediate detach/replant varies by
+# kernel generation - first witnessed on the 7.0 archive head, where the
+# catch lands late under load. The probe polls the fresh counter across
+# this window and fails only when it closes empty: a persistently deaf
+# replant is still a FAIL, a late catch is an honest pass with its
+# latency on the ledger.
+CATCH_WINDOW_SECONDS = 10.0
 PIN_DIR = "/sys/fs/bpf/zylaxion"
 
 
@@ -460,17 +469,32 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
                 )
                 break
             time.sleep(1.5)
-            fresh = _presses(binary, user)
+            # Poll the fresh counter across the bounded catch window -
+            # one instantaneous read after a fixed nap would measure the
+            # kernel's settle time, not the tap's survival (the contract
+            # under test: the replanted tap catches again, at all).
+            window_start = time.monotonic()
+            catch_deadline = window_start + CATCH_WINDOW_SECONDS
+            fresh = 0
+            while True:
+                fresh = _presses(binary, user)
+                if fresh > 0 or time.monotonic() >= catch_deadline:
+                    break
+                time.sleep(0.5)
             if fresh > 0:
+                latency = time.monotonic() - window_start
                 ledger.pass_row(
                     f"the churn cycle {cycle} catches again on the fresh maps",
-                    f"the replanted counter already reads {fresh} presses",
+                    f"the replanted counter caught {fresh} presses "
+                    f"{latency:.1f}s into the {CATCH_WINDOW_SECONDS:.0f}s "
+                    "catch window",
                 )
             else:
                 storm_dir_ok = False
                 ledger.fail_row(
                     f"the churn cycle {cycle} catches again on the fresh maps",
-                    "the fresh counter never moved while the writers ran",
+                    f"the fresh counter never moved within "
+                    f"{CATCH_WINDOW_SECONDS:.0f}s while the writers ran",
                 )
                 break
 

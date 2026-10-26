@@ -448,9 +448,12 @@ pub(super) fn validate_ebpf_object(data: &[u8]) -> Result<(), String> {
 /// Strip the host-poison tokens from the inherited rustflags before the
 /// nested bpfel build sees them: host-CPU and host-linker flags are
 /// poison for a cross-build ("-Ctarget-cpu=native" lowers for the BUILD
-/// host's ISA; "-Clinker=..." retargets the linker). Everything else
-/// survives verbatim, so CI's `RUSTFLAGS="-D warnings"` contract keeps
-/// covering the ebpf crate.
+/// host's ISA; "-Clinker=..." retargets the linker; "-Wl,..." speaks the
+/// GCC driver syntax bpf-linker cannot parse — the GNU full-RELRO
+/// hardening token rides exactly this shape and cost the supermassive
+/// from-source legs their build). Everything else survives verbatim, so
+/// CI's `RUSTFLAGS="-D warnings"` contract keeps covering the ebpf crate
+/// and bpf-linker's own `-C link-arg=--btf` form stays legal.
 pub(super) fn strip_host_poison_rustflags(cmd: &mut Command) {
     if let Some(value) = std::env::var_os("CARGO_ENCODED_RUSTFLAGS") {
         match strip_host_poison(&value.to_string_lossy(), '\u{1f}') {
@@ -476,18 +479,33 @@ pub(super) fn strip_host_poison_rustflags(cmd: &mut Command) {
 
 /// The pure token filter behind the poison strip: `Some(joined)` when
 /// any token was dropped, `None` when nothing changed (so the caller can
-/// env_remove instead of re-setting an identical value).
+/// env_remove instead of re-setting an identical value). A poisoned
+/// value token takes its paired `-C` flag name with it — flags travel as
+/// two tokens (`-C`, then the value) in both the space-separated
+/// RUSTFLAGS form and the \u{1f}-separated CARGO_ENCODED_RUSTFLAGS form,
+/// and an orphan `-C` in the survivor list is a phantom flag for rustc.
 pub(super) fn strip_host_poison(value: &str, sep: char) -> Option<String> {
-    let tokens: Vec<&str> = value
-        .split(sep)
-        .filter(|t| {
-            let t = t.trim();
-            !(t.contains("target-cpu")
-                || t.contains("linker=")
-                || t.contains("link-self-contained"))
-        })
-        .collect();
-    let dropped = tokens.len() != value.split(sep).count();
+    let raw: Vec<&str> = value.split(sep).collect();
+    let mut tokens: Vec<&str> = Vec::with_capacity(raw.len());
+    for t in &raw {
+        let tt = t.trim();
+        let poisoned = tt.contains("target-cpu")
+            || tt.contains("linker=")
+            || tt.contains("link-self-contained")
+            || tt.contains("-Wl,");
+        if poisoned {
+            // The flag name immediately before a poisoned value is the
+            // half of that flag — it goes too.
+            if let Some(last) = tokens.last() {
+                if last.trim() == "-C" {
+                    tokens.pop();
+                }
+            }
+        } else {
+            tokens.push(t);
+        }
+    }
+    let dropped = tokens.len() != raw.len();
     if dropped {
         Some(tokens.join(&sep.to_string()))
     } else {
