@@ -29,7 +29,14 @@ Python engine, two lanes.
                                 no input group, uinput keystrokes, the
                                 kernel-side telemetry, the PCM
                                 witness, live preset/volume map
-                                writes, off, the zero-process state).
+                                writes, off, the zero-process state),
+                                and the realtime depth stresstest
+                                (night-dragon-maintenance-2, the
+                                zejtron storm lineage: two concurrent
+                                uinput writers, telemetry and the
+                                whole volume boundary lattice asserted
+                                UNDER LOAD, the PCM witness read
+                                mid-storm).
 
 Every probe lands on one ledger; the ledger prints a human row and the
 MASS-RESULT sentinel per probe plus one final MASS-VERDICT line (the
@@ -64,6 +71,7 @@ from sm_env import (  # noqa: E402
 from sm_journey import battery as journey_battery  # noqa: E402
 from sm_report import Ledger, Step  # noqa: E402
 from sm_static import battery as static_battery  # noqa: E402
+from sm_storm import battery as storm_battery  # noqa: E402
 from sm_tap import battery as tap_battery  # noqa: E402
 from sm_ux import battery as ux_battery  # noqa: E402
 
@@ -202,6 +210,7 @@ def full(binary: str) -> int:
     tap_battery(ledger, binary, GUEST_USER)
     journey_battery(ledger, binary, GUEST_USER)
     audio_battery(ledger, binary, user=GUEST_USER, tree_root=REPO_ROOT)
+    storm_battery(ledger, binary, GUEST_USER)
     static_battery(ledger, binary, REPO_ROOT, root_lane=True)
     return ledger.finish()
 

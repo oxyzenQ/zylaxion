@@ -309,6 +309,19 @@ jobs:
   # whole-chaos engine both times. The envelope derives from the
   # runner at boot (the zelynic dynamic doctrine — never pin one
   # era's hardware): every core, three quarters of the RAM.
+  #
+  # night-dragon-maintenance-2 deepens the leg twice, the owner's
+  # asks: (1) the from-source law — the payload is built with the
+  # `cargo pro-linux-amd64-v3-gnu` alias (the amd64-v3 shape the
+  # release matrix ships), never a bare `cargo build --release`; the
+  # VM boots KVM's -cpu host passthrough, so the guest CPU is the
+  # runner's own and the v3 codegen is honest inside it. (2) the
+  # realtime depth stresstest — the engine's storm stage (the zejtron
+  # storm lineage) rides the --full battery: two concurrent uinput
+  # writers hammer the kernel's input path while the telemetry polls
+  # must RISE mid-storm and the whole volume boundary lattice is
+  # asserted UNDER LOAD, the PCM witness read while the writers still
+  # run — verdicts under load, never after it.
   # ═══════════════════════════════════════════════════════════════════
   e2e-vm:
     name: ${{ matrix.leg.title }}
@@ -390,16 +403,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-supermassive-e2e-
 
-      # The bring-up half, on the runner: the exact release shape the
-      # release workflow builds (the baseline alias — it runs on every
-      # CPU the VM can expose). A guest cannot host a Rust toolchain
+      # The bring-up half, on the runner: the payload is the release
+      # page's amd64-v3 shape, built with the owner's from-source law
+      # (night-dragon-maintenance-2): the `cargo pro-linux-amd64-v3-gnu`
+      # alias — the exact rustflags the release matrix's v3 leg ships,
+      # held by scripts/gates/check-release-parity.sh — never a bare
+      # `cargo build --release`. A guest cannot host a Rust toolchain
       # build; the payload crosses as a finished binary. The build
       # needs the ALSA headers on the HOST (night-badas-4: cpal's
       # alsa-sys resolves alsa.pc via pkg-config — the job used to
       # install only qemu + cpio and died in the payload build before
       # the VM ever booted; libasound2 rides the rootfs lane below).
-      - name: Build the release shape payload
-        run: cargo pro-linux-amd64-gnu --locked
+      - name: Build the release v3 shape payload (the from-source law)
+        run: cargo pro-linux-amd64-v3-gnu --locked
 
       # night-dinner-4 + night-dinner-5: the same parity pin the other
       # release-shape lanes carry — the payload's build must leave the
@@ -525,7 +541,7 @@ jobs:
           tar -xf rootfs.tar -C rootfs
           mkdir -p rootfs/opt/zylaxion/modules
           git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C rootfs/opt/zylaxion
-          cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-gnu/release/zylaxion" \
+          cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/zylaxion" \
             rootfs/opt/zylaxion/zylaxion
           test -x rootfs/opt/zylaxion/zylaxion
           cp /tmp/kfloor/mods/*.ko* rootfs/opt/zylaxion/modules/
