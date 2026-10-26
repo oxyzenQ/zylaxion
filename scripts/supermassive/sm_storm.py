@@ -173,8 +173,16 @@ def _attach_as_root(binary: str, user: str) -> tuple[int, str]:
         return 127, f"{type(exc).__name__}: {exc}"
 
 
+def _status_verbose(binary: str, user: str) -> tuple[int, str]:
+    """The raw status read: rc AND the full output, never swallowed.
+    The parsed _presses reports a flat 0 for both 'the counter reads
+    zero' and 'the status read failed outright' - the churn evidence
+    needs the difference, so the raw pair is available here."""
+    return _run_as_user(user, binary, ["status", "--verbose"])
+
+
 def _presses(binary: str, user: str) -> int:
-    rc, out = _run_as_user(user, binary, ["status", "--verbose"])
+    rc, out = _status_verbose(binary, user)
     match = re.search(r"total presses:\s*(\d+)", out)
     return int(match.group(1)) if (rc == 0 and match) else 0
 
@@ -461,6 +469,14 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
                     f"the churn cycle {cycle} replants the tap (the storm goes on)",
                     out.splitlines()[0][:70],
                 )
+                # Baseline the emit counters at replant: the catch
+                # evidence reports the DELTA - presses emitted by each
+                # writer SINCE the fresh maps landed.
+                presses_at_replant = (
+                    injector_a.presses,
+                    injector_b.presses,
+                    injector_c.presses,
+                )
             else:
                 storm_dir_ok = False
                 ledger.fail_row(
@@ -472,12 +488,18 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
             # Poll the fresh counter across the bounded catch window -
             # one instantaneous read after a fixed nap would measure the
             # kernel's settle time, not the tap's survival (the contract
-            # under test: the replanted tap catches again, at all).
+            # under test: the replanted tap catches again, at all). The
+            # RAW status pair rides along: a flat zero is ambiguous
+            # between 'the tap is deaf' and 'the status read itself
+            # refuses' - the failure evidence must name which.
             window_start = time.monotonic()
             catch_deadline = window_start + CATCH_WINDOW_SECONDS
             fresh = 0
+            last_rc, last_out = 1, ""
             while True:
-                fresh = _presses(binary, user)
+                last_rc, last_out = _status_verbose(binary, user)
+                match = re.search(r"total presses:\s*(\d+)", last_out)
+                fresh = int(match.group(1)) if (last_rc == 0 and match) else 0
                 if fresh > 0 or time.monotonic() >= catch_deadline:
                     break
                 time.sleep(0.5)
@@ -491,10 +513,28 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
                 )
             else:
                 storm_dir_ok = False
+                writers = "; ".join(
+                    f"{name} {inj.summary()} +{inj.presses - since_replant} "
+                    f"since replant"
+                    for name, inj, since_replant in (
+                        ("a", injector_a, presses_at_replant[0]),
+                        ("b", injector_b, presses_at_replant[1]),
+                        ("c", injector_c, presses_at_replant[2]),
+                    )
+                )
+                pins = (
+                    sorted(os.listdir(PIN_DIR)) if os.path.isdir(PIN_DIR) else []
+                )
+                status_head = (
+                    last_out.splitlines()[0][:80] if last_out.strip() else "empty"
+                )
                 ledger.fail_row(
                     f"the churn cycle {cycle} catches again on the fresh maps",
                     f"the fresh counter never moved within "
-                    f"{CATCH_WINDOW_SECONDS:.0f}s while the writers ran",
+                    f"{CATCH_WINDOW_SECONDS:.0f}s while the writers ran - "
+                    f"evidence: writers [{writers[:220]}]; "
+                    f"status rc={last_rc}: {status_head}; "
+                    f"pins={pins}",
                 )
                 break
 
