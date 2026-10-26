@@ -359,11 +359,20 @@ jobs:
         # full envelope. zylaxion has no musl twins: the musl lane is
         # the documented dormant lane (the .cargo/config.toml header),
         # so each spec tier is one gnu leg.
+        # night-dragon-maintenance-4 adds the third seat, the zejtron
+        # kernel-witnesses lineage's refusal direction: the below-floor
+        # leg boots the focal 5.4 GA kernel (BELOW the documented
+        # floor) on the LOW envelope and proves the refusal walk —
+        # doctor, attach, and on must all refuse honestly naming the
+        # 5.15 minimum, the direction every at/above kernel leg can
+        # only compute, never exercise.
         leg:
           - title: supermassive test - low specs (the 5.15 documented floor)
             pocket: floor
           - title: supermassive test - best specs (the archive's head)
             pocket: latest
+          - title: supermassive test - below the floor (the 5.4 refusal witness)
+            pocket: below-floor
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -465,6 +474,13 @@ jobs:
       #   serve (the zelynic dynamic-resolver doctrine, scoped to the
       #   runner's distro — same userland, the kernel is the leg's
       #   variable).
+      # below-floor: the focal 5.4 GA kernel (the zejtron witness
+      #   lineage's below-floor seat, verified live there at
+      #   5.4.0-26.30), resolved from the focal main pocket ONLY —
+      #   the same frozen-GA-suite law, the same fails-loudly law.
+      #   The image deb is all this leg fetches: the refusal walk
+      #   needs no sound chain and no uinput, the kernel floor gate
+      #   fires before any of them could matter.
       - name: Resolve and fetch the guest kernel (${{ matrix.leg.pocket }})
         run: |
           set -euo pipefail
@@ -496,6 +512,19 @@ jobs:
               -o Dir::Etc::sourceparts=/dev/null \
               -o APT::Get::List-Cleanup=0
             PATTERN='linux-image-unsigned-5\.15\.0-[0-9]+-generic'
+          elif [ "${{ matrix.leg.pocket }}" = "below-floor" ]; then
+            # focal main ONLY — the GA suite, the same frozen-pocket
+            # law (the zejtron witness lane rides the same live
+            # archive pool; a pocket that stops serving dies loudly
+            # here, with the discovery evidence below).
+            echo "deb http://archive.ubuntu.com/ubuntu/ focal main" \
+              | sudo tee /etc/apt/sources.list.d/focal-below-floor.list >/dev/null
+            sudo timeout 240 apt-get -o Acquire::Retries=5 \
+              -o Acquire::http::Timeout=45 update \
+              -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/focal-below-floor.list \
+              -o Dir::Etc::sourceparts=/dev/null \
+              -o APT::Get::List-Cleanup=0
+            PATTERN='linux-image-unsigned-5\.4\.0-[0-9]+-generic'
           else
             sudo timeout 240 apt-get -o Acquire::Retries=5 \
               -o Acquire::http::Timeout=45 update -qq
@@ -513,23 +542,29 @@ jobs:
           KVER="${IMG#linux-image-unsigned-}"
           sudo timeout 300 apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 download "linux-image-unsigned-$KVER"
-          sudo timeout 600 apt-get -o Acquire::Retries=5 \
-            -o Acquire::http::Timeout=45 download "linux-modules-$KVER"
-          # night-badas-4 round 2 (empirical, verified against the
-          # archive): the modules-extra split is not universal — jammy's
-          # 5.15 ships a 64 MB extra deb while noble's 7.0 carries the
-          # whole 166 MB module set in linux-modules alone and the
-          # archive refuses the extra name ("Unable to locate package",
-          # exit 100). Best-effort by design: ride linux-modules when
-          # the extra deb does not exist for the resolved kernel. The
-          # same kill timer guards it; a timeout here reads as the
-          # honest note, not a failure - the modules deb above already
-          # carries the full set on every kernel that lacks an extra.
-          if ! sudo timeout 600 apt-get -o Acquire::Retries=5 \
-            -o Acquire::http::Timeout=45 download "linux-modules-extra-$KVER"; then
-            echo "note: no linux-modules-extra for $KVER — the modules deb carries the full set"
+          # The below-floor leg fetches the image deb ONLY (the
+          # refusal walk needs no module chain); every other leg
+          # fetches the module set its battery loads.
+          if [ "${{ matrix.leg.pocket }}" != "below-floor" ]; then
+            sudo timeout 600 apt-get -o Acquire::Retries=5 \
+              -o Acquire::http::Timeout=45 download "linux-modules-$KVER"
+            # night-badas-4 round 2 (empirical, verified against the
+            # archive): the modules-extra split is not universal — jammy's
+            # 5.15 ships a 64 MB extra deb while noble's 7.0 carries the
+            # whole 166 MB module set in linux-modules alone and the
+            # archive refuses the extra name ("Unable to locate package",
+            # exit 100). Best-effort by design: ride linux-modules when
+            # the extra deb does not exist for the resolved kernel. The
+            # same kill timer guards it; a timeout here reads as the
+            # honest note, not a failure - the modules deb above already
+            # carries the full set on every kernel that lacks an extra.
+            if ! sudo timeout 600 apt-get -o Acquire::Retries=5 \
+              -o Acquire::http::Timeout=45 download "linux-modules-extra-$KVER"; then
+              echo "note: no linux-modules-extra for $KVER — the modules deb carries the full set"
+            fi
           fi
           for deb in linux-image-unsigned-*_amd64.deb linux-modules-*_amd64.deb; do
+            [ -e "$deb" ] || continue
             dpkg-deb -x "$deb" pkg
           done
           VMLINUZ=$(find pkg/boot -name 'vmlinuz-*' | head -1)
@@ -545,21 +580,28 @@ jobs:
           # in any deb) — a missing uinput.ko is the expected shape,
           # the guest init accepts the built-in. Stage it when the
           # archive does ship one (future series may un-inline it).
+          # The below-floor leg stages nothing: its battery is the
+          # refusal walk, and the kernel floor gate fires before any
+          # module could matter.
           mkdir -p /tmp/kfloor/mods
-          for ko in soundcore snd snd-timer snd-pcm snd-dummy; do
-            SRC=$(find pkg/lib/modules -name "${ko}.ko*" | head -1)
-            test -n "$SRC" || { echo "FAIL: module $ko not in the kernel's module debs"; exit 1; }
-            cp "$SRC" /tmp/kfloor/mods/
-          done
-          UINPUT_KO=$(find pkg/lib/modules -name 'uinput.ko*' | head -1)
-          if [ -n "$UINPUT_KO" ]; then
-            cp "$UINPUT_KO" /tmp/kfloor/mods/
-            echo "uinput: staged from the kernel's module debs"
-          elif grep -rq "uinput" pkg/lib/modules/*/modules.builtin 2>/dev/null; then
-            echo "uinput: built into the kernel (modules.builtin) — nothing to stage"
+          if [ "${{ matrix.leg.pocket }}" != "below-floor" ]; then
+            for ko in soundcore snd snd-timer snd-pcm snd-dummy; do
+              SRC=$(find pkg/lib/modules -name "${ko}.ko*" | head -1)
+              test -n "$SRC" || { echo "FAIL: module $ko not in the kernel's module debs"; exit 1; }
+              cp "$SRC" /tmp/kfloor/mods/
+            done
+            UINPUT_KO=$(find pkg/lib/modules -name 'uinput.ko*' | head -1)
+            if [ -n "$UINPUT_KO" ]; then
+              cp "$UINPUT_KO" /tmp/kfloor/mods/
+              echo "uinput: staged from the kernel's module debs"
+            elif grep -rq "uinput" pkg/lib/modules/*/modules.builtin 2>/dev/null; then
+              echo "uinput: built into the kernel (modules.builtin) — nothing to stage"
+            else
+              echo "FAIL: uinput neither staged nor built-in — the keystroke injector has no kernel half"
+              exit 1
+            fi
           else
-            echo "FAIL: uinput neither staged nor built-in — the keystroke injector has no kernel half"
-            exit 1
+            echo "below-floor leg: no module chain staged (the refusal walk needs none)"
           fi
           MODS=$(find /tmp/kfloor/mods -maxdepth 1 -type f -printf '%f ')
           echo "kernel: $(du -h /tmp/kfloor/vmlinuz | cut -f1), modules: $MODS"
@@ -604,7 +646,12 @@ jobs:
           cp "$GITHUB_WORKSPACE/target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/zylaxion" \
             rootfs/opt/zylaxion/zylaxion
           test -x rootfs/opt/zylaxion/zylaxion
-          cp /tmp/kfloor/mods/*.ko* rootfs/opt/zylaxion/modules/
+          # The below-floor leg stages no modules (the empty mods dir
+          # is the honest shape there) — the glob guard keeps the cp
+          # from failing on nothing to copy.
+          if compgen -G "/tmp/kfloor/mods/*.ko*" > /dev/null; then
+            cp /tmp/kfloor/mods/*.ko* rootfs/opt/zylaxion/modules/
+          fi
           cp "$GITHUB_WORKSPACE/scripts/ci/supermassive-init.sh" rootfs/init
           chmod +x rootfs/init
           # The guest's Unix shape: the whole tree belongs to root.
@@ -639,12 +686,14 @@ jobs:
           cd /tmp/kfloor
           CORES=$(nproc)
           TOTAL_MB=$(free -m | awk '/^Mem:/{print $2}')
-          if [ "${{ matrix.leg.pocket }}" = "floor" ]; then
+          if [ "${{ matrix.leg.pocket }}" = "floor" ] || [ "${{ matrix.leg.pocket }}" = "below-floor" ]; then
             # The LOW envelope (the low leg's own math, the zejtron
             # low-shape): one quarter of the cores floored at 1, one
             # eighth of the RAM floored at 1024 MB — the floor leg
             # proves the tool on a SMALL machine wearing the OLD
-            # kernel (the low-specs contract on both axes).
+            # kernel (the low-specs contract on both axes). The
+            # below-floor leg rides the same low shape: the refusal
+            # witness is a low-specs audit of the dying-kernel world.
             SMP=$(( CORES / 4 )); [ "$SMP" -lt 1 ] && SMP=1
             MEM=$(( TOTAL_MB / 8 )); [ "$MEM" -lt 1024 ] && MEM=1024
           else
@@ -669,7 +718,7 @@ jobs:
             -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
             -kernel vmlinuz \
             -initrd initrd.gz \
-            -append "console=ttyS0 panic=-1" \
+            -append "console=ttyS0 panic=-1 massleg=${{ matrix.leg.pocket }}" \
             -nographic -no-reboot 2>&1 | tee vm.log
           QEMU_RC=${PIPESTATUS[0]}
           set -e
