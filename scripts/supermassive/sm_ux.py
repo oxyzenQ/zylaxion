@@ -131,11 +131,17 @@ def _discovery(ledger: Ledger, binary: str) -> None:
         # "Some checks failed" summary line — and on a runner with no
         # audio device (and no XDG_RUNTIME_DIR) the kernel verdict can
         # honestly be "verified supported" while the report still exits
-        # 1. The probe therefore pins the real contract: the summary
-        # line matches the rc, AND the kernel verdict line is present
-        # with its PASS/FAIL marker agreeing with the verdict string.
-        supported = "PASS: eBPF: verified supported" in out
-        unsupported = "FAIL: eBPF: verified unsupported" in out
+        # 1. The probe therefore pins the real contract: the eBPF row
+        # is present with its canonical verdict word (the zelynic row
+        # geometry, night-dragon-maintenance-1 — the row key carries
+        # the subject, the canonical verdict string carries the
+        # polarity), AND the summary line matches the rc.
+        ebpf_row = next(
+            (line for line in out.splitlines() if line.strip().startswith("eBPF:")),
+            "",
+        )
+        supported = "verified supported" in ebpf_row
+        unsupported = "verified unsupported" in ebpf_row
         verdict_ok = supported or unsupported
         summary_ok = (rc == 0 and "All checks passed" in out) or (
             rc == 1 and "Some checks failed" in out
