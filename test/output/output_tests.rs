@@ -28,9 +28,19 @@ fn stdout_lane_helpers_are_plain_under_the_test_harness() {
         warn_line("stale pid 4242 in the map"),
         "stale pid 4242 in the map"
     );
+    // night-dragon-maintenance-1: the banner law — the family's one
+    // title-line shape, byte-identical to the sibling zejtron's.
+    assert_eq!(section("zylaxion doctor"), "━━━ zylaxion doctor ━━━");
+    // The zelynic key/value geometry: two-space indent, the key
+    // (colon included) padded to 11, one space, the value — values
+    // align at the same column on every report surface.
+    assert_eq!(kv("Build:", "FULL-LIFE"), "  Build:      FULL-LIFE");
+    assert_eq!(kv("cgroup v2:", "YES"), "  cgroup v2:  YES");
+    assert_eq!(kv("Root:", "NO"), "  Root:       NO");
+    // The zelynic Warnings row: two-space indent, the bang, the text.
     assert_eq!(
-        section("=== zylaxion doctor ==="),
-        "=== zylaxion doctor ==="
+        warn_bullet("not running as root"),
+        "  ! not running as root"
     );
     assert_eq!(tip_line("fix: start PipeWire"), "fix: start PipeWire");
     assert_eq!(ok_marker("  <- active"), "  <- active");

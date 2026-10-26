@@ -27,10 +27,7 @@ pub fn cmd_list_presets() {
         .ok()
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty());
-    println!(
-        "{}\n",
-        crate::output::section("Available presets (compiled into this binary):")
-    );
+    println!("{}\n", crate::output::section("Available presets"));
     print!("{}", presets_table_from(active, env_name.as_deref()));
 }
 
@@ -74,10 +71,14 @@ pub(super) fn presets_table_from(active: &str, env_preset: Option<&str>) -> Stri
 /// rides the quiet-ALSA guard; on a host with no sound card the
 /// honest verdict line replaces libasound's raw stderr spew.
 pub fn cmd_list_backends() {
+    // The report opens with the family banner (the zelynic output
+    // law): one frame, one key/value geometry, same as the doctor and
+    // the overview.
+    println!("{}\n", crate::output::section("Audio backends"));
     #[cfg(target_os = "linux")]
     let _quiet = QuietAlsa::new();
     let host = cpal::default_host();
-    println!("Audio host: {}", host.id().name());
+    println!("{}", crate::output::kv("host:", host.id().name()));
     match host.default_output_device() {
         Some(device) => {
             // night-dinner-10: DeviceTrait::name() became description() in cpal
@@ -89,16 +90,31 @@ pub fn cmd_list_backends() {
                 .unwrap_or_else(|_| "<unknown>".into());
             match device.default_output_config() {
                 Ok(config) => println!(
-                    "Default output: {name} ({} Hz, {}ch, {:?})",
-                    config.sample_rate(),
-                    config.channels(),
-                    config.sample_format()
+                    "{}",
+                    crate::output::kv(
+                        "output:",
+                        &format!(
+                            "{name} ({} Hz, {}ch, {:?})",
+                            config.sample_rate(),
+                            config.channels(),
+                            config.sample_format()
+                        )
+                    )
                 ),
                 Err(e) => {
-                    println!("Default output: {name} (present but not openable: {e})")
+                    println!(
+                        "{}",
+                        crate::output::kv(
+                            "output:",
+                            &format!("{name} (present but not openable: {e})")
+                        )
+                    )
                 }
             }
         }
-        None => println!("Default output: {}", crate::output::warn_line("none found")),
+        None => println!(
+            "{}",
+            crate::output::kv("output:", &crate::output::warn_line("none found"))
+        ),
     }
 }

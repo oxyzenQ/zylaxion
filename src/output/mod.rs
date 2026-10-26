@@ -203,12 +203,33 @@ pub fn warn_line(text: &str) -> String {
     format!("{WARN_OPEN}{text}{RESET}")
 }
 
-/// A section header (`[1/4] ...`, `=== title ===`) — brand purple bold.
+/// The report banner: the family's one title-line shape, the sibling
+/// zejtron's banner law — `━━━ <title> ━━━` in brand purple bold.
+/// Every report surface opens with this exact frame (the doctor, the
+/// overview, the update check, the catalogs, every future report), so
+/// the family reads as one family — one line, one purple, one frame.
 pub fn section(text: &str) -> String {
     if !stdout_color_enabled() {
-        return text.to_string();
+        return format!("━━━ {text} ━━━");
     }
-    format!("{BRAND_OPEN}{text}{RESET}")
+    format!("{BRAND_OPEN}━━━ {text} ━━━{RESET}")
+}
+
+/// One key/value report row — the zelynic geometry, byte-identical to
+/// the zelynic doctor reference: two-space indent, the key (colon
+/// included) left-padded to 11 columns, one space, then the value, so
+/// every report surface's values align at the same column. The value
+/// arrives pre-decorated ([`ok_line`]/[`fail_line`]/[`tip_line`]/
+/// [`warn_line`] or plain); mono mode is byte-identical plain.
+pub fn kv(key: &str, value: &str) -> String {
+    format!("  {key:<11} {value}")
+}
+
+/// A report-level warning row (the zelynic shape): `  ! text`, warning
+/// yellow on a color-capable stdout — the row the report's trailing
+/// `Warnings:` block carries. Mono mode is byte-identical plain.
+pub fn warn_bullet(text: &str) -> String {
+    format!("  {}", warn_line(&format!("! {text}")))
 }
 
 /// A passive suggestion line (`fix: ...`) — calm grey.
