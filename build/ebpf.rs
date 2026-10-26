@@ -8,12 +8,47 @@
 
 use std::process::Command;
 
-/// The dated nightly pin driving the nested cross-build — mirrors
-/// ebpf/rust-toolchain.toml (which the nested build resolves from its own
-/// directory) and the pin scripts/dev/bootstrap-ebpf.sh installs on the
-/// host. The pin and the bpf-linker release are a validated pair (the
-/// zelynic lineage pairing, carried over unchanged).
-const EBPF_TOOLCHAIN: &str = "nightly-2026-09-18";
+/// The dated nightly pin driving the nested cross-build — READ from
+/// ebpf/rust-toolchain.toml (night-dragon-lts: the old hardcoded const
+/// could silently split from the toml on a toml-only bump — the nested
+/// build resolves the toml from its own directory, bootstrap-ebpf.sh
+/// installs from it, and the manifest records it; one of the three
+/// disagreeing was undiagnosable). The pin now FOLLOWS the toml: one
+/// source of truth. Called only from the source-built lane (the
+/// registry lane returns before any cross-build), where the ebpf/ tree
+/// always exists — a missing or channel-less file there is a broken
+/// tree and panics with its name.
+fn ebpf_toolchain() -> &'static str {
+    use std::sync::OnceLock;
+    static PIN: OnceLock<String> = OnceLock::new();
+    PIN.get_or_init(|| {
+        let toml_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("ebpf")
+            .join("rust-toolchain.toml");
+        let text = std::fs::read_to_string(&toml_path).unwrap_or_else(|e| {
+            panic!(
+                "cannot read {} — the eBPF toolchain pin has no source of truth: {e}",
+                toml_path.display()
+            )
+        });
+        for line in text.lines() {
+            let line = line.trim();
+            if let Some(rest) = line.strip_prefix("channel") {
+                if let Some(value) = rest.trim_start().strip_prefix('=') {
+                    let value = value.trim().trim_matches('"');
+                    if !value.is_empty() {
+                        return value.to_string();
+                    }
+                }
+            }
+        }
+        panic!(
+            "{} carries no channel = line — the eBPF toolchain pin has no source of truth",
+            toml_path.display()
+        );
+    })
+    .as_str()
+}
 
 /// The pinned bpf-linker release the nested build links with — the second
 /// half of the validated pair. The preflight names this version in its
@@ -94,7 +129,7 @@ pub(super) fn build_ebpf_objects() {
     // Preflight BEFORE the nested build: name the missing prerequisite
     // and its one-command fix, and catch a missing bpf-linker even when
     // ebpf/target is fully cached (a warm build skips the link step).
-    preflight_ebpf_prerequisites(EBPF_TOOLCHAIN);
+    preflight_ebpf_prerequisites(ebpf_toolchain());
 
     run_nested_ebpf_build(&ebpf_dir);
 
@@ -112,6 +147,7 @@ pub(super) fn build_ebpf_objects() {
             stage_object(&out_dir, &data);
         }
         Err(problem) => {
+            let toolchain = ebpf_toolchain();
             println!(
                 "cargo:warning=eBPF object {TAP_OBJECT} failed validation ({problem}) — \
                  forcing one rebuild of it"
@@ -124,7 +160,7 @@ pub(super) fn build_ebpf_objects() {
                         "eBPF object {TAP_OBJECT} is damaged again immediately after a \
                          forced rebuild — before: {problem}; after: {second_problem}. \
                          Either bpf-linker is producing a broken object (reinstall the \
-                         pin: rustup toolchain install {EBPF_TOOLCHAIN} and the \
+                         pin: rustup toolchain install {toolchain} and the \
                          bpf-linker {BPF_LINKER_VERSION} prebuilt on PATH), or something \
                          on this host is modifying build outputs as they land (indexer, \
                          antivirus, full disk)"
@@ -270,9 +306,10 @@ pub(super) fn preflight_ebpf_prerequisites(toolchain: &str) {
 /// authoritative; stdio is inherited so the nested compiler output
 /// streams through to the build log.
 pub(super) fn run_nested_ebpf_build(ebpf_dir: &std::path::Path) {
+    let toolchain = ebpf_toolchain();
     let mut nested = Command::new("rustup");
     nested
-        .args(["run", EBPF_TOOLCHAIN, "cargo"])
+        .args(["run", toolchain, "cargo"])
         .current_dir(ebpf_dir)
         .args([
             "build",
@@ -290,13 +327,13 @@ pub(super) fn run_nested_ebpf_build(ebpf_dir: &std::path::Path) {
     force_bpf_v3_rustflags(&mut nested);
     let status = nested.status().unwrap_or_else(|e| {
         panic!(
-            "failed to launch `rustup run {EBPF_TOOLCHAIN} cargo` — rustup is a hard \
+            "failed to launch `rustup run {toolchain} cargo` — rustup is a hard \
              prerequisite of the pure-Rust eBPF build: {e}"
         )
     });
     if !status.success() {
         panic!(
-            "the pure-Rust eBPF build failed with prerequisites present ({EBPF_TOOLCHAIN} \
+            "the pure-Rust eBPF build failed with prerequisites present ({toolchain} \
              and bpf-linker {BPF_LINKER_VERSION} were both verified) — the nested \
              compiler output above is the diagnosis"
         );

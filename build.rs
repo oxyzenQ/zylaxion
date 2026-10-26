@@ -37,8 +37,14 @@ use std::process::Command;
 fn main() {
     // Re-run this script whenever HEAD (or the work tree state) changes so
     // the embedded hash stays in sync with what was actually compiled.
-    println!("cargo:rerun-if-changed=../.git/HEAD");
-    println!("cargo:rerun-if-changed=../.git/refs");
+    // night-dragon-lts: the paths carried a `../` prefix — the leftover
+    // of the old crates/zylaxion/ layout — which resolved against the
+    // PARENT directory's .git, so a HEAD move in this repo never
+    // triggered a rebuild and GIT_HASH could go stale until some other
+    // trigger fired. The package root IS the repo root; the zejtron
+    // reference's paths (.git/HEAD + .git/refs/heads) are the convention.
+    println!("cargo:rerun-if-changed=.git/HEAD");
+    println!("cargo:rerun-if-changed=.git/refs/heads");
 
     let hash = match git_short_hash() {
         Some(h) => h,
@@ -200,7 +206,7 @@ fn civil_from_days(days_since_epoch: i64) -> (i64, u32, u32) {
 // The build script's own test suite is NOT executed by `cargo test`
 // (cargo never runs build-script tests) — it is a standing contract that
 // is verified standalone via:
-//   rustc --edition 2024 --test crates/zylaxion/build.rs && ./build
+//   rustc --edition 2024 --test build.rs && ./build
 // Every constant below was verified against `date -u -d @<epoch>` at
 // authoring time (not from memory) — the same discipline the zelynic
 // reference build.rs records.
