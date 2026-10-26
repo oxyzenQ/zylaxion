@@ -22,7 +22,7 @@
 #   /etc/systemd/system/zylaxion-handover.service
 #
 # Enabled together with zylaxion-handover.path by
-# scripts/package/install.sh and install-on-my-machine.sh.
+# scripts/package/install-on-my-machine.sh.
 
 [Unit]
 Description=zylaxion pin hand-over at the first desktop login (oneshot)

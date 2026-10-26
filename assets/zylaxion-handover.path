@@ -24,7 +24,7 @@
 #   /etc/systemd/system/zylaxion-handover.path
 #
 # Enable (together with the service unit, done by
-# scripts/package/install.sh and install-on-my-machine.sh):
+# scripts/package/install-on-my-machine.sh):
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now zylaxion-handover.path
 

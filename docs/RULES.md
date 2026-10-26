@@ -99,7 +99,9 @@ A CI runner missing any of these will fail at `cargo clippy` with
   (`Type=oneshot`, `RemainAfterExit=no`) — NOT a daemon: it runs
   `zylaxion attach`, exits, and stays dead. What remains resident is
   the kernel side only (one passive BPF program + pinned maps).
-- `scripts/package/install.sh` deploys it to
+- `scripts/package/install-on-my-machine.sh` — the installer (the
+  family keeps one, the zejtron shape; night-dragon-maintenance-3
+  retired the install.sh sibling) — deploys it to
   `/etc/systemd/system/zylaxion-attach.service` and enables it; bpffs
   pins do not survive a reboot, so the oneshot replants the tap at
   every boot. The install posture is system-only (night-master-2):
@@ -109,10 +111,8 @@ A CI runner missing any of these will fail at `cargo clippy` with
   anyone logs in, so the pins it plants are root-owned; the path unit
   watches `/run/user/*` and re-runs `zylaxion attach` at the first
   desktop login, which hands the pins to that user and relaxes the
-  bpffs front door. Both installers deploy and enable the pair; the
+  bpffs front door. The installer deploys and enables the pair; the
   uninstaller removes it.
-- `scripts/package/install-on-my-machine.sh` is the CPU-tuned variant
-  of the same posture (amd64 v3/v4 detection, parity-checked aliases).
 - A hand-planted tap stays available without any installer:
   `sudo zylaxion attach` (which also hands the pin ownership to the
   invoking user — and, since night-dinner-19, heals an
