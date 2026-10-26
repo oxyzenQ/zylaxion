@@ -61,6 +61,15 @@
 #       this wholesale script is forgotten. The hook enforces the same
 #       lane contract at commit time that sections above enforce at
 #       push time)
+#   11. Documentation disclaimer (night-dragon-maintenance-3 —
+#       scripts/gates/inject-disclaimer.sh: every living .md carries
+#       the stale-data disclaimer as its final block; PLACEMENT is
+#       the verdict, never marker presence, so a block pasted
+#       mid-file or beside a header is stripped and re-appended at
+#       the bottom. The section normalizes first, then holds the
+#       --check verdict — the zejtron section-19 shape. CHANGELOG.md
+#       and docs/archive/ stay excluded: the frozen records are never
+#       rewritten)
 #
 # Usage:
 #   bash scripts/gate-keepers.sh             # full gate run
@@ -222,6 +231,18 @@ run_section 8 "Release parity" \
 # ── 9. Name-case rule (the lowercase law, nothing excluded) ─────────────────
 run_section 9 "Name-case rule" \
         python3 scripts/gates/check-name-case.py
+
+# ── 10/11. Documentation disclaimer (bottom-of-file placement) ──────────────
+# The injector normalizes first (a misplaced block is stripped and
+# re-appended as the file's final block), then the --check verdict is
+# the gate: every living .md carries the stale-data disclaimer as its
+# last content block — placement is the verdict, never marker
+# presence (night-dragon-maintenance-3, the zejtron section-19 shape).
+run_section 10 "Documentation disclaimer (normalize)" \
+        bash scripts/gates/inject-disclaimer.sh
+
+run_section 11 "Documentation disclaimer" \
+        bash scripts/gates/inject-disclaimer.sh --check
 
 # ── Verdict ─────────────────────────────────────────────────────────────
 echo ""

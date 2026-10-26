@@ -98,3 +98,21 @@ single family does not invalidate verification via the other two.
 Three of the four tools ship with Arch Linux, Debian, Ubuntu, Fedora,
 Alpine, and macOS by default; `b3sum` is one install away on any
 machine with Rust (this project's audience by definition).
+
+<!-- ZYLAXION-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — perfect sync across every .md file is a
+  known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of
+  truth. Always cross-check against the actual source files before
+  relying on any specific number (preset count, rate bound, LOC),
+  file path, function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->
