@@ -14,20 +14,30 @@ tap estate:
     variant, the one-screen `status`, and the `doctor` report while the
     tap is live and the player runs (the summary-matches-rc contract,
     the same polarity law the CLI battery pins rootless);
-  the storm itself — two uinput virtual keyboards typing concurrently
-    (two devices, two writer threads: the storm's writers), and while
+  the storm itself — three uinput virtual keyboards typing concurrently
+    (three devices, three writer threads: the storm's writers), and while
     they hammer: the telemetry poll that must RISE between two polls
     taken DURING the window (the realtime claim, never an
     after-the-fact reconstruction), eight live control-plane writes
     (the preset switch and the whole volume boundary lattice: 0, 42,
     the 200 cap edge, the 201 session-gate refusal, the 201 --force-this
     lift, the 10001 force-ceiling refusal, the restore), each asserted
-    while the keystrokes cross the kernel, and the PCM witness read
-    mid-storm — the whole window carried by the live heartbeat
+    while the keystrokes cross the kernel, the PCM witness read
+    mid-storm, and the whole window carried by the live heartbeat
     (night-dragon-maintenance-4, the loading indicator: one MASS:
     beat every couple of seconds naming the elapsed time and the
     telemetry captured, so the window's processing is visible and can
     never be mistaken for a hang);
+  the brutality pass (night-dragon-maintenance-4, the detective
+    proven, not described): the press-RATE probe (a dedicated quiet
+    burst whose telemetry delta must clear the sustained-catch floor
+    - silence is a defect, not a mood), the attach/detach CHURN (the
+    tap torn down and replanted CHURN_CYCLES times while the writers
+    keep typing - every cycle asserts the detach, the pin-less
+    kernel, the replant, and a fresh counter catching again within
+    seconds: the surveillance survives its own teardown), and the
+    FREEZE witness (after the writers stop, the counter must not move
+    a single press - telemetry reflects reality, it never runs away);
   the close — the injectors stop, the accumulated telemetry clears the
     two-writer floor, `off` stops the sound, the player self-exits, and
     the lane ends detached: nothing of zylaxion remains.
@@ -68,13 +78,22 @@ FINAL_PRESSES_FLOOR = 50
 RUN_TIMEOUT = 90
 HEARTBEAT_INTERVAL = 2.0
 HEARTBEAT_FLOOR = 2
+# night-dragon-maintenance-4 (the brutality pass): the storm's own
+# numbers, sized to the measured injector rate (five keys per writer
+# at ~14 presses/s, so three writers sustain ~43/s) with the zelynic
+# honest-margin law - floors catch REAL silence, they do not flake on
+# a slow runner.
+RATE_BURST_SECONDS = 2.0
+RATE_FLOOR = 15.0
+CHURN_CYCLES = 3
+PIN_DIR = "/sys/fs/bpf/zylaxion"
 
 
 class _StormHeartbeat:
     """The live indicator (night-dragon-maintenance-4, the owner's ask:
     the longest quiet span of the whole battery must never LOOK hung).
 
-    The storm window is the battery's CCTV monitor: two writers hammer
+    The storm window is the battery's CCTV monitor: three writers hammer
     the kernel's input path and the window's verdicts ride the polls
     and the control writes around it - so for its full ~10 s the ledger
     used to print nothing, and a serial-console watcher (or a CI log
@@ -260,26 +279,29 @@ def _open_the_door(
 
 
 def _storm(ledger: Ledger, binary: str, user: str) -> None:
-    """The storm window itself: two writers, polls and control writes
-    mid-storm, then the close."""
+    """The storm window itself: three writers, polls and control writes
+    mid-storm, the rate probe, the churn, then the close."""
     with Step(ledger, "the realtime storm — verdicts under load, never after"):
         storm_dir_ok = True
         injector_a = _KeyboardInjector()
         injector_b = _KeyboardInjector()
-        started = injector_a.start() and injector_b.start()
+        injector_c = _KeyboardInjector()
+        started = injector_a.start() and injector_b.start() and injector_c.start()
         if not started:
             ledger.fail_row(
-                "two uinput keyboards type concurrently (the storm's writers)",
-                injector_a.error or injector_b.error or "could not create the devices",
+                "three uinput keyboards type concurrently (the storm's writers)",
+                injector_a.error or injector_b.error or injector_c.error
+                or "could not create the devices",
             )
             injector_a.shutdown()
             injector_b.shutdown()
+            injector_c.shutdown()
             _run_as_user(user, binary, ["off"])
             _run([binary, "detach"])
             return
         ledger.pass_row(
-            "two uinput keyboards type concurrently (the storm's writers)",
-            "two devices, two writer threads, one kernel input path",
+            "three uinput keyboards type concurrently (the storm's writers)",
+            "three devices, three writer threads, one kernel input path",
         )
 
         # The live indicator (night-dragon-maintenance-4): the window
@@ -375,19 +397,120 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
                 "no ALSA PCM reached RUNNING or XRUN during the window",
             )
 
+        # The press-RATE probe (night-dragon-maintenance-4, the
+        # brutality pass): a dedicated quiet burst - no control writes
+        # inside it - whose telemetry delta must clear the
+        # sustained-catch floor. The polls prove the count RISES; the
+        # rate probe proves it rises FAST ENOUGH: a detective that
+        # catches one event a minute is not watching the same crime.
+        rate_a = _presses(binary, user)
+        time.sleep(RATE_BURST_SECONDS)
+        rate_b = _presses(binary, user)
+        rate = (rate_b - rate_a) / RATE_BURST_SECONDS
+        if rate >= RATE_FLOOR:
+            ledger.pass_row(
+                "the press-rate probe clears the sustained-catch floor",
+                f"{rate:.1f} presses/s over the {RATE_BURST_SECONDS:.0f}s burst "
+                f"(floor {RATE_FLOOR:.0f})",
+            )
+        else:
+            storm_dir_ok = False
+            ledger.fail_row(
+                "the press-rate probe clears the sustained-catch floor",
+                f"{rate:.1f} presses/s over the {RATE_BURST_SECONDS:.0f}s burst "
+                f"(floor {RATE_FLOOR:.0f}) — the tap is not keeping up with "
+                "the writers",
+            )
+
+        # The attach/detach CHURN (night-dragon-maintenance-4, the
+        # brutality pass): the tap is torn down and replanted while
+        # the writers keep typing - the surveillance must survive its
+        # own teardown. Every cycle asserts four facts: the detach
+        # succeeds under load, the kernel holds no residue, the
+        # replant succeeds, and the fresh counter catches again within
+        # seconds (the maps are brand new after a replant - the
+        # counter starts at zero and must still find the crime).
+        for cycle in range(1, CHURN_CYCLES + 1):
+            rc, out = _run([binary, "detach"])
+            pins_gone = not os.path.exists(PIN_DIR)
+            if rc == 0 and pins_gone:
+                ledger.pass_row(
+                    f"the churn cycle {cycle} tears the tap down under load",
+                    "detach rc 0, the kernel holds no residue while the "
+                    "writers still type",
+                )
+            else:
+                storm_dir_ok = False
+                ledger.fail_row(
+                    f"the churn cycle {cycle} tears the tap down under load",
+                    f"rc={rc}, pins-gone={pins_gone}: {out[:120]}",
+                )
+                break
+            rc, out = _attach_as_root(binary, user)
+            if rc == 0 and "tap attached" in out:
+                ledger.pass_row(
+                    f"the churn cycle {cycle} replants the tap (the storm goes on)",
+                    out.splitlines()[0][:70],
+                )
+            else:
+                storm_dir_ok = False
+                ledger.fail_row(
+                    f"the churn cycle {cycle} replants the tap (the storm goes on)",
+                    f"rc={rc}: {out[:200]}",
+                )
+                break
+            time.sleep(1.5)
+            fresh = _presses(binary, user)
+            if fresh > 0:
+                ledger.pass_row(
+                    f"the churn cycle {cycle} catches again on the fresh maps",
+                    f"the replanted counter already reads {fresh} presses",
+                )
+            else:
+                storm_dir_ok = False
+                ledger.fail_row(
+                    f"the churn cycle {cycle} catches again on the fresh maps",
+                    "the fresh counter never moved while the writers ran",
+                )
+                break
+
+        # The sound returns (night-dragon-maintenance-4): the churn's
+        # detach reaps the running player by contract (a running
+        # player never survives a teardown), so the storm explicitly
+        # brings the sound back after the final replant - the
+        # surveillance AND the synth survive the teardown together,
+        # and the close's `off` row stops a real player, not a
+        # vacuous shape.
+        if storm_dir_ok:
+            rc, out = _run_as_user(user, binary, ["on", "--preset", "topre"])
+            time.sleep(1.0)
+            pid = _player_pid(user)
+            if rc == 0 and "sound on:" in out and pid:
+                ledger.pass_row(
+                    "the storm's sound returns after the churn (the player respawns)",
+                    f"pid {pid} renders under the replanted tap",
+                )
+            else:
+                storm_dir_ok = False
+                ledger.fail_row(
+                    "the storm's sound returns after the churn (the player respawns)",
+                    f"rc={rc}: {out[:200]}, pid={pid}",
+                )
+
         injector_a.shutdown()
         injector_b.shutdown()
+        injector_c.shutdown()
         final_presses = _presses(binary, user)
         heartbeat.stop()
         if final_presses >= FINAL_PRESSES_FLOOR:
             ledger.pass_row(
-                "the storm's accumulated telemetry clears the two-writer floor",
+                "the storm's accumulated telemetry clears the three-writer floor",
                 f"total presses: {final_presses} (floor {FINAL_PRESSES_FLOOR})",
             )
         else:
             storm_dir_ok = False
             ledger.fail_row(
-                "the storm's accumulated telemetry clears the two-writer floor",
+                "the storm's accumulated telemetry clears the three-writer floor",
                 f"total presses: {final_presses} (floor {FINAL_PRESSES_FLOOR})",
             )
 
@@ -422,6 +545,28 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
                 f"rc={rc}, pid-still-alive={bool(_player_pid(user))}",
             )
 
+        # The FREEZE witness (night-dragon-maintenance-4, the
+        # brutality pass): the writers are stopped, the player is
+        # gone, the tap is still attached - and the counter must not
+        # move a single press across the freeze span. Telemetry
+        # reflects reality: a counter that keeps counting after the
+        # crime stopped is a detective inventing evidence.
+        freeze_a = _presses(binary, user)
+        time.sleep(1.0)
+        freeze_b = _presses(binary, user)
+        if freeze_a == final_presses and freeze_b == freeze_a:
+            ledger.pass_row(
+                "the telemetry freezes when the writers stop (the counter reflects reality)",
+                f"{freeze_a} presses held across the 1s freeze span",
+            )
+        else:
+            storm_dir_ok = False
+            ledger.fail_row(
+                "the telemetry freezes when the writers stop (the counter reflects reality)",
+                f"final {final_presses}, freeze reads {freeze_a} then {freeze_b} "
+                "- the counter moved after the writers stopped",
+            )
+
         rc, out = _run([binary, "detach"])
         if rc == 0:
             ledger.pass_row(
@@ -438,9 +583,10 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
         if storm_dir_ok:
             ledger.info(
                 "the realtime storm closes",
-                f"window ~{STORM_SECONDS:.0f}s, two writers, ten mid-storm "
-                "verdicts, every one asserted under load, "
-                f"{heartbeat.beats} live heartbeat beats",
+                f"window ~{STORM_SECONDS:.0f}s, three writers, the rate probe, "
+                f"{CHURN_CYCLES} churn cycles, the freeze witness, "
+                f"{heartbeat.beats} live heartbeat beats, every verdict "
+                "asserted under load",
             )
 
 
