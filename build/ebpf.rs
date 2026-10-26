@@ -453,24 +453,27 @@ pub(super) fn validate_ebpf_object(data: &[u8]) -> Result<(), String> {
 /// hardening token rides exactly this shape and cost the supermassive
 /// from-source legs their build). Everything else survives verbatim, so
 /// CI's `RUSTFLAGS="-D warnings"` contract keeps covering the ebpf crate
-/// and bpf-linker's own `-C link-arg=--btf` form stays legal.
+/// and bpf-linker's own `-C link-arg=--btf` form stays legal. A survivor
+/// list that emptied out is removed outright, never set-empty: an
+/// empty-but-SET rustflags variable shadows the ebpf config's own
+/// rustflags (the v3 codegen level) with nothing.
 pub(super) fn strip_host_poison_rustflags(cmd: &mut Command) {
     if let Some(value) = std::env::var_os("CARGO_ENCODED_RUSTFLAGS") {
         match strip_host_poison(&value.to_string_lossy(), '\u{1f}') {
-            Some(filtered) => {
+            Some(filtered) if !filtered.is_empty() => {
                 cmd.env("CARGO_ENCODED_RUSTFLAGS", filtered);
             }
-            None => {
+            _ => {
                 cmd.env_remove("CARGO_ENCODED_RUSTFLAGS");
             }
         }
     }
     if let Some(value) = std::env::var_os("RUSTFLAGS") {
         match strip_host_poison(&value.to_string_lossy(), ' ') {
-            Some(filtered) => {
+            Some(filtered) if !filtered.is_empty() => {
                 cmd.env("RUSTFLAGS", filtered);
             }
-            None => {
+            _ => {
                 cmd.env_remove("RUSTFLAGS");
             }
         }
@@ -509,28 +512,45 @@ pub(super) fn strip_host_poison(value: &str, sep: char) -> Option<String> {
     }
 }
 
-/// Force the v3 BPF codegen level onto the nested build, whatever
-/// survived the poison strip: the LLVM BPF backend selects the BPF_ATOMIC
-/// RMW instructions (the SMP-safe stats counters need them) only at cpu
-/// v3. A set env variable SHADOWS config rustflags entirely, so the flag
-/// is appended to whichever rustflags variable survived; with neither
-/// variable set the ebpf/.cargo/config.toml supplies the same flag.
+/// Force the v3 BPF codegen level onto the nested build, onto whichever
+/// rustflags variable SURVIVED the poison strip: the LLVM BPF backend
+/// selects the BPF_ATOMIC RMW instructions (the SMP-safe stats counters
+/// need them) only at cpu v3. The survivor lives on the CHILD command's
+/// explicit env overrides, not in std::env — reading the parent here
+/// would replay every token the strip just dropped and reintroduce the
+/// poison (the night-dragon-2 leak: the force overwrote the strip's
+/// filtered value with the raw parent value plus the v3 flag). get_envs
+/// reads exactly those child overrides (the strip always ran first, so
+/// every inherited variable is already either re-set or removed
+/// explicitly). With no survivor variable the ebpf/.cargo/config.toml
+/// supplies the same flag.
 pub(super) fn force_bpf_v3_rustflags(cmd: &mut Command) {
     const FLAG: &str = "-Ctarget-cpu=v3";
     // An empty-but-SET variable is the same as unset for flag purposes —
     // appending to it would inject an empty token that rustc reads as a
-    // phantom filename (reproduced live: `rustc - ... '' -Ctarget-cpu=v3`).
-    let encoded = std::env::var_os("CARGO_ENCODED_RUSTFLAGS").filter(|v| !v.is_empty());
+    // phantom filename (reproduced live: `rustc - ... '' -Ctarget-cpu=v3`);
+    // the strip now removes emptied variables for the same reason.
+    let encoded = cmd
+        .get_envs()
+        .find(|(k, _)| *k == "CARGO_ENCODED_RUSTFLAGS")
+        .and_then(|(_, v)| v)
+        .map(|v| v.to_string_lossy())
+        .filter(|v| !v.is_empty());
     if let Some(value) = encoded {
-        let joined = format!("{}\u{1f}{FLAG}", value.to_string_lossy());
+        let joined = format!("{}\u{1f}{FLAG}", value);
         cmd.env("CARGO_ENCODED_RUSTFLAGS", joined);
     } else {
-        let plain = std::env::var_os("RUSTFLAGS").filter(|v| !v.is_empty());
+        let plain = cmd
+            .get_envs()
+            .find(|(k, _)| *k == "RUSTFLAGS")
+            .and_then(|(_, v)| v)
+            .map(|v| v.to_string_lossy())
+            .filter(|v| !v.is_empty());
         if let Some(value) = plain {
-            let joined = format!("{} {FLAG}", value.to_string_lossy());
+            let joined = format!("{} {FLAG}", value);
             cmd.env("RUSTFLAGS", joined);
         }
-        // Neither variable set (or both empty): the ebpf/.cargo/config.toml
-        // supplies the same flag to the nested build.
+        // Neither variable set on the child (or both empty): the
+        // ebpf/.cargo/config.toml supplies the same flag to the nested build.
     }
 }
