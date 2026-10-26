@@ -52,16 +52,6 @@ drifts between docs is a bug.
   levels: v3 = AVX2/BMI2/FMA era (Haswell 2013+), v4 = AVX-512 era.
   The release matrix ships both glibc legs; v3 is the safe default
   (every CPU that runs v4 runs v3).
-- **musl dormant lane** — the documented non-shipping musl legs:
-  historically blocked by the C input stack (libinput, libudev) with
-  no static musl answer. night-improve-23 deleted that stack (the eBPF
-  tap replaced it), leaving alsa-lib as the remaining gate — no
-  mainstream distribution ships a static musl libasound.a, and
-  building one is a maintenance burden disproportionate to the value
-  — so the lane stays dormant by decision; re-enabling the matrix
-  legs stays the owner's call. The reason and the unlock paths live
-  in the README's Install section; the evidence lives in the release
-  workflow's matrix header.
 - **checksum family** — the three digests per release tarball:
   SHA-512 (`*.sha512sum`), BLAKE3-256 (`*.b3sum`), and SHAKE256
   (`*.shake256`, quantum-resistant). Defense in depth across three

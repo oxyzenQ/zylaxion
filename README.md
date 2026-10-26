@@ -152,14 +152,6 @@ Releases are arch-baseline builds: every v80-line package is
 x86-64-v3 (AVX2/FMA/BMI) or x86-64-v4 (AVX-512), both dynamically linked
 against glibc — two tarballs per tag. Pick v3 when in doubt.
 
-The musl lane is documented dormant. zylaxion's audio path runs
-through cpal, whose Linux backend is ALSA (`libasound.so`). No
-musl-compatible static `libasound.a` ships with any mainstream
-distribution, and building one is a maintenance burden disproportionate
-to the value. The lane wakes when cpal gains a pure-Rust backend,
-PipeWire gains a pure-Rust native binding, or ALSA ships a musl static
-archive. Until then: dormant, documented, honest.
-
 ### Install from crates.io
 
 `cargo install zylaxion --locked` builds from the published source
@@ -320,8 +312,6 @@ measurable improvement proven by the audit harness.
   classified and `zylaxion doctor` carries the posture line.
 - **Audio rides the desktop's bridge** — cpal → PipeWire / PulseAudio
   / ALSA. There is no direct JACK backend and no network audio.
-- **The musl lane is dormant** — a fully static build waits on a
-  static answer for the alsa C library.
 - **A keystroke is a scancode, never a letter** — sound class and
   stereo pan come from key position; layout awareness is out of scope
   by design — it is the zero-leakage posture's first wall.

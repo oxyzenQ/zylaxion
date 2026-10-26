@@ -211,8 +211,7 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 - **Supermassive E2E leg names:** the zelynic low/best specs shape —
   `supermassive test - low specs (the 5.15 documented floor)` and
   `supermassive test - best specs (the archive's head)` (night-badas-5).
-  No musl twins: the musl lane is the documented dormant lane
-  (.cargo/config.toml header).
+  No musl twins: glibc is the only libc the matrix ships.
 - **Linting:** Run `actionlint` and `yamllint` on `.github/workflows/*`.
 
 ## Branding & Metadata
