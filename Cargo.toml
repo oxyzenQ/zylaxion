@@ -120,16 +120,16 @@ include = [
 [dependencies]
 # The unified dependency table — the exact union of the six former
 # crate manifests, versions untouched (the owner owns version bumps),
-# plus the night-improve-23 addition: the aya userspace loader
-# (optional, behind the default `ebpf` feature — the zelynic shape:
-# a plain cargo install lands the full-featured binary).
+# plus the night-improve-23 addition: the aya userspace loader. Since
+# night-dragon-maintenance-0 (the unkillable-ebpf law) aya is a plain
+# dependency — no feature gate exists to build the binary without it.
 arc-swap = "1.7"
 # night-improve-23: the userspace half of the pure-Rust eBPF stack.
 # aya 0.14 is the upstream pairing of aya-ebpf 0.2.1 (the ebpf/ crate
 # pin — the same pairing the zelynic lineage validated on the same
-# bpf-linker 0.11.1 toolchain). Optional so --no-default-features
-# builds a dormant binary on hosts that never attach.
-aya = { version = "0.14", optional = true }
+# bpf-linker 0.11.1 toolchain). Unconditional since
+# night-dragon-maintenance-0: every zylaxion build carries the tap.
+aya = { version = "0.14" }
 clap = { version = "4", features = ["derive"] }
 # night-dinner-10: on 0.18 - the dedicated move the night-dinner-9
 # comment mapped (zero RustSec advisories against 0.15.x made it a
@@ -241,14 +241,11 @@ inherits = "release"
 [profile.pro-linux-amd64-v4-gnu]
 inherits = "release"
 
-[features]
-# night-improve-23 (the zelynic NIGHT-ask-2 shape): `ebpf` is the
-# DEFAULT — a plain `cargo install zylaxion` must land the full-featured
-# binary, not a dormant one. On a git checkout the loader embeds the
-# source-built object (the nested nightly build build.rs drives); on a
-# registry tarball it embeds the maintainer-built object staged from
-# ebpf-prebuilt/ — either way the install needs NO nightly toolchain.
-# The dormant lane (a stable binary whose eBPF surfaces answer with
-# their honest refusal) is the OPT-IN: --no-default-features.
-default = ["ebpf"]
-ebpf = ["dep:aya"]
+# No [features] table since night-dragon-maintenance-0 (the zejtron
+# unkillable-ebpf law): aya is a plain dependency, there is no build
+# flag that can produce a dormant binary. On a git checkout the loader
+# embeds the source-built object (the nested nightly build build.rs
+# drives); on a registry tarball it embeds the maintainer-built object
+# staged from ebpf-prebuilt/ (manifest-verified) - either way the
+# install needs NO nightly toolchain and no bpf-linker on the target
+# machine. The doctor reports the lane honestly in every build.

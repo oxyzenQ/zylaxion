@@ -26,11 +26,9 @@ const TAP_OBJECT: &str = crate::prebuilt::STAGED_OBJECT_NAME;
 
 // ── night-improve-23: the eBPF object staging lanes ─────────────────────
 //
-// Three lanes produce (or skip) the embedded object, all landing at the
+// Two lanes produce the embedded object, both landing at the
 // same OUT_DIR name the loader embeds (`zylaxion-tap`):
 //
-//   dormant           — the `ebpf` feature is off: nothing stages, the
-//                       loader module is not compiled either.
 //   registry-prebuilt — a registry tarball (cargo's package walk cannot
 //                       carry nested packages, so no ebpf/ tree rides the
 //                       extract): the maintainer-built object tracked in
@@ -81,12 +79,6 @@ pub(super) fn build_ebpf_objects() {
         "rust-toolchain.toml",
     ] {
         println!("cargo:rerun-if-changed={}", ebpf_dir.join(rel).display());
-    }
-
-    // Only the ebpf feature needs the object.
-    if std::env::var_os("CARGO_FEATURE_EBPF").is_none() {
-        println!("cargo:rustc-env=ZYLAXION_EBPF_LANE=dormant (not compiled)");
-        return;
     }
 
     // Registry lane: no ebpf/ tree rides a crates.io extract. The

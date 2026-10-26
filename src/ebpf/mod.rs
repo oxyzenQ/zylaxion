@@ -24,77 +24,23 @@
 //!   night-improve-26 cleanup: pins, failure marker, the pin directory
 //!   itself) and the doctor's read side of the failure marker.
 //!
-//! The module is feature-gated (`ebpf`, default on). The dormant lane
-//! (`--no-default-features`) compiles the same verb surface with the
-//! honest refusal: a binary built without the loader says so instead of
-//! pretending.
+//! The module is unconditional since night-dragon-maintenance-0 (the
+//! zejtron unkillable-ebpf law): there is no feature gate and no build
+//! flag can produce a dormant binary — every zylaxion build carries the
+//! full tap surface. On a git checkout the loader embeds the
+//! source-built object (the nested nightly build build.rs drives); on
+//! a registry tarball it embeds the maintainer-built object staged
+//! from ebpf-prebuilt/ (manifest-verified) — either way the install
+//! needs no nightly toolchain on the target machine.
 
-#[cfg(feature = "ebpf")]
 pub mod args;
-#[cfg(feature = "ebpf")]
 pub mod attach_error;
-#[cfg(feature = "ebpf")]
 pub mod bpf_syscall;
-#[cfg(feature = "ebpf")]
 pub mod embedded;
-#[cfg(feature = "ebpf")]
 pub mod loader;
-#[cfg(feature = "ebpf")]
 pub mod pin;
-#[cfg(feature = "ebpf")]
 pub mod teardown;
 
-/// The verb surface both lanes expose: the same call signatures, so the
-/// commands layer cannot tell them apart.
-#[cfg(feature = "ebpf")]
+/// The verb surface: the same call signatures the commands layer has
+/// always consumed.
 pub use loader::{attach, detach};
-
-/// The dormant lane: the honest refusal (the verbs only — the dormant
-/// [`dormant::AttachError`] is never named outside the inference of
-/// these two calls).
-#[cfg(not(feature = "ebpf"))]
-pub use dormant::{attach, detach};
-
-/// The dormant lane: the same call signatures, the honest refusal.
-#[cfg(not(feature = "ebpf"))]
-pub mod dormant {
-    /// The refusal's classification: nothing in this binary can reach
-    /// the kernel, so the taxonomy's honest bucket is Unknown with the
-    /// rebuild instruction as its detail. (The full nine-variant
-    /// taxonomy lives in the ebpf-gated [`crate::ebpf::attach_error`]
-    /// — it classifies aya and raw-syscall failures the dormant build
-    /// has no code for, so it cannot compile here.)
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub enum AttachError {
-        /// The one dormant-lane refusal (see [`DORMANT_REFUSAL`]).
-        Unknown {
-            /// The refusal text.
-            detail: String,
-        },
-    }
-
-    impl std::fmt::Display for AttachError {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            let AttachError::Unknown { detail } = self;
-            f.write_str(detail)
-        }
-    }
-
-    /// The refusal text both dormant verbs return.
-    pub const DORMANT_REFUSAL: &str = "this binary was built without eBPF support \
-         (--no-default-features) — rebuild with default features to attach the tap";
-
-    /// Dormant attach: refuse.
-    pub fn attach() -> Result<String, AttachError> {
-        Err(AttachError::Unknown {
-            detail: DORMANT_REFUSAL.to_string(),
-        })
-    }
-
-    /// Dormant detach: refuse (nothing this binary could have pinned).
-    pub fn detach() -> Result<String, AttachError> {
-        Err(AttachError::Unknown {
-            detail: DORMANT_REFUSAL.to_string(),
-        })
-    }
-}
