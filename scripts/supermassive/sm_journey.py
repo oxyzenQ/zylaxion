@@ -171,7 +171,10 @@ def _stage_walk_block(ledger: Ledger, binary: str, user: str) -> None:
         )
 
         rc, out = _run_as_user(user, binary, ["doctor"])
-        failed_reach = "FAIL: bpffs reach" in out and "chmod o+x" in out
+        # The zelynic row shape (night-dragon-maintenance-1): the reach
+        # FAIL reads "uid ... cannot walk to the pins" under the
+        # "pin reach:" row key; the fix row keeps the chmod remedy.
+        failed_reach = "cannot walk to the pins" in out and "chmod o+x" in out
         all_clear = "All checks passed" in out
         if rc == 1 and failed_reach and not all_clear:
             ledger.pass_row(
@@ -320,7 +323,9 @@ def _stage_verdict_honesty(ledger: Ledger, binary: str, user: str) -> None:
         boot_locked = _boot_param_locked()
         rc, out = _run_as_user(user, binary, ["doctor"])
         if value == 0:
-            if "PASS: unprivileged bpf: allowed" in out:
+            # The zelynic row shape (night-dragon-maintenance-1): the
+            # allowed arm reads under the "unpriv bpf:" row key.
+            if "unpriv bpf:" in out and "allowed" in out:
                 ledger.pass_row(
                     "the verdict speaks the allowed arm at value 0",
                     "the posture the flip produced",
