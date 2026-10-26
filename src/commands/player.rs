@@ -33,6 +33,7 @@ use aya::maps::MapData;
 use nix::poll::{PollFd, PollFlags, PollTimeout, poll};
 
 use crate::core::Orchestrator;
+use crate::ebpf::loader::KeyRingEvent;
 use crate::ebpf::pin;
 use crate::profiles::MechanicalClick;
 
@@ -240,7 +241,7 @@ pub fn cmd_play() {
                     // Drain everything available first. A short record
                     // is skipped, never failed — the tap stays truthful.
                     while let Some(item) = events.next() {
-                        if item.len() < std::mem::size_of::<KeyRingEventRaw>() {
+                        if item.len() < std::mem::size_of::<KeyRingEvent>() {
                             continue;
                         }
                         // night-dragon-lts: aya hands out 8-byte-aligned
@@ -251,9 +252,9 @@ pub fn cmd_play() {
                         // debug builds and compiles out on the release
                         // hot path.
                         debug_assert!(
-                            item.as_ptr() as usize % std::mem::align_of::<KeyRingEventRaw>() == 0
+                            item.as_ptr() as usize % std::mem::align_of::<KeyRingEvent>() == 0
                         );
-                        let raw = unsafe { &*(item.as_ptr() as *const KeyRingEventRaw) };
+                        let raw = unsafe { &*(item.as_ptr() as *const KeyRingEvent) };
                         let event = crate::core::KeyEvent {
                             scancode: raw.keycode,
                             pressed: raw.value == 1,
@@ -427,18 +428,6 @@ const STATE_RUNNING: u32 = 2;
 /// in the write path and an anonymous `3` in the status reader were
 /// two ways to drift.
 const STATE_FAILED: u32 = 3;
-
-/// The raw ring record — the byte-level twin of `KeyRingEvent` in
-/// ebpf/src/main.rs (24 bytes; the loader's test tree pins the layout
-/// and this alias reads the same bytes). A local mirror keeps the hot
-/// parse a plain pointer cast.
-#[repr(C)]
-struct KeyRingEventRaw {
-    ts_us: u64,
-    keycode: u32,
-    value: u32,
-    slot: u32,
-}
 
 // The player's liveness probe is the orphan module's zombie-aware one
 // (night-hunter-1): a ZOMBIE answers the raw kill(0) probe but is a

@@ -93,15 +93,6 @@ def asound_cards() -> list[str]:
     return cards
 
 
-def pcm_state(card: str = "card0", pcm: str = "pcm0p") -> str:
-    """The PCM sub device state text ('RUNNING', 'OPEN', or '')."""
-    try:
-        with open(f"/proc/asound/{card}/{pcm}/sub0/status", encoding="utf-8") as fh:
-            return fh.read().strip()
-    except OSError:
-        return ""
-
-
 def user_in_group(user: str, group: str) -> bool:
     rc, out = run(["id", "-nG", user])
     if rc != 0:

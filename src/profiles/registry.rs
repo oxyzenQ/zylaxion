@@ -391,7 +391,6 @@ pub static PRESETS: [Preset; 24] = [
 // night-improve-22: exercised by the registry test tree and the
 // session resolver wired in the same night; the unified binary's
 // non-test compilation reaches it through the session resolver only.
-#[allow(dead_code)]
 pub fn all() -> &'static [Preset] {
     &PRESETS
 }
@@ -402,7 +401,6 @@ pub fn all() -> &'static [Preset] {
 /// resolver, which owns the error UX.
 // night-improve-22: exercised by the registry test tree; the session
 // resolver (same night) is the binary's only consumer.
-#[allow(dead_code)]
 pub fn lookup(name: &str) -> Option<&'static Preset> {
     PRESETS.iter().find(|p| p.name == name)
 }
@@ -412,7 +410,6 @@ pub fn lookup(name: &str) -> Option<&'static Preset> {
 /// listing produced).
 // night-improve-22: exercised by the registry test tree; the session
 // resolver and list-presets (same night) are the binary's consumers.
-#[allow(dead_code)]
 pub fn names_sorted() -> Vec<&'static str> {
     let mut names: Vec<&'static str> = PRESETS.iter().map(|p| p.name).collect();
     names.sort_unstable();
