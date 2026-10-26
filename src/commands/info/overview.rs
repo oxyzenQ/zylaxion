@@ -17,7 +17,7 @@ use super::alsa_guard::QuietAlsa;
 /// the active posture replace them — the same facts `status` prints,
 /// in the compact no-subcommand shape.
 pub fn cmd_overview() {
-    println!("{}\n", crate::output::section("=== zylaxion ==="));
+    println!("{}\n", crate::output::section("zylaxion"));
 
     // 1. Kernel verdict (both lanes — the kernel probe has no deps).
     //    night-hunter-4: the verdict rides the semantic tier, the same
@@ -28,7 +28,10 @@ pub fn cmd_overview() {
     } else {
         crate::output::fail_line(kernel.verdict())
     };
-    println!("  kernel:  {} ({})", kernel.release, verdict);
+    println!(
+        "{}",
+        crate::output::kv("kernel:", &format!("{} ({})", kernel.release, verdict))
+    );
 
     // 2. Tap residency + active posture. The posture reads the control plane
     //    through the named slot constants (night-hunter-2 — the raw
@@ -39,8 +42,11 @@ pub fn cmd_overview() {
     };
     if !pin::any_pin_present() {
         println!(
-            "  tap:     {}",
-            crate::output::tip_line("not attached (sudo zylaxion attach)")
+            "{}",
+            crate::output::kv(
+                "tap:",
+                &crate::output::tip_line("not attached (sudo zylaxion attach)")
+            )
         );
     } else if pin::all_pins_present() {
         // The chain step that owns the tap (night-improve-25) —
@@ -51,11 +57,20 @@ pub fn cmd_overview() {
             .and_then(crate::ebpf::loader::TapKind::from_slot)
             .map(crate::ebpf::loader::TapKind::label)
             .unwrap_or("unknown step");
-        println!("  tap:     {} ({step})", crate::output::ok_line("attached"));
+        println!(
+            "{}",
+            crate::output::kv(
+                "tap:",
+                &format!("{} ({step})", crate::output::ok_line("attached"))
+            )
+        );
     } else {
         println!(
-            "  tap:     {}",
-            crate::output::warn_line("PARTIAL pin set (sudo zylaxion attach replants it)")
+            "{}",
+            crate::output::kv(
+                "tap:",
+                &crate::output::warn_line("PARTIAL pin set (sudo zylaxion attach replants it)")
+            )
         );
     }
     if let Ok(control) = crate::commands::sound::open_control() {
@@ -93,20 +108,32 @@ pub fn cmd_overview() {
             (name, volume, line)
         };
         println!(
-            "  sound:   {}",
-            if enabled {
-                crate::output::ok_line("on")
-            } else {
-                crate::output::tip_line("off")
-            }
+            "{}",
+            crate::output::kv(
+                "sound:",
+                &if enabled {
+                    crate::output::ok_line("on")
+                } else {
+                    crate::output::tip_line("off")
+                }
+            )
         );
-        println!("  preset:  {preset_name}");
-        println!("  volume:  {volume_percent}% (100 = the compiled default)");
-        println!("  player:  {player_line}");
+        println!("{}", crate::output::kv("preset:", preset_name));
+        println!(
+            "{}",
+            crate::output::kv(
+                "volume:",
+                &format!("{volume_percent}% (100 = the compiled default)")
+            )
+        );
+        println!("{}", crate::output::kv("player:", &player_line));
     } else if pin::any_pin_present() {
         println!(
-            "  control: {}",
-            crate::output::warn_line("not openable by this user (pin ownership?)")
+            "{}",
+            crate::output::kv(
+                "control:",
+                &crate::output::warn_line("not openable by this user (pin ownership?)")
+            )
         );
     }
 
@@ -126,17 +153,29 @@ pub fn cmd_overview() {
                 .unwrap_or_else(|_| "<unknown>".into());
             if let Ok(dev_config) = device.default_output_config() {
                 println!(
-                    "  audio:   {name} ({} Hz, {}ch, {:?})",
-                    dev_config.sample_rate(),
-                    dev_config.channels(),
-                    dev_config.sample_format()
+                    "{}",
+                    crate::output::kv(
+                        "audio:",
+                        &format!(
+                            "{name} ({} Hz, {}ch, {:?})",
+                            dev_config.sample_rate(),
+                            dev_config.channels(),
+                            dev_config.sample_format()
+                        )
+                    )
                 );
             } else {
-                println!("  audio:   {name} (config unavailable)");
+                println!(
+                    "{}",
+                    crate::output::kv("audio:", &format!("{name} (config unavailable)"))
+                );
             }
         }
         None => {
-            println!("  audio:   {}", crate::output::warn_line("no device found"));
+            println!(
+                "{}",
+                crate::output::kv("audio:", &crate::output::warn_line("no device found"))
+            );
         }
     }
 
@@ -144,21 +183,22 @@ pub fn cmd_overview() {
     // night-hunter-4: the runnable commands ride the status-green tier
     // (the help reference's example law), the trailing comments ride
     // the calm-grey grammar tier. Plain mode reproduces the exact
-    // historical bytes.
-    println!(
-        "  {}                      {}",
-        crate::output::ok_line("zylaxion on"),
-        crate::output::tip_line("# start the sound")
-    );
-    println!(
-        "  {}  {}",
-        crate::output::ok_line("zylaxion preset --switch <name>"),
-        crate::output::tip_line("# switch sound live")
-    );
-    println!(
-        "  {}                  {}",
-        crate::output::ok_line("zylaxion status"),
-        crate::output::tip_line("# the full truth")
-    );
+    // historical bytes. The comment column is computed from the
+    // longest command so the rows stay aligned without hand-tuned
+    // padding (night-dragon-maintenance-1, the tidy-geometry law).
+    let rows = [
+        ("zylaxion on", "# start the sound"),
+        ("zylaxion preset --switch <name>", "# switch sound live"),
+        ("zylaxion status", "# the full truth"),
+    ];
+    let width = rows.iter().map(|(cmd, _)| cmd.len()).max().unwrap_or(0);
+    for (cmd, comment) in rows {
+        println!(
+            "  {}{} {}",
+            crate::output::ok_line(cmd),
+            " ".repeat(width - cmd.len()),
+            crate::output::tip_line(comment)
+        );
+    }
     println!();
 }

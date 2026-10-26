@@ -237,9 +237,19 @@ pub fn run_check_update() {
         UpdateStatus::CurrentIsNewer => "current is newer than latest release",
     };
 
-    println!("zylaxion update check");
-    println!("Current: {}", normalize_version(CURRENT_VERSION));
-    println!("Latest:  {}", normalize_version(&latest_tag));
-    println!("Status:  {status_text}");
-    println!("Source:  {RELEASES_URL}");
+    // The report opens with the family banner (the zelynic output
+    // law, night-dragon-maintenance-1): the update check is a report
+    // surface, so it reads as one report alongside the doctor and the
+    // overview — one frame, one key/value geometry.
+    println!("{}\n", crate::output::section("zylaxion update check"));
+    println!(
+        "{}",
+        crate::output::kv("Current:", &normalize_version(CURRENT_VERSION))
+    );
+    println!(
+        "{}",
+        crate::output::kv("Latest:", &normalize_version(&latest_tag))
+    );
+    println!("{}", crate::output::kv("Status:", status_text));
+    println!("{}", crate::output::kv("Source:", RELEASES_URL));
 }
