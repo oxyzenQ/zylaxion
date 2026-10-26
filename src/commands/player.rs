@@ -252,7 +252,8 @@ pub fn cmd_play() {
                         // debug builds and compiles out on the release
                         // hot path.
                         debug_assert!(
-                            item.as_ptr() as usize % std::mem::align_of::<KeyRingEvent>() == 0
+                            (item.as_ptr() as usize)
+                                .is_multiple_of(std::mem::align_of::<KeyRingEvent>())
                         );
                         let raw = unsafe { &*(item.as_ptr() as *const KeyRingEvent) };
                         let event = crate::core::KeyEvent {
@@ -328,7 +329,7 @@ pub fn cmd_play() {
                         }
                         Err(e) => {
                             read_failures += 1;
-                            if read_failures == 1 || read_failures % 25 == 0 {
+                            if read_failures == 1 || read_failures.is_multiple_of(25) {
                                 log::warn!(
                                     "control map read failed {read_failures} consecutive time(s): {e}"
                                 );
