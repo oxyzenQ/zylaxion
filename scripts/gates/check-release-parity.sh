@@ -25,10 +25,10 @@
 # inputs" step holds the canonical constant per platform; this gate
 # holds the cross-file equality.
 #
-# The platform list covers the LIVE matrix legs. The musl legs are the
-# documented dormant lane (the empirical blocker lives in release.yml's
-# matrix header); when they come alive, their ids join PLATFORMS and
-# their aliases here — the gate grows with the matrix or it lies.
+# The platform list covers the LIVE matrix legs — both gnu legs, the
+# only legs the matrix has. If a leg ever joins the matrix, its id
+# joins PLATFORMS and its alias appears here — the gate grows with the
+# matrix or it lies.
 #
 # Usage: bash scripts/gates/check-release-parity.sh
 #
@@ -45,35 +45,35 @@ FAILED=0
 PLATFORMS="linux-amd64-v3-gnu linux-amd64-v4-gnu"
 
 for platform in $PLATFORMS; do
-	# ── Matrix side: the rustflags line inside release.yml's matrix
-	# entry for this platform. awk grabs the first rustflags line at or
-	# after the platform id line (the matrix include list is the only
-	# such block in the workflow; the verify step's case statement is
-	# compared by the workflow itself at run time).
-	MATRIX_FLAGS="$(awk -v p="$platform" '
-		$0 ~ "- platform: "p { in_entry = 1 }
-		in_entry && /rustflags: "/ {
-			gsub(/.*rustflags: "|".*$/, "")
-			print
-			exit
-		}
-	' .github/workflows/release.yml)"
-	if [ -z "$MATRIX_FLAGS" ]; then
-		echo "FAIL: no matrix rustflags found for $platform in .github/workflows/release.yml"
-		FAILED=$((FAILED + 1))
-		continue
-	fi
+        # ── Matrix side: the rustflags line inside release.yml's matrix
+        # entry for this platform. awk grabs the first rustflags line at or
+        # after the platform id line (the matrix include list is the only
+        # such block in the workflow; the verify step's case statement is
+        # compared by the workflow itself at run time).
+        MATRIX_FLAGS="$(awk -v p="$platform" '
+                $0 ~ "- platform: "p { in_entry = 1 }
+                in_entry && /rustflags: "/ {
+                        gsub(/.*rustflags: "|".*$/, "")
+                        print
+                        exit
+                }
+        ' .github/workflows/release.yml)"
+        if [ -z "$MATRIX_FLAGS" ]; then
+                echo "FAIL: no matrix rustflags found for $platform in .github/workflows/release.yml"
+                FAILED=$((FAILED + 1))
+                continue
+        fi
 
-	# Extract the -C codegen tokens from the matrix flags (drop the
-	# -D warnings lint token): "a b -C c" -> "-C c", normalized.
-	MATRIX_C="$(printf '%s\n' "$MATRIX_FLAGS" | tr ' ' '\n' | awk '/^-C$/ { getline tok; printf "%s,", tok }' | sed 's/,$//')"
+        # Extract the -C codegen tokens from the matrix flags (drop the
+        # -D warnings lint token): "a b -C c" -> "-C c", normalized.
+        MATRIX_C="$(printf '%s\n' "$MATRIX_FLAGS" | tr ' ' '\n' | awk '/^-C$/ { getline tok; printf "%s,", tok }' | sed 's/,$//')"
 
-	# ── Alias side: .cargo/config.toml's pro-<platform> alias. The
-	# alias is a TOML array of cargo args carrying the rustflags via a
-	# --config value; python3 + tomllib (the stdlib TOML parser)
-	# reassembles the flag string.
-	ALIAS_C="$(
-		python3 - "$platform" <<'PYEOF'
+        # ── Alias side: .cargo/config.toml's pro-<platform> alias. The
+        # alias is a TOML array of cargo args carrying the rustflags via a
+        # --config value; python3 + tomllib (the stdlib TOML parser)
+        # reassembles the flag string.
+        ALIAS_C="$(
+                python3 - "$platform" <<'PYEOF'
 import sys
 import tomllib
 
@@ -116,34 +116,34 @@ while i < len(flags):
         i += 1
 print(",".join(tokens))
 PYEOF
-	)"
-	if [ "$ALIAS_C" = "MISSING-ALIAS" ]; then
-		echo "FAIL: .cargo/config.toml has no pro-$platform alias"
-		FAILED=$((FAILED + 1))
-		continue
-	fi
+        )"
+        if [ "$ALIAS_C" = "MISSING-ALIAS" ]; then
+                echo "FAIL: .cargo/config.toml has no pro-$platform alias"
+                FAILED=$((FAILED + 1))
+                continue
+        fi
 
-	# ── The verdict.
-	if [ -z "$MATRIX_C" ]; then
-		echo "FAIL: $platform matrix rustflags carry no -C tokens: '$MATRIX_FLAGS'"
-		FAILED=$((FAILED + 1))
-	elif [ -z "$ALIAS_C" ]; then
-		echo "FAIL: pro-$platform alias carries no -C tokens in its rustflags"
-		FAILED=$((FAILED + 1))
-	elif [ "$MATRIX_C" != "$ALIAS_C" ]; then
-		echo "FAIL: $platform -C token drift — release matrix: '$MATRIX_C' vs local alias: '$ALIAS_C'"
-		echo "      a local pro-$platform build would NOT reproduce the release optimization tier"
-		FAILED=$((FAILED + 1))
-	else
-		echo "OK: $platform parity — matrix and pro-$platform alias share -C tokens: '$MATRIX_C'"
-	fi
+        # ── The verdict.
+        if [ -z "$MATRIX_C" ]; then
+                echo "FAIL: $platform matrix rustflags carry no -C tokens: '$MATRIX_FLAGS'"
+                FAILED=$((FAILED + 1))
+        elif [ -z "$ALIAS_C" ]; then
+                echo "FAIL: pro-$platform alias carries no -C tokens in its rustflags"
+                FAILED=$((FAILED + 1))
+        elif [ "$MATRIX_C" != "$ALIAS_C" ]; then
+                echo "FAIL: $platform -C token drift — release matrix: '$MATRIX_C' vs local alias: '$ALIAS_C'"
+                echo "      a local pro-$platform build would NOT reproduce the release optimization tier"
+                FAILED=$((FAILED + 1))
+        else
+                echo "OK: $platform parity — matrix and pro-$platform alias share -C tokens: '$MATRIX_C'"
+        fi
 done
 
 echo ""
 if [ "$FAILED" -gt 0 ]; then
-	echo "FAIL: $FAILED platform(s) out of parity"
-	exit 1
+        echo "FAIL: $FAILED platform(s) out of parity"
+        exit 1
 else
-	echo "OK: all live release platforms in local-alias/matrix parity"
-	exit 0
+        echo "OK: all live release platforms in local-alias/matrix parity"
+        exit 0
 fi

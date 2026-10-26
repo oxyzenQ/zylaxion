@@ -38,35 +38,12 @@ concurrency:
   cancel-in-progress: true
 
 # ============================================================================
-# THE PLATFORM MATRIX — what ships and what honestly does not (yet)
+# THE PLATFORM MATRIX
 # ============================================================================
-# Shipping contract (the owner's night-improve-12 spec): amd64 ONLY,
-# the x86-64-v3 and v4 optimization baselines ONLY. Both gnu legs are
-# live below.
-#
-# The musl legs (linux-amd64-v3-musl / v4-musl) are a DOCUMENTED DORMANT
-# lane, not a silent absence. The empirical evidence (proven locally,
-# the 12-c session, musl-gcc + a statically-built alsa-lib):
-#   - SOLVED: the alsa leg. alsa-lib 1.2.14 builds and installs as a
-#     static musl library (configure CC=musl-gcc --disable-shared
-#     --enable-static; the autoconf musl quirk needs
-#     ac_cv_c_undeclared_builtin_options='none needed'), and pkg-config
-#     points cargo at the static .a cleanly.
-#   - UNBLOCKED (night-improve-24 evidence refresh): the input leg that
-#     blocked this lane no longer exists. night-improve-23 deleted
-#     src/input/ with the `input` and `udev` crates (the eBPF tap is
-#     passive - no evdev grab, no udev rules, no C input stack), so the
-#     tree's only remaining C dependency is alsa-lib via cpal - the leg
-#     already proven static above. Nothing blocks a static musl build
-#     on the dependency graph anymore.
-#   - RE-ENABLING the legs stays the owner's call, like every matrix
-#     and version decision. When it lands, the matrix regains the two
-#     musl legs verbatim in the zelynic shape:
-#       - platform: linux-amd64-v3-musl
-#         target: x86_64-unknown-linux-musl
-#         rustflags: "-D warnings -C target-cpu=x86-64-v3 -C target-feature=+crt-static"
-#       (and the v4 twin), plus the alsa-lib static build step ahead of
-#     the cargo build and the ldd static-proof check in the verify step.
+# Shipping contract: glibc ONLY (x86_64-unknown-linux-gnu), amd64 ONLY,
+# the x86-64-v3 and v4 optimization baselines ONLY. Two legs, both live
+# below. There is no musl lane and no other libc: every package
+# zylaxion ships is a dynamic glibc build, by decision.
 # ============================================================================
 
 jobs:
