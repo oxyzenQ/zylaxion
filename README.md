@@ -558,6 +558,49 @@ different branding, MUST preserve the GPL-3.0-only license, and MUST
 clearly state the fork is derived from zylaxion but is NOT endorsed by
 rezky_nightky (oxyzenQ).
 
+## What You're Actually Licensing
+
+The Company tier licenses the technology stack, not just the keyboard
+sound binary. The five assets below are what that license actually
+covers — each one is verifiable from this tree, not from a pitch:
+
+1. **The eBPF input tap architecture** — passive kernel-side capture
+   with zero device grab, hotplug-safe and suspend-safe.
+2. **The daemonless control plane** — pinned BPF maps as state store,
+   attach-once, unprivileged-verb pattern.
+3. **The Zactrix Engine** — time-variant spectral envelope synthesis,
+   LTS-frozen with six proofs
+   ([docs/ZACTRIX_LTS.md](docs/ZACTRIX_LTS.md)) and full security
+   audit ([docs/ZACTRIX_SECURITY.md](docs/ZACTRIX_SECURITY.md)).
+4. **Zero-sample DSP architecture** — no audio decoder, no wavetable,
+   no sample asset (the ELF `DT_NEEDED` sweep proves it).
+5. **The micro-randomization and sample-rate-honest laws** — the
+   `c^(R/S)` renormalization and per-keystroke jitter algorithms.
+
+If you want to adopt, adapt, or integrate any of these into your own
+product (closed-source, proprietary, or SaaS), the Company tier gives
+you the license. If you want to build from source under GPL-3.0-only,
+the Personal tier is free.
+
+## Use Cases Beyond Keyboard Sound
+
+The same stack serves problems beyond the desktop keyboard. The tap,
+the control plane, the engine, and the zero-sample law are separable
+assets, and each use case below adapts one or more of them:
+
+- **Accessibility tools** — auditory feedback for visually impaired
+  users, adaptive input devices.
+- **Remote desktop / VDI** — input capture without daemon overhead.
+- **Embedded devices** — zero-sample audio feedback for kiosks, ATMs,
+  medical devices with storage constraints.
+- **Game engines** — input sound module without audio assets.
+- **Security / observability tools** — kernel-side input capture for
+  auditing, parental control, or compliance.
+- **Hardware keyboards** — built-in synthesis in firmware.
+
+The Company license covers adaptation into any of these contexts. The
+architecture is the asset; the keyboard sound is the proof of concept.
+
 ## Commercial Licensing
 
 Companies using zylaxion in production need a commercial license.
