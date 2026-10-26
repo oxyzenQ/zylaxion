@@ -53,6 +53,10 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # night-dragon-lts: the compile lanes carry the same bounded-patience
+    # law the rest of the estate runs on — a wedged lane dies with a
+    # named timeout instead of eating the runner's hour.
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -67,8 +71,10 @@ jobs:
       # ALSA headers remain a build prerequisite.
       - name: Install system dependencies
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
+          # The supermassive apt idiom (retries + connect timeout): a
+          # flaky mirror stays a retry, not a red run.
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 update -qq
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
       - name: Install Rust toolchain
@@ -124,6 +130,8 @@ jobs:
   ebpf:
     name: eBPF tap build
     runs-on: ubuntu-latest
+    # night-dragon-lts: bounded patience, same law as the check job.
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
