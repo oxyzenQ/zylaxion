@@ -185,11 +185,13 @@ cd zylaxion
 cargo build --release --locked
 ```
 
-The portable package lane builds the plain baseline shape and lands
-the same system destinations — no CPU tuning, no flags:
+The one-command installer detects the CPU's x86-64 level, builds the
+matching parity-checked shape through the cargo aliases, and lands the
+system destinations — binary to `/usr/bin`, the boot oneshot and the
+login hand-over to `/etc/systemd/system`:
 
 ```bash
-./scripts/package/install.sh
+./scripts/package/install-on-my-machine.sh
 ```
 
 ### Uninstall

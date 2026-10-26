@@ -9,9 +9,10 @@
 # /usr/bin/ and the boot oneshot to /etc/systemd/system/.
 #
 # There are no mode flags on purpose. One machine, one posture: the
-# system-wide install. This is the owner's personal-machine lane; the
-# portable package lane is the sibling install.sh in this directory
-# (baseline build, same system posture).
+# system-wide install. This is the installer (the family keeps one —
+# the zejtron shape: install-on-my-machine + uninstall, no install.sh
+# sibling); the portable lanes are the GitHub release tarballs and
+# `cargo install zylaxion`.
 #
 # Build shapes, by detection result:
 #   x86-64-v4 (full AVX-512 set) -> cargo pro-linux-amd64-v4-gnu
