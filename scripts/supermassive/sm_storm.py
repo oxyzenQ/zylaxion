@@ -23,7 +23,11 @@ tap estate:
     the 200 cap edge, the 201 session-gate refusal, the 201 --force-this
     lift, the 10001 force-ceiling refusal, the restore), each asserted
     while the keystrokes cross the kernel, and the PCM witness read
-    mid-storm;
+    mid-storm — the whole window carried by the live heartbeat
+    (night-dragon-maintenance-4, the loading indicator: one MASS:
+    beat every couple of seconds naming the elapsed time and the
+    telemetry captured, so the window's processing is visible and can
+    never be mistaken for a hang);
   the close — the injectors stop, the accumulated telemetry clears the
     two-writer floor, `off` stops the sound, the player self-exits, and
     the lane ends detached: nothing of zylaxion remains.
@@ -46,6 +50,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import threading
 import time
 
 from sm_audio import (  # noqa: E402 - the engine family's shared instruments
@@ -61,6 +66,67 @@ from sm_report import Ledger, Step
 STORM_SECONDS = 8.0
 FINAL_PRESSES_FLOOR = 50
 RUN_TIMEOUT = 90
+HEARTBEAT_INTERVAL = 2.0
+HEARTBEAT_FLOOR = 2
+
+
+class _StormHeartbeat:
+    """The live indicator (night-dragon-maintenance-4, the owner's ask:
+    the longest quiet span of the whole battery must never LOOK hung).
+
+    The storm window is the battery's CCTV monitor: two writers hammer
+    the kernel's input path and the window's verdicts ride the polls
+    and the control writes around it - so for its full ~10 s the ledger
+    used to print nothing, and a serial-console watcher (or a CI log
+    reader) could not tell "processing events" from "wedged guest".
+    The heartbeat closes that gap: a daemon thread prints one MASS:
+    info line per beat - seconds elapsed, the writers' state, and the
+    telemetry count READ LIVE through the tool's own status surface -
+    so every beat is simultaneously the loading indicator AND one more
+    mid-storm proof that the control plane answers under load. The
+    sentinel contract is untouched: the heartbeat rides the MASS:
+    information prefix, never the MASS-RESULT/MASS-VERDICT relay the
+    workflow greps.
+
+    The beats are counted: the lane's ledger carries one row pinning
+    the indicator actually ran (HEARTBEAT_FLOOR beats over the
+    measured window), so a future refactor cannot silently drop the
+    indicator the owner asked for.
+    """
+
+    def __init__(self, binary: str, user: str) -> None:
+        self._binary = binary
+        self._user = user
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self.beats = 0
+        self.peak_presses = 0
+
+    def start(self) -> None:
+        self._thread = threading.Thread(
+            target=self._loop, name="storm-heartbeat", daemon=True
+        )
+        self._thread.start()
+
+    def _loop(self) -> None:
+        started = time.monotonic()
+        while not self._stop.wait(HEARTBEAT_INTERVAL):
+            elapsed = time.monotonic() - started
+            presses = _presses(self._binary, self._user)
+            if presses > self.peak_presses:
+                self.peak_presses = presses
+            self.beats += 1
+            print(
+                f"MASS: storm heartbeat — {elapsed:.0f}s into the window, "
+                f"writers running, telemetry {presses} presses captured",
+                flush=True,
+            )
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=5)
+            self._thread = None
 
 
 def _attach_as_root(binary: str, user: str) -> tuple[int, str]:
@@ -216,6 +282,13 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
             "two devices, two writer threads, one kernel input path",
         )
 
+        # The live indicator (night-dragon-maintenance-4): the window
+        # stops being a silent span from this line on - every beat
+        # names the elapsed time and the telemetry the tap captured,
+        # read live through the tool's own status surface.
+        heartbeat = _StormHeartbeat(binary, user)
+        heartbeat.start()
+
         poll_a = _presses(binary, user)
         if poll_a > 0:
             ledger.pass_row(
@@ -305,6 +378,7 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
         injector_a.shutdown()
         injector_b.shutdown()
         final_presses = _presses(binary, user)
+        heartbeat.stop()
         if final_presses >= FINAL_PRESSES_FLOOR:
             ledger.pass_row(
                 "the storm's accumulated telemetry clears the two-writer floor",
@@ -315,6 +389,22 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
             ledger.fail_row(
                 "the storm's accumulated telemetry clears the two-writer floor",
                 f"total presses: {final_presses} (floor {FINAL_PRESSES_FLOOR})",
+            )
+
+        # The indicator verdict (night-dragon-maintenance-4): the beats
+        # are pinned so the loading indicator cannot silently regress.
+        if heartbeat.beats >= HEARTBEAT_FLOOR:
+            ledger.pass_row(
+                "the storm window carried the live heartbeat (the loading indicator)",
+                f"{heartbeat.beats} beats every {HEARTBEAT_INTERVAL:.0f}s, "
+                f"peak telemetry {heartbeat.peak_presses} presses",
+            )
+        else:
+            storm_dir_ok = False
+            ledger.fail_row(
+                "the storm window carried the live heartbeat (the loading indicator)",
+                f"{heartbeat.beats} beats, wanted >= {HEARTBEAT_FLOOR} "
+                f"(the window went silent again)",
             )
 
         rc, out = _run_as_user(user, binary, ["off"])
@@ -349,7 +439,8 @@ def _storm(ledger: Ledger, binary: str, user: str) -> None:
             ledger.info(
                 "the realtime storm closes",
                 f"window ~{STORM_SECONDS:.0f}s, two writers, ten mid-storm "
-                "verdicts, every one asserted under load",
+                "verdicts, every one asserted under load, "
+                f"{heartbeat.beats} live heartbeat beats",
             )
 
 
