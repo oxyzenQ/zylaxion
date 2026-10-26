@@ -8,10 +8,8 @@
 //! the telemetry render is its own concern (a read-only stats-map
 //! dump with a human render), not a control-plane write.
 
-#[cfg(feature = "ebpf")]
 use aya::maps::{Array, MapData};
 
-#[cfg(feature = "ebpf")]
 use crate::ebpf::pin;
 
 /// Append the kernel-side typing telemetry section to the status
@@ -28,7 +26,6 @@ use crate::ebpf::pin;
 /// the broken-pipe-safe stdout lane (`status | head` must not kill
 /// the process with SIGPIPE-by-panic), and the section header rides
 /// the brand tier like the overview's headers.
-#[cfg(feature = "ebpf")]
 pub(crate) fn print_telemetry() {
     let data = match MapData::from_pin(pin::PIN_MAP_STATS) {
         Ok(d) => d,

@@ -25,30 +25,21 @@
 //! Layout (the LOC law's dir/mod.rs shape, night-hunter-5): one theme
 //! per file — the player lifecycle (on/off), the live map-write tuning
 //! verbs (preset/volume), the status report — with the shared control
-//! plane (slots, the map opener, the policy gates, the dormant
-//! refusals) here.
+//! plane (slots, the map opener, the policy gates) here.
 
 use std::process;
 use std::time::Duration;
 
-#[cfg(feature = "ebpf")]
 use aya::maps::{Array, MapData};
 
-#[cfg(feature = "ebpf")]
 use crate::ebpf::pin;
 
-#[cfg(feature = "ebpf")]
 mod lifecycle;
-#[cfg(feature = "ebpf")]
 mod status;
-#[cfg(feature = "ebpf")]
 mod tuning;
 
-#[cfg(feature = "ebpf")]
 pub use lifecycle::{cmd_off, cmd_on};
-#[cfg(feature = "ebpf")]
 pub use status::cmd_status;
-#[cfg(feature = "ebpf")]
 pub use tuning::{cmd_preset, cmd_volume};
 
 // ── Control slot constants ──────────────────────────────────────────────
@@ -96,7 +87,6 @@ const SETTLE_STEP: Duration = Duration::from_millis(20);
 /// path separates the worlds: stat needs only the directories' x
 /// bits, never a permission on the pin itself, so its errno names
 /// the block before any bpf policy is consulted.
-#[cfg(feature = "ebpf")]
 pub(crate) enum ControlPinStat {
     /// The pin is stat-able — the walk works and something lives
     /// there (whether the open then succeeds is the map's own
@@ -115,7 +105,6 @@ pub(crate) enum ControlPinStat {
 }
 
 /// The one stat every "not attached" verdict must consult first.
-#[cfg(feature = "ebpf")]
 pub(crate) fn control_pin_stat() -> ControlPinStat {
     classify_pin_stat(
         std::fs::metadata(pin::PIN_MAP_CONTROL)
@@ -136,7 +125,6 @@ pub(crate) fn control_pin_stat() -> ControlPinStat {
 /// same lie family that audit closed for EACCES, resurrected for
 /// the rare case; this law keeps the common errnos pinned AND the
 /// rare ones honest.
-#[cfg(feature = "ebpf")]
 pub(crate) fn classify_pin_stat(kind: Option<std::io::ErrorKind>) -> ControlPinStat {
     match kind {
         None => ControlPinStat::Reachable,
@@ -157,7 +145,6 @@ pub(crate) fn classify_pin_stat(kind: Option<std::io::ErrorKind>) -> ControlPinS
 /// fallback can never silently lie. The night-dinner-18 draft folded
 /// `Ok(0)` into the default lane on the false "never a user mute"
 /// premise — a stored mute came back as the compiled 100.
-#[cfg(feature = "ebpf")]
 pub(crate) fn stored_volume_or_fallback(read: Option<u32>, fallback: u32) -> u32 {
     match read {
         Some(stored) => stored,
@@ -170,7 +157,6 @@ pub(crate) fn stored_volume_or_fallback(read: Option<u32>, fallback: u32) -> u32
 /// the old single message read a walk-blocked bpffs mount as "not
 /// attached" and sent the user re-attaching a tap that was never the
 /// problem).
-#[cfg(feature = "ebpf")]
 pub(crate) fn open_control() -> Result<Array<MapData, u32>, String> {
     let data = MapData::from_pin(pin::PIN_MAP_CONTROL).map_err(|e| match control_pin_stat() {
         ControlPinStat::WalkBlocked => format!(
@@ -200,7 +186,6 @@ pub(crate) fn open_control() -> Result<Array<MapData, u32>, String> {
 /// control plane (night-badas-4 round 5): the classified refusal beats
 /// the misleading "not attached" shape an EPERM takes on a kernel that
 /// gates unprivileged bpf(). Root is never gated (capability-keyed).
-#[cfg(feature = "ebpf")]
 fn kernel_policy_gate() {
     let kernel = crate::session::kernel::probe();
     if let Some(refusal) =
@@ -213,7 +198,6 @@ fn kernel_policy_gate() {
 
 /// Registry index for a preset name, or the canonical did-you-mean
 /// error (the night-improve-19 lineage — same shape the resolver uses).
-#[cfg(feature = "ebpf")]
 fn preset_index_or_error(name: &str) -> Result<u32, String> {
     let all = crate::profiles::registry_all();
     all.iter()
@@ -233,9 +217,8 @@ fn preset_index_or_error(name: &str) -> Result<u32, String> {
 // the volume policy belongs beside MAX_VOLUME_PERCENT and the env-lane
 // gain law in crate::session::preset). The re-export keeps the test
 // tree's `use super::volume_percent_from_gain` resolving.
-#[cfg(feature = "ebpf")]
 pub(crate) use crate::session::preset::context_volume_percent;
-#[cfg(all(test, feature = "ebpf"))]
+#[cfg(test)]
 pub(crate) use crate::session::preset::volume_percent_from_gain;
 
 // ── The player wire (night-improve-26) ───────────────────────────────
@@ -243,7 +226,6 @@ pub(crate) use crate::session::preset::volume_percent_from_gain;
 // player: an alias of the orphan sweep's match constant (night-improve-27)
 // so the spawn wire and the /proc sweep cannot drift. The underscore
 // prefix is the internal-verb convention, not a typo.
-#[cfg(feature = "ebpf")]
 pub(crate) const PLAYER_SPAWN_VERB: &str = crate::session::orphan::PLAYER_ARG;
 
 /// The root refusal for the `on` surface (night-improve-26): the
@@ -251,7 +233,6 @@ pub(crate) const PLAYER_SPAWN_VERB: &str = crate::session::orphan::PLAYER_ARG;
 /// same `session_refusal` wording the player-side guard prints — one
 /// wording, two doors — so a root `on` fails here, BEFORE it spawns,
 /// instead of failing inside the player after it does.
-#[cfg(feature = "ebpf")]
 pub(crate) fn on_root_refusal(euid_is_root: bool) -> Option<&'static str> {
     crate::session::privilege::session_refusal(euid_is_root)
 }
@@ -274,46 +255,6 @@ fn init_logger() {
         .init();
 }
 
-/// Dormant lane (cmd_on): this binary was built without the eBPF
-/// loader (--no-default-features) — the honest refusal, every time.
-#[cfg(not(feature = "ebpf"))]
-pub fn cmd_on(_cli_preset: Option<String>) {
-    crate::output::error(crate::ebpf::dormant::DORMANT_REFUSAL);
-    process::exit(1);
-}
-
-/// Dormant lane (cmd_off): this binary was built without the eBPF
-/// loader (--no-default-features) — the honest refusal, every time.
-#[cfg(not(feature = "ebpf"))]
-pub fn cmd_off() {
-    crate::output::error(crate::ebpf::dormant::DORMANT_REFUSAL);
-    process::exit(1);
-}
-
-/// Dormant lane (cmd_preset): this binary was built without the eBPF
-/// loader (--no-default-features) — the honest refusal, every time.
-#[cfg(not(feature = "ebpf"))]
-pub fn cmd_preset(_name: &str) {
-    crate::output::error(crate::ebpf::dormant::DORMANT_REFUSAL);
-    process::exit(1);
-}
-
-/// Dormant lane (cmd_volume): this binary was built without the eBPF
-/// loader (--no-default-features) — the honest refusal, every time.
-#[cfg(not(feature = "ebpf"))]
-pub fn cmd_volume(_percent: u32, _force_this: bool) {
-    crate::output::error(crate::ebpf::dormant::DORMANT_REFUSAL);
-    process::exit(1);
-}
-
-/// Dormant lane (cmd_status): this binary was built without the eBPF
-/// loader (--no-default-features) — the honest refusal, every time.
-#[cfg(not(feature = "ebpf"))]
-pub fn cmd_status(_verbose: bool) {
-    crate::output::error(crate::ebpf::dormant::DORMANT_REFUSAL);
-    process::exit(1);
-}
-
-#[cfg(all(test, feature = "ebpf"))]
+#[cfg(test)]
 #[path = "../../../test/commands/sound_tests.rs"]
 mod tests;

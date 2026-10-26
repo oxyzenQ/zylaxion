@@ -73,32 +73,17 @@ pub fn cmd_doctor() {
     println!("      Commit:     {}", build.git_sha);
     println!("      Variant:    {}", build.variant);
     // night-hunter-7: the binary's own build-flavor verdict, the
-    // zelynic doctor lineage — full-life (the eBPF objects are inside)
-    // or half-life (a --no-default-features build; every verdict below
-    // still prints, but the tap surfaces they describe are absent).
-    // cfg! is evaluated at compile time: the answer is baked into the
-    // binary next to the objects it describes, and the lane detail is
-    // the ZYLAXION_EBPF_LANE stamp build.rs emits (source-built,
-    // registry-prebuilt, or the dormant refusal).
+    // zelynic doctor lineage. Since night-dragon-maintenance-0 (the
+    // unkillable-ebpf law) every build is FULL-LIFE: there is no
+    // feature gate left to hide the tap behind, and the lane detail
+    // is the ZYLAXION_EBPF_LANE stamp build.rs emits (source-built on
+    // a git checkout, registry-prebuilt on a registry tarball). The
+    // verdict stays an honest statement of that fact, not a branch.
     let lane = option_env!("ZYLAXION_EBPF_LANE").unwrap_or("unknown");
-    if cfg!(feature = "ebpf") {
-        println!(
-            "      Build:      {} (eBPF objects: {lane})",
-            crate::output::ok_line("FULL-LIFE")
-        );
-    } else {
-        println!(
-            "      Build:      {} (eBPF objects: {lane})",
-            crate::output::warn_line("HALF-LIFE")
-        );
-        println!(
-            "      {}",
-            crate::output::tip_line(
-                "this build carries no tap — install a full-life binary \
-                 (default features or a release tarball)"
-            )
-        );
-    }
+    println!(
+        "      Build:      {} (eBPF objects: {lane})",
+        crate::output::ok_line("FULL-LIFE")
+    );
     println!("      Built:      {}", build.build_time);
     println!("      Rustc:      {}", build.rustc_version);
     println!("      Profile:    {}", build.profile);
@@ -283,7 +268,6 @@ pub fn cmd_doctor() {
         // doctor's honesty duty — the tap is not attached, and this
         // line says exactly which step of the chain failed and how it
         // was classified.
-        #[cfg(feature = "ebpf")]
         if let Some(err) = crate::ebpf::loader::last_attach_error() {
             println!(
                 "      {}",

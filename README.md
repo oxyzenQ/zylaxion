@@ -174,8 +174,9 @@ gate.
 ### Install from source
 
 Building needs the pinned Rust toolchain, `pkg-config`, `libasound2-dev`,
-and — because the `ebpf` feature is default — the dated nightly pin +
-bpf-linker. One command readies the whole host:
+and — because the eBPF tap is unconditional (the unkillable-ebpf law:
+no feature gate exists) — the dated nightly pin + bpf-linker on the
+BUILD host. One command readies the whole host:
 
 ```bash
 git clone https://github.com/oxyzenQ/zylaxion.git
@@ -487,7 +488,7 @@ battery, the micro-VM legs prove the rest inside a real kernel:
 | [supermassive rootless self-test](scripts/supermassive/supermassive-test.sh) | The env probes, the CLI/UX battery, and the static claims | `./scripts/supermassive/supermassive-test.sh --self-test` |
 | [supermassive full battery](scripts/supermassive/supermassive-test.sh) | The tap lifecycle, the night-dinner-3 repro, a real user typing through uinput, telemetry, PCM witness | `sudo ./scripts/supermassive/supermassive-test.sh --full` |
 | KVM micro-VM E2E (CI) | The zero-to-hero chain inside a real kernel (5.15 floor & latest) | `.github/workflows/supermassive.yml` |
-| [the workspace test tree](scripts/build.sh) | Unit + doc tests (175 in the dormant lane alone), plus fmt and clippy | `./scripts/build.sh check-all -q` |
+| [the workspace test tree](scripts/build.sh) | Unit + doc tests, plus fmt and clippy | `./scripts/build.sh check-all -q` |
 | [the gate suite](scripts/gate-keepers.sh) | Permissions, SPDX headers, LOC caps, language, release parity | `./scripts/gate-keepers.sh` |
 
 ### The world-first claims battery

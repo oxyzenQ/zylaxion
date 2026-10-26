@@ -32,10 +32,11 @@ membership tests, the registry names come from the binary's own
 `list-presets` output so the catalog can never drift from the proof.
 
 The battery runs in both lanes (rootless self-test and the VM's full
-run). The eBPF-object probes need the full-featured binary; against a
-dormant (no-default-features) binary they report an honest SKIP in the
-rootless lane and a hard FAIL in the full lane, where the release
-shape is the guest contract.
+run). The eBPF-object probes need the release shape; against a binary
+with no tap embedded (since night-dragon-maintenance-0 no zylaxion
+build can be dormant, so this shape means a foreign or stripped
+binary) they report an honest SKIP in the rootless lane and a hard
+FAIL in the full lane, where the release shape is the guest contract.
 """
 
 from __future__ import annotations
@@ -242,7 +243,7 @@ def battery(ledger: Ledger, binary: str, tree_root: str, root_lane: bool) -> Non
         elif not bpf_hits:
             ledger.skip_row(
                 "an ELF-BPF tap object ships inside the binary",
-                "no embedded BPF object — a dormant binary; rerun on the release shape",
+                "no embedded BPF object — not the release shape (no zylaxion build is dormant since night-dragon-maintenance-0); rerun on the release shape",
             )
         else:
             ledger.fail_row(

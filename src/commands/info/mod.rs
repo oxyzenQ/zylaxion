@@ -34,7 +34,6 @@ use catalog::presets_table_from;
 /// the plane — a pid of zero or a stale/zombie pid answers `None`,
 /// because a dead session's leftover slot must not masquerade as the
 /// active pick (the next `on` re-resolves the slot anyway).
-#[cfg(feature = "ebpf")]
 pub(super) fn live_session_preset_name() -> Option<&'static str> {
     let control = crate::commands::sound::open_control().ok()?;
     let pid = control
@@ -49,14 +48,6 @@ pub(super) fn live_session_preset_name() -> Option<&'static str> {
     crate::profiles::registry_all()
         .get(index as usize)
         .map(|e| e.name)
-}
-
-/// The dormant lane of the live read (night-hunter-2): a binary built
-/// without the eBPF loader has no control plane to consult, so no live
-/// session can ever answer.
-#[cfg(not(feature = "ebpf"))]
-pub(super) fn live_session_preset_name() -> Option<&'static str> {
-    None
 }
 
 /// The pure core of the active-name decision (night-hunter-2): the
