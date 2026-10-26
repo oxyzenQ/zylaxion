@@ -96,8 +96,13 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
+          # The archive-mirror kill timers (the run 40291698597 stall
+          # class, closed on every door of this workflow): a trickling
+          # mirror dies loudly inside its budget, never a silent burn.
+          sudo timeout 240 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 update -qq
+          sudo timeout 300 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
       - name: Install pinned toolchain (rust-toolchain.toml governs)
@@ -155,8 +160,13 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
+          # The archive-mirror kill timers (the run 40291698597 stall
+          # class, closed on every door of this workflow): a trickling
+          # mirror dies loudly inside its budget, never a silent burn.
+          sudo timeout 240 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 update -qq
+          sudo timeout 300 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
       - name: Install pinned toolchain (rust-toolchain.toml governs)
@@ -234,8 +244,13 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
+          # The archive-mirror kill timers (the run 40291698597 stall
+          # class, closed on every door of this workflow): a trickling
+          # mirror dies loudly inside its budget, never a silent burn.
+          sudo timeout 240 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 update -qq
+          sudo timeout 300 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
       - name: Install pinned toolchain (rust-toolchain.toml governs)
@@ -322,7 +337,15 @@ jobs:
   e2e-vm:
     name: ${{ matrix.leg.title }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # Sized to the measured records, not inherited (the zelynic
+    # timeout doctrine: not a speed claim — a fail-fast line). The
+    # healthy leg's wall clock is ~5-12 min (build + rootfs + the
+    # guest's few-minute battery); every archive transaction below
+    # now carries its own kill timer, the guest's qemu phase is
+    # capped at 900 s, so 30 is the last-resort line that catches a
+    # wedged runner node — the 40 it replaces let the run
+    # 40291698597 incident burn 26 idle minutes in one apt download.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -367,8 +390,10 @@ jobs:
 
       - name: Install qemu + cpio + the ALSA build headers
         run: >-
-          sudo apt-get -o Acquire::Retries=5 update -qq &&
-          sudo apt-get -o Acquire::Retries=5 install -y
+          sudo timeout 240 apt-get -o Acquire::Retries=5
+          -o Acquire::http::Timeout=45 update -qq &&
+          sudo timeout 300 apt-get -o Acquire::Retries=5
+          -o Acquire::http::Timeout=45 install -y
           --no-install-recommends qemu-system-x86 cpio
           libasound2-dev pkg-config
 
@@ -444,6 +469,20 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/kfloor && cd /tmp/kfloor
+          # The archive-mirror stall class, retired (the zelynic curl
+          # lesson, the apt edition): EVERY apt transaction below
+          # rides an outer kill timer via coreutils timeout - a
+          # trickling or wedged fetch dies LOUDLY inside its own
+          # budget with the failure named, instead of burning the job
+          # budget with zero evidence. The incident this retires: run
+          # 40291698597 (2026-10-26), the latest pocket, where the
+          # noble modules download crawled past 26 minutes inside
+          # this step - Acquire::Retries cannot see a slow-stall (it
+          # only sees hard errors), so the outer timer is the honest
+          # kill. Acquire::http::Timeout tightens the per-connection
+          # stall detection on top. Sized to the measured records
+          # (a healthy mirror serves even the 166 MB modules deb in
+          # well under a minute), not to optimism.
           if [ "${{ matrix.leg.pocket }}" = "floor" ]; then
             # jammy main ONLY — the GA suite, frozen by archive
             # policy. jammy-updates is deliberately NOT configured:
@@ -451,13 +490,15 @@ jobs:
             # leg onto the newest 5.15, and the floor is the MINIMUM.
             echo "deb http://archive.ubuntu.com/ubuntu/ jammy main" \
               | sudo tee /etc/apt/sources.list.d/jammy-floor.list >/dev/null
-            sudo apt-get -o Acquire::Retries=5 update \
+            sudo timeout 240 apt-get -o Acquire::Retries=5 \
+              -o Acquire::http::Timeout=45 update \
               -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/jammy-floor.list \
               -o Dir::Etc::sourceparts=/dev/null \
               -o APT::Get::List-Cleanup=0
             PATTERN='linux-image-unsigned-5\.15\.0-[0-9]+-generic'
           else
-            sudo apt-get -o Acquire::Retries=5 update -qq
+            sudo timeout 240 apt-get -o Acquire::Retries=5 \
+              -o Acquire::http::Timeout=45 update -qq
             PATTERN='linux-image-unsigned-[0-9]+\.[0-9]+\.0-[0-9]+-generic'
           fi
           IMG=$(apt-cache search --names-only "$PATTERN" 2>/dev/null \
@@ -470,16 +511,22 @@ jobs:
           fi
           echo "resolved: $IMG"
           KVER="${IMG#linux-image-unsigned-}"
-          apt-get -o Acquire::Retries=5 download "linux-image-unsigned-$KVER"
-          apt-get -o Acquire::Retries=5 download "linux-modules-$KVER"
+          sudo timeout 300 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 download "linux-image-unsigned-$KVER"
+          sudo timeout 600 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 download "linux-modules-$KVER"
           # night-badas-4 round 2 (empirical, verified against the
           # archive): the modules-extra split is not universal — jammy's
           # 5.15 ships a 64 MB extra deb while noble's 7.0 carries the
           # whole 166 MB module set in linux-modules alone and the
           # archive refuses the extra name ("Unable to locate package",
           # exit 100). Best-effort by design: ride linux-modules when
-          # the extra deb does not exist for the resolved kernel.
-          if ! apt-get -o Acquire::Retries=5 download "linux-modules-extra-$KVER"; then
+          # the extra deb does not exist for the resolved kernel. The
+          # same kill timer guards it; a timeout here reads as the
+          # honest note, not a failure - the modules deb above already
+          # carries the full set on every kernel that lacks an extra.
+          if ! sudo timeout 600 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 download "linux-modules-extra-$KVER"; then
             echo "note: no linux-modules-extra for $KVER — the modules deb carries the full set"
           fi
           for deb in linux-image-unsigned-*_amd64.deb linux-modules-*_amd64.deb; do
@@ -525,7 +572,8 @@ jobs:
           set -euo pipefail
           cd /tmp/kfloor
           docker run --name zylaxion-rootfs -d ubuntu:24.04 sleep infinity
-          docker exec zylaxion-rootfs apt-get -o Acquire::Retries=5 update -qq
+          docker exec zylaxion-rootfs timeout 240 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 update -qq
           # python3: the engine. sudo + passwd: the real-user lane.
           # kmod: the insmod chain. libasound2: the payload's ALSA
           # runtime. iproute2: the init's loopback bring-up.
@@ -540,11 +588,12 @@ jobs:
           # way, the t64 rebuild ships exactly that.
           ALSA_RUNTIME=libasound2
           if ! docker exec zylaxion-rootfs sh -c \
-            "apt-get install -s -qq libasound2 > /dev/null 2>&1"; then
+            "timeout 180 apt-get install -s -qq libasound2 > /dev/null 2>&1"; then
             ALSA_RUNTIME=libasound2t64
           fi
           echo "ALSA runtime package: $ALSA_RUNTIME"
-          docker exec zylaxion-rootfs apt-get -o Acquire::Retries=5 install -y -qq \
+          docker exec zylaxion-rootfs timeout 300 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 install -y -qq \
             --no-install-recommends python3 sudo kmod passwd "$ALSA_RUNTIME" iproute2
           docker exec zylaxion-rootfs python3 -c 'import sys; assert sys.version_info >= (3, 10)'
           docker export zylaxion-rootfs -o rootfs.tar
@@ -607,7 +656,14 @@ jobs:
           fi
           echo "envelope: $SMP vCPU / $MEM MB (of $CORES cores / $TOTAL_MB MB on the runner)"
           set +e
-          timeout 1500 qemu-system-x86_64 \
+          # The guest budget, sized to the measured record (the
+          # zelynic fail-fast doctrine): the whole in-VM battery —
+          # boot, the init probes, the full engine with the storm —
+          # runs in a few minutes on every leg and kernel measured so
+          # far; 900 s is ~5-10x that record, generous over a first
+          # boot, and a wedged guest can never burn the job budget
+          # past it.
+          timeout 900 qemu-system-x86_64 \
             -machine q35,accel=kvm -cpu host \
             -m "$MEM" -smp "$SMP" \
             -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
