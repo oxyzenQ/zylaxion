@@ -7,21 +7,26 @@
 # zelynic scripts/dev/bootstrap-ebpf.sh lineage, trimmed to zylaxion's
 # ONE object and its aliases).
 #
-# Installs the two source-build prerequisites:
+# Installs the three source-build prerequisites:
 #   1. the dated nightly toolchain pinned by ebpf/rust-toolchain.toml
 #      (minimal profile, with the rust-src + rustfmt components)
 #   2. the bpf-linker 0.11.1 prebuilt static-musl binary, installed
 #      into ~/.local/bin (no sudo, no system LLVM, no clang)
+#   3. the b3sum 1.8.7 digest tool (cargo install, --locked) - the
+#      prebuilt manifest lane's writer-side blake3 (build/blake3.rs
+#      is the reader-side one; the standalone build suite pins both
+#      to the same vectors)
 #
-# Every git-checkout build needs both (night-badas-1 wording refresh):
-# the ebpf feature is default since night-improve-23, so build.rs
+# Every git-checkout build needs all three: the ebpf lane is the
+# binary's own law, so build.rs
 # source-builds the kernel object and its preflight hard-requires the
 # dated nightly pin and bpf-linker BEFORE any compile time is spent —
 # a warm ebpf/target cache does not bypass the preflight (it exists to
 # catch a missing bpf-linker even then). Only a registry tarball (cargo
 # install from crates.io) rides the ebpf-prebuilt/ object instead and
-# needs neither prerequisite. Re-running this script after a fresh
-# clone is the one-command path to a green build.
+# needs neither build prerequisite. Re-running this script after a
+# fresh clone is the one-command path to a green build, and the commit
+# gate's prebuilt verdict additionally needs the pinned b3sum.
 #
 # The nightly pin is READ from ebpf/rust-toolchain.toml and the
 # bpf-linker pin from the BPF_LINKER_VERSION constant below, so bumping
@@ -57,6 +62,11 @@ BPF_LINKER_VERSION="0.11.1"
 # same commit: the version and the two hashes are one contract.
 BPF_LINKER_SHA256_X86_64="e058a6aecc9e65fa4c977b298a8e4b738424d7629769fd352eed409fb57e16e8"
 BPF_LINKER_SHA256_AARCH64="341ec1c595496877cae2b073544c2226d78a922739632b5732dbaa48507f1380"
+# The prebuilt manifest lane's digest tool pin (night-dragon-
+# maintenance-0): the crates.io b3sum binary, installed --locked.
+# scripts/dev/regenerate-ebpf-prebuilt.sh carries the same constant -
+# bump both in the same commit.
+B3SUM_VERSION="1.8.7"
 CHECK_ONLY=false
 
 case "${1:-}" in
@@ -105,6 +115,7 @@ TOOLCHAIN_OK=false
 COMPONENTS_OK=false
 LINKER_OK=false
 LINKER_RESOLVED=""
+B3SUM_OK=false
 
 probe_all() {
         TOOLCHAIN_OK=false
@@ -140,6 +151,15 @@ probe_all() {
         if [[ "${reported}" == *"${BPF_LINKER_VERSION}"* ]]; then
                 LINKER_OK=true
         fi
+
+        B3SUM_OK=false
+        if command -v b3sum >/dev/null 2>&1; then
+                local b3sum_report
+                b3sum_report="$(b3sum --version 2>/dev/null || echo "unknown")"
+                if [[ "${b3sum_report}" == *"${B3SUM_VERSION}"* ]]; then
+                        B3SUM_OK=true
+                fi
+        fi
 }
 
 report() {
@@ -154,6 +174,11 @@ report() {
                 warn "bpf-linker: ${LINKER_RESOLVED} reports the wrong version (expected ${BPF_LINKER_VERSION})"
         else
                 warn "bpf-linker: not on PATH"
+        fi
+        if [[ "${B3SUM_OK}" == true ]]; then
+                ok "b3sum ${B3SUM_VERSION}: $(command -v b3sum)"
+        else
+                warn "b3sum ${B3SUM_VERSION}: not on PATH (the manifest lane's digest tool)"
         fi
 }
 
@@ -248,14 +273,31 @@ PYEOF
         ok "bpf-linker ${installed_version} installed to ${LOCAL_BIN}/bpf-linker"
 }
 
+install_b3sum() {
+        ok "installing b3sum ${B3SUM_VERSION} (cargo install, --locked)..."
+        # Host-side tool: the caller's RUSTFLAGS must not reach this
+        # install (a crt-static host flag would break clap_derive's
+        # proc-macro build - the release lanes export it for the
+        # product build, never for a prerequisite tool).
+        env -u RUSTFLAGS -u CARGO_ENCODED_RUSTFLAGS cargo install b3sum --version "${B3SUM_VERSION}" --locked ||
+                die "cargo install b3sum failed - install it manually: cargo install b3sum --version ${B3SUM_VERSION} --locked"
+        command -v b3sum >/dev/null 2>&1 ||
+                die "b3sum installed but not found on PATH - make sure ${HOME}/.cargo/bin is on PATH"
+        local reported
+        reported="$(b3sum --version 2>/dev/null || echo "unknown")"
+        [[ "${reported}" == *"${B3SUM_VERSION}"* ]] ||
+                die "installed b3sum reports '${reported}', expected ${B3SUM_VERSION}"
+        ok "${reported} installed"
+}
+
 probe_all
 report
 
 if [[ "${CHECK_ONLY}" == true ]]; then
-        if [[ "${TOOLCHAIN_OK}" == true && "${COMPONENTS_OK}" == true && "${LINKER_OK}" == true ]]; then
+        if [[ "${TOOLCHAIN_OK}" == true && "${COMPONENTS_OK}" == true && "${LINKER_OK}" == true && "${B3SUM_OK}" == true ]]; then
                 exit 0
         fi
-        die "--check: prerequisites not satisfied — run $0 (without --check) to install, and make sure ${LOCAL_BIN} is on PATH."
+        die "--check: prerequisites not satisfied — run $0 (without --check) to install, and make sure ${LOCAL_BIN} and ${HOME}/.cargo/bin are on PATH."
 fi
 
 CHANGED=false
@@ -275,11 +317,16 @@ if [[ "${LINKER_OK}" != true ]]; then
         CHANGED=true
 fi
 
+if [[ "${B3SUM_OK}" != true ]]; then
+        install_b3sum
+        CHANGED=true
+fi
+
 # ── Re-probe: verify what changed, then trust it ──────────────────────────
 if [[ "${CHANGED}" == true ]]; then
         probe_all
         report
-        if [[ "${TOOLCHAIN_OK}" != true || "${COMPONENTS_OK}" != true || "${LINKER_OK}" != true ]]; then
+        if [[ "${TOOLCHAIN_OK}" != true || "${COMPONENTS_OK}" != true || "${LINKER_OK}" != true || "${B3SUM_OK}" != true ]]; then
                 die "prerequisites are still not satisfied — see the messages above."
         fi
 fi

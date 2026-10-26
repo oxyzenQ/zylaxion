@@ -88,6 +88,20 @@ fn main() {
 #[path = "build/ebpf.rs"]
 mod ebpf;
 
+// The registry-prebuilt lane (night-dragon-maintenance-0, the zejtron
+// build/ split): stages the maintainer-built ebpf-prebuilt/ object
+// into OUT_DIR and refuses any extract whose bytes do not match the
+// manifest's object blake3 pin. build/ebpf.rs's registry branch
+// delegates here.
+#[path = "build/prebuilt.rs"]
+mod prebuilt;
+
+// The dependency-free BLAKE3 the prebuilt lane's manifest
+// verification hashes with (the same vectors the reference b3sum
+// binary answers to; the standalone build suite pins both sides).
+#[path = "build/blake3.rs"]
+mod blake3;
+
 /// Runs `git rev-parse --short HEAD` from the workspace root and returns
 /// the trimmed short hash on success.
 fn git_short_hash() -> Option<String> {
