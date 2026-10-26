@@ -542,14 +542,34 @@ jobs:
           fi
           echo "resolved: $IMG"
           KVER="${IMG#linux-image-unsigned-}"
-          sudo timeout 600 apt-get -o Acquire::Retries=5 \
-            -o Acquire::http::Timeout=45 download "linux-image-unsigned-$KVER"
+          # night-dragon-lts: the azure stall class retries at the
+          # OUTER layer too. Acquire::Retries sees hard errors, the
+          # per-attempt timeout sees a stalled session, and NEITHER
+          # re-opens a new connection — a sick mirror day trickles a
+          # 166 MB modules deb past any single budget (measured: the
+          # image deb alone crawled at 44 kB/s for 6m30s on the run
+          # this guard retired). A fresh TCP session usually
+          # re-negotiates a healthy path: three attempts, each inside
+          # its own kill timer, each death named.
+          download_deb() {
+            local pkg="$1" attempt
+            for attempt in 1 2 3; do
+              echo "download attempt $attempt: $pkg"
+              if sudo timeout 600 apt-get -o Acquire::Retries=5 \
+                  -o Acquire::http::Timeout=45 download "$pkg"; then
+                return 0
+              fi
+              echo "attempt $attempt for $pkg died inside its budget"
+            done
+            echo "FAIL: $pkg never landed in three attempts"
+            return 1
+          }
+          download_deb "linux-image-unsigned-$KVER"
           # The below-floor leg fetches the image deb ONLY (the
           # refusal walk needs no module chain); every other leg
           # fetches the module set its battery loads.
           if [ "${{ matrix.leg.pocket }}" != "below-floor" ]; then
-            sudo timeout 600 apt-get -o Acquire::Retries=5 \
-              -o Acquire::http::Timeout=45 download "linux-modules-$KVER"
+            download_deb "linux-modules-$KVER"
             # night-badas-4 round 2 (empirical, verified against the
             # archive): the modules-extra split is not universal — jammy's
             # 5.15 ships a 64 MB extra deb while noble's 7.0 carries the
@@ -557,11 +577,11 @@ jobs:
             # archive refuses the extra name ("Unable to locate package",
             # exit 100). Best-effort by design: ride linux-modules when
             # the extra deb does not exist for the resolved kernel. The
-            # same kill timer guards it; a timeout here reads as the
-            # honest note, not a failure - the modules deb above already
-            # carries the full set on every kernel that lacks an extra.
-            if ! sudo timeout 600 apt-get -o Acquire::Retries=5 \
-              -o Acquire::http::Timeout=45 download "linux-modules-extra-$KVER"; then
+            # same retry guard rides here; a timeout in all attempts
+            # reads as the honest note, not a failure - the modules deb
+            # above already carries the full set on every kernel that
+            # lacks an extra.
+            if ! download_deb "linux-modules-extra-$KVER"; then
               echo "note: no linux-modules-extra for $KVER — the modules deb carries the full set"
             fi
           fi
