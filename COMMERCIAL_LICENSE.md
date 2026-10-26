@@ -59,7 +59,7 @@ The following uses are fully covered by GPL-3.0-only and cost nothing:
 ## 3. Pricing
 
 Prices are pegged to USD, payable in cryptocurrency (see
-[Payment](#5-payment) below). Tiers are self-declared by the buyer in
+[Payment](#7-payment) below). Tiers are self-declared by the buyer in
 good faith — pick the tier that honestly matches your situation; nobody
 audits you, but misrepresenting revenue to underpay is a breach of the
 license terms.
@@ -110,7 +110,54 @@ tier exists precisely for that; buy it. If you cannot or will
 not pay, the GPL path is complete and free — open-source what
 you build. There is no third path that leaves you clean.
 
-## 4. What Each Tier Grants
+## 4. What You're Actually Licensing
+
+The Company tier licenses the technology stack, not just the keyboard
+sound binary. The five assets below are what that license actually
+covers — each one is verifiable from this tree, not from a pitch:
+
+1. **The eBPF input tap architecture** — passive kernel-side capture
+   with zero device grab, hotplug-safe and suspend-safe.
+2. **The daemonless control plane** — pinned BPF maps as state store,
+   attach-once, unprivileged-verb pattern.
+3. **The Zactrix Engine** — time-variant spectral envelope synthesis,
+   LTS-frozen with six proofs
+   ([docs/ZACTRIX_LTS.md](docs/ZACTRIX_LTS.md)) and full security
+   audit ([docs/ZACTRIX_SECURITY.md](docs/ZACTRIX_SECURITY.md)).
+4. **Zero-sample DSP architecture** — no audio decoder, no wavetable,
+   no sample asset (the ELF `DT_NEEDED` sweep proves it).
+5. **The micro-randomization and sample-rate-honest laws** — the
+   `c^(R/S)` renormalization and per-keystroke jitter algorithms.
+
+If you want to adopt, adapt, or integrate any of these into your own
+product (closed-source, proprietary, or SaaS), the Company tier gives
+you the license. If you want to build from source under GPL-3.0-only,
+the Personal tier is free. This is technology licensing, not a
+keyboard-sound subscription. The $9,199/year Company tier is priced
+against the cost of replicating the architecture in-house (an
+estimated 6-12 months of R&D), not against consumer keyboard sound
+products.
+
+## 5. Use Cases Beyond Keyboard Sound
+
+The same stack serves problems beyond the desktop keyboard. The tap,
+the control plane, the engine, and the zero-sample law are separable
+assets, and each use case below adapts one or more of them:
+
+- **Accessibility tools** — auditory feedback for visually impaired
+  users, adaptive input devices.
+- **Remote desktop / VDI** — input capture without daemon overhead.
+- **Embedded devices** — zero-sample audio feedback for kiosks, ATMs,
+  medical devices with storage constraints.
+- **Game engines** — input sound module without audio assets.
+- **Security / observability tools** — kernel-side input capture for
+  auditing, parental control, or compliance.
+- **Hardware keyboards** — built-in synthesis in firmware.
+
+The Company license covers adaptation into any of these contexts. The
+architecture is the asset; the keyboard sound is the proof of concept.
+
+## 6. What Each Tier Grants
 
 Every paid tier grants, for the license term:
 
@@ -130,7 +177,7 @@ The **Company** tier additionally grants:
 - Rebranding and redistribution of the Marks still requires separate
   trademark permission — see [TRADEMARK.md](TRADEMARK.md).
 
-## 5. Payment
+## 7. Payment
 
 Payment is **USD-pegged, paid in crypto**: send the cryptocurrency
 equivalent of the USD price at purchase time. The exchange rate is
@@ -173,7 +220,7 @@ These addresses double as the project's voluntary donation addresses;
 commercial payments are distinguished by the licensing inquiry that
 accompanies them, not by a different address.
 
-## 6. Verification Process
+## 8. Verification Process
 
 1. **Send a licensing inquiry** to [with.rezky@gmail.com](mailto:with.rezky@gmail.com)
    (or open a GitHub issue at [@oxyzenQ](https://github.com/oxyzenQ))
@@ -189,7 +236,7 @@ accompanies them, not by a different address.
 The license PDF names the licensee, the tier, the term, and the grant
 scope. Keep it; it is the proof of your commercial rights.
 
-## 7. Contact
+## 9. Contact
 
 - **Licensing email**: [with.rezky@gmail.com](mailto:with.rezky@gmail.com)
 - **GitHub**: [@oxyzenQ](https://github.com/oxyzenQ)
