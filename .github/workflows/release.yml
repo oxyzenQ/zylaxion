@@ -118,12 +118,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # The -Wl,-z,now hardening token (full RELRO): the GNU dynamic
+          # loader resolves the GOT eagerly and maps it read-only before
+          # main — the standard glibc-binary hardening posture, a
+          # one-time startup cost (a daemon starts once, runs for days)
+          # for a real attack-time win (GOT overwrite dies at the first
+          # write). rustc's default is partial RELRO; this upgrades the
+          # shipping binaries. The parity gate and the verify step below
+          # hold the token on both the matrix and the local alias sides.
           - platform: linux-amd64-v3-gnu
             target: x86_64-unknown-linux-gnu
-            rustflags: "-D warnings -C target-cpu=x86-64-v3"
+            rustflags: "-D warnings -C target-cpu=x86-64-v3 -C link-arg=-Wl,-z,now"
           - platform: linux-amd64-v4-gnu
             target: x86_64-unknown-linux-gnu
-            rustflags: "-D warnings -C target-cpu=x86-64-v4"
+            rustflags: "-D warnings -C target-cpu=x86-64-v4 -C link-arg=-Wl,-z,now"
 
     steps:
       - name: Checkout repository
@@ -197,8 +205,8 @@ jobs:
         run: |
           set -euo pipefail
           case "${{ matrix.platform }}" in
-            linux-amd64-v3-gnu) expected="-D warnings -C target-cpu=x86-64-v3" ;;
-            linux-amd64-v4-gnu) expected="-D warnings -C target-cpu=x86-64-v4" ;;
+            linux-amd64-v3-gnu) expected="-D warnings -C target-cpu=x86-64-v3 -C link-arg=-Wl,-z,now" ;;
+            linux-amd64-v4-gnu) expected="-D warnings -C target-cpu=x86-64-v4 -C link-arg=-Wl,-z,now" ;;
             *) echo "::error::Unknown platform id ${{ matrix.platform }}"; exit 1 ;;
           esac
           if [ "${{ matrix.rustflags }}" != "${expected}" ]; then
