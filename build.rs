@@ -5,7 +5,22 @@
 //! itself:
 //!
 //! - `GIT_HASH` — the short commit hash the crate was built from
-//!   (consumed by the version report's `Build:` line).
+//!   (consumed by the version report's `Build:` line), resolved by the
+//!   three-step commit-sha chain (night-dragon-maintenance-T1, the
+//!   zejtron lineage) so a registry install never reports a bare
+//!   "unknown":
+//!   1. `git rev-parse --short=7 HEAD` — local/git checkouts;
+//!   2. `GITHUB_SHA` env — CI environments (full 40-hex sha, normalized
+//!      to the same 7-char short shape);
+//!   3. `.cargo_vcs_info.json` — registry tarball builds (`cargo
+//!      install zylaxion`): cargo materializes this file beside the
+//!      manifest when it packs the crate, carrying the sha of the
+//!      commit the release was cut from, so builds without a `.git`
+//!      directory still recover the real commit.
+//!      The chain normalizer accepts only 7..=40 ASCII hex characters —
+//!      every source renders one canonical lowercase 7-char shape, and
+//!      "unknown" survives only when all three steps fail (a tarball built
+//!      from a non-git source, unreachable in the shipping pipeline).
 //! - `ZYLAXION_BUILD_TIME` — the UTC build timestamp, computed by Howard
 //!   Hinnant's `civil_from_days` algorithm (night-improve-13, the zelynic
 //!   NIGHT-hunt-6 lineage) so the version report's `Build-time:` line and
@@ -46,12 +61,21 @@ fn main() {
     println!("cargo:rerun-if-changed=.git/HEAD");
     println!("cargo:rerun-if-changed=.git/refs/heads");
 
-    let hash = match git_short_hash() {
-        Some(h) => h,
-        None => "unknown".to_string(),
-    };
+    // The commit-sha resolution chain (the sibling zejtron lineage),
+    // first hit wins — see the module doc for the lane each step
+    // serves. One normalizer keeps the three sources in one canonical
+    // 7-char lowercase shape, so `-V` reads identically across a dev
+    // checkout, a CI run, and a registry install.
+    let hash = git_short_sha()
+        .or_else(|| env_short_sha("GITHUB_SHA"))
+        .or_else(packaged_vcs_sha)
+        .unwrap_or_else(|| "unknown".to_string());
 
     println!("cargo:rustc-env=GIT_HASH={}", hash);
+    // Watched so a registry extract and a dev checkout never share one
+    // stale verdict: the file only exists on tarball builds, and its
+    // bytes are the third chain source's whole truth.
+    println!("cargo:rerun-if-changed=.cargo_vcs_info.json");
 
     // The UTC build timestamp (Hinnant civil-from-days, std clock only —
     // no time crate). Consumed by build_info::build_time().
@@ -108,11 +132,15 @@ mod prebuilt;
 #[path = "build/blake3.rs"]
 mod blake3;
 
-/// Runs `git rev-parse --short HEAD` from the workspace root and returns
-/// the trimmed short hash on success.
-fn git_short_hash() -> Option<String> {
+// ── The commit-sha chain (the sibling zejtron build.rs lineage) ─────
+
+/// First step of the commit-sha chain: `git rev-parse --short=7 HEAD`
+/// from the workspace root. Returns `None` when git is absent, fails
+/// (no `.git` — a registry extract), or answers something other than
+/// usable hex.
+fn git_short_sha() -> Option<String> {
     let output = Command::new("git")
-        .args(["rev-parse", "--short", "HEAD"])
+        .args(["rev-parse", "--short=7", "HEAD"])
         .output()
         .ok()?;
 
@@ -121,12 +149,55 @@ fn git_short_hash() -> Option<String> {
     }
 
     let stdout = String::from_utf8(output.stdout).ok()?;
-    let trimmed = stdout.trim();
-    if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_string())
+    normalize_short_sha(&stdout)
+}
+
+/// Second step of the commit-sha chain: a full sha from the CI env
+/// (`GITHUB_SHA`), normalized to the same 7-char short shape.
+fn env_short_sha(var: &str) -> Option<String> {
+    normalize_short_sha(&std::env::var(var).ok()?)
+}
+
+/// Parses the `sha1` field out of a `.cargo_vcs_info.json` document.
+/// Pure string extraction — build.rs stays dependency-free (std
+/// only), so there is no JSON crate here. The document shape is
+/// stable: `{"git":{"sha1":"<40 hex>","dirty":bool},"path_in_vcs":""}`
+/// (field order is not guaranteed, so the parse anchors on the
+/// `"sha1"` key, not on byte offsets).
+fn parse_vcs_sha_json(text: &str) -> Option<String> {
+    let key = "\"sha1\"";
+    let key_at = text.find(key)?;
+    let after_key = &text[key_at + key.len()..];
+    let colon_at = after_key.find(':')?;
+    let value = after_key[colon_at + 1..].trim_start();
+    let value = value.strip_prefix('"')?;
+    let end = value.find('"')?;
+    normalize_short_sha(&value[..end])
+}
+
+/// Third step of the commit-sha chain: read `.cargo_vcs_info.json`
+/// from the package root (cargo materializes the file beside the
+/// manifest when it packs the crate). Returns `None` when the file is
+/// missing (ordinary dev builds — the normal case) or unusable.
+fn packaged_vcs_sha() -> Option<String> {
+    let manifest_dir =
+        std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
+    let text = std::fs::read_to_string(manifest_dir.join(".cargo_vcs_info.json")).ok()?;
+    parse_vcs_sha_json(&text)
+}
+
+/// Shared chain normalizer: a sha is usable when it is 7..=40 ASCII
+/// hex characters; the short form is the first 7, lowercased — one
+/// canonical shape across all three chain sources. Rejects everything
+/// else (`HEAD`, empty, truncated, non-hex noise).
+fn normalize_short_sha(s: &str) -> Option<String> {
+    let n = s.trim();
+    let len = n.len();
+    if !(7..=40).contains(&len) || !n.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
     }
+    let short: String = n.chars().take(7).collect();
+    Some(short.to_ascii_lowercase())
 }
 
 /// Ask the compiler cargo itself drives for its version string
@@ -263,5 +334,72 @@ mod tests {
             result.contains("1969"),
             "negative-epoch result should land in 1969: {result}"
         );
+    }
+
+    #[test]
+    fn vcs_sha_json_parses_the_canonical_document() {
+        // Byte-for-byte the shape cargo writes when it packs a crate
+        // from a dirty tree (the `dirty` flag rides along).
+        let doc = r#"{"git":{"sha1":"a1adb97b91fbb32bd5f22bd85b8dbf2870ea53c1","dirty":true},"path_in_vcs":""}"#;
+        assert_eq!(parse_vcs_sha_json(doc).as_deref(), Some("a1adb97"));
+    }
+
+    #[test]
+    fn vcs_sha_json_tolerates_field_order_and_dirty_absence() {
+        // Clean publishes omit `dirty`; key order is not contractual.
+        // Uppercase hex exercises the shared lowercasing too.
+        let doc = r#"{"path_in_vcs":"","git":{"dirty":false,"sha1":"A1ADB97B91FBB32BD5F22BD85B8DBF2870EA53C1"}}"#;
+        assert_eq!(parse_vcs_sha_json(doc).as_deref(), Some("a1adb97"));
+    }
+
+    #[test]
+    fn vcs_sha_json_rejects_unusable_payloads() {
+        // The empty document, a missing sha1 key, a truncated sha, and
+        // non-hex noise all fall through — the chain's next source (or
+        // the "unknown" verdict) answers instead of a garbage stamp.
+        for doc in [
+            "",
+            "{}",
+            r#"{"git":{"sha":"a1adb97b91fbb32bd5f22bd85b8dbf2870ea53c1"}}"#,
+            r#"{"git":{"sha1":"short"}}"#,
+            r#"{"git":{"sha1":"zzzzzzzz91fbb32bd5f22bd85b8dbf2870ea53c1"}}"#,
+        ] {
+            assert!(
+                parse_vcs_sha_json(doc).is_none(),
+                "expected rejection for: {doc}"
+            );
+        }
+    }
+
+    #[test]
+    fn normalize_short_sha_accepts_the_whole_hex_band() {
+        // The 7-char floor, a mid-band 40-hex full sha, uppercase
+        // input lowercased, and surrounding whitespace trimmed.
+        assert_eq!(normalize_short_sha("a1adb97").as_deref(), Some("a1adb97"));
+        assert_eq!(
+            normalize_short_sha("A1ADB97B91FBB32BD5F22BD85B8DBF2870EA53C1").as_deref(),
+            Some("a1adb97")
+        );
+        assert_eq!(
+            normalize_short_sha("  a1adb97b91fbb32bd5f22bd85b8dbf2870ea53c1\n").as_deref(),
+            Some("a1adb97")
+        );
+    }
+
+    #[test]
+    fn normalize_short_sha_rejects_out_of_band_shapes() {
+        // Below the 7-char floor, above the 40-hex ceiling, the
+        // detached-submodule literal `HEAD`, and hex-adjacent noise.
+        for candidate in [
+            "",
+            "a1adb9",
+            "HEAD",
+            "a1adb97b91fbb32bd5f22bd85b8dbf2870ea53c1ff",
+        ] {
+            assert!(
+                normalize_short_sha(candidate).is_none(),
+                "expected rejection for: {candidate}"
+            );
+        }
     }
 }
