@@ -46,6 +46,8 @@ v80.0.0-alpha.1
   cross-build from a glibc host welds the host's libasound onto a
   musl CRT: it links but cannot run. Removed honestly rather than
   left as a trap. See README.md.
+- **Logo updated** — the project logo was refreshed (asset only, no
+  behavioral change).
 
 ### Fixed
 
