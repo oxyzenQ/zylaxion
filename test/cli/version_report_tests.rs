@@ -8,6 +8,26 @@
 
 use super::*;
 
+/// Test-local minimal strip for the only escape shapes this crate
+/// emits: ESC ... m spans. The header pin rides the de-spanned text so
+/// the equality holds on both sides of the color gate.
+fn strip_brand_spans(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut in_span = false;
+    for ch in line.chars() {
+        if ch == '\x1b' {
+            in_span = true;
+        } else if in_span {
+            if ch == 'm' {
+                in_span = false;
+            }
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
+
 /// night-improve-13 contract: the version report carries every
 /// documented line exactly once, in the zelynic reference order —
 /// Build, then Build-time directly after it, then the Signature, then
@@ -85,8 +105,12 @@ fn version_report_body_is_plain_estate_parity() {
 /// The header payload is exactly the two brand lines — name+version,
 /// then the tagline — and each line carries at most ONE brand span
 /// (the single-line law: a multi-line span paints every line after
-/// the first with it). Under the captured harness the wrap degrades
-/// to the bare text, so the pin holds on both sides of the gate.
+/// the first with it). The equality rides the DE-SPANNED text: the
+/// gate is environment law (night-dragon-maintenance-T1, the red-Miri
+/// incident — Miri's isatty answer is nightly-dependent), so the
+/// spans are stripped before the plain-shape comparison and pinned
+/// separately: zero under a captured harness, exactly the one
+/// open/reset pair under a TTY probe, never anything else.
 #[test]
 fn version_report_header_is_two_single_brand_lines() {
     let (header, _body) = version_report_payload();
@@ -94,8 +118,6 @@ fn version_report_header_is_two_single_brand_lines() {
     let first = lines.next().expect("the name+version line");
     let second = lines.next().expect("the tagline line");
     assert!(lines.next().is_none(), "the header is exactly two lines");
-    assert_eq!(first, format!("zylaxion: v{}", crate::info::build::VERSION));
-    assert_eq!(second, ABOUT);
     for line in [first, second] {
         let spans = line.matches('\x1b').count();
         assert!(
@@ -103,6 +125,11 @@ fn version_report_header_is_two_single_brand_lines() {
             "one brand span per line, never a multi-line span: {line:?}"
         );
     }
+    assert_eq!(
+        strip_brand_spans(first),
+        format!("zylaxion: v{}", crate::info::build::VERSION)
+    );
+    assert_eq!(strip_brand_spans(second), ABOUT);
 }
 
 /// The Build-time stamp carries the Hinnant shape
