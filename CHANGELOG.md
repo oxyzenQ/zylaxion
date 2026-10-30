@@ -29,6 +29,44 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
+## [v80.0.2] — be honest — 2026-10-31
+
+### Changed
+
+- **Company tier repriced** from $9,199 to $29,999/year. The Company
+  tier licenses the embeddable DSP architecture (five patterns), not
+  the keyboard sound binary. Existing Company-tier customers at
+  $9,199 keep their purchased price for their purchased term. See
+  COMMERCIAL_LICENSE.md.
+- **`-V` format aligned with the zelynic family** — Build /
+  Build-time / Signature / Copyright / License / Source, in that
+  order, one line each. The build label self-reports its lane
+  (`local-pro-*` for alias builds, `pro-*` for release downloads).
+- **Musl lanes removed** — glibc-only from v80.0.2 onward. A musl
+  cross-build from a glibc host welds the host's libasound onto a
+  musl CRT: it links but cannot run. Removed honestly rather than
+  left as a trap. See README.md.
+
+### Fixed
+
+- Miri CI instability from `isatty` answer drift across nightly
+  dates (pinned gate law + byte-exact color assertions).
+- Palette consistency: clap's `RgbColor` and the SGR escape output
+  now share four crate-visible constants with a sync pin, so the
+  brand palette cannot drift between the two representations.
+
+### Documentation
+
+- FAQ added — the deployment question bank (desktop, server, and
+  ultra-scale) with its documentation disclaimer — and extended with
+  the three objections raised in the wild: "why eBPF for keyboard
+  sound", "isn't this just a keyboard sound", "how was this built
+  with AI".
+- Pricing rationale (Company tier = architecture, not binary) is now
+  a first-class section in COMMERCIAL_LICENSE.md.
+
+## [Carried record — shipped before v80.0.2]
+
 ### Frozen
 
 - **night-private-research-2xblade-4** — the freeze. Declared
