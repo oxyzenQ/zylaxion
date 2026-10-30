@@ -43,9 +43,16 @@ from __future__ import annotations
 
 import re
 import subprocess
+import sys
 from pathlib import Path
 
-from sm_report import Ledger, Step
+# The root-owned pycache guard (night-dragon-maintenance-T1, the same
+# law the supermassive-test entry carries): a direct run of this
+# module must never leave root-owned bytecode caches beside the
+# scripts for the project-local modules it imports below.
+sys.dont_write_bytecode = True
+
+from sm_report import Ledger, Step  # noqa: E402
 
 # Libraries that would make sampled playback possible. Any hit is a
 # claim breach: the synthesis needs none of these.

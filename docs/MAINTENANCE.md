@@ -111,6 +111,42 @@ without it. Feature-flag off what a dependency pulls but zylaxion
 never uses (the env_logger `default-features = false` shape is the
 precedent).
 
+## The root-owned pycache trap (the zelynic incident, documented)
+
+Anatomy of the incident (observed on the zelynic sibling, recorded
+here so the failure shape can never repeat on this tree): Python
+scripts that run under `sudo` import project-local modules, and
+CPython answers every import by writing
+`__pycache__/<module>.cpython-*.pyc` beside the source — as the
+invoking user. Under sudo that user is root, so the cache files are
+owned by root while the rest of the tree stays user-owned. The next
+plain-user `rm -rf` of the checkout then dies mid-flight with
+`Permission denied` on exactly those cache files, and the half-deleted
+tree looks corrupt for no functional reason.
+
+The prevention now lives at the source, on every entry point that
+can reach a root invocation:
+
+- `scripts/supermassive/supermassive-test.py` sets
+  `sys.dont_write_bytecode = True` before its first project-local
+  import and exports `PYTHONDONTWRITEBYTECODE=1` for every python
+  child it spawns;
+- `scripts/supermassive/sm_static.py` (also runnable directly) sets
+  the same flag before importing `sm_report`;
+- `scripts/supermassive/supermassive-test.sh` (the wrapper the CI
+  leg drives) exports `PYTHONDONTWRITEBYTECODE=1` before the exec.
+
+With bytecode suppression on, a root-run supermassive leg leaves no
+cache file behind, so no user-owned tree ever again carries a
+root-owned file. The gate scripts that invoke python (`python3 -c`
+one-liners, heredoc feeds) import no project module and never had
+the exposure. Manual escape hatches, should a foreign script ever
+reintroduce the shape: run python with `python -B` (or the env var
+above), and clean an already-poisoned tree once with
+`sudo rm -rf scripts/**/__pycache__` (or
+`sudo chown -R "$(id -u):$(id -g)" <path>`) before the plain-user
+removal.
+
 ## The tell-once law (the docs' dedup rule)
 
 Every fact, story, and claim lives in ONE canonical home: the kernel
