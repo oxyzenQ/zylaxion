@@ -147,6 +147,44 @@ commit — recovered even from a crates.io install via
 `.cargo_vcs_info.json`. A fleet audit is therefore one
 `zylaxion -V` per box, greppable (`zylaxion -V | grep Build:`).
 
+## Objections from the wild
+
+### Why eBPF for keyboard sound? eBPF is for servers, networks, security.
+
+eBPF is mostly used there — that is true. zylaxion is the exception.
+A passive probe on `input_event()` is a desktop-interaction application
+of eBPF that is almost unexplored, not because it is impossible but
+because few have tried. zylaxion uses eBPF for a specific reason: it
+is the only way to achieve zero daemon, zero device grab, zero config
+file. A userspace daemon can do keyboard sound. It cannot do it
+without a resident process, a device grab (or `input` group
+membership), and a mapping file. eBPF can. That difference is the
+whole product. See
+[EBPF_ONLY_VS_DAEMON.md](EBPF_ONLY_VS_DAEMON.md) for the honest
+pros-and-cons ledger.
+
+### Isn't this just a keyboard sound tool? Why is it priced like architecture?
+
+The keyboard sound is the proof of concept. The architecture is the
+asset. See "What You're Actually Licensing" in the README (five
+patterns: eBPF input tap, daemonless control plane, Zactrix Engine
+LTS-frozen with six proofs, zero-sample DSP discipline,
+micro-randomization law) and "Use Cases Beyond Keyboard Sound"
+(accessibility, VDI, embedded devices, game engines, security
+tooling, hardware keyboards). The Individual tier ($99) licenses the
+keyboard sound. The Company tier ($29,999) licenses the architecture.
+Different products, different prices.
+
+### How was this built with AI?
+
+With AI assistance, like every modern project. The boundary is
+documented: AI writes, the owner decides. Every diff is read manually,
+every verifier rejection is debugged manually, every test is run on
+the owner's machine before push, every commit is signed. The owner is
+responsible for every line — not for having typed every line. See
+[AI_AGENTS_READ_THIS.md](../AI_AGENTS_READ_THIS.md) for the boundary
+that applies to outside agents.
+
 <!-- ZYLAXION-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
