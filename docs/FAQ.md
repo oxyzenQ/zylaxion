@@ -1,0 +1,146 @@
+<!-- Copyright (C) 2026 rezky_nightky -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
+# zylaxion FAQ — desktop, server, and ultra-scale usage
+
+The deployment question bank: which shape fits which machine, and the
+answers the doctor will confirm. Every answer names the mechanism
+that verifies it — the same claims discipline the rest of the tree
+carries. The source code is the single source of truth; when a
+release's `zylaxion doctor` disagrees with a row below, trust the
+doctor and open a PR.
+
+## Desktop (the everyday lane)
+
+### What is the best daily usage on a desktop?
+
+Attach once per boot, then play as your own user:
+
+```bash
+sudo zylaxion attach      # the one privileged verb, once per boot
+zylaxion on               # spawn the stateless player, sound starts
+zylaxion preset --switch mechanical
+zylaxion off              # the player self-exits, zero processes
+```
+
+`attach` pins the eBPF tap and hands the pins to your user — every
+later verb (`on`, `off`, `preset`, `volume`, `status`) runs
+unprivileged (the doctor's `unpriv bpf` row confirms it). `zylaxion
+on` spawns the internal `_play` verb as a stateless process: it reads
+every byte of state from the pinned kernel maps and stops itself when
+`off` clears the enabled flag. No daemon, no config files, no stray
+processes.
+
+### How does the sound survive a reboot?
+
+The one-command installer lands a systemd boot oneshot plus login
+hand-over units beside the binary: the oneshot replants the tap early
+in the boot (kernel pins do not survive a reboot), and the hand-over
+delivers the pins to your session at the first login. After
+`./scripts/package/install-on-my-machine.sh`, the desktop contract is
+automatic — log in, type, hear the keys.
+
+### Which preset wins when nothing is passed?
+
+The resolution chain is fixed: the `--preset` flag first, then the
+`ZYLAXION_PRESET` environment variable, then the compiled default.
+There is no config file to drift (the no-config law) — the registry
+is compile-time data, listed by `zylaxion list-presets`.
+
+### How loud can it go?
+
+`volume` takes a percent of the compiled default. The session gate
+refuses anything above 200% (values that loud can damage speakers)
+unless `--force-this` rides along, which lifts the ceiling to 10000;
+anything past that is refused outright. The cap is a hardware-kill
+feature, not a bug (night-improve-27).
+
+## Server and headless machines
+
+### Which build shape should a server run?
+
+The static musl lane: `cargo pro-native-musl` (host-CPU tuned) or
+`cargo pro-linux-amd64-v3-musl` / `pro-linux-amd64-v4-musl` (the
+x86-64-v3/v4 tiers). The result is one fully self-contained binary —
+the eBPF tap is embedded inside it — so deployment is a copy: `scp`
+it to the box, run the attach oneshot, done. Build the static shapes
+on a musl host (Alpine) or a musl sysroot: the native libasound pins
+the lane, so pkg-config must answer with the musl sysroot's `alsa.pc`
+(see the alias block in `.cargo/config.toml` for the full contract).
+
+### Does a headless server need a sound card?
+
+The tap and the telemetry run without one; the voice needs one ALSA
+PCM device. A USB DAC plugged into the rack counts — `zylaxion
+list-backends` shows what the host answers, and `zylaxion doctor`
+renders the audio verdict honestly (a cardless host is a warning, not
+a crash). Static builds also expect the host to carry the ALSA plugin
+tree (`alsa-lib` and `alsa-plugins` on the target machine): the
+statically linked libasound dlopens its PCM plugins from
+`/usr/lib/alsa-lib` at runtime.
+
+### The doctor mentions XDG_RUNTIME_DIR — does a server care?
+
+Some ALSA configurations route through user-session sockets that live
+under `XDG_RUNTIME_DIR`; headless shells often leave it unset (the
+doctor's XDG row says so). Pointing the variable at a user-owned
+runtime directory (systemd sessions create one at
+`/run/user/<uid>`) settles it. Raw `hw:` devices do not need it.
+
+### What is the kernel floor on a server fleet?
+
+Linux 5.15 or newer, with `/sys/fs/bpf` mounted (the pinned state
+store's home). At attach time the chain probes the kernel's surfaces:
+`fentry` when the kernel carries BTF for `input_event`, `kprobe`
+otherwise — both lanes ship, no flag decides it. Below the floor the
+attach refuses honestly and says so (KERNEL_COMPATIBILITY.md carries
+the full matrix). Unprivileged BPF, where the distro allows it, keeps
+the control-plane verbs user-owned; where it does not, `sudo
+zylaxion attach` still plants everything and hands the pins over.
+
+## Ultra scale (fleets, kiosks, CI, many machines)
+
+### Why does zylaxion scale to many machines without config management?
+
+The binary is the whole state: zero daemons, zero config files, zero
+sample assets, one embedded eBPF object. N machines run the identical
+bytes, so the fleet's drift surface is the package version alone —
+`zylaxion -V` prints the exact lane (Build:), commit (Build-time and
+the sha chain), and version on every box, and the doctor renders the
+same block everywhere. Configuration that would otherwise be fleet
+state is either compiled in (the preset registry) or per-invocation
+(the flags).
+
+### Can scripts select the preset without flags?
+
+Yes — `ZYLAXION_PRESET` resolves in CI, cron, kiosk, and container
+contexts where argv plumbing is awkward. It sits second in the
+resolution chain, so an explicit flag still overrides it where both
+exist.
+
+### What does the kernel-side telemetry cost at fleet scale?
+
+Nothing in userspace until someone reads it. The tap accumulates
+per-key counters in pinned kernel maps while typing happens;
+`zylaxion status --verbose` reads them on demand. There is no metrics
+daemon to run, no exporter to feed — the observability surface is the
+same binary, which is what keeps a fleet of them boring to operate.
+
+### Is the passive tap safe alongside automation and heavy input?
+
+The tap is a reader: it observes `input_event` streams through its
+fentry/kprobe chain and never injects, filters, or delays them. It
+has no network surface in the audio path, persists no key content
+(the input-data discipline, SECURITY.md), and the one network verb in
+the binary (`--check-update`) refuses to run under root. Keyboard
+automation, remappers, and high-rate typists sit upstream untouched.
+
+### Which build reports what on `-V`?
+
+The label grammar (night-dragon-maintenance-T1): a downloaded release
+reads `Build: pro-<shape>`, a local alias build reads `Build:
+local-pro-<shape>`, a plain local `cargo build` reads `Build:
+local-<os>-<arch>-<libc>`, and the parenthesized sha names the exact
+commit — recovered even from a crates.io install via
+`.cargo_vcs_info.json`. A fleet audit is therefore one
+`zylaxion -V` per box, greppable (`zylaxion -V | grep Build:`).

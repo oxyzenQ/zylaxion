@@ -476,6 +476,7 @@ privately** — the policy and supported versions live in
 ## Documentation
 
 - [Documentation Map](docs/README.md) — every document in the tree
+- [FAQ](docs/FAQ.md) — desktop, server, and ultra-scale usage
 - [Philosophy](docs/PHILOSOPHY.md) — "the boring and stealth"
 - [The eBPF-only bet](docs/EBPF_ONLY_VS_DAEMON.md) — the honest
   pros-and-cons ledger of the daemon deletion
