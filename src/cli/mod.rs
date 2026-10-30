@@ -4,8 +4,9 @@
 //! CLI definitions: argument parsing, version output, flag wiring.
 //!
 //! The version report (night-improve-13) follows the zelynic reference
-//! contract: brand header (`zylaxion: v<ver>` + the one-line tagline),
-//! then the plain build-facts body — `Build:`, `Build-time:`,
+//! contract: brand header (`zylaxion: v<ver>` + the one-line tagline,
+//! each line its own brand-purple wrap on a TTY), then the plain
+//! build-facts body — `Build:`, `Build-time:`, `Signature:`,
 //! `Copyright:`, `License:`, `Source:`. The build facts come from
 //! [`crate::info::build`] (the Hinnant clock stamps them, no time
 //! crate). Two surfaces share ONE body so they cannot drift:
@@ -39,6 +40,21 @@ pub mod ux;
 /// the registry-facing description a `cargo search` shows.
 pub(crate) const ABOUT: &str = env!("CARGO_PKG_DESCRIPTION");
 
+/// The `Signature:` line as ONE contiguous literal (the zelynic
+/// NIGHT-blade-4 discipline ported, night-dragon-maintenance-T1):
+/// release.yml's verification legs grep exact bytes out of the binary
+/// (`grep -aFq`, no encoding layer), so the claim stays contiguous by
+/// construction — never a format! join. The claim "Pure eBPF builtin"
+/// is true of every zylaxion build: the unkillable-ebpf law
+/// (night-dragon-maintenance-0) removed the feature table, so every
+/// lane — the source-built object on a git checkout, the
+/// registry-prebuilt object staged from ebpf-prebuilt/ — rides inside
+/// the binary via include_bytes!; no build flag can produce a dormant
+/// binary. Which lane produced the object is the doctor's answer, not
+/// the brand surface's (the zelynic NIGHT-dinner-3 shape).
+const SIGNATURE_LINE: &str =
+    "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)";
+
 /// The plain-text body of the version report (everything after the
 /// brand header). Separated from [`long_version`] /
 /// [`print_version_report`] so tests can assert the full line set
@@ -47,10 +63,14 @@ pub(crate) const ABOUT: &str = env!("CARGO_PKG_DESCRIPTION");
 /// `Build-time:` is stamped by `build.rs` via Howard Hinnant's
 /// civil_from_days algorithm — `M/D/YYYY HH:MM (UTC)` — so no time
 /// crate is needed anywhere in the dependency tree (night-improve-13).
+/// The `Signature:` line (night-dragon-maintenance-T1) is the one-line
+/// identity in the zelynic reference shape, kept grep-able from
+/// scripts (`zylaxion -V | grep Signature`).
 fn version_body() -> String {
     format!(
         "Build: {} ({})\n\
          Build-time: {}\n\
+         {SIGNATURE_LINE}\n\
          Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
          License: GPL-3.0-only\n\
          Source: https://github.com/oxyzenQ/zylaxion",
@@ -86,16 +106,36 @@ fn long_version() -> &'static str {
 /// Print the full version report for `-V` / `--version`.
 ///
 /// zelynic masterclass layout: brand header (name + version, then the
-/// one-line tagline), followed by the plain build-facts body. The header
-/// is rendered in brand purple `#A855F7` bold on a TTY (the same palette
-/// and capability gate the error lanes use, stdout-scoped); when piped
-/// (non-TTY) everything is plain text so ANSI codes never leak into
-/// scripts or log files. The body stays on plain lines so it is easy to
-/// grep from scripts (`zylaxion -V | grep Build-time`).
+/// one-line tagline), followed by the plain build-facts body. Each
+/// header line carries its OWN brand-purple `#A855F7` regular-weight
+/// wrap on a TTY — the single-line law ([`crate::output::brand`]; the
+/// former one-wrap-around-two-lines shape painted both lines with one
+/// span and rode the bold section-banner weight). When piped (non-TTY)
+/// everything is plain text so ANSI codes never leak into scripts or
+/// log files. The body stays on plain lines so it is easy to grep from
+/// scripts (`zylaxion -V | grep Build-time`, `| grep Signature`).
 pub fn print_version_report() {
-    let header = format!("zylaxion: v{}\n{}", crate::info::build::VERSION, ABOUT);
-    crate::output::print_stdout_brand(&header);
-    crate::output::print_stdout_line(&version_body());
+    let (header, body) = version_report_payload();
+    crate::output::print_stdout_line(&header);
+    crate::output::print_stdout_line(&body);
+}
+
+/// The `-V` payload in its two terminal shapes, separated so the color
+/// law is testable without capturing stdout (the zelynic precedent):
+/// the brand-wrapped header lines and the PLAIN build-facts body. Each
+/// header line carries its own brand wrap — the single-line law — and
+/// the body carries no color wrap by construction, so the
+/// estate-parity law (default terminal color below the description)
+/// cannot regress at the print site.
+fn version_report_payload() -> (String, String) {
+    (
+        format!(
+            "{}\n{}",
+            crate::output::brand(&format!("zylaxion: v{}", crate::info::build::VERSION)),
+            crate::output::brand(ABOUT),
+        ),
+        version_body(),
+    )
 }
 
 #[cfg(test)]

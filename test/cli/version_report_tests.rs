@@ -10,12 +10,13 @@ use super::*;
 
 /// night-improve-13 contract: the version report carries every
 /// documented line exactly once, in the zelynic reference order —
-/// Build, then Build-time directly after it, then Copyright,
-/// License, Source.
+/// Build, then Build-time directly after it, then the Signature, then
+/// Copyright, License, Source.
 #[test]
 fn version_report_carries_the_zelynic_line_contract() {
     let body = version_body();
     for line in [
+        "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)",
         "Copyright: (c) 2026 rezky_nightky (oxyzenQ)",
         "License: GPL-3.0-only",
         "Source: https://github.com/oxyzenQ/zylaxion",
@@ -23,7 +24,9 @@ fn version_report_carries_the_zelynic_line_contract() {
         let count = body.lines().filter(|l| l.contains(line)).count();
         assert_eq!(count, 1, "line must appear exactly once: {line}");
     }
-    // Ordering: Build-time sits directly after the Build line.
+    // Ordering: Build-time sits directly after the Build line, the
+    // Signature directly after Build-time (the zelynic reference
+    // shape), Copyright directly after the Signature.
     let lines: Vec<&str> = body.lines().collect();
     let build_idx = lines
         .iter()
@@ -33,6 +36,73 @@ fn version_report_carries_the_zelynic_line_contract() {
         lines[build_idx + 1].starts_with("Build-time: "),
         "Build-time must directly follow Build: {lines:?}"
     );
+    assert!(
+        lines[build_idx + 2].starts_with("Signature: "),
+        "Signature must directly follow Build-time: {lines:?}"
+    );
+    assert!(
+        lines[build_idx + 3].starts_with("Copyright: "),
+        "Copyright must directly follow Signature: {lines:?}"
+    );
+}
+
+/// night-dragon-maintenance-T1: the Signature line rides the zelynic
+/// reference shape as ONE contiguous literal (SIGNATURE_LINE) — its
+/// exact bytes are the bytes release.yml's verification legs grep out
+/// of the binary (`grep -aFq`, no encoding layer). Pin the literal so
+/// a reword fails here, at test time, not in a release leg; the
+/// release probe's other greppable line stays contiguous too.
+#[test]
+fn signature_line_is_the_contiguous_release_grep_bytes() {
+    assert_eq!(
+        SIGNATURE_LINE,
+        "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)"
+    );
+    let body = version_body();
+    assert!(
+        body.contains(SIGNATURE_LINE),
+        "the body carries the signature verbatim, never a join"
+    );
+    assert!(
+        body.contains("License: GPL-3.0-only"),
+        "the release probe's license bytes stay contiguous"
+    );
+}
+
+/// night-dragon-maintenance-T1: the estate-parity law (the zelynic
+/// version_report_body_is_plain_estate_parity shape) — the -V body
+/// rides the DEFAULT terminal color: no ANSI escape bytes in the body,
+/// ever. The header is the only colored surface this report emits.
+#[test]
+fn version_report_body_is_plain_estate_parity() {
+    let (_header, body) = version_report_payload();
+    assert!(
+        !body.contains('\x1b'),
+        "the -V body must print plain — no color wrap around the multi-line build facts"
+    );
+}
+
+/// The header payload is exactly the two brand lines — name+version,
+/// then the tagline — and each line carries at most ONE brand span
+/// (the single-line law: a multi-line span paints every line after
+/// the first with it). Under the captured harness the wrap degrades
+/// to the bare text, so the pin holds on both sides of the gate.
+#[test]
+fn version_report_header_is_two_single_brand_lines() {
+    let (header, _body) = version_report_payload();
+    let mut lines = header.lines();
+    let first = lines.next().expect("the name+version line");
+    let second = lines.next().expect("the tagline line");
+    assert!(lines.next().is_none(), "the header is exactly two lines");
+    assert_eq!(first, format!("zylaxion: v{}", crate::info::build::VERSION));
+    assert_eq!(second, ABOUT);
+    for line in [first, second] {
+        let spans = line.matches('\x1b').count();
+        assert!(
+            spans == 0 || spans == 2,
+            "one brand span per line, never a multi-line span: {line:?}"
+        );
+    }
 }
 
 /// The Build-time stamp carries the Hinnant shape

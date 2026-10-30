@@ -57,6 +57,10 @@ pub(crate) const BRAND_OPEN: &str = "\x1b[1;38;2;168;85;247m";
 pub(crate) const GREY_OPEN: &str = "\x1b[38;2;139;139;139m";
 /// Status green `#50FA7B` — affirmative verdicts and runnable tips.
 pub(crate) const OK_OPEN: &str = "\x1b[38;2;80;250;123m";
+/// Brand purple `#A855F7`, regular weight — the version-report header
+/// weight (the cosmostrix `version_report()` parity; the bold variant
+/// above stays the section-banner weight).
+const BRAND_REGULAR_OPEN: &str = "\x1b[38;2;168;85;247m";
 pub(crate) const RESET: &str = "\x1b[0m";
 
 /// Whether stderr may carry color: a TTY, `NO_COLOR` unset, and
@@ -278,19 +282,24 @@ pub fn print_stdout_line(text: &str) {
     let _ = out.write_all(b"\n");
 }
 
-/// A stdout brand block — brand purple bold on a color-capable stdout,
-/// byte-identical plain text otherwise. Used by the version report's
-/// header (the signature IS the brand mark).
-pub fn print_stdout_brand(text: &str) {
+/// A single-line brand span — brand purple `#A855F7`, regular weight
+/// (the cosmostrix `version_report()` parity, night-dragon-maintenance-T1):
+/// the version report's header lines each ride their OWN wrap, never one
+/// wrap around a joined multi-line header — a multi-line span paints
+/// every line after the first with it (the zelynic
+/// night-dragon-maintenance-8 field report), so the helper refuses one
+/// in debug builds. Plain text when stdout is not a color-capable
+/// terminal.
+pub fn brand(text: &str) -> String {
+    debug_assert!(
+        !text.contains('\n'),
+        "color helpers wrap single lines only — a multi-line msg paints \
+         every line after the first with it; split the lines and wrap each"
+    );
     if !stdout_color_enabled() {
-        print_stdout_line(text);
-        return;
+        return text.to_string();
     }
-    let mut out = std::io::stdout().lock();
-    let _ = out.write_all(BRAND_OPEN.as_bytes());
-    let _ = out.write_all(text.as_bytes());
-    let _ = out.write_all(RESET.as_bytes());
-    let _ = out.write_all(b"\n");
+    format!("{BRAND_REGULAR_OPEN}{text}{RESET}")
 }
 
 #[cfg(test)]

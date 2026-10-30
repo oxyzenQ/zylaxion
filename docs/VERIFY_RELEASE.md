@@ -68,6 +68,7 @@ name's platform id:
 ./zylaxion -V
 # Build: pro-linux-amd64-v3-gnu (<short-sha>) <- must match the label
 # Build-time: M/D/YYYY HH:MM (UTC)            <- Hinnant-stamped UTC
+# Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
 ```
 
 ## Verifying an older release (pre-BLAKE3 archives)
