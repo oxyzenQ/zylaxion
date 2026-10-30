@@ -9,6 +9,52 @@
 
 ---
 
+## 0. Re-Audit Addendum (2026-10-30): B1 Closed — Not Reproducible on the Unified Tree
+
+**Scope:** finding B1 only (the release-profile claim in section 7.1). B2 and S1
+are untouched by this addendum.
+
+B1 was measured against the pre-unification v6-era render path. It was
+re-benchmarked on the current unified v80.0.1 tree (night-improve-21
+one-package layout, rustc 1.98.1 as pinned by rust-toolchain.toml) with the
+in-repo instrument: `zactrix-audit --rt` (PROOF 3), the real VoicePool render
+path at 48 kHz in 64-frame chunks (the orchestrator's MAX_RENDER_CHUNK), one
+million frames per pass, two passes per run (natural typing and the saturated
+MAX_POLYPHONY pool), two runs per tier, shared-VM host. LTO tiers were switched
+through cargo's profile env override; no source or manifest was edited for the
+measurement.
+
+| tier | natural p50 | saturated p50 | saturated p99 | worst max/p50 | binary (main) |
+|:---|---:|---:|---:|---:|---:|
+| `lto = false` | 28.9 us | 621.8 us | 635.8 us | 2.20x | — |
+| `lto = "thin"` (current) | 29.0 us | 622.6 us | ~659 us | 2.55x | 1,949,368 B |
+| `lto = true` (fat) | 29.1 us | 623.4 us | 644.7 / 856.2 us | **11.07x** | 1,837,240 B |
+
+Findings:
+
+1. **No steady-state win.** p50 render cost is flat across all three tiers
+   (28.9-29.1 us natural, 621.8-623.7 us saturated, spread under one percent).
+   The 30-40 percent figure in B1 does not exist on the post-unification render
+   path; there is nothing left for fat LTO to harvest.
+2. **Fat LTO is RT-hostile here.** The fat tier's worst run breached the pass
+   contract's jitter heuristic (max/p50 = 11.07x against the 10x target) and
+   its p99 tail spiked to 856 us; the thin tier never left the 2.2-5.4x band
+   across runs. The only fat-LTO win is 112 KB of binary (5.7 percent on the
+   main artifact) — irrelevant for a desktop latency tool.
+3. **`panic = "unwind"` stays regardless.** That half of the B1 pairing was
+   already answered by the aya lineage law (the zelynic release-profile note:
+   the eBPF stack can panic internally on map operations; unwind keeps the
+   panic hook and destructor path intact). The measured tails above close the
+   remaining question in the same direction.
+
+**Verdict:** B1 is closed as not reproducible. The `[profile.release]`
+contract (`lto = "thin"`, `panic = "unwind"`, `codegen-units = 1`,
+`opt-level = 3`, `strip = true`) is confirmed as the measured RT-safe tier and
+stays as RULES.md documents it. Do not re-open this finding without a
+reproducible `--rt` regression on the unified tree.
+
+---
+
 ## 1. Hotspot Map
 
 ### 1.1 Render Path Call Graph (per audio sample, 44.1 kHz)
