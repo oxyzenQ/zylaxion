@@ -66,8 +66,8 @@ name's platform id:
 
 ```bash
 ./zylaxion -V
-# Build: linux-amd64-v3-gnu (<short-sha>)   <- must match the label
-# Build-time: M/D/YYYY HH:MM (UTC)          <- Hinnant-stamped UTC
+# Build: pro-linux-amd64-v3-gnu (<short-sha>) <- must match the label
+# Build-time: M/D/YYYY HH:MM (UTC)            <- Hinnant-stamped UTC
 ```
 
 ## Verifying an older release (pre-BLAKE3 archives)

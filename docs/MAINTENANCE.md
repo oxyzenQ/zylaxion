@@ -58,8 +58,8 @@ Before pushing a tag, run locally:
 
 ```bash
 cargo pro-linux-amd64-v3-gnu && ./target/x86_64-unknown-linux-gnu/pro-linux-amd64-v3-gnu/zylaxion -V
-# Build: must read local-linux-amd64-v3-gnu — the same label chain
-# the release artifact reports.
+# Build: must read local-pro-linux-amd64-v3-gnu — the same label chain
+# the release artifact reports (its local- marker is the only delta).
 ./scripts/gates/check-release-parity.sh
 ```
 

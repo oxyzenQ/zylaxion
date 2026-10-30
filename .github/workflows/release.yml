@@ -254,12 +254,16 @@ jobs:
 
       # --locked on every release build: a release must reproduce from
       # the committed lockfile — never a fresh resolution at tag time.
-      # ZYLAXION_BUILD stamps the platform id into the binary's Build:
-      # line (see the verify step) — one field, one truth; the embedded
+      # ZYLAXION_BUILD stamps the release platform id into the binary's
+      # Build: line under the pro- marker (the
+      # night-dragon-maintenance-T1 label grammar: a downloaded
+      # artifact reads `Build: pro-<shape>`, a local alias build reads
+      # `Build: local-pro-<shape>`, a plain cargo build falls back to
+      # the local- detected shape) — one field, one truth; the embedded
       # label and the tarball name agree by construction.
       - name: Build release binary
         env:
-          ZYLAXION_BUILD: ${{ matrix.platform }}
+          ZYLAXION_BUILD: pro-${{ matrix.platform }}
           RUSTFLAGS: ${{ matrix.rustflags }}
         run: cargo build --release --locked --target ${{ matrix.target }}
 
@@ -268,8 +272,13 @@ jobs:
           set -euo pipefail
           BIN="target/${{ matrix.target }}/release/zylaxion"
           PLATFORM="${{ matrix.platform }}"
+          # The pro- prefix is the release marker of the
+          # night-dragon-maintenance-T1 label grammar: the binary
+          # embeds `pro-<platform>` (the same shape a downloaded
+          # artifact reports in -V).
+          LABEL="pro-${PLATFORM}"
           VERSION="${GITHUB_REF_NAME#v}"
-          echo "=== ${PLATFORM} (Build: ${PLATFORM}) ==="
+          echo "=== ${PLATFORM} (Build: ${LABEL}) ==="
           case "${PLATFORM}" in
             *-v4-*)
               # AVX-512 baseline: the runner may lack AVX-512, so the
@@ -280,8 +289,8 @@ jobs:
               # grepped as BYTES straight against the artifact
               # (grep -aFq, no encoding layer — strings(1) splits
               # multi-byte sequences and would silently miss).
-              grep -aFq "${PLATFORM}" "${BIN}" \
-                || { echo "::error::Expected embedded build label ${PLATFORM}"; exit 1; }
+              grep -aFq "${LABEL}" "${BIN}" \
+                || { echo "::error::Expected embedded build label ${LABEL}"; exit 1; }
               grep -aFq "License: GPL-3.0-only" "${BIN}" \
                 || { echo "::error::Expected embedded license literal"; exit 1; }
               grep -aFq "${VERSION}" "${BIN}" \
@@ -293,8 +302,8 @@ jobs:
               # Haswell executes it — run the artifact itself, plus
               # the Build: label and version checks.
               "${BIN}" -V
-              "${BIN}" -V | grep -F "Build: ${PLATFORM}" \
-                || { echo "::error::Expected 'Build: ${PLATFORM}' in -V"; exit 1; }
+              "${BIN}" -V | grep -F "Build: ${LABEL}" \
+                || { echo "::error::Expected 'Build: ${LABEL}' in -V"; exit 1; }
               "${BIN}" -V | grep -F "zylaxion: v${VERSION}" \
                 || { echo "::error::Expected 'zylaxion: v${VERSION}' in -V (Cargo.toml/tag drift)"; exit 1; }
               "${BIN}" -V | grep -F "Build-time: " \
