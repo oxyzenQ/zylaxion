@@ -24,4 +24,9 @@
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The root-owned pycache guard (night-dragon-maintenance-T1, the
+# zelynic incident lesson): root-run supermassive legs must never
+# leave root-owned __pycache__ caches beside the python modules —
+# a later plain-user tree cleanup then dies on "Permission denied".
+export PYTHONDONTWRITEBYTECODE=1
 exec python3 "${SCRIPT_DIR}/supermassive-test.py" "$@"

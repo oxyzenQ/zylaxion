@@ -55,6 +55,15 @@ import argparse
 import os
 import sys
 
+# The root-owned pycache guard (night-dragon-maintenance-T1, the
+# zelynic incident lesson): a supermassive run under sudo makes
+# CPython drop __pycache__/<module>.cpython-*.pyc files owned by root
+# beside these scripts, and the later plain-user `rm -rf` of the tree
+# then dies with "Permission denied". Suppress the bytecode caches at
+# the source — this process and every python child it spawns.
+sys.dont_write_bytecode = True
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from sm_audio import battery as audio_battery  # noqa: E402
