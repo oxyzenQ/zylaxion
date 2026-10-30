@@ -902,7 +902,7 @@ dependencies = [
 
 [[package]]
 name = "zactrix-audit"
-version = "80.0.1"
+version = "80.0.2"
 dependencies = [
  "arc-swap",
  "cpal",
