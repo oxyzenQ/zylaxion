@@ -77,3 +77,7 @@ pub fn extract_tag_name(json: &str) -> Option<String> {
     let end = rest.find('"')?;
     Some(rest[..end].to_string())
 }
+
+#[cfg(test)]
+#[path = "../../test/info/version_tests.rs"]
+mod tests;
