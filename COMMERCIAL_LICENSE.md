@@ -69,7 +69,7 @@ license terms.
 | Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions   |
 | Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year                 |
 | Business   | $2,199/year    | Individual businesses and small teams (SMB)                  |
-| Company    | $9,199/year    | Companies and enterprise, OR any redistribution rights       |
+| Company    | $29,999/year   | Companies and enterprise, OR any redistribution rights       |
 
 Notes:
 
@@ -82,7 +82,7 @@ Notes:
   the ladder as the project compounds. Grandfathering is the standing
   rule: buyers who paid before any move keep the price they paid, for
   the term they bought. The business end moves with the work: Business
-  $2,199/year and Company $9,199/year are the owner's pricing call for
+  $2,199/year and Company $29,999/year are the owner's pricing call for
   zylaxion (night-improve-17) — Personal stays free and Individual
   holds at $99/year.
 - **Redistribution rights** are granted at the Company tier only.
@@ -133,10 +133,20 @@ If you want to adopt, adapt, or integrate any of these into your own
 product (closed-source, proprietary, or SaaS), the Company tier gives
 you the license. If you want to build from source under GPL-3.0-only,
 the Personal tier is free. This is technology licensing, not a
-keyboard-sound subscription. The $9,199/year Company tier is priced
+keyboard-sound subscription. The $29,999/year Company tier is priced
 against the cost of replicating the architecture in-house (an
 estimated 6-12 months of R&D), not against consumer keyboard sound
 products.
+
+The Company tier is not priced for a keyboard sound binary. It
+licenses the embeddable DSP architecture — the eBPF input tap, the
+daemonless control plane, the Zactrix Engine (LTS-frozen with six
+proofs), the zero-sample DSP discipline, and the micro-randomization
+law — for adaptation into embedded devices, game engines,
+accessibility tools, and hardware keyboards. See "Use Cases Beyond
+Keyboard Sound" (section 5 below, mirrored in the README). The
+Company price reflects the architectural surface, not the
+proof-of-concept application.
 
 ## 5. Use Cases Beyond Keyboard Sound
 
