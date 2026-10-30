@@ -134,20 +134,47 @@ fn player_state_vocabulary_values_are_the_wire_contract() {
 
 /// The verdict law: the state word IS the verdict — one word, its own
 /// tier (green running, grey the passive waiting states, red failed,
-/// yellow unknown). The harness runs plain (no TTY), so the tier
-/// helpers return the bare words and the exact vocabulary is pinned
-/// byte-for-byte; the color half rides the already-tested helpers
-/// (ok_line/tip_line/fail_line/warn_line). The unknown fallback must
-/// stay a caution word, not a failure word: an unnamed state from a
-/// newer binary is a finding, not a crash.
+/// yellow unknown). On every native lane the harness runs plain (no
+/// TTY), so the tier helpers return the bare words and the exact
+/// vocabulary is pinned byte-for-byte. Under Miri the isatty answer
+/// for captured stdio is nightly-dependent (night-dragon-maintenance-T1,
+/// the red-Miri incident — the moving nightly reports a TTY where the
+/// dated nightlies report a pipe), so there the pin rides the color
+/// side instead: the same words wrapped in the exact tier bytes,
+/// spelled as literals so a palette drift fails here rather than
+/// reaching a terminal — the tier wiring the plain assertions cannot
+/// see. The unknown fallback must stay a caution word, not a failure
+/// word: an unnamed state from a newer binary is a finding, not a
+/// crash.
 #[test]
 fn player_state_words_ride_the_verdict_tiers() {
-    assert_eq!(state_verdict(STATE_RUNNING), "running");
-    assert_eq!(state_verdict(STATE_STARTING), "starting");
-    assert_eq!(state_verdict(STATE_IDLE), "idle");
-    assert_eq!(state_verdict(STATE_FAILED), "failed");
-    assert_eq!(state_verdict(7), "unknown");
-    assert_eq!(state_verdict(9), "unknown");
+    if crate::output::stdout_color_enabled() {
+        assert_eq!(
+            state_verdict(STATE_RUNNING),
+            "\x1b[38;2;80;250;123mrunning\x1b[0m"
+        );
+        assert_eq!(
+            state_verdict(STATE_STARTING),
+            "\x1b[38;2;139;139;139mstarting\x1b[0m"
+        );
+        assert_eq!(
+            state_verdict(STATE_IDLE),
+            "\x1b[38;2;139;139;139midle\x1b[0m"
+        );
+        assert_eq!(
+            state_verdict(STATE_FAILED),
+            "\x1b[38;2;255;90;90mfailed\x1b[0m"
+        );
+        assert_eq!(state_verdict(7), "\x1b[38;2;255;235;60munknown\x1b[0m");
+        assert_eq!(state_verdict(9), "\x1b[38;2;255;235;60munknown\x1b[0m");
+    } else {
+        assert_eq!(state_verdict(STATE_RUNNING), "running");
+        assert_eq!(state_verdict(STATE_STARTING), "starting");
+        assert_eq!(state_verdict(STATE_IDLE), "idle");
+        assert_eq!(state_verdict(STATE_FAILED), "failed");
+        assert_eq!(state_verdict(7), "unknown");
+        assert_eq!(state_verdict(9), "unknown");
+    }
 }
 
 // ── the errno law behind every "not attached" verdict ───────────────
