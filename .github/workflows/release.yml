@@ -293,6 +293,12 @@ jobs:
                 || { echo "::error::Expected embedded build label ${LABEL}"; exit 1; }
               grep -aFq "License: GPL-3.0-only" "${BIN}" \
                 || { echo "::error::Expected embedded license literal"; exit 1; }
+              # The Signature literal at its UTF-8 em-dash: strings(1)
+              # splits multi-byte sequences and would silently miss —
+              # grep -aFq matches the raw bytes (the zelynic release
+              # parity, night-dragon-maintenance-T1).
+              grep -aFq "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)" "${BIN}" \
+                || { echo "::error::Expected embedded signature literal"; exit 1; }
               grep -aFq "${VERSION}" "${BIN}" \
                 || { echo "::error::Binary does not embed tag version '${VERSION}' (Cargo.toml/tag drift)"; exit 1; }
               echo "embedded build metadata verified (execution skipped: AVX-512 baseline)"
@@ -308,6 +314,8 @@ jobs:
                 || { echo "::error::Expected 'zylaxion: v${VERSION}' in -V (Cargo.toml/tag drift)"; exit 1; }
               "${BIN}" -V | grep -F "Build-time: " \
                 || { echo "::error::Expected 'Build-time:' line in -V"; exit 1; }
+              "${BIN}" -V | grep -F "Signature: Pure eBPF builtin" \
+                || { echo "::error::Expected 'Signature:' line in -V"; exit 1; }
               ;;
           esac
           echo "=== ldd ==="

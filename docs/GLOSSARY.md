@@ -97,9 +97,10 @@ drifts between docs is a bug.
 ## The CLI
 
 - **version report** — the `-V`/`--version` output: brand header
-  (name + version + tagline), then `Build:` / `Build-time:` /
-  `Copyright:` / `License:` / `Source:`. Two surfaces (the first-arg
-  intercept and clap's own path) share one body.
+  (name + version + tagline, one brand wrap per line), then `Build:` /
+  `Build-time:` / `Signature:` / `Copyright:` / `License:` /
+  `Source:`. Two surfaces (the first-arg intercept and clap's own
+  path) share one body.
 - **word verdicts** — the doctor's PASS:/FAIL: lines through the
   green/red lanes. No glyph decorations anywhere in the tree.
 - **color gate** — color renders only on a TTY with `NO_COLOR`
