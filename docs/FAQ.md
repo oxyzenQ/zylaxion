@@ -178,12 +178,10 @@ Different products, different prices.
 ### How was this built with AI?
 
 With AI assistance, like every modern project. The boundary is
-documented: AI writes, the owner decides. Every diff is read manually,
-every verifier rejection is debugged manually, every test is run on
-the owner's machine before push, every commit is signed. The owner is
-responsible for every line — not for having typed every line. See
-[AI_AGENTS_READ_THIS.md](../AI_AGENTS_READ_THIS.md) for the boundary
-that applies to outside agents.
+documented: AI writes; the owner decides. Every commit carries a
+`Signed-off-by:` line — the owner is responsible for every line. See
+`AI_AGENTS_READ_THIS.md` for the boundary that applies to outside
+agents, and `PHILOSOPHY.md §7` "The Owner Decides" for the reasoning.
 
 <!-- ZYLAXION-DISCLAIMER -->
 <!--
