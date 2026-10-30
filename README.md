@@ -183,7 +183,20 @@ The alias is the build-from-source law in action — a named,
 parity-checked shape, never a bare `cargo build --release`. On an
 x86-64-v3/v4 CPU the tuned tiers are `cargo pro-linux-amd64-v3-gnu`
 and `cargo pro-linux-amd64-v4-gnu`, or let the installer's CPU-level
-detection pick for you.
+detection pick for you. Every build self-reports its lane in `-V`:
+a local alias build reads `Build: local-pro-<shape>`, a downloaded
+release reads `Build: pro-<shape>` (the pro- family label grammar).
+
+For the static server lane — a fully self-contained musl binary (the
+eBPF tap embedded, zero runtime .so except the ALSA plugin tree the
+sound path dlopens) — build on a musl host (or a musl sysroot whose
+`alsa.pc` answers first, since the native libasound pins the lane):
+
+```bash
+rustup target add x86_64-unknown-linux-musl
+cargo pro-native-musl            # host-CPU tuned, fully static
+cargo pro-linux-amd64-v3-musl    # x86-64-v3 tier, fully static
+```
 
 The one-command installer detects the CPU's x86-64 level, builds the
 matching parity-checked shape through the cargo aliases, and lands the

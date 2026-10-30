@@ -105,19 +105,29 @@ impl BuildInfo {
 
 /// Dynamic build target: detects arch + libc env at compile time.
 /// Returns the `<arch>-<libc>` token — "amd64-gnu" (glibc, dynamic)
-/// for x86_64 Linux builds — WITHOUT the OS prefix: [`build_string`]
-/// composes the full `linux-amd64-gnu`-shape label by joining
-/// `std::env::consts::OS` in front (the zelynic chain shape; keeping
-/// an OS prefix here produced the double-`linux` label the smoke run
-/// caught). glibc is the only libc zylaxion builds: the gnu arms name
-/// the shipping shapes, and any other Linux env falls back to the
-/// bare arch token so the function stays total on every target.
+/// for x86_64 Linux builds, "amd64-musl" (musl, static) for the
+/// server lane — WITHOUT the OS prefix: [`build_string`] composes the
+/// full `local-linux-amd64-gnu`-shape label by joining
+/// `std::env::consts::OS` in front and the local- marker around it
+/// (the zelynic chain shape; keeping an OS prefix here produced the
+/// double-`linux` label the smoke run caught). Both Linux libcs name
+/// their arms — a musl build must self-report its libc honestly — and
+/// any other env falls back to the bare arch token so the function
+/// stays total on every target.
 pub fn build_target() -> &'static str {
     #[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "gnu"))]
     {
         "amd64-gnu"
     }
-    #[cfg(all(target_os = "linux", target_arch = "x86_64", not(target_env = "gnu")))]
+    #[cfg(all(target_os = "linux", target_arch = "x86_64", target_env = "musl"))]
+    {
+        "amd64-musl"
+    }
+    #[cfg(all(
+        target_os = "linux",
+        target_arch = "x86_64",
+        not(any(target_env = "gnu", target_env = "musl"))
+    ))]
     {
         "amd64"
     }
@@ -125,7 +135,15 @@ pub fn build_target() -> &'static str {
     {
         "aarch64-gnu"
     }
-    #[cfg(all(target_os = "linux", target_arch = "aarch64", not(target_env = "gnu")))]
+    #[cfg(all(target_os = "linux", target_arch = "aarch64", target_env = "musl"))]
+    {
+        "aarch64-musl"
+    }
+    #[cfg(all(
+        target_os = "linux",
+        target_arch = "aarch64",
+        not(any(target_env = "gnu", target_env = "musl"))
+    ))]
     {
         "aarch64"
     }
@@ -138,19 +156,30 @@ pub fn build_target() -> &'static str {
     }
 }
 
-/// The detected fallback label — the os-arch-libc shape the docs promise
-/// (`linux-amd64-gnu` style).
+/// The detected fallback label — the local- os-arch-libc shape the
+/// night-dragon-maintenance-T1 label grammar promises
+/// (`local-linux-amd64-gnu` style). The local- marker marks every
+/// build that carried no `ZYLAXION_BUILD` env stamp: compiled on this
+/// machine, not a downloaded release artifact.
 fn build_string() -> String {
-    format!("{}-{}", std::env::consts::OS, build_target())
+    format!("local-{}-{}", std::env::consts::OS, build_target())
 }
 
 /// Canonical build label for the `Build:` line of the version report and
-/// the doctor's Variant fact.
+/// the doctor's Variant fact — the night-dragon-maintenance-T1 grammar:
+///
+/// - `local-pro-<shape>` — a local alias build (the alias stamps
+///   ZYLAXION_BUILD itself, the local- marker already inside);
+/// - `pro-<shape>` — a downloaded release artifact (release.yml stamps
+///   the release-matrix platform id, prefixed pro-);
+/// - `local-<os>-<arch>-<libc>` — a plain `cargo build` (no env):
+///   the compile-time detection with the local- marker (see
+///   [`build_string`]).
 ///
 /// Source of truth: the `ZYLAXION_BUILD` env var forwarded at compile
-/// time by build.rs — exported by CI/release scripts (the platform id
-/// verbatim, e.g. `linux-amd64-v3-gnu`). When unset (plain `cargo
-/// build`), it falls back to the compile-time arch+libc detection.
+/// time by build.rs — exported by CI/release scripts and the cargo
+/// aliases. When unset, it falls back to the compile-time arch+libc
+/// detection under the local- marker.
 pub(crate) fn build_label() -> String {
     match option_env!("ZYLAXION_BUILD") {
         Some(label) if !label.is_empty() => label.to_string(),
