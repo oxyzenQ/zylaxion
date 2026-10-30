@@ -186,17 +186,10 @@ and `cargo pro-linux-amd64-v4-gnu`, or let the installer's CPU-level
 detection pick for you. Every build self-reports its lane in `-V`:
 a local alias build reads `Build: local-pro-<shape>`, a downloaded
 release reads `Build: pro-<shape>` (the pro- family label grammar).
-
-For the static server lane — a fully self-contained musl binary (the
-eBPF tap embedded, zero runtime .so except the ALSA plugin tree the
-sound path dlopens) — build on a musl host (or a musl sysroot whose
-`alsa.pc` answers first, since the native libasound pins the lane):
-
-```bash
-rustup target add x86_64-unknown-linux-musl
-cargo pro-native-musl            # host-CPU tuned, fully static
-cargo pro-linux-amd64-v3-musl    # x86-64-v3 tier, fully static
-```
+glibc is the only libc: there is no musl lane (a musl cross-build
+from a glibc host welds the host's libasound onto a musl CRT — a
+binary that links but cannot run — so the lane was removed rather
+than left as a trap).
 
 The one-command installer detects the CPU's x86-64 level, builds the
 matching parity-checked shape through the cargo aliases, and lands the

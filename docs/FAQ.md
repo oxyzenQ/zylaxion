@@ -59,14 +59,17 @@ feature, not a bug (night-improve-27).
 
 ### Which build shape should a server run?
 
-The static musl lane: `cargo pro-native-musl` (host-CPU tuned) or
-`cargo pro-linux-amd64-v3-musl` / `pro-linux-amd64-v4-musl` (the
-x86-64-v3/v4 tiers). The result is one fully self-contained binary —
-the eBPF tap is embedded inside it — so deployment is a copy: `scp`
-it to the box, run the attach oneshot, done. Build the static shapes
-on a musl host (Alpine) or a musl sysroot: the native libasound pins
-the lane, so pkg-config must answer with the musl sysroot's `alsa.pc`
-(see the alias block in `.cargo/config.toml` for the full contract).
+The glibc lane the release matrix ships: `cargo pro-linux-amd64-v3-gnu`
+/ `pro-linux-amd64-v4-gnu` (the x86-64-v3/v4 tiers) or `cargo
+pro-native-gnu` (host-CPU tuned). The eBPF tap is embedded inside the
+binary, so deployment is still a copy: `scp` it to the box, run the
+attach oneshot, done — the only host expectations are glibc and the
+ALSA runtime (`alsa-lib`), which a normal distro audio stack already
+carries. There is no musl lane: a musl cross-build from a glibc host
+welds the host's libasound onto a musl CRT — a binary that links but
+cannot run — and the static story was partial anyway (libasound still
+dlopens its PCM plugin tree at runtime), so the lane was removed
+rather than left as a trap.
 
 ### Does a headless server need a sound card?
 
@@ -74,10 +77,9 @@ The tap and the telemetry run without one; the voice needs one ALSA
 PCM device. A USB DAC plugged into the rack counts — `zylaxion
 list-backends` shows what the host answers, and `zylaxion doctor`
 renders the audio verdict honestly (a cardless host is a warning, not
-a crash). Static builds also expect the host to carry the ALSA plugin
-tree (`alsa-lib` and `alsa-plugins` on the target machine): the
-statically linked libasound dlopens its PCM plugins from
-`/usr/lib/alsa-lib` at runtime.
+a crash). The glibc binaries expect the host to carry the ALSA
+runtime (`alsa-lib`) plus the plugin tree (`alsa-plugins`): libasound
+dlopens its PCM plugins from `/usr/lib/alsa-lib` at runtime.
 
 ### The doctor mentions XDG_RUNTIME_DIR — does a server care?
 

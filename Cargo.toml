@@ -241,23 +241,6 @@ inherits = "release"
 [profile.pro-linux-amd64-v4-gnu]
 inherits = "release"
 
-# night-dragon-maintenance-T1: the static musl server lane, backing
-# the `cargo pro-native-musl` / `pro-linux-amd64-v3-musl` /
-# `pro-linux-amd64-v4-musl` aliases (the zejtron pro-*-musl lineage).
-# Inherits release unchanged — the aliases inject the -C target-cpu,
-# +crt-static, and the rust-lld linker at the target level (see
-# .cargo/config.toml for the musl host prerequisites: the native
-# libasound of a musl sysroot pins the lane). Own profile dirs keep
-# each artifact separate, never clobbering the gnu shapes.
-[profile.pro-native-musl]
-inherits = "release"
-
-[profile.pro-linux-amd64-v3-musl]
-inherits = "release"
-
-[profile.pro-linux-amd64-v4-musl]
-inherits = "release"
-
 # No [features] table since night-dragon-maintenance-0 (the zejtron
 # unkillable-ebpf law): aya is a plain dependency, there is no build
 # flag that can produce a dormant binary. On a git checkout the loader
