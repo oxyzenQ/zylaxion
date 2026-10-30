@@ -183,6 +183,22 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **The Company tier moves to $29,999/year (owner pricing call)** —
+  the ladder-climbs-with-the-work law in action: Personal stays free,
+  Individual holds at $99/year, Business holds at $2,199/year, and
+  only the Company tier moves, from $9,199/year to $29,999/year
+  (the canonical table in COMMERCIAL_LICENSE.md; the README carries
+  the tell-once pointer and duplicates no number). Grandfathering is
+  the standing rule, written before the first buyer: existing
+  Company-tier customers at $9,199 keep their purchased price for
+  their purchased term; new Company licenses follow the current
+  table. The tier licenses the embeddable DSP architecture — the
+  eBPF input tap, the daemonless control plane, the LTS-frozen
+  Zactrix Engine with its six proofs, the zero-sample DSP
+  discipline, the micro-randomization law — the architectural
+  surface, not the proof-of-concept application. Docs only: no code
+  path changes.
+
 - **night-dragon-maintenance-6 (the sibling's two CI laws land)** —
   the leak and the lock, both taken from the mature estate's shape
   (zejtron). (1) Credential-leak closure: actions/checkout persists
