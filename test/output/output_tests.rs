@@ -161,3 +161,36 @@ fn possible_value_lists_are_suggestions() {
     let wrapped = wrap_body_line("[possible values: low, medium, high]", ERROR_OPEN);
     assert!(wrapped.contains(GREY_OPEN));
 }
+
+/// The one-palette law, both representations (night-dragon-lts-4
+/// audit): clap renders its surfaces from RgbColor tuples
+/// (cli::styles), the application lanes render from the escape
+/// constants (output) — two spellings of the SAME family contract.
+/// Before this pin the two spellings could drift silently and the
+/// tool would stop reading as one tool; now a palette edit on either
+/// side fails here until both move together.
+#[test]
+fn clap_palette_and_output_palette_are_one_palette() {
+    use crate::cli::styles::{BRAND_PURPLE, CALM_GREY, ERROR_RED, INVALID_YELLOW};
+    let rgb = |c: clap::builder::styling::RgbColor| format!("38;2;{};{};{}", c.0, c.1, c.2);
+    assert!(
+        BRAND_OPEN.contains(&rgb(BRAND_PURPLE)),
+        "clap brand purple must be the section-banner purple"
+    );
+    assert!(
+        BRAND_REGULAR_OPEN.contains(&rgb(BRAND_PURPLE)),
+        "clap brand purple must be the version-report header purple"
+    );
+    assert!(
+        GREY_OPEN.contains(&rgb(CALM_GREY)),
+        "clap calm grey must be the suggestion-tier grey"
+    );
+    assert!(
+        ERROR_OPEN.contains(&rgb(ERROR_RED)),
+        "clap error red must be the labeled-lane red"
+    );
+    assert!(
+        WARN_OPEN.contains(&rgb(INVALID_YELLOW)),
+        "clap invalid yellow must be the warning-lane yellow"
+    );
+}

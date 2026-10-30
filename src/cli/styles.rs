@@ -35,17 +35,23 @@ use clap::builder::Styles;
 use clap::builder::styling::{Color, Effects, RgbColor, Style};
 
 /// Brand purple: #A855F7 (168, 85, 247) — the family branding color.
-const BRAND_PURPLE: RgbColor = RgbColor(168, 85, 247);
+/// `pub(crate)`: the one-palette sync pin (night-dragon-lts-4 audit)
+/// reads it against the output module's escape constants, so the two
+/// spellings of the same contract can never drift silently.
+pub(crate) const BRAND_PURPLE: RgbColor = RgbColor(168, 85, 247);
 
 /// Calm grey: #8B8B8B (139, 139, 139) — the grammar tier. Dimmer than
-/// the data it annotates; no eye strain.
-const CALM_GREY: RgbColor = RgbColor(139, 139, 139);
+/// the data it annotates; no eye strain. Rides the same sync pin as
+/// [`BRAND_PURPLE`].
+pub(crate) const CALM_GREY: RgbColor = RgbColor(139, 139, 139);
 
-/// Error red: #FF5A5A (255, 90, 90) — the labeled error lane.
-const ERROR_RED: RgbColor = RgbColor(255, 90, 90);
+/// Error red: #FF5A5A (255, 90, 90) — the labeled error lane. Rides
+/// the same sync pin as [`BRAND_PURPLE`].
+pub(crate) const ERROR_RED: RgbColor = RgbColor(255, 90, 90);
 
 /// Invalid yellow: #FFEB3C (255, 235, 60) — the typed-mistake tier.
-const INVALID_YELLOW: RgbColor = RgbColor(255, 235, 60);
+/// Rides the same sync pin as [`BRAND_PURPLE`].
+pub(crate) const INVALID_YELLOW: RgbColor = RgbColor(255, 235, 60);
 
 /// The clap brand styles for every rendered surface of this CLI.
 #[must_use]
