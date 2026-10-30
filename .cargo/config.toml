@@ -3,24 +3,21 @@
 
 # zylaxion cargo configuration — the zelynic alias lineage, the
 # night-dragon-maintenance-T1 label grammar (the owner's pro- family
-# naming law, the zejtron musl lineage for the static shapes).
+# naming law; glibc is the only libc any alias targets).
 #
 # Alias grammar: every build path starts from "pro-", shaped
 # pro-(os)-(arch)-(cpu)-libc. The live shapes:
 #
 #   pro-native-gnu            host CPU, dynamic glibc (desktop dev)
-#   pro-native-musl           host CPU, fully static musl (server)
 #   pro-linux-amd64-gnu       portable x86_64 baseline, dynamic glibc
 #   pro-linux-amd64-v3-gnu    x86-64-v3 tier, dynamic glibc
 #   pro-linux-amd64-v4-gnu    x86-64-v4 tier, dynamic glibc
-#   pro-linux-amd64-v3-musl   x86-64-v3 tier, fully static musl
-#   pro-linux-amd64-v4-musl   x86-64-v4 tier, fully static musl
 #
 # The Build: label contract (`zylaxion -V`, the doctor's Variant fact):
 #
 #   - a LOCAL alias build stamps ZYLAXION_BUILD="local-pro-<shape>"
 #     (the --config env line below), so -V reads
-#     `Build: local-pro-native-musl (...)` — the local- marker says
+#     `Build: local-pro-native-gnu (...)` — the local- marker says
 #     "compiled on this machine, not a downloaded release";
 #   - a release/CI build stamps ZYLAXION_BUILD="pro-<shape>"
 #     (release.yml exports pro-<matrix platform>), so a downloaded
@@ -30,19 +27,25 @@
 #     itself: `Build: local-linux-amd64-gnu (...)` (or
 #     local-linux-amd64-musl under a musl target).
 #
-# zylaxion ships glibc as its release-libc shape (release.yml, dynamic
-# against the system's libasound); the musl aliases are the static
-# server lane (see their block below for the host prerequisites).
+# zylaxion ships glibc as its ONLY libc shape (release.yml, dynamic
+# against the system's libasound). The former static musl server lane
+# was removed by owner call (night-dragon-maintenance-T1): a musl
+# cross-build from a glibc host welds glibc's libasound onto a musl
+# CRT — a binary that links but cannot run — and the static story was
+# partial anyway (libasound still dlopens its PCM plugin tree at
+# runtime), so the lane was deleted rather than left as a trap.
 #
-# No file-level rustflags: [profile.release] already pins
-# codegen-units = 1. The zelynic target-level shadow trap
-# (target.rustflags silently ignoring build.rustflags) is answered by
-# the musl aliases carrying target-level rustflags ONLY (see their
-# precedence note).
+# No file-level rustflags, and no [target.*] rustflags table either:
+# [profile.release] already pins codegen-units = 1, and every alias
+# carries its -C tokens as per-invocation --config build.rustflags
+# overrides (a global [build] mutation would leak into plain `cargo
+# build`). The zelynic target-level shadow trap (target.rustflags
+# silently ignoring build.rustflags) cannot fire here by
+# construction — this file defines no [target.*] rustflags.
 #
 # Backing profiles live in the workspace root Cargo.toml
-# ([profile.pro-native-gnu], [profile.pro-native-musl], the
-# [profile.pro-linux-amd64-*] blocks) — each inherits [profile.release]
+# ([profile.pro-native-gnu] and the [profile.pro-linux-amd64-*]
+# blocks) — each inherits [profile.release]
 # unchanged, so every alias binary is the release optimization tier
 # and lands in its own target/ directory, never clobbering another.
 [alias]
@@ -121,80 +124,6 @@ pro-linux-amd64-v4-gnu = [
   "env.ZYLAXION_BUILD=\"local-pro-linux-amd64-v4-gnu\"",
   "--config",
   "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\",\"-C\",\"link-arg=-Wl,-z,now\"]",
-]
-
-# ── the static musl server lane (night-dragon-maintenance-T1, the
-#    zejtron pro-*-musl lineage) ────────────────────────────────────────
-#
-# `cargo pro-native-musl` / `pro-linux-amd64-v3-musl` /
-# `pro-linux-amd64-v4-musl` compile fully static musl binaries — the
-# supercharger shape for servers and desktops that want a
-# zero-runtime-dependency artifact: scp it to any x86_64 Linux box and
-# the eBPF tap is already embedded inside.
-#
-# Host prerequisites — HONEST ones, stricter than the sibling's
-# (zejtron carries no native library, so its musl lane needs only the
-# rust-std target; zylaxion speaks to libasound through alsa-sys):
-#   1. the musl rust-std target
-#      (`rustup target add x86_64-unknown-linux-musl`);
-#   2. a MUSL HOST or musl sysroot providing libasound — the static
-#      link pulls libasound.a built for musl (Alpine's alsa-lib ships
-#      it; the CI lane builds in an Alpine container). Cross-building
-#      from a glibc host would weld glibc's libasound onto a musl CRT
-#      — a binary that links but cannot run on a musl machine — so
-#      pkg-config must answer with the musl sysroot's alsa.pc
-#      (PKG_CONFIG_PATH / PKG_CONFIG_SYSROOT_DIR), never the host's.
-#   3. At RUNTIME the static libasound still dlopens its PCM plugin
-#      tree from the host's /usr/lib/alsa-lib (install alsa-lib +
-#      alsa-plugins on the target machine — the one host expectation
-#      the sound path keeps).
-#
-# The aliases set the target-level rustflags directly (the zelynic
-# SHADOW rule, verified live on cargo 1.98.1: once a [target.*] block
-# exists for the triple, build-level rustflags are silently ignored;
-# CLI --config values are CONCATENATED with file-level ones, so each
-# alias carries +crt-static explicitly and stays self-contained).
-# rust-lld links (the pinned toolchain ships it) — no distro
-# musl-tools needed. No -Wl,-z,now here: that RELRO token is the glibc
-# dynamic posture; a static musl binary has no PLT/GOT to harden.
-pro-native-musl = [
-  "build",
-  "--profile",
-  "pro-native-musl",
-  "--target",
-  "x86_64-unknown-linux-musl",
-  "--config",
-  "env.ZYLAXION_BUILD=\"local-pro-native-musl\"",
-  "--config",
-  "target.x86_64-unknown-linux-musl.rustflags=[\"-C\",\"target-cpu=native\",\"-C\",\"target-feature=+crt-static\"]",
-  "--config",
-  "target.x86_64-unknown-linux-musl.linker=\"rust-lld\"",
-]
-pro-linux-amd64-v3-musl = [
-  "build",
-  "--profile",
-  "pro-linux-amd64-v3-musl",
-  "--target",
-  "x86_64-unknown-linux-musl",
-  "--config",
-  "env.ZYLAXION_BUILD=\"local-pro-linux-amd64-v3-musl\"",
-  "--config",
-  "target.x86_64-unknown-linux-musl.rustflags=[\"-C\",\"target-cpu=x86-64-v3\",\"-C\",\"target-feature=+crt-static\"]",
-  "--config",
-  "target.x86_64-unknown-linux-musl.linker=\"rust-lld\"",
-]
-pro-linux-amd64-v4-musl = [
-  "build",
-  "--profile",
-  "pro-linux-amd64-v4-musl",
-  "--target",
-  "x86_64-unknown-linux-musl",
-  "--config",
-  "env.ZYLAXION_BUILD=\"local-pro-linux-amd64-v4-musl\"",
-  "--config",
-  "target.x86_64-unknown-linux-musl.rustflags=[\"-C\",\"target-cpu=x86-64-v4\",\"-C\",\"target-feature=+crt-static\"]",
-  "--config",
-  "target.x86_64-unknown-linux-musl.linker=\"rust-lld\"",
 ]
 
 # The zactrix audit harness (scripts/audit/harness — the standalone

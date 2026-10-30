@@ -20,7 +20,7 @@ presets. Start there; come back here when you want depth.
 ### ...choose a deployment shape (desktop, server, fleet)
 
 [FAQ.md](FAQ.md) — the usage question bank: the best daily desktop
-lane, the static musl server shapes, and the ultra-scale answers
+lane, the server build shapes, and the ultra-scale answers
 (fleets, kiosks, CI) with the mechanism that verifies each one.
 
 ### ...verify a downloaded binary
