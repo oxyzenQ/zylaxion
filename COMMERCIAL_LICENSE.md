@@ -84,7 +84,9 @@ Notes:
   the term they bought. The business end moves with the work: Business
   $2,199/year and Company $29,999/year are the owner's pricing call for
   zylaxion (night-improve-17) — Personal stays free and Individual
-  holds at $99/year.
+  holds at $99/year. Existing Company-tier customers at $9,199 keep
+  their purchased price for their purchased term; new Company licenses
+  follow the current table ($29,999).
 - **Redistribution rights** are granted at the Company tier only.
   Trademark licensing is separate — see
   [TRADEMARK.md](TRADEMARK.md).
