@@ -113,7 +113,12 @@ Android-only cpal chain. `cargo tree` reports zero serde crates on
 Linux builds — the crates are inert on the shipped Linux shape.
 Cargo.lock records the full cross-target resolve graph, which is why
 the pair appears in the lockfile at all while staying out of every
-Linux build. A `deny.toml` ban is not enforced because it would block
+Linux build. The audit harness under `scripts/audit/harness/` rides
+its own lockfile, and its resolve carries the identical pair through
+the identical chain (`cpal -> ndk -> num_enum -> num_enum_derive ->
+proc-macro-crate -> toml_edit -> toml_datetime -> serde_core`) with
+the same zero-on-Linux verdict — the exception covers both locks.
+A `deny.toml` ban is not enforced because it would block
 the Android lane this project ships: the exception is documented
 rather than enforced, and the honest posture is "0 serde on Linux,
 inert transitive in the lockfile via Android."

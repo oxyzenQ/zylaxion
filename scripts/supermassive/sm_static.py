@@ -64,10 +64,18 @@ _FORBIDDEN_LINK_LIBS = (
 
 # Crates that would resurrect the deleted daemon/config era. Checked
 # against Cargo.lock so TRANSITIVE bloat is caught too, not just the
-# direct dependency lines.
+# direct dependency lines. serde and serde_json belong here because
+# they died with the daemon IPC (night-improve-23: there is no
+# protocol left to serialize) — the gate is the ban's enforcement
+# seat, the layer deny.toml was skipped for. The list deliberately
+# carries the bare names only: serde_core and serde_derive ride the
+# lockfile through the Android-only cpal chain and stay the
+# documented exception (README, "serde_core / serde_derive"), and
+# exact-name matching against this tuple leaves them untouched.
 _FORBIDDEN_CRATES = (
     "toml", "libinput", "notify", "daemonize", "dbus", "zbus",
-    "serde_yaml", "config", "xdg", "directories", "shellexpand",
+    "serde_yaml", "serde", "serde_json", "config", "xdg",
+    "directories", "shellexpand",
 )
 
 # Byte strings that must never appear in the binary: the deleted
