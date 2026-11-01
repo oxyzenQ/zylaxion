@@ -172,8 +172,36 @@ LTS-frozen with six proofs, zero-sample DSP discipline,
 micro-randomization law) and "Use Cases Beyond Keyboard Sound"
 (accessibility, VDI, embedded devices, game engines, security
 tooling, hardware keyboards). The Individual tier ($99) licenses the
-keyboard sound. The Company tier ($29,999) licenses the architecture.
-Different products, different prices.
+keyboard sound. The Enterprise Internal tier ($19,999/year) licenses
+the architecture for internal use; OEM / Redistribution ($79,999/year,
+or $129,999 perpetual + 20%/year) licenses it for embedding and
+resale. Different products, different prices.
+
+### Why is there no Professional tier for a team of 3?
+
+There is — Professional ($999/year) covers teams up to 5 seats at
+revenue under $500K. Individual ($99) is single-seat; Business
+($2,199) is for revenue $100K–$10M and is disproportionately heavy
+for a small studio. Professional bridges the gap.
+
+### What is the difference between Enterprise Internal and OEM / Redistribution?
+
+Enterprise Internal ($19,999/year) is internal use only — run it
+inside the enterprise, no redistribution. OEM / Redistribution
+($79,999/year or $129,999 perpetual + 20%/yr) grants the right to
+embed or resell zylaxion inside a shipped product. The architecture
+licensed is identical; the difference is distribution rights.
+
+### Why is the OEM tier $79,999 and not $29,999?
+
+Because zylaxion is the only tool in the Linux ecosystem that ships
+eBPF input-event capture wired directly to a procedural DSP engine.
+Not "one of a few" — one of one. The other approaches (userspace
+daemon, evdev grabber, LD_PRELOAD, sample player) each violate at
+least one of the four constraints the architecture exists to satisfy.
+The price reflects a category that has no competitor, not a LOC
+count. See [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md) for the
+full reasoning.
 
 ### How was this built with AI?
 

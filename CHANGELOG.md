@@ -30,6 +30,19 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
+### License
+
+- **Three-tier expansion + OEM repricing.** Professional ($999/year)
+  fills the 22x gap from Individual ($99) to Business ($2,199) —
+  teams up to 5 seats, priority support. Enterprise Internal
+  ($19,999/year) is split out of the conflated "Company" tier as
+  internal-only (no redistribution). OEM / Redistribution is the
+  renamed "Company" tier, repriced from $29,999 to $79,999/year
+  to reflect the tool's unique position (only eBPF input→audio in
+  the Linux ecosystem), with a perpetual path ($129,999 one-time +
+  20%/year). Existing Company-tier buyers at $29,999 are
+  grandfathered. Individual $99 and Business $2,199 byte-identical.
+
 ## [v80.0.2] — be honest — 2026-10-31
 
 ### Changed

@@ -593,9 +593,10 @@ rezky_nightky (oxyzenQ).
 
 ## What You're Actually Licensing
 
-The Company tier licenses the technology stack, not just the keyboard
-sound binary. The five assets below are what that license actually
-covers — each one is verifiable from this tree, not from a pitch:
+The OEM / Redistribution tier licenses the technology stack, not just
+the keyboard sound binary. The five assets below are what that license
+actually covers — each one is verifiable from this tree, not from a
+pitch:
 
 1. **The eBPF input tap architecture** — passive kernel-side capture
    with zero device grab, hotplug-safe and suspend-safe.
@@ -611,9 +612,9 @@ covers — each one is verifiable from this tree, not from a pitch:
    `c^(R/S)` renormalization and per-keystroke jitter algorithms.
 
 If you want to adopt, adapt, or integrate any of these into your own
-product (closed-source, proprietary, or SaaS), the Company tier gives
-you the license. If you want to build from source under GPL-3.0-only,
-the Personal tier is free.
+product (closed-source, proprietary, or SaaS), the OEM /
+Redistribution tier gives you the license. If you want to build from
+source under GPL-3.0-only, the Personal tier is free.
 
 ## Use Cases Beyond Keyboard Sound
 
@@ -631,8 +632,10 @@ assets, and each use case below adapts one or more of them:
   auditing, parental control, or compliance.
 - **Hardware keyboards** — built-in synthesis in firmware.
 
-The Company license covers adaptation into any of these contexts. The
-architecture is the asset; the keyboard sound is the proof of concept.
+Commercial licenses cover adaptation into any of these contexts —
+Enterprise Internal for use inside the enterprise, OEM /
+Redistribution for embedding in a shipped product. The architecture
+is the asset; the keyboard sound is the proof of concept.
 
 ## Commercial Licensing
 
@@ -647,12 +650,14 @@ The tiers, mirrored verbatim from
 canonical home, that copy wins (night-dragon-maintenance-X1, owner
 call: the pricing display table also lives here):
 
-| Tier       | Price          | Target                                                       |
-| ---------- | -------------- | ------------------------------------------------------------ |
-| Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions   |
-| Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year                 |
-| Business   | $2,199/year    | Individual businesses and small teams (SMB)                  |
-| Company    | $29,999/year   | Companies and enterprise, OR any redistribution rights       |
+| Tier                 | Price                                                           | Target                                                                   |
+| -------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Personal             | Free (GPL-3.0)                                                  | Hobby, personal, non-commercial, open-source contributions               |
+| Individual           | $99/year                                                        | Solo devs, freelancers, revenue under $100K/year                         |
+| Professional         | $999/year                                                       | Teams up to 5 seats, revenue under $500K/year, priority support with SLA |
+| Business             | $2,199/year                                                     | SMB, revenue $100K–$10M/year                                             |
+| Enterprise Internal  | $19,999/year                                                    | Enterprise >$10M/year, internal use only, NO redistribution              |
+| OEM / Redistribution | $79,999/year OR $129,999 one-time + $25,999.80/year maintenance | Embedding or reselling in a shipped product; redistribution rights       |
 
 Payment is USD-pegged crypto (Solana / Ethereum / Bitcoin). A price
 move refreshes this table and its canonical twin in the same commit —
