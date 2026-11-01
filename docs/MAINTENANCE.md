@@ -167,6 +167,12 @@ The sanctioned exceptions, by law rather than by accident:
   boilerplate every document carries;
 - the CHANGELOG and the frozen audit records — they QUOTE the
   canonical docs as historical evidence; they never retell.
+- the README's pricing display mirror (night-dragon-maintenance-X1,
+  owner call): the Commercial Licensing section carries the tier
+  table verbatim from COMMERCIAL_LICENSE.md section 3, its home
+  named above the table; a price move refreshes both copies in the
+  same commit — the sync rule is what keeps the mirror from
+  re-creating the drift that landed this rule.
 
 When a doc must repeat a number, it repeats it with its home named,
 so the next reader knows which copy wins. The audit that landed this
