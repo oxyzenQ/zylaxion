@@ -106,6 +106,25 @@ registry index before extraction.
 `input_event()` path directly via the embedded eBPF object. It does not
 grab the device, and it does not interfere with other consumers.
 
+### serde_core / serde_derive: documented exception
+
+The lockfile carries `serde_core` and `serde_derive` via the
+Android-only cpal chain. `cargo tree` reports zero serde crates on
+Linux builds — the crates are inert on the shipped Linux shape.
+Cargo.lock records the full cross-target resolve graph, which is why
+the pair appears in the lockfile at all while staying out of every
+Linux build. A `deny.toml` ban is not enforced because it would block
+the Android lane this project ships: the exception is documented
+rather than enforced, and the honest posture is "0 serde on Linux,
+inert transitive in the lockfile via Android."
+
+Verify the claim yourself:
+
+```bash
+cargo tree 2>/dev/null | grep -i serde    # empty on Linux
+grep -c 'name = "serde' Cargo.lock        # 2 (serde_core, serde_derive)
+```
+
 ### vs traditional tools
 
 | Approach | Technology | Audio source | Config file | Resident surface |
