@@ -55,6 +55,21 @@
 #                                     helper for github.com — no new
 #                                     standing secret, the push
 #                                     credential reuses itself
+#   GH_TOKEN                          same seat as GITHUB_TOKEN, the
+#                                     name CI exports natively; the
+#                                     resolve order is GITHUB_TOKEN,
+#                                     GH_TOKEN, gh auth token, then
+#                                     the credential helper
+#
+# Rate-limit posture (night-dragon-maintenance-X1): an unauthenticated
+# read shares the 60 req/hour per-IP pool on a hosted runner's egress,
+# and a busy pool outlives any retry window — the resolve silently
+# degrades to honest skips for the whole run. The authenticated cap is
+# 1,000 req/hour, so CI forwards its ephemeral GH_TOKEN (see
+# gate-keepers.yml) and every api_get call carries the
+# X-GitHub-Api-Version date header alongside the Bearer token. No
+# standing secret is added and checkout keeps persist-credentials
+# false; a 403 under a still-busy pool stays an honest skip by design.
 #
 # Usage:
 #   bash scripts/gates/check-actions-pins.sh             # read (warn)
@@ -110,6 +125,10 @@ resolve_token() {
         TOKEN="${GITHUB_TOKEN}"
         return 0
     fi
+    if [ -n "${GH_TOKEN:-}" ]; then
+        TOKEN="${GH_TOKEN}"
+        return 0
+    fi
     if command -v gh > /dev/null 2>&1; then
         TOKEN="$(gh auth token 2> /dev/null || true)"
         [ -n "${TOKEN}" ] && return 0
@@ -126,9 +145,13 @@ api_get() {
     local path="$1"
     local auth=()
     [ -n "${TOKEN}" ] && auth=(-H "Authorization: Bearer ${TOKEN}")
+    # The API version header rides every read, authenticated or not:
+    # pinning the contract date keeps the parse shapes stable against
+    # future breaking API versions.
     API_STATUS=0
     API_BODY="$(curl -sS --max-time "${ZYLAXION_ACTIONS_HEALTH_TIMEOUT:-$DEFAULT_TIMEOUT}" \
-        -H "Accept: application/vnd.github+json" ${auth[@]+"${auth[@]}"} \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: 2022-11-28" ${auth[@]+"${auth[@]}"} \
         -w $'\n%{http_code}' "${API_ROOT}${path}" 2> /dev/null)" || {
         API_STATUS=000
         API_BODY=""
