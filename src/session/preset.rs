@@ -91,7 +91,7 @@ pub fn volume_gate(percent: u32, force: bool) -> Result<u32, String> {
     if percent > MAX_FORCE_VOLUME_PERCENT {
         return Err(format!(
             "volume {percent}% exceeds the {MAX_FORCE_VOLUME_PERCENT}% force cap \
-             (values above 200 can damage speakers)"
+             (nothing above the force ceiling passes)"
         ));
     }
     if percent > MAX_VOLUME_PERCENT && !force {
