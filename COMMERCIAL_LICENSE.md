@@ -64,12 +64,58 @@ good faith — pick the tier that honestly matches your situation; nobody
 audits you, but misrepresenting revenue to underpay is a breach of the
 license terms.
 
-| Tier       | Price          | Target                                                       |
-| ---------- | -------------- | ------------------------------------------------------------ |
-| Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions   |
-| Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year                 |
-| Business   | $2,199/year    | Individual businesses and small teams (SMB)                  |
-| Company    | $29,999/year   | Companies and enterprise, OR any redistribution rights       |
+| Tier                 | Price                                                           | Target                                                                   |
+| -------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Personal             | Free (GPL-3.0)                                                  | Hobby, personal, non-commercial, open-source contributions               |
+| Individual           | $99/year                                                        | Solo devs, freelancers, revenue under $100K/year                         |
+| Professional         | $999/year                                                       | Teams up to 5 seats, revenue under $500K/year, priority support with SLA |
+| Business             | $2,199/year                                                     | SMB, revenue $100K–$10M/year                                             |
+| Enterprise Internal  | $19,999/year                                                    | Enterprise >$10M/year, internal use only, NO redistribution              |
+| OEM / Redistribution | $79,999/year OR $129,999 one-time + $25,999.80/year maintenance | Embedding or reselling in a shipped product; redistribution rights       |
+
+**Professional vs Individual.** Individual ($99/year) is single-seat
+for solo developers and freelancers. Professional ($999/year) covers
+teams up to 5 seats at revenue under $500K, with priority support
+and a response SLA. The architecture licensed is identical;
+Professional adds seats and support, not patterns.
+
+**Enterprise Internal vs OEM / Redistribution.** Enterprise Internal
+($19,999/year) is internal use only — run zylaxion on any number of
+hosts inside the enterprise, build internal tooling around it, but
+do not embed or resell it in a distributed product. OEM /
+Redistribution ($79,999/year, or $129,999 one-time + 20%/year
+maintenance) grants redistribution rights: embed the eBPF input tap,
+the daemonless control plane, the Zactrix Engine, and the zero-sample
+DSP discipline inside a shipped product.
+
+**OEM pricing note:** the OEM tier offers two equivalent paths —
+annual ($79,999/year) for buyers who prefer opex, and perpetual
+($129,999 one-time + $25,999.80/year maintenance, i.e. 20%) for
+buyers who prefer capex and want to cap long-term risk. Total cost
+over multi-year horizons:
+
+- 1 year: annual = $79,999; perpetual = $155,998.80
+- 3 years: annual = $239,997; perpetual = $207,998.40
+- 5 years: annual = $399,995; perpetual = $259,998
+- 10 years: annual = $799,990; perpetual = $389,997
+
+The perpetual option is not stackable with the multi-year discount.
+Grandfathering applies to whichever path the buyer purchased.
+
+**Why $79,999 and not $29,999.** zylaxion is the only tool in the
+Linux ecosystem that ships eBPF input-event capture wired directly
+to a procedural DSP engine. Not "one of a few" — one of one. Every
+other approach (userspace daemon, evdev grabber, LD_PRELOAD, sample
+player) violates at least one of the four constraints the tool
+exists to satisfy: zero daemon, no device grab, hotplug-safe by
+construction, zero config file. The architecture is not redundant;
+it is the minimum sufficient shape for the constraint set. The
+$79,999 anchor reflects that uniqueness, calibrated below the
+zelynic and cosmostrix OEM anchors ($149,999) — whose categories
+have competitors — and modestly above zejtron's ($99,999) — whose
+category has Sysdig, Plixer, and dozens of CLIs. A first mover in
+a category that does not yet exist prices the category, not the
+LOC.
 
 Notes:
 
@@ -80,15 +126,19 @@ Notes:
 - **The ladder climbs with the work.** zylaxion's value increases
   year by year; the owner re-prices the business end of
   the ladder as the project compounds. Grandfathering is the standing
-  rule: buyers who paid before any move keep the price they paid, for
-  the term they bought. The business end moves with the work: Business
-  $2,199/year and Company $29,999/year are the owner's pricing call for
-  zylaxion (night-improve-17) — Personal stays free and Individual
-  holds at $99/year. Existing Company-tier customers at $9,199 keep
-  their purchased price for their purchased term; new Company licenses
-  follow the current table ($29,999).
-- **Redistribution rights** are granted at the Company tier only.
-  Trademark licensing is separate — see
+  rule: buyers who paid before a price move are grandfathered at the
+  price they bought, for the term they bought. The business end moves
+  with the work: Business $2,199/year and Company $29,999/year were
+  the owner's pricing call for zylaxion (night-improve-17) — Personal
+  stays free and Individual holds at $99/year. Existing Company-tier
+  customers at $29,999 keep their purchased price for their purchased
+  term — the Company tier is renamed to OEM / Redistribution with
+  identical rights, so nothing changes for existing buyers, and the
+  earlier $9,199 cohort is grandfathered the same way. New licenses
+  follow the current table ($79,999/year or $129,999 perpetual +
+  20%/year).
+- **Redistribution rights** are granted at the OEM / Redistribution
+  tier only. Trademark licensing is separate — see
   [TRADEMARK.md](TRADEMARK.md).
 - No free tier above Personal is granted without explicit owner
   approval.
@@ -107,16 +157,17 @@ for the license first. That is not a loophole, a gray area, or a
 clever business move. It is theft of one person's years of work,
 a breach of GPL-3.0-only and of this Commercial License, and —
 in the owner's own words — the mark of the worst kind of human:
-a rotten one. If closed source is what you need, the Company
-tier exists precisely for that; buy it. If you cannot or will
-not pay, the GPL path is complete and free — open-source what
+a rotten one. If closed source is what you need, the OEM /
+Redistribution tier exists precisely for that; buy it. If you cannot
+or will not pay, the GPL path is complete and free — open-source what
 you build. There is no third path that leaves you clean.
 
 ## 4. What You're Actually Licensing
 
-The Company tier licenses the technology stack, not just the keyboard
-sound binary. The five assets below are what that license actually
-covers — each one is verifiable from this tree, not from a pitch:
+The OEM / Redistribution tier licenses the technology stack, not just
+the keyboard sound binary. The five assets below are what that license
+actually covers — each one is verifiable from this tree, not from a
+pitch:
 
 1. **The eBPF input tap architecture** — passive kernel-side capture
    with zero device grab, hotplug-safe and suspend-safe.
@@ -132,23 +183,23 @@ covers — each one is verifiable from this tree, not from a pitch:
    `c^(R/S)` renormalization and per-keystroke jitter algorithms.
 
 If you want to adopt, adapt, or integrate any of these into your own
-product (closed-source, proprietary, or SaaS), the Company tier gives
-you the license. If you want to build from source under GPL-3.0-only,
-the Personal tier is free. This is technology licensing, not a
-keyboard-sound subscription. The $29,999/year Company tier is priced
-against the cost of replicating the architecture in-house (an
-estimated 6-12 months of R&D), not against consumer keyboard sound
-products.
+product (closed-source, proprietary, or SaaS), the OEM /
+Redistribution tier gives you the license. If you want to build from
+source under GPL-3.0-only, the Personal tier is free. This is
+technology licensing, not a keyboard-sound subscription. The
+$79,999/year OEM / Redistribution tier is priced against the cost of
+replicating the architecture in-house (an estimated 6-12 months of
+R&D), not against consumer keyboard sound products.
 
-The Company tier is not priced for a keyboard sound binary. It
-licenses the embeddable DSP architecture — the eBPF input tap, the
-daemonless control plane, the Zactrix Engine (LTS-frozen with six
-proofs), the zero-sample DSP discipline, and the micro-randomization
-law — for adaptation into embedded devices, game engines,
-accessibility tools, and hardware keyboards. See "Use Cases Beyond
-Keyboard Sound" (section 5 below, mirrored in the README). The
-Company price reflects the architectural surface, not the
-proof-of-concept application.
+The OEM / Redistribution tier is not priced for a keyboard sound
+binary. It licenses the embeddable DSP architecture — the eBPF input
+tap, the daemonless control plane, the Zactrix Engine (LTS-frozen
+with six proofs), the zero-sample DSP discipline, and the
+micro-randomization law — for adaptation into embedded devices, game
+engines, accessibility tools, and hardware keyboards. See "Use Cases
+Beyond Keyboard Sound" (section 5 below, mirrored in the README).
+The OEM / Redistribution price reflects the architectural surface,
+not the proof-of-concept application.
 
 ## 5. Use Cases Beyond Keyboard Sound
 
@@ -166,12 +217,15 @@ assets, and each use case below adapts one or more of them:
   auditing, parental control, or compliance.
 - **Hardware keyboards** — built-in synthesis in firmware.
 
-The Company license covers adaptation into any of these contexts. The
-architecture is the asset; the keyboard sound is the proof of concept.
+Commercial licenses cover adaptation into any of these contexts —
+Enterprise Internal for use inside the enterprise, OEM /
+Redistribution for embedding in a shipped product. The architecture
+is the asset; the keyboard sound is the proof of concept.
 
 ## 6. What Each Tier Grants
 
-Every paid tier grants, for the license term:
+Every paid tier — Individual, Professional, Business, Enterprise
+Internal, and OEM / Redistribution — grants, for the license term:
 
 - **Use without GPL copyleft** — the right to use, modify, and integrate
   zylaxion in your products and infrastructure without the obligation to
@@ -181,7 +235,15 @@ Every paid tier grants, for the license term:
 - **Internal modification rights** — private forks and patches for your
   own use, with no disclosure requirement.
 
-The **Company** tier additionally grants:
+The **Professional** tier adds the response SLA the table names, on
+top of the queue priority every paid tier holds.
+
+The **Enterprise Internal** tier additionally covers enterprise-scale
+internal use: run zylaxion on any number of hosts inside the
+enterprise and build internal tooling around it — with no
+redistribution rights.
+
+The **OEM / Redistribution** tier additionally grants:
 
 - **Redistribution rights** — the right to distribute zylaxion (or your
   derivative of it) as part of your own offering, under your own terms,
