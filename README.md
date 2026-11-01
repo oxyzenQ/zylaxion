@@ -642,11 +642,21 @@ zylaxion is dual-licensed: **GPL-3.0-only** for open-source use, and a
 theft.** The honest paths are exactly two: comply with GPL-3.0-only
 (free, first-class), or buy the tier your revenue honestly matches.
 
-The tiers, their prices, and what each grants are defined ONCE, in
-[COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) — the tell-once law
-keeps the pricing table in its canonical home so a price can never
-drift between two docs. Payment is USD-pegged crypto
-(Solana / Ethereum / Bitcoin). Licensing contact:
+The tiers, mirrored verbatim from
+[COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) section 3 — the
+canonical home, that copy wins (night-dragon-maintenance-X1, owner
+call: the pricing display table also lives here):
+
+| Tier       | Price          | Target                                                       |
+| ---------- | -------------- | ------------------------------------------------------------ |
+| Personal   | Free (GPL-3.0) | Hobby, personal, non-commercial, open-source contributions   |
+| Individual | $99/year       | Solo devs, freelancers, revenue < $100K/year                 |
+| Business   | $2,199/year    | Individual businesses and small teams (SMB)                  |
+| Company    | $29,999/year   | Companies and enterprise, OR any redistribution rights       |
+
+Payment is USD-pegged crypto (Solana / Ethereum / Bitcoin). A price
+move refreshes this table and its canonical twin in the same commit —
+the sync rule that keeps the mirror honest. Licensing contact:
 [with.rezky@gmail.com](mailto:with.rezky@gmail.com).
 
 ## License
