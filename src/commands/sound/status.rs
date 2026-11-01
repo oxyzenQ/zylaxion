@@ -92,6 +92,22 @@ pub fn cmd_status(verbose: bool) {
             "tap:      {}",
             crate::output::tip_line("not attached (sudo zylaxion attach to plant it)")
         ));
+        // night-dragon-maintenance-X1: the verbose flag must never
+        // silently no-op. Without the tap the telemetry map does not
+        // exist, so the deep read has nothing to append — say so once,
+        // here where the report stops, instead of leaving `--verbose`
+        // byte-identical to the plain surface with no explanation.
+        // The blocked/reachable arms above already name their verdicts
+        // and keep theirs quiet: their failure is the walk, not the
+        // counters, and a second finding would dilute it.
+        if verbose {
+            crate::output::print_stdout_line(&format!(
+                "      {}",
+                crate::output::tip_line(
+                    "telemetry: none — the per-key counters accumulate only while the tap is planted",
+                )
+            ));
+        }
         return;
     }
     if !pin::all_pins_present() {
