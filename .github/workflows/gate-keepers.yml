@@ -87,5 +87,20 @@ jobs:
       # The wholesale run: all eleven sections in one shot — exit code 0
       # or the push is blocked. bash + git + python3 only; every gate
       # script it drives lives under scripts/gates/.
+      #
+      # night-dragon-maintenance-X1: the step exports the run's
+      # ephemeral GH_TOKEN so the actions-pins resolve (gate section 7,
+      # scripts/gates/check-actions-pins.sh) reads the API as the
+      # authenticated 1,000 req/hour lane instead of sharing the
+      # unauthenticated 60 req/hour per-IP pool on the hosted-runner
+      # egress — a busy pool outlives any retry window, and the whole
+      # sweep silently degraded to honest skips under one. No standing
+      # secret is added (github.token dies with the run) and checkout
+      # above keeps persist-credentials false, so no later step can
+      # read the token back. The actionlint download above stays bare
+      # on purpose: it redirects onto the release CDN, and a forwarded
+      # Authorization header can taint the signed asset URL.
       - name: Run gate-keepers.sh (wholesale)
         run: bash scripts/gate-keepers.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
