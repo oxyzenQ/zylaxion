@@ -157,7 +157,12 @@ detached from a terminal, always polling for config or input. The
 
 - Born on `zylaxion on`, dead on `zylaxion off` (or on SIGTERM /
   SIGINT, or when the control map clears the enabled flag). Nothing
-  remains.
+  remains in userspace, and the player's own exit path clears the
+  enabled gate — `status` cannot read "sound on" for a player that
+  exited. (`kill -9` is the one exit no code survives: the process is
+  reaped by the session manager — it was reparented at spawn, no
+  zombie — and the map keeps the stale registration until the next
+  `on`/`off`, shown honestly as "stale pid" by `status`.)
 - No PID file, no IPC socket, no supervision, no state of its own:
   every byte of state lives in the kernel's pinned BPF maps.
 - It is the mouth, not the brain: it blocks until the kernel tap
@@ -168,6 +173,13 @@ detached from a terminal, always polling for config or input. The
 - The measured idle cost is 0.035% of one core over a 10 s silent
   window, which `ps` rounds to 0.0% — reproducible with
   `cargo run --release --example idle_cpu_sanity`.
+- The cost honesty, both regimes: silence is the 0.035% figure above;
+  producing sound is real work — about 1.1% of total CPU (~2.15% of
+  one core) at a continuous 5 keystrokes/second (measured,
+  docs/ZACTRIX_LTS.md PROOF 6 STATE B), reproducible with the same
+  example's phase 2. The render loop wakes ~700-1000 times per second
+  while voices decay — that is the 64-frame chunk throughput floor,
+  not a poll.
 
 Skip `zylaxion on` and no userspace process exists at all: the kernel
 probe stays passive and resident, consuming zero userspace CPU.

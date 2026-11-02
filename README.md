@@ -80,7 +80,7 @@ binary itself.
 | **24 presets compiled in** | Filter frequencies, resonance Q, decay coefficients, spring mix: type-checked Rust data baked into the binary. Zero parse errors possible, zero I/O at startup. |
 | **Micro-randomized** | Every keypress gets a unique noise seed, ±1.5% pitch drift, ±5% amplitude drift, ±3% stereo pan jitter, and inter-keystroke timing variation. The same key never sounds identical twice. |
 | **Sample-rate honest** | Every decay envelope is renormalized to the output device's rate with the `c^(R/S)` law anchored at the 44.1 kHz authoring reference — the same preset rings the same length at 44.1, 48, and 96 kHz. The headless render audit measured 0.0% tail spread across all 24 presets. |
-| **Low latency, zero idle cost** | The audio callback is hardware-clocked (interrupt-driven); the render loop blocks on its event channel — 1 ms while voices render, 100 ms while silent — instead of polling. Measured idle cost: 0.035% of one core over a 10 s silent window (`cargo run --release --example idle_cpu_sanity`), which `ps` rounds to 0.0%. Typical keystroke latency stays under 3 ms. |
+| **Low latency, zero idle cost** | The audio callback is hardware-clocked (interrupt-driven); the render loop blocks on its event channel — 1 ms while voices render, 100 ms while silent — instead of polling. Measured idle cost: 0.035% of one core over a 10 s silent window (`cargo run --release --example idle_cpu_sanity`), which `ps` rounds to 0.0%. While sound is actually playing the cost is real work, reported as such: about 1.1% of total CPU (~2.15% of one core) at a continuous 5 keystrokes/second (docs/ZACTRIX_LTS.md PROOF 6 STATE B) — the same example's phase 2 measures the active regime on your machine. Typical keystroke latency stays under 3 ms. |
 | **Stateless player** | The player process is born on `on`, reads every byte of state from the pinned maps, and self-exits on `off` — zero processes remain. What stays resident is the kernel side only: one passive BPF program plus pinned maps, ~1-2 µs per keystroke. |
 | **Kernel-side typing telemetry** | The tap accumulates per-key counters in the kernel at zero userspace cost; `zylaxion status --verbose` renders them. A feature no userspace sound tool can offer for free. |
 | **Zero-leakage posture** | Hardware scancodes drive a pan position and a sound class — never letters. Not logged, not stored as sequences, not transmitted. The audit greps are in [Security & Privacy](#security--privacy). |
@@ -362,7 +362,15 @@ always polling for config or input. What you see in `ps` is the
 
 - It is born only when you run `zylaxion on`, and it dies immediately
   when you run `zylaxion off` (or on SIGTERM/SIGINT, or when the
-  control map clears the enabled flag).
+  control map clears the enabled flag). Nothing remains in userspace,
+  and the exit path itself clears the enabled gate — status can never
+  read "sound on" against a player that exited.
+- `kill -9` is the one exit no code survives: the process dies
+  instantly, the session manager reaps it (it was reparented at
+  spawn — no zombie), and the map keeps the stale pid and the enabled
+  gate until the next command. `status` names the stale pid honestly,
+  and the next `zylaxion on` takes over cleanly (orphan sweep, fresh
+  spawn, still exactly one player).
 - It has no PID file, no IPC socket, no supervision, and holds no
   state of its own — every byte of state lives in the kernel's pinned
   BPF maps.
