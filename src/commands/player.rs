@@ -481,20 +481,11 @@ fn force_no_coredump() {
 /// terminal line — the noise without a reader. RUST_LOG=info restores
 /// the full story in a foreground `zylaxion _play` run, which is the
 /// diagnostic lane the parent's failure messages already name.
+/// night-dragon-maintenance-xenric-1: the builder itself moved to
+/// `crate::output::journal` — the one door for every verb's journal
+/// wiring; this surface keeps only its loudness decision.
 fn init_logger() {
-    use std::io::Write as _;
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn"))
-        .format(|buf, record| {
-            writeln!(
-                buf,
-                "[{} {:<5} {}] {}",
-                crate::info::clock::iso_utc_millis(),
-                record.level(),
-                record.target(),
-                record.args()
-            )
-        })
-        .init();
+    crate::output::journal::init("warn");
 }
 
 #[cfg(test)]

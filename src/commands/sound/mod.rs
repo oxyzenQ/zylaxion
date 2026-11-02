@@ -239,20 +239,11 @@ pub(crate) fn on_root_refusal(euid_is_root: bool) -> Option<&'static str> {
 
 /// Shared logger wiring (the night-improve-13 lane): the verbs log the
 /// interesting transitions at info (preset swaps, retunes, stops).
+/// night-dragon-maintenance-xenric-1: the builder itself moved to
+/// `crate::output::journal` — the one door for every verb's journal
+/// wiring; this surface keeps only its loudness decision.
 fn init_logger() {
-    use std::io::Write as _;
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn"))
-        .format(|buf, record| {
-            writeln!(
-                buf,
-                "[{} {:<5} {}] {}",
-                crate::info::clock::iso_utc_millis(),
-                record.level(),
-                record.target(),
-                record.args()
-            )
-        })
-        .init();
+    crate::output::journal::init("warn");
 }
 
 #[cfg(test)]

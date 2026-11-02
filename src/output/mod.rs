@@ -31,6 +31,14 @@
 //!     (a suggestion that quotes a command to type is an action, not
 //!     more of the red block it lives in)
 //!
+//! # The lanes
+//!
+//! The group owns three lanes: this file's color tiers, the clap
+//! surface's mirror gate ([`crate::cli::ux`]), and the journal — the
+//! stderr surface the `log` facade renders through env_logger, wired
+//! by [`journal::init`] (the one builder for every verb, the per-verb
+//! loudness a call-site filter).
+//!
 //! # Capability gate
 //!
 //! One gate, no depth ladder (the contract `crate::cli::styles` documents for
@@ -40,6 +48,8 @@
 //! approximates the RGB triplets itself. Every emitter is
 //! broken-pipe-safe: a failed stderr write is dropped, never a panic
 //! (the zelynic `eprintln_safe` semantic).
+
+pub(crate) mod journal;
 
 use std::io::{IsTerminal, Write};
 
