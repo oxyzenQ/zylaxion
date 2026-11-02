@@ -59,9 +59,12 @@ fn ebpf_toolchain() -> &'static str {
 /// fix message so a drifted host install is diagnosable in one read.
 const BPF_LINKER_VERSION: &str = "0.11.1";
 
-/// The one production BPF object (night-improve-23): the tap. The
-/// staged name is the registry lane's constant - one name, two lanes.
+/// The one production BPF object (night-improve-23): the tap; both
+/// lanes stage it into OUT_DIR under this registry-lane constant.
 const TAP_OBJECT: &str = crate::prebuilt::STAGED_OBJECT_NAME;
+/// The cargo-built artifact's name in the nested target dir - the
+/// ebpf/ bin, no extension; read and self-healed by the source lane.
+const TAP_BUILT_ARTIFACT: &str = "zylaxion-tap";
 
 // ── night-improve-23: the eBPF object staging lanes ─────────────────────
 //
@@ -146,22 +149,22 @@ pub(super) fn build_ebpf_objects() {
         .join("target")
         .join("bpfel-unknown-none")
         .join("release");
-    match read_validated_ebpf_object(&release_dir.join(TAP_OBJECT)) {
+    match read_validated_ebpf_object(&release_dir.join(TAP_BUILT_ARTIFACT)) {
         Ok(data) => {
             stage_object(&out_dir, &data);
         }
         Err(problem) => {
             let toolchain = ebpf_toolchain();
             println!(
-                "cargo:warning=eBPF object {TAP_OBJECT} failed validation ({problem}) — \
+                "cargo:warning=eBPF object {TAP_BUILT_ARTIFACT} failed validation ({problem}) — \
                  forcing one rebuild of it"
             );
-            delete_damaged_artifact(&release_dir, TAP_OBJECT);
+            delete_damaged_artifact(&release_dir, TAP_BUILT_ARTIFACT);
             run_nested_ebpf_build(&ebpf_dir);
-            let data = read_validated_ebpf_object(&release_dir.join(TAP_OBJECT)).unwrap_or_else(
-                |second_problem| {
+            let data = read_validated_ebpf_object(&release_dir.join(TAP_BUILT_ARTIFACT))
+                .unwrap_or_else(|second_problem| {
                     panic!(
-                        "eBPF object {TAP_OBJECT} is damaged again immediately after a \
+                        "eBPF object {TAP_BUILT_ARTIFACT} is damaged again immediately after a \
                          forced rebuild — before: {problem}; after: {second_problem}. \
                          Either bpf-linker is producing a broken object (reinstall the \
                          pin: rustup toolchain install {toolchain} and the \
