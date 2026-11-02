@@ -392,8 +392,8 @@ else
                 "bpftool could not show the pinned program: $(echo "$PROG_SHOW" | head -1)"
         fi
     fi
-    if [[ -f "ebpf-prebuilt/zylaxion-tap" && -f "ebpf-prebuilt/manifest.toml" ]]; then
-        MEASURED_SHA="$(b3sum ebpf-prebuilt/zylaxion-tap | awk '{print $1}')"
+    if [[ -f "ebpf-prebuilt/zylaxion-tap.o" && -f "ebpf-prebuilt/manifest.toml" ]]; then
+        MEASURED_SHA="$(b3sum ebpf-prebuilt/zylaxion-tap.o | awk '{print $1}')"
         PINNED_SHA="$(grep -A1 'name = "zylaxion-tap"' ebpf-prebuilt/manifest.toml | grep 'blake3' | grep -oP '"\K[0-9a-f]+' | head -1)"
         if [[ -n "$PINNED_SHA" && "$MEASURED_SHA" == "$PINNED_SHA" ]]; then
             verdict PASS "R4 prebuilt object parity" \

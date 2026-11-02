@@ -74,7 +74,7 @@ export PATH
 B3SUM_VERSION="1.8.7"
 
 OBJECT_NAME="zylaxion-tap"
-STAGED_OBJECT="ebpf-prebuilt/${OBJECT_NAME}"
+STAGED_OBJECT="ebpf-prebuilt/${OBJECT_NAME}.o"
 MANIFEST="ebpf-prebuilt/manifest.toml"
 BUILT_OBJECT="ebpf/target/bpfel-unknown-none/release/${OBJECT_NAME}"
 # The validated build pair's second half (the dated nightly pin is the

@@ -66,7 +66,7 @@ const TAP_OBJECT: &str = crate::prebuilt::STAGED_OBJECT_NAME;
 // ── night-improve-23: the eBPF object staging lanes ─────────────────────
 //
 // Two lanes produce the embedded object, both landing at the
-// same OUT_DIR name the loader embeds (`zylaxion-tap`):
+// same OUT_DIR name the loader embeds (`zylaxion-tap.o`):
 //
 //   registry-prebuilt — a registry tarball (cargo's package walk cannot
 //                       carry nested packages, so no ebpf/ tree rides the
@@ -185,7 +185,7 @@ pub(super) fn build_ebpf_objects() {
 /// tree pin; this runs the generator script's --check verdict after
 /// every successful source-built staging and, on staleness, lets the
 /// script regenerate the lane immediately — so the next `git status`
-/// shows the refreshed manifest.toml and zylaxion-tap to commit
+/// shows the refreshed manifest.toml and zylaxion-tap.o to commit
 /// alongside the change that caused them.
 ///
 /// Host-independent by the same law the parity gate records: the
@@ -240,7 +240,7 @@ pub(super) fn refresh_prebuilt_lane(manifest_dir: &std::path::Path) {
         Ok(r) if r.status.success() => println!(
             "cargo:warning=ebpf-prebuilt/ refreshed automatically: the manifest pins lagged \
              the ebpf/ tree or the freshly built object — commit the refreshed \
-             manifest.toml and zylaxion-tap together with the change that staled them"
+             manifest.toml and zylaxion-tap.o together with the change that staled them"
         ),
         _ => println!(
             "cargo:warning=ebpf-prebuilt/ is stale and the automatic refresh failed — run \

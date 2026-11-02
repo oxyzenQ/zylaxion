@@ -5,7 +5,7 @@
 // night-improve-5 shape): a crates.io tarball carries no ebpf/ tree
 // (cargo's package walk cannot carry the detached nested workspace),
 // so the tap object rides the tarball as the maintainer-built
-// ebpf-prebuilt/zylaxion-tap with its provenance manifest. This
+// ebpf-prebuilt/zylaxion-tap.o with its provenance manifest. This
 // module stages that object into OUT_DIR for the loader's
 // include_bytes! embedding.
 //
@@ -23,9 +23,11 @@
 use std::path::Path;
 
 /// The staged object's OUT_DIR name - the exact path the host crate
-/// embeds via include_bytes!(concat!(env!("OUT_DIR"), "/zylaxion-tap")).
-/// Kept in lockstep with build/ebpf.rs's TAP_OBJECT constant.
-pub(super) const STAGED_OBJECT_NAME: &str = "zylaxion-tap";
+/// embeds via include_bytes!(concat!(env!("OUT_DIR"), "/zylaxion-tap.o")).
+/// Kept in lockstep with build/ebpf.rs's TAP_OBJECT constant. The .o
+/// suffix names the artifact for what it is - a relocatable BPF ELF
+/// object (the zejtron ebpf-prebuilt/zejtron-ebpf.o shape).
+pub(super) const STAGED_OBJECT_NAME: &str = "zylaxion-tap.o";
 
 /// The manifest pin a registry extract verifies its staged bytes
 /// against: the [[object]] row of ebpf-prebuilt/manifest.toml.
