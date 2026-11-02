@@ -62,10 +62,27 @@ const PREFILL_SILENCE_FRAMES: usize = 2048;
 /// few periods before we re-check.
 const SLEEP_THRESHOLD: usize = 128;
 
-/// Timeout for `recv_timeout` when waiting for key events.
-/// Wakes immediately on event arrival; 1 ms fallback keeps the
-/// render loop responsive when voices are decaying.
+/// The render-wait timeout while voices are ACTIVE: the render loop
+/// paces the ring buffer against the audio callback on a 1 ms
+/// cadence. `recv_timeout` still returns the instant an event lands,
+/// so this timeout never delays a keystroke — it bounds only how
+/// often the loop re-checks its stop flag while a decay tail is
+/// being rendered.
 const EVENT_POLL_TIMEOUT: Duration = Duration::from_millis(1);
+
+/// The render-wait timeout while the pool is SILENT (no active
+/// voices) — the idle-CPU audit's fix. The old loop waited at most
+/// 1 ms around the clock: 1000 futex wakeups per second for a
+/// process that was supposedly doing nothing, reading about 1.9
+/// percent CPU in `ps` after days of idle (76 CPU-minutes on the
+/// reporting machine). While idle the loop now blocks 100 ms — the
+/// same cadence law as the control watcher — dropping the wakeup
+/// rate a hundredfold, and `ps` reads 0.0 percent. Keystroke
+/// latency is untouched: `recv_timeout` wakes the moment an event
+/// arrives regardless of the timeout, and the first press also
+/// re-arms the 1 ms pacing immediately (the pool is active by the
+/// next iteration).
+const IDLE_WAIT_TIMEOUT: Duration = Duration::from_millis(100);
 
 // ── Pan mapping ─────────────────────────────────────────────────────────
 
@@ -338,7 +355,11 @@ impl<S: AudioSink> Orchestrator<S> {
         let mut heartbeat_debug_emitted = false;
         let mut heartbeat_warn_emitted = false;
 
-        // ── Interrupt-driven loop ────────────────────────────────
+        // ── The render loop: adaptive blocking wait ─────────────
+        // (The interrupt-driven half of the pipeline is the audio
+        // callback itself — hardware clocked. This loop blocks on
+        // the event channel: 1 ms while voices render, 100 ms while
+        // the pool is silent.)
         loop {
             // 0. Check stop flag — IPC "stop" command or SIGTERM
             //    handler sets this to true.  Break immediately so
@@ -379,14 +400,25 @@ impl<S: AudioSink> Orchestrator<S> {
                 heartbeat_warn_emitted = true;
             }
 
-            // 1. Block until a key event arrives (wakes immediately)
-            //    or the 1 ms timeout expires.  This is the primary
-            //    idle mechanism — no CPU spin when no keys are pressed.
-            //    Crucially, recv_timeout wakes the thread the instant
-            //    the first key of a simultaneous pair arrives, so the
-            //    second key (arriving µs later) is processed in the
-            //    drain loop below with zero extra latency.
-            match event_rx.recv_timeout(EVENT_POLL_TIMEOUT) {
+            // 1. Block until a key event arrives, with an adaptive
+            //    timeout: 1 ms while voices are active (the render
+            //    pacing), 100 ms while the pool is silent — the
+            //    idle-CPU audit's fix. The old flat 1 ms wait spun
+            //    1000 futex wakeups per second around the clock even
+            //    when nothing was happening, burning about 1.9
+            //    percent of a core (the 1.9 percent ps reading and
+            //    its 76 CPU-minutes). Either way, recv_timeout wakes
+            //    the thread the instant the first key of a
+            //    simultaneous pair arrives, so the second key
+            //    (arriving µs later) is processed in the drain loop
+            //    below with zero extra latency — only the stop flag
+            //    ever waits out the timeout.
+            let wait = if self.pool.is_active() {
+                EVENT_POLL_TIMEOUT
+            } else {
+                IDLE_WAIT_TIMEOUT
+            };
+            match event_rx.recv_timeout(wait) {
                 Ok(event) => {
                     // v10.2.0 (S4): reset the heartbeat on any event.
                     // The input thread is alive and producing events —

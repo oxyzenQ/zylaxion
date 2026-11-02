@@ -10,7 +10,11 @@
 //!   player pid) — there is no config, no pidfile, no socket, nothing to
 //!   supervise.
 //! - The input arrives from the kernel-side tap through the pinned
-//!   events ring buffer (epoll, zero idle CPU).
+//!   events ring buffer: the bridge blocks in poll(2) with a 100 ms
+//!   cap, and the render loop blocks on its channel (1 ms while
+//!   voices render, 100 ms while silent — the idle-CPU audit's
+//!   adaptive wait). No busy-wait anywhere; `ps` reads 0.0 percent
+//!   idle CPU.
 //! - The control plane is watched by one thread that re-reads the
 //!   control map every 100 ms: enabled=0 stops the player (the CLI's
 //!   `off`/`exit` writes exactly that), preset and volume changes apply
