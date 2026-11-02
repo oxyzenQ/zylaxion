@@ -154,8 +154,13 @@ pub struct CpalSink {
     /// disconnects or the stream encounters an unrecoverable error.
     /// When `true`, the audio callback outputs silence instead of
     /// reading from the ring buffer — preventing a crash and keeping
-    /// the daemon alive. The daemon remains running so the user can
-    /// `zylaxion stop` gracefully or re-plug the device.
+    /// the player alive. The player stays running so `zylaxion off`
+    /// remains available and nothing panics. Honesty note (the
+    /// DEPTHBORE audit): the flag never clears on its own — cpal gives
+    /// no reliable "device is back" signal — so a device error silences
+    /// this player until the next `zylaxion on`; with PipeWire the
+    /// usual case is a sink move rather than a disconnect, so the
+    /// stream survives a hardware unplug without this path firing.
     _paused: Arc<AtomicBool>,
 }
 
