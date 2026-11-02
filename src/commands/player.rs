@@ -405,9 +405,16 @@ pub fn cmd_play() {
 
     // ── Unregister: the control map goes back to the no-player
     //    posture. The tap stays attached — pins survive, the next `on`
-    //    is instant.
+    //    is instant. The enabled gate clears too: this exit may be
+    //    signal-driven (SIGTERM, Ctrl+C, terminal close — the graceful
+    //    handler set) rather than gate-driven, and a gate left on with
+    //    no player is the exact "status reads sound on while nothing
+    //    plays" lie the off verb's comments call load-bearing. When the
+    //    stop WAS gate-driven (the off verb's enabled=0 write), this
+    //    write stores the same value — a harmless no-op.
     let _ = control.set(STATE_SLOT, STATE_IDLE, 0);
     let _ = control.set(PLAYER_PID_SLOT, 0, 0);
+    let _ = control.set(ENABLED_SLOT, 0, 0);
     bridge_stop.store(true, Ordering::Relaxed);
     let _ = bridge.join();
     let _ = watcher.join();
@@ -441,10 +448,14 @@ const STATE_FAILED: u32 = 3;
 
 /// A fatal player error: mark the control map FAILED, unregister, and
 /// exit. The stderr message is all the user sees (the player runs
-/// detached), so it carries the fix.
+/// detached), so it carries the fix. The enabled gate clears with the
+/// registration — a failed start must not leave the gate on, or status
+/// reads "sound on" against a player that died before it ever ran
+/// (the same law the clean-exit unregister below follows).
 fn fail(control: &mut aya::maps::Array<MapData, u32>, message: String) -> ! {
     let _ = control.set(STATE_SLOT, STATE_FAILED, 0);
     let _ = control.set(PLAYER_PID_SLOT, 0, 0);
+    let _ = control.set(ENABLED_SLOT, 0, 0);
     crate::output::error(message);
     process::exit(1);
 }
