@@ -94,18 +94,9 @@ pub fn cmd_detach() {
 /// hand-rolled UTC stamp, no time crate. The loader logs the attach
 /// chain's per-step verdicts at info (the fentry refusal, the kprobe
 /// fallbacks); the summary is the user-facing half of the same story.
+/// night-dragon-maintenance-xenric-1: the builder itself moved to
+/// `crate::output::journal` — the one door for every verb's journal
+/// wiring; this surface keeps only its loudness decision.
 fn init_logger() {
-    use std::io::Write as _;
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .format(|buf, record| {
-            writeln!(
-                buf,
-                "[{} {:<5} {}] {}",
-                crate::info::clock::iso_utc_millis(),
-                record.level(),
-                record.target(),
-                record.args()
-            )
-        })
-        .init();
+    crate::output::journal::init("info");
 }

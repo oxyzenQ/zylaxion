@@ -44,7 +44,16 @@ pub fn cmd_status(verbose: bool) {
     } else {
         crate::output::fail_line(kernel.verdict())
     };
-    crate::output::print_stdout_line(&format!("kernel:   {} ({})", kernel.release, verdict));
+    // The rows ride the kv() geometry (night-dragon-maintenance-xenric-1):
+    // the overview and the status are the family's two posture
+    // reports, and the kv() contract says every report surface's
+    // values align at the same column — the manual `key:   ` padding
+    // this surface used before rendered the same `kernel:` key at a
+    // different column than the overview's.
+    crate::output::print_stdout_line(&crate::output::kv(
+        "kernel:",
+        &format!("{} ({})", kernel.release, verdict),
+    ));
 
     if !pin::any_pin_present() {
         // The classified absence (night-dinner-3): exists() folds
@@ -59,38 +68,38 @@ pub fn cmd_status(verbose: bool) {
         // is "cannot be seen", never "not attached".
         match control_pin_stat() {
             ControlPinStat::WalkBlocked => {
-                crate::output::print_stdout_line(&format!(
-                    "tap:      {}",
-                    crate::output::fail_line(
+                crate::output::print_stdout_line(&crate::output::kv(
+                    "tap:",
+                    &crate::output::fail_line(
                         "unreachable — /sys/fs/bpf is not walkable for your user (mode 0700, the \
                          Debian 13 default); whether the tap is attached cannot be seen from here",
-                    )
+                    ),
                 ));
-                crate::output::print_stdout_line(&format!(
-                    "      {}",
-                    crate::output::tip_line(
+                crate::output::print_stdout_line(&crate::output::kv(
+                    "",
+                    &crate::output::tip_line(
                         "fix: sudo chmod o+x /sys/fs/bpf, then re-run status (doctor verifies \
-                         the whole walk)"
-                    )
+                         the whole walk)",
+                    ),
                 ));
                 return;
             }
             ControlPinStat::Reachable => {
-                crate::output::print_stdout_line(&format!(
-                    "tap:      {}",
-                    crate::output::fail_line(
+                crate::output::print_stdout_line(&crate::output::kv(
+                    "tap:",
+                    &crate::output::fail_line(
                         "cannot be seen — the pin path failed with an error this build does not \
                          classify (an exotic errno, not EACCES and not ENOENT); sudo zylaxion \
                          doctor names the world",
-                    )
+                    ),
                 ));
                 return;
             }
             ControlPinStat::Absent => {}
         }
-        crate::output::print_stdout_line(&format!(
-            "tap:      {}",
-            crate::output::tip_line("not attached (sudo zylaxion attach to plant it)")
+        crate::output::print_stdout_line(&crate::output::kv(
+            "tap:",
+            &crate::output::tip_line("not attached (sudo zylaxion attach to plant it)"),
         ));
         // night-dragon-maintenance-X1: the verbose flag must never
         // silently no-op. Without the tap the telemetry map does not
@@ -101,11 +110,11 @@ pub fn cmd_status(verbose: bool) {
         // and keep theirs quiet: their failure is the walk, not the
         // counters, and a second finding would dilute it.
         if verbose {
-            crate::output::print_stdout_line(&format!(
-                "      {}",
-                crate::output::tip_line(
+            crate::output::print_stdout_line(&crate::output::kv(
+                "",
+                &crate::output::tip_line(
                     "telemetry: none — the per-key counters accumulate only while the tap is planted",
-                )
+                ),
             ));
         }
         return;
@@ -142,10 +151,13 @@ pub fn cmd_status(verbose: bool) {
             crate::output::warn_line("an unknown chain step (a newer binary attached this tap?)")
         }
     };
-    crate::output::print_stdout_line(&format!(
-        "tap:      attached via {tap_line} ({} pins under {})",
-        pin::ALL_PINS.len(),
-        pin::PIN_DIR
+    crate::output::print_stdout_line(&crate::output::kv(
+        "tap:",
+        &format!(
+            "attached via {tap_line} ({} pins under {})",
+            pin::ALL_PINS.len(),
+            pin::PIN_DIR
+        ),
     ));
 
     let Ok(control) = control else {
@@ -162,20 +174,23 @@ pub fn cmd_status(verbose: bool) {
     let pid = control.get(&PLAYER_PID_SLOT, 0).unwrap_or(0);
     let state = control.get(&STATE_SLOT, 0).unwrap_or(0);
 
-    crate::output::print_stdout_line(&format!(
-        "sound:    {}",
-        if enabled {
+    crate::output::print_stdout_line(&crate::output::kv(
+        "sound:",
+        &if enabled {
             crate::output::ok_line("on")
         } else {
             crate::output::tip_line("off")
-        }
+        },
     ));
-    crate::output::print_stdout_line(&format!("preset:   {preset_name}"));
-    crate::output::print_stdout_line(&format!("volume:   {volume}% (100 = the compiled default)"));
+    crate::output::print_stdout_line(&crate::output::kv("preset:", preset_name));
+    crate::output::print_stdout_line(&crate::output::kv(
+        "volume:",
+        &format!("{volume}% (100 = the compiled default)"),
+    ));
     match (pid, pid_alive(pid as i32)) {
-        (0, _) => crate::output::print_stdout_line(&format!(
-            "player:   {}",
-            crate::output::tip_line("not running")
+        (0, _) => crate::output::print_stdout_line(&crate::output::kv(
+            "player:",
+            &crate::output::tip_line("not running"),
         )),
         (p, true) => {
             // night-hunter-8: the state word IS the verdict — one
@@ -184,22 +199,22 @@ pub fn cmd_status(verbose: bool) {
             // a failed player rendered as green `running ... state:
             // failed` (the prefix contradicting the state on the
             // same line) and a running player said "running" twice.
-            crate::output::print_stdout_line(&format!(
-                "player:   {} (pid {p})",
-                state_verdict(state)
+            crate::output::print_stdout_line(&crate::output::kv(
+                "player:",
+                &format!("{} (pid {p})", state_verdict(state)),
             ));
         }
-        (p, false) => crate::output::print_stdout_line(&format!(
-            "player:   {}",
-            crate::output::warn_line(&format!("stale pid {p} in the map (next `on` takes over)"))
+        (p, false) => crate::output::print_stdout_line(&crate::output::kv(
+            "player:",
+            &crate::output::warn_line(&format!("stale pid {p} in the map (next `on` takes over)")),
         )),
     }
     if verbose {
         crate::commands::stats::print_telemetry();
     }
     crate::output::print_stdout_line("");
-    crate::output::print_stdout_line(&crate::output::tip_line(&format!(
-        "introspection: bpftool map dump pinned {}",
-        pin::PIN_MAP_CONTROL
+    crate::output::print_stdout_line(&crate::output::tip_line(&crate::output::kv(
+        "introspection:",
+        &format!("bpftool map dump pinned {}", pin::PIN_MAP_CONTROL),
     )));
 }

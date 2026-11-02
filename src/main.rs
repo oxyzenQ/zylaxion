@@ -59,17 +59,23 @@ mod output;
 mod session;
 
 fn main() {
-    // v10.2.0 (dragonzen audit S3): install a panic hook that logs
-    // the panic location + payload before the default handler prints
-    // to stderr. This is critical for the cpal audio callback path:
-    // if a future code change introduces an `unwrap` on `None` inside
-    // the callback, cpal catches the unwind and silently drops the
-    // stream — the player stays alive but audio goes silent. Without
-    // a panic hook, whatever captures the player's stderr (the
-    // terminal that ran `zylaxion on`) would have no record of WHY
-    // the stream died. With the hook, that stderr shows the panic
-    // message + backtrace, making the silent-audio failure mode
-    // debuggable.
+    // v10.2.0 (dragonzen audit S3): install a panic hook that prints
+    // the panic location + payload through the error lane before the
+    // default handler takes over. This is critical for the cpal audio
+    // callback path: if a future code change introduces an `unwrap`
+    // on `None` inside the callback, cpal catches the unwind and
+    // silently drops the stream — the player stays alive but audio
+    // goes silent. Without a panic hook, whatever captures the
+    // player's stderr (the terminal that runs a foreground
+    // `zylaxion _play`) would have no record of WHY the stream died.
+    // With the hook, that stderr shows the panic message + backtrace,
+    // making the silent-audio failure mode debuggable.
+    //
+    // The report rides the error lane, not the journal (the former
+    // `log::error!` only rendered once a verb had wired env_logger —
+    // a pre-init panic printed nothing through the facade): the lane
+    // needs no wiring, so the context line survives every dispatch
+    // order and carries the family label.
     //
     // The hook delegates to the previous handler (chain pattern) so
     // existing panic output to stderr is preserved.
@@ -85,7 +91,7 @@ fn main() {
             .map(|s| s.to_string())
             .or_else(|| info.payload().downcast_ref::<String>().cloned())
             .unwrap_or_else(|| "<non-string panic payload>".to_string());
-        log::error!("panic at {location}: {payload}");
+        crate::output::error(format!("panic at {location}: {payload}"));
         // Chain to the previous hook so stderr output is preserved
         // for the terminal (or capture) the player's stderr reaches.
         prev_hook(info);
