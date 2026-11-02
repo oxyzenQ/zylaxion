@@ -172,8 +172,7 @@ pub(super) fn build_ebpf_objects() {
                          on this host is modifying build outputs as they land (indexer, \
                          antivirus, full disk)"
                     )
-                },
-            );
+                });
             stage_object(&out_dir, &data);
         }
     }
