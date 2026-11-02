@@ -1,5 +1,5 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # zylaxion Documentation Map
 
@@ -48,7 +48,7 @@ no network in the audio path), and what is deliberately out of scope.
 ### ...license zylaxion commercially
 
 [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md) — the dual-license
-contract, tiers, payment, verification. zylaxion is GPL-3.0-only for
+contract, tiers, payment, verification. zylaxion is AGPL-3.0-only for
 open use; the commercial lane exists for the uses copyleft cannot
 honestly cover.
 

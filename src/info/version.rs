@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The version grammar: SemVer parsing, the update verdict, the
 //! tag-name extraction. Pure string math, std-only, zero crate-root

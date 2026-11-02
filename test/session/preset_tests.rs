@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // preset_tests.rs — the session/preset.rs resolution pins
 // (night-improve-22, the no-config law). Replaces the TOML-era

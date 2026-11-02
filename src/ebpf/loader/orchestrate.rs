@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The attach orchestration: the one privileged one-shot that loads
 //! the embedded tap, hands the work to the chain, and owns the

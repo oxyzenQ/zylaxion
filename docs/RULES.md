@@ -1,5 +1,5 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # zylaxion Project Rules
 
@@ -45,7 +45,7 @@ All `-V` / `--version` output MUST follow this exact format:
 Version: v0.1.0
 Build: linux-amd64 (11114e7)
 Copyright: (c) 2026 rezky_nightky (oxyzenQ)
-License: GPL-3.0-only
+License: AGPL-3.0-only
 Source: https://github.com/oxyzenQ/zylaxion
 ```
 
@@ -222,13 +222,13 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 - **Project name:** `zylaxion` (lowercase). Never capitalized in any
   context — machine-enforced by `scripts/gates/check-name-case.py`.
 - **Badges:** ONLY Ko-fi (`ko-fi/rezky`).
-- **License:** GPL-3.0-only.
+- **License:** AGPL-3.0-only.
 - **Trademark:** See `TRADEMARK.md` (the repo root — the
   `docs/trademark.md` path this row used to name does not exist).
 - **File headers:** All `.rs`, `.sh`, `.yml` files MUST carry:
   ```
   Copyright (C) 2026 rezky_nightky
-  SPDX-License-Identifier: GPL-3.0-only
+  SPDX-License-Identifier: AGPL-3.0-only
   ```
 
 ## Git & Repo Hygiene

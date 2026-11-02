@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // attach_error_tests.rs — the classification pins (night-improve-25):
 // feed each synthetic failure into the classifier, assert the exact

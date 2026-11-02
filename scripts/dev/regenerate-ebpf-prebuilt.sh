@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 # OS: Linux only — zylaxion is a Linux eBPF tool; no other OS is
 # supported (the object is a bpfel ELF; the recipe is git + b3sum +
 # coreutils).
@@ -252,7 +252,7 @@ install -m 644 "$BUILT_OBJECT" "$STAGED_OBJECT"
 
 cat >"$MANIFEST" <<EOF
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 #
 # zylaxion prebuilt eBPF object manifest (night-improve-23, the
 # zelynic NIGHT-ask-2 shape; schema 2 since night-dragon-maintenance-0

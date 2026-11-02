@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 # OS: Linux only — zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 #
 # zactrix-stability.sh — the numerical stability gate of the Range

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The `status` verb: the one-screen truth, plus the `--verbose` deep
 //! read that appends the kernel-side typing telemetry.

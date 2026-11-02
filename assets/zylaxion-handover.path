@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 #
 # systemd SYSTEM path unit for zylaxion's pin hand-over
 # (night-dinner-19). The boot oneshot (zylaxion-attach.service) runs

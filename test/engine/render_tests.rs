@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // render_tests.rs — the voice-pool RENDER OUTPUT pins (night-improve-24,
 // split from pool_tests.rs under the 600-line no-mercy cap: the pool

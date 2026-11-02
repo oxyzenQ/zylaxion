@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! Kernel capability probe — the eBPF floor verdict (night-improve-23;
 //! night-improve-25 retools the input-tap verdict for the

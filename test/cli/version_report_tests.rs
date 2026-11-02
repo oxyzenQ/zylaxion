@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // version_report_tests.rs — the cli/mod.rs test pins, relocated from the inline module (night-improve-18,
 // the zelynic Pattern C test tree: every *.rs test file lives
@@ -38,7 +38,7 @@ fn version_report_carries_the_zelynic_line_contract() {
     for line in [
         "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)",
         "Copyright: (c) 2026 rezky_nightky (oxyzenQ)",
-        "License: GPL-3.0-only",
+        "License: AGPL-3.0-only",
         "Source: https://github.com/oxyzenQ/zylaxion",
     ] {
         let count = body.lines().filter(|l| l.contains(line)).count();
@@ -84,7 +84,7 @@ fn signature_line_is_the_contiguous_release_grep_bytes() {
         "the body carries the signature verbatim, never a join"
     );
     assert!(
-        body.contains("License: GPL-3.0-only"),
+        body.contains("License: AGPL-3.0-only"),
         "the release probe's license bytes stay contiguous"
     );
 }

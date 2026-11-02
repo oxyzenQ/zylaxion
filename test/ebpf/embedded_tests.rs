@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // embedded_tests.rs — the AlignedElf contract pins (night-improve-23,
 // the zelynic NIGHT-hunt-30 lesson): alignment is a property of the

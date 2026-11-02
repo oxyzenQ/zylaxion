@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The journal lane (night-dragon-maintenance-xenric-1): the stderr
 //! surface the `log` facade renders through env_logger, wired through

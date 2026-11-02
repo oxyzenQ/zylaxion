@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The stereo pan table (night-improve-23: split out of core/mod.rs
 //! per the 600-LOC no-mercy cap — a pure, self-contained mapping with

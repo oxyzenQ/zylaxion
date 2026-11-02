@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 #
 # zylaxion prebuilt eBPF object manifest (night-improve-23, the
 # zelynic NIGHT-ask-2 shape; schema 2 since night-dragon-maintenance-0
@@ -19,11 +19,11 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-10-30T19:37:09Z"
+generated = "2026-11-02T08:57:59Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "e4495f43ccd3f0e7a405520c79f507b9f628305897d405dbc4e9f7c1c5ebc1b8"
-built_by = "rezky_nightky <130107241+oxyzenQ@users.noreply.github.com>"
+ebpf_tree_blake3 = "9cc7f3ac36c1d6f147bfa5f15a31c20686c2d2611153d748c05010124b69f326"
+built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zylaxion-tap"

@@ -1,5 +1,5 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # Contributing to zylaxion
 
@@ -9,7 +9,7 @@ commit rides through.
 
 ## Contributor License Agreement
 
-zylaxion is dual-licensed (GPL-3.0-only + Commercial), so contributions
+zylaxion is dual-licensed (AGPL-3.0-only + Commercial), so contributions
 ride on the [Contributor License Agreement](CLA.md): it grants the
 Owner the right to relicense your Contribution — including into the
 commercial lane — while you keep full copyright of your own work.
@@ -84,7 +84,7 @@ push:
    and directories 755. `scripts/gates/check-permissions.sh --fix`
    repairs a drifted worktree.
 4. **Header parity.** Every source file opens with the copyright line
-   and the `SPDX-License-Identifier: GPL-3.0-only` tag.
+   and the `SPDX-License-Identifier: AGPL-3.0-only` tag.
 5. **No version drift.** Version fields, changelog release dates, and
    tags move only by the Owner's hand (`scripts/dev/version-to.sh` is
    the single sanctioned tool, run by the Owner).

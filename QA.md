@@ -1,5 +1,5 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # zylaxion QA Record
 
@@ -52,7 +52,7 @@ Real-time mechanical keyboard acoustic synthesizer for Linux
 Build: linux-amd64-gnu (<short-sha>)
 Build-time: M/D/YYYY HH:MM (UTC)
 Copyright: (c) 2026 rezky_nightky (oxyzenQ)
-License: GPL-3.0-only
+License: AGPL-3.0-only
 Source: https://github.com/oxyzenQ/zylaxion
 ```
 

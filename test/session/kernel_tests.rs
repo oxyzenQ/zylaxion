@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // kernel_tests.rs — the session/kernel.rs pure-core pins (night-improve-23,
 // the eBPF-only floor; night-improve-25 adds the input-tap verdict

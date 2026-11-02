@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // args_tests.rs — the argument-extraction shim pins (night-improve-25).
 // The shim is the one contract both attach lanes read; a drift between

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // loader_tests.rs — the pure layout contracts of the loader
 // (night-improve-23). attach/detach are root-run integration surfaces

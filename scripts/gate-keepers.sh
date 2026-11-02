@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 # OS: Linux only — zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 #
 # ZYLAXION GATE-KEEPERS — the pre-commit / pre-push gate orchestrator
@@ -17,7 +17,7 @@
 #       exact 644/755 contract, shebang parity included; --fix-all
 #       repairs in place)
 #   2.  SPDX headers (scripts/gates/check-headers.sh — copyright +
-#       GPL-3.0-only identifier on every code/config/doc file, the
+#       AGPL-3.0-only identifier on every code/config/doc file, the
 #       OS line on every .sh)
 #   3.  Rust LOC cap (scripts/gates/check-loc.sh — 600 lines, every
 #       tracked .rs anywhere in the tree; night-improve-18's no-mercy

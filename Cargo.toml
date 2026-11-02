@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 
 # night-improve-21: the cosmic dragon unification. The six-crate
 # workspace (zactrix-engine, zactrix-profiles, zylaxion-core,
@@ -30,7 +30,7 @@ edition = "2024"
 # pair is a two-file change: this field and that channel — never one
 # alone, or the declared floor and the tested floor drift apart.
 rust-version = "1.98.1"
-license = "GPL-3.0-only"
+license = "AGPL-3.0-only"
 # night-improve-10: the zelynic author format — one obfuscated contact
 # string, family-wide. Keeps the registry-facing author row identical
 # across the toolchain while the address itself stays un-spiderable.
@@ -74,7 +74,7 @@ autobenches = false
 #      when ebpf/Cargo.toml is absent from the extract — cargo's
 #      package walk cannot carry a nested package, and the lane is
 #      DESIGNED on that absence. ebpf/ is therefore deliberately not
-#      listed: its GPL source rides the git checkout and the GitHub
+#      listed: its AGPL source rides the git checkout and the GitHub
 #      release archives, while the tarball carries the
 #      maintainer-built object from ebpf-prebuilt/ so a plain
 #      `cargo install zylaxion` stays on the stable toolchain.

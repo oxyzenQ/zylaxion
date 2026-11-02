@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 
 # night-improve-12c (the zelynic release masterclass lineage): the
 # Dragon Guard name replaces the plain "Release", the matrix becomes
@@ -291,7 +291,7 @@ jobs:
               # multi-byte sequences and would silently miss).
               grep -aFq "${LABEL}" "${BIN}" \
                 || { echo "::error::Expected embedded build label ${LABEL}"; exit 1; }
-              grep -aFq "License: GPL-3.0-only" "${BIN}" \
+              grep -aFq "License: AGPL-3.0-only" "${BIN}" \
                 || { echo "::error::Expected embedded license literal"; exit 1; }
               # The Signature literal at its UTF-8 em-dash: strings(1)
               # splits multi-byte sequences and would silently miss —

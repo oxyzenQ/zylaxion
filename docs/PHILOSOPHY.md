@@ -1,5 +1,5 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # zylaxion Design Philosophy
 
@@ -114,7 +114,7 @@ trust.
 
 zylaxion is the exclusive work of rezky_nightky (oxyzenQ). Versions
 are cut by the owner, the name and marks are governed by
-TRADEMARK.md, the license is GPL-3.0-only everywhere, and no
+TRADEMARK.md, the license is AGPL-3.0-only everywhere, and no
 contribution may rebrand, relicense, or soften the privacy posture.
 This philosophy is descriptive, not negotiable: code that contradicts
 it does not merge, no matter how clever the diff looks.

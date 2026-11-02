@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The single help authority for `zylaxion -h` / `--help`
 //! (night-improve-15, the zelynic NIGHT-improve-3 single-tier lineage:
@@ -278,7 +278,7 @@ pub(crate) fn render_reference(color: bool) -> String {
     push(String::new());
     push("Without a subcommand: a quick status overview.".into());
     push(String::new());
-    push("License: GPL-3.0-only | https://github.com/oxyzenQ/zylaxion".into());
+    push("License: AGPL-3.0-only | https://github.com/oxyzenQ/zylaxion".into());
     out
 }
 

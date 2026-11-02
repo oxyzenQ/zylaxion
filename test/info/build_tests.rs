@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // build_tests.rs — the info/build.rs test pins, relocated from the inline module (night-improve-18,
 // the zelynic Pattern C test tree: every *.rs test file lives

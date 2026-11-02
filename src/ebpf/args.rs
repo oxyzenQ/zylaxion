@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The input-event argument shim (night-improve-25) — the four
 //! arguments of the kernel's exported `input_event()` function, the
