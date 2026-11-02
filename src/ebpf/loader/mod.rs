@@ -60,7 +60,7 @@ use super::embedded;
 /// registry-prebuilt on a crates.io extract; either way the same name,
 /// either way it rides inside the binary.
 static TAP_ELF: &[u8] =
-    &embedded::AlignedElf::new(*include_bytes!(concat!(env!("OUT_DIR"), "/zylaxion-tap"))).bytes;
+    &embedded::AlignedElf::new(*include_bytes!(concat!(env!("OUT_DIR"), "/zylaxion-tap.o"))).bytes;
 
 /// The program names in the tap object (the ELF symbol names — see
 /// ebpf/src/main.rs: two attach programs over one body).
