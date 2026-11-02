@@ -39,10 +39,12 @@
 //! the kernel sends SIGHUP — the default action (terminate) ran
 //! `process::exit` from the signal handler, skipping all Drop guards.
 //! The result: no fade-out, PipeWire pop. The fix adds SIGHUP to the
-//! graceful-shutdown set. For the detached spawn (`on` detaches the
-//! player into its own process group with stdio null), SIGHUP is
-//! harmless — no controlling terminal means nothing sends it during
-//! normal operation.
+//! graceful-shutdown set. For the detached spawn (`on` puts the player
+//! in its own process group with stdio null), SIGHUP is harmless: the
+//! player keeps the terminal as its controlling terminal, but it is
+//! NOT in the terminal's foreground process group — and a terminal
+//! close signals the foreground group (and the session leader) only,
+//! so the detached player is never sent one during normal operation.
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;

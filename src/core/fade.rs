@@ -56,8 +56,9 @@ impl<S: AudioSink> Orchestrator<S> {
     /// stream is torn down.
     ///
     /// Called from both exit paths of [`run`](super::Orchestrator::run):
-    /// the `stop_flag` path (IPC `stop` command / SIGTERM) and the
-    /// input-channel `Disconnected` path (input source thread died).
+    /// the `stop_flag` path (the control watcher's enabled=0 write —
+    /// the `off` verb — or a caught SIGTERM/SIGINT/SIGQUIT/SIGHUP) and
+    /// the input-channel `Disconnected` path (the bridge thread died).
     ///
     /// # Pacing (v10.2.0+ — dragonzen audit B5)
     ///
