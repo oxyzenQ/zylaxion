@@ -146,8 +146,31 @@ pub fn cmd_on(cli_preset: Option<String>) {
             process::exit(1);
         }
     };
-    let already_running = existing_pid != 0
-        && pid_alive(existing_pid as i32)
+    // The binary path, resolved once: the spawn below needs it, and the
+    // identity gate above it needs the same value — one read, one error
+    // lane for both.
+    let exe = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(e) => {
+            crate::output::error(format!("cannot resolve this binary's path: {e}"));
+            process::exit(1);
+        }
+    };
+    // The identity gate (night-total-lts-1's law, now on the spawn side
+    // too): a live pid is only "the player" if its /proc cmdline is
+    // exactly this binary plus the player verb. The control map is
+    // untrusted input — after a SIGKILL the kernel can recycle the
+    // registered pid to an innocent process, and without this gate that
+    // collision would answer `already_running` true and print "sound
+    // already on" for a player that no longer exists. A live-but-foreign
+    // pid is a stale registration: the takeover path below (orphan sweep
+    // + fresh spawn) is the honest continuation, and the sweep's exact
+    // cmdline match guarantees it never signals the impostor.
+    let pid_is_player = existing_pid != 0 && pid_alive(existing_pid as i32) && {
+        let cmdline = std::fs::read(format!("/proc/{existing_pid}/cmdline")).ok();
+        crate::session::orphan::pid_is_our_player(cmdline.as_deref(), Some(exe.as_os_str()))
+    };
+    let already_running = pid_is_player
         && match control.get(&STATE_SLOT, 0) {
             Ok(state) => state == STATE_RUNNING,
             Err(e) => {
@@ -203,13 +226,6 @@ pub fn cmd_on(cli_preset: Option<String>) {
     // log lane is visible again.
     let _ = control.set(STATE_SLOT, STATE_IDLE, 0);
     let _ = control.set(PLAYER_PID_SLOT, 0, 0);
-    let exe = match std::env::current_exe() {
-        Ok(p) => p,
-        Err(e) => {
-            crate::output::error(format!("cannot resolve this binary's path: {e}"));
-            process::exit(1);
-        }
-    };
     use std::os::unix::process::CommandExt as _;
     let spawn = std::process::Command::new(exe)
         .arg(PLAYER_SPAWN_VERB)
@@ -362,7 +378,22 @@ pub fn cmd_off() {
             process::exit(1);
         }
     };
-    if pid == 0 || !pid_alive(pid as i32) {
+    // The same identity gate the spawn side rides (night-total-lts-1's
+    // law): a live pid that does not carry this binary's player cmdline
+    // is a recycled pid wearing a stale registration — treating it as a
+    // live player would report "stop pending" against an innocent
+    // process, and the wedged-stop advice below would hand the user a
+    // `kill -TERM` aimed at that innocent pid. A foreign pid is a dead
+    // registration by any honest measure: clear it.
+    let pid_is_player = pid != 0 && pid_alive(pid as i32) && {
+        let cmdline = std::fs::read(format!("/proc/{pid}/cmdline")).ok();
+        let exe = std::env::current_exe().ok();
+        crate::session::orphan::pid_is_our_player(
+            cmdline.as_deref(),
+            exe.as_deref().map(std::path::Path::as_os_str),
+        )
+    };
+    if pid == 0 || !pid_is_player {
         // No live player: clear the gate and any stale registration.
         // night-dragon-lts: the ENABLED clear is load-bearing — a gate
         // left on with no player makes every later "is the sound on"
@@ -390,8 +421,18 @@ pub fn cmd_off() {
         crate::output::error(format!("cannot clear the enabled flag: {e}"));
         process::exit(1);
     }
+    // The identity check is re-read every poll step: if the player dies
+    // mid-wait and the kernel recycles the pid, the loop must follow the
+    // REGISTRATION (now stale), not the recycled process.
     let started = Instant::now();
-    while pid_alive(pid as i32) {
+    while pid_alive(pid as i32) && {
+        let cmdline = std::fs::read(format!("/proc/{pid}/cmdline")).ok();
+        let exe = std::env::current_exe().ok();
+        crate::session::orphan::pid_is_our_player(
+            cmdline.as_deref(),
+            exe.as_deref().map(std::path::Path::as_os_str),
+        )
+    } {
         if started.elapsed() >= PLAYER_SETTLE_BUDGET {
             // The player ignored the gate (wedged audio thread?): the
             // honest report, with the manual escape hatch.
