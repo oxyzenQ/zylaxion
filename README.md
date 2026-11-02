@@ -80,7 +80,7 @@ binary itself.
 | **24 presets compiled in** | Filter frequencies, resonance Q, decay coefficients, spring mix: type-checked Rust data baked into the binary. Zero parse errors possible, zero I/O at startup. |
 | **Micro-randomized** | Every keypress gets a unique noise seed, ±1.5% pitch drift, ±5% amplitude drift, ±3% stereo pan jitter, and inter-keystroke timing variation. The same key never sounds identical twice. |
 | **Sample-rate honest** | Every decay envelope is renormalized to the output device's rate with the `c^(R/S)` law anchored at the 44.1 kHz authoring reference — the same preset rings the same length at 44.1, 48, and 96 kHz. The headless render audit measured 0.0% tail spread across all 24 presets. |
-| **Low latency, zero idle cost** | Interrupt-driven ring buffer rendering through cpal: typical latency under 3 ms, and the player's epoll loop costs nothing between keystrokes. |
+| **Low latency, zero idle cost** | The audio callback is hardware-clocked (interrupt-driven); the render loop blocks on its event channel — 1 ms while voices render, 100 ms while silent — instead of polling. Measured idle cost: 0.035% of one core over a 10 s silent window (`cargo run --release --example idle_cpu_sanity`), which `ps` rounds to 0.0%. Typical keystroke latency stays under 3 ms. |
 | **Stateless player** | The player process is born on `on`, reads every byte of state from the pinned maps, and self-exits on `off` — zero processes remain. What stays resident is the kernel side only: one passive BPF program plus pinned maps, ~1-2 µs per keystroke. |
 | **Kernel-side typing telemetry** | The tap accumulates per-key counters in the kernel at zero userspace cost; `zylaxion status --verbose` renders them. A feature no userspace sound tool can offer for free. |
 | **Zero-leakage posture** | Hardware scancodes drive a pan position and a sound class — never letters. Not logged, not stored as sequences, not transmitted. The audit greps are in [Security & Privacy](#security--privacy). |
@@ -353,6 +353,31 @@ measurable improvement proven by the audit harness.
 - **CI has no ears** — runners carry no audio and no input hardware.
   A human's ears on real hardware stay the owner's verification.
 
+### "But I see a `zylaxion _play` process in `ps`!" (honest)
+
+zylaxion is strictly **zero daemon**. A daemon is a resident
+background service: spawned at boot, detached from the terminal,
+always polling for config or input. What you see in `ps` is the
+**ephemeral player** (`_play`), and it is the opposite of that:
+
+- It is born only when you run `zylaxion on`, and it dies immediately
+  when you run `zylaxion off` (or on SIGTERM/SIGINT, or when the
+  control map clears the enabled flag).
+- It has no PID file, no IPC socket, no supervision, and holds no
+  state of its own — every byte of state lives in the kernel's pinned
+  BPF maps.
+- It is only the mouth: the bridge thread blocks in `poll(2)` on the
+  ring-buffer fd, and the render loop blocks on its channel (1 ms
+  while voices render, 100 ms while silent). It wakes when the kernel
+  tap rings, plays the DSP math, and goes back to sleep.
+- Its measured idle cost is 0.035% of one core over a 10 s silent
+  window (`cargo run --release --example idle_cpu_sanity`), which
+  reads 0.0% in `ps`.
+
+If you do not want any userspace process running, you simply do not
+type `zylaxion on`. The kernel probe stays passive and resident,
+consuming zero userspace CPU, and `ps` shows nothing.
+
 ### The nightly eBPF toolchain (honest)
 
 The eBPF build dependencies (`aya-ebpf` on a pinned nightly rustc,
@@ -417,7 +442,7 @@ passive, the player is disposable:
  │    keymap  (keycode -> sound class)                        │
  │    events  (ring buffer)      stats (per-key counters)     │
  └────────────────────────────┬───────────────────────────────┘
-                              │ epoll (zero idle CPU)
+                              │ poll(2) + blocking channel wait (0.0% idle CPU)
                               ▼
                  PLAYER (alive only while sound plays)
  ┌────────────────────────────────────────────────────────────┐

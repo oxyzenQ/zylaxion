@@ -368,13 +368,20 @@ printed beside it so no reader has to divide.
   as seen by the wrapper: 2.418 ms. Rate negotiated: 48000 Hz.
 
 **README claim check.** "the player's epoll loop costs nothing
-between keystrokes" names the input bridge — the lane that measured
-0 ticks in every state; the claim is confirmed as scoped. The
-orchestrator's 1 ms event-poll loop is a different loop and carries
-the composite idle cost above; the README does not claim zero for
-it, so no correction landed. The "~1–2 µs per keystroke" kernel-side
-claim is untested here (the INCONCLUSIVE dimension) and
-uncontradicted.
+between keystrokes" named the input bridge — the lane that measured
+0 ticks in every state; the claim was confirmed as scoped. The
+orchestrator's 1 ms event-poll loop is a different loop and carried
+the composite idle cost above (the STATE C decomposition puts the
+entire remainder on its `recv_timeout` cadence — ~10 µs per wakeup,
+about 1000 wakeups per second around the clock). The idle-CPU audit
+has since landed on exactly that loop: the flat 1 ms wait is now
+adaptive (1 ms while voices render, 100 ms while the pool is
+silent), the README row and the architecture diagram now carry the
+poll(2) + adaptive-wait truth with the measured 0.035% idle figure,
+and `examples/idle_cpu_sanity.rs` guards the regression (1.131%
+before, 0.035% after on a release-build 10 s getrusage window). The
+"~1–2 µs per keystroke" kernel-side claim is untested here (the
+INCONCLUSIVE dimension) and uncontradicted.
 
 **Target (verbatim).** "idle CPU = 0% (no process exists); kernel
 tap memory (maps + program) < 1 MB total. … player RSS < 50 MB;

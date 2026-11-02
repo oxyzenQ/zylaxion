@@ -37,6 +37,17 @@ and maps. There is no config file: the preset registry is
 compile-time, type-checked Rust data (night-improve-22 deleted the
 TOML parser, watcher, and validator together).
 
+One honest distinction closes the loop: the ephemeral player is a
+real process while it plays — `ps aux` shows `zylaxion _play`
+between `on` and `off`. A process that lives only while the sound
+plays is not a daemon: it has no PID file, no IPC socket, no
+supervision, and no state of its own, and it blocks rather than
+polls (the bridge waits in `poll(2)` on the ring-buffer fd; the
+render loop waits on its channel, 1 ms while voices render and
+100 ms while silent). `off` removes it completely. The resident part
+of this architecture is the kernel-side tap and its pinned maps
+alone.
+
 ## 2. What the eBPF-Only Shape Wins
 
 Each row carries its verifier, because a claim without a mechanism is
@@ -48,7 +59,7 @@ marketing.
 | Passive input | No evdev grab, no `/dev/input` node access, no udev rule, no `input` group membership; the tap observes `input_event()` kernel-side and gates every event against pinned maps | The attach path plants no device nodes; the privilege doc table lists exactly one privileged verb |
 | Smaller supply chain | libinput/udev capture stack, toml/serde config stack, notify watcher, and the xdg/dbus session families are all gone from the tree | `Cargo.lock` swept transitively per family, zero hits; the CI cargo-audit lane (`--deny warnings`) guards what remains |
 | Unprivileged control plane | After one `sudo zylaxion attach` per boot, every verb rides the pinned maps — no privileged process ever residents | The E2E battery runs the full zero-to-hero chain as a plain user |
-| Zero idle cost | Interrupt-driven: the player's epoll loop wakes only for mapped keys while sound is enabled; between keystrokes it costs nothing | The ring buffer bridge renders under 3 ms typical latency |
+| Zero idle cost | The audio callback is hardware-clocked; the bridge blocks in `poll(2)` and the render loop blocks on its channel (1 ms while voices render, 100 ms while silent) — no poll loop anywhere. Measured: 0.035% of one core idle (`idle_cpu_sanity`), 0.0% as `ps` rounds it | The ring buffer bridge renders under 3 ms typical latency |
 | Kernel-side telemetry for free | The tap accumulates per-key counters in the kernel at zero userspace cost | `zylaxion status --verbose` renders them; no userspace sound tool offers this for free |
 | No config to drift | No parse errors, no schema versioning, no file watching, no per-boot divergence between what you typed and what runs | The registry is compile-time data proven in-range by the registry test tree |
 | Honest failure surfaces | `doctor` probes what it can actually probe (kernel floor, BTF, bpffs, lockdown, unprivileged-bpf posture, audio); refusals are classified, not generic | The E2E probes pin the refusal contract per kernel posture |

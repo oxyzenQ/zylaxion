@@ -149,6 +149,29 @@ commit — recovered even from a crates.io install via
 
 ## Objections from the wild
 
+### `ps aux` shows a `zylaxion _play` process — isn't that a daemon?
+
+No. A daemon is a resident background service: spawned at boot,
+detached from a terminal, always polling for config or input. The
+`_play` process is the **ephemeral player** — the exact opposite:
+
+- Born on `zylaxion on`, dead on `zylaxion off` (or on SIGTERM /
+  SIGINT, or when the control map clears the enabled flag). Nothing
+  remains.
+- No PID file, no IPC socket, no supervision, no state of its own:
+  every byte of state lives in the kernel's pinned BPF maps.
+- It is the mouth, not the brain: it blocks until the kernel tap
+  rings the event buffer, renders the DSP math, and sleeps again.
+  The bridge thread blocks in `poll(2)` with a 100 ms cap and the
+  render loop blocks on its channel (1 ms while voices render,
+  100 ms while silent) — no busy-wait anywhere.
+- The measured idle cost is 0.035% of one core over a 10 s silent
+  window, which `ps` rounds to 0.0% — reproducible with
+  `cargo run --release --example idle_cpu_sanity`.
+
+Skip `zylaxion on` and no userspace process exists at all: the kernel
+probe stays passive and resident, consuming zero userspace CPU.
+
 ### Why eBPF for keyboard sound? eBPF is for servers, networks, security.
 
 eBPF is mostly used there — that is true. zylaxion is the exception.
