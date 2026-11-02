@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 """The real-usage battery — zero to hero, the crown stage (night-master-3).
 
 The claims the README makes, proved on a live kernel by a real user:

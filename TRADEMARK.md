@@ -1,19 +1,19 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # zylaxion Trademark & Intellectual Property
 
 **Owner:** rezky_nightky (oxyzenQ)
 **Repository:** https://github.com/oxyzenQ/zylaxion
-**License:** GPL-3.0-only (source code)
+**License:** AGPL-3.0-only (source code)
 
 ## 1. Copyright & Ownership
 
 zylaxion — including its source code, logo, name, and all associated
 branding materials (collectively, the "Marks") — is the exclusive intellectual
 property of **rezky_nightky (oxyzenQ)**. The source code is licensed under the
-GNU General Public License v3 only (GPL-3.0-only). The Marks are NOT covered
-by the GPL and are reserved by the owner.
+GNU Affero General Public License v3 only (AGPL-3.0-only). The Marks are NOT covered
+by the AGPL and are reserved by the owner.
 
 The zylaxion logo was created through AI-assisted generation under
 the direct, original creative direction and specific prompting of
@@ -28,7 +28,7 @@ consent of rezky_nightky (oxyzenQ) is strictly prohibited.
 
 - Running zylaxion from the official repository for personal or
   internal use.
-- Forking the source code under the terms of GPL-3.0-only, provided the
+- Forking the source code under the terms of AGPL-3.0-only, provided the
   fork is clearly renamed and does NOT use the zylaxion Marks.
 - Redistributing unmodified official releases with attribution to
   rezky_nightky (oxyzenQ).
@@ -47,7 +47,7 @@ Forks of zylaxion MUST:
 
 - Use a different project name.
 - Use different branding (logo, color scheme, etc.).
-- Preserve the GPL-3.0-only license and copyright notice.
+- Preserve the AGPL-3.0-only license and copyright notice.
 - Clearly state that the fork is derived from zylaxion but is NOT
   zylaxion and is NOT endorsed by rezky_nightky (oxyzenQ).
 

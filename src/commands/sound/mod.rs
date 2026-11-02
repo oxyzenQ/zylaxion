@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The sound verbs: `on`, `off`, `preset`, `volume`, `status`
 //! (night-improve-23, the daemonless control plane; night-improve-24

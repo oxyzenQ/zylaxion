@@ -1,5 +1,5 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # zylaxion™ — Branding
 
@@ -84,12 +84,12 @@ All files must carry:
 
 ```
 Copyright (C) 2026 rezky_nightky
-SPDX-License-Identifier: GPL-3.0-only
+SPDX-License-Identifier: AGPL-3.0-only
 ```
 
 ## Derivative Works
 
-Forks and GPL-compliant derivatives must adopt distinct branding
+Forks and AGPL-compliant derivatives must adopt distinct branding
 (name, logo, identity) to avoid confusion with the official project.
 
 ---

@@ -1,13 +1,13 @@
 zylaxion
 Copyright (C) 2026 rezky_nightky (oxyzenQ)
 
-This software is licensed under GPL-3.0-only.
+This software is licensed under AGPL-3.0-only.
 See the LICENSE file in the repository root for the full text.
 A Commercial License is available for proprietary/commercial use —
 see COMMERCIAL_LICENSE.md for tiers and payment.
 
 The "zylaxion" name, logo, and associated branding assets are trademarks
-of rezky_nightky (oxyzenQ) and are NOT covered by the GPL.
+of rezky_nightky (oxyzenQ) and are NOT covered by the AGPL.
 See TRADEMARK.md for usage terms.
 
 Forking policy (summary — see TRADEMARK.md for full text):
@@ -18,6 +18,6 @@ Forking policy (summary — see TRADEMARK.md for full text):
 
 The acoustic presets shipped in the repository (the profiles module's
 tuning tables and any preset packs under assets/) are distributed under
-the same GPL-3.0-only terms as the binary that plays them.
+the same AGPL-3.0-only terms as the binary that plays them.
 
 Repository: https://github.com/oxyzenQ/zylaxion

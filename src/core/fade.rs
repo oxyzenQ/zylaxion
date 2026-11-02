@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The shutdown fade-out lane — the silence pad flushed into the ring
 //! buffer before `CpalSink` drops, and the deadline that keeps it from

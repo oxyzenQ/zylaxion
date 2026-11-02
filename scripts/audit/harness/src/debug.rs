@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The tuning lab (night-private-research-2xblade-2). A child module
 //! of `metrics` so it can reach the analysis primitives directly; the

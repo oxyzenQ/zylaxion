@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 // help_tests.rs — the commands/help.rs test pins, relocated from the inline module (night-improve-18,
 // the zelynic Pattern C test tree: every *.rs test file lives
@@ -88,7 +88,7 @@ fn reference_closes_with_contract_and_license() {
         "the no-subcommand contract must be taught"
     );
     assert!(
-        text.contains("License: GPL-3.0-only | https://github.com/oxyzenQ/zylaxion"),
+        text.contains("License: AGPL-3.0-only | https://github.com/oxyzenQ/zylaxion"),
         "the license footer must close the reference"
     );
 }

@@ -1,5 +1,5 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 # Changelog — V10.0.0-Era Archive (frozen history)
 
@@ -45,8 +45,8 @@ backward-compatible unless explicitly noted. 49 audit items fixed,
   due to TOML table scoping. Moved under the correct table.
 - **B2**: `ProfileWithOverrides::parse` silently dropped `[[keys]].ambient.*`
   overrides — public API was inconsistent with the daemon path. Fixed.
-- **I1**: `assets/zylaxion.service` had `GPL-3.0-or-later` instead of
-  `GPL-3.0-only`. Fixed per RULES.md.
+- **I1**: `assets/zylaxion.service` had `AGPL-3.0-or-later` instead of
+  `AGPL-3.0-only`. Fixed per RULES.md.
 
 #### High — Naturalness (5)
 - **N1**: Per-keystroke noise seed via splitmix64 + 6 xorshift32 rolls.
@@ -191,19 +191,19 @@ backward-compatible unless explicitly noted. 49 audit items fixed,
 
 ## [v10.0.0] — 2026-07-01
 
-### Architecture Alignment + Full GPL-3.0-only
+### Architecture Alignment + Full AGPL-3.0-only
 
 ### Fixed — License Consistency (CRITICAL)
-- Purged ALL `GPL-3.0-or-later` references across entire codebase
-- All source files: SPDX header `GPL-3.0-or-later` → `GPL-3.0-only`
-- All scripts: `GPL-3.0-or-later` → `GPL-3.0-only`
+- Purged ALL `AGPL-3.0-or-later` references across entire codebase
+- All source files: SPDX header `AGPL-3.0-or-later` → `AGPL-3.0-only`
+- All scripts: `AGPL-3.0-or-later` → `AGPL-3.0-only`
 - README.md, TRADEMARK.md, docs/trademark.md, RULES.md, docs/RULES.md, BRANDING.md
 - Zero `or-later` remnants remaining
 
 ### Fixed — Release YAML
 - `body:` was outside `with:` block (caused actionlint failure)
 - Removed duplicate closing block
-- SPDX header: `GPL-3.0-or-later` → `GPL-3.0-only`
+- SPDX header: `AGPL-3.0-or-later` → `AGPL-3.0-only`
 
 ### Fixed — Cargo.lock
 - Updated all 6 workspace crates from v6.0.1 → v10.0.0
@@ -211,7 +211,7 @@ backward-compatible unless explicitly noted. 49 audit items fixed,
 ### Verified
 - fmt PASS, codespell PASS, yamllint PASS, actionlint PASS
 - 0 production unwraps outside compile-time guarantees
-- 0 GPL-3.0-or-later remnants
+- 0 AGPL-3.0-or-later remnants
 - 0 MIT remnants
 - CI builds on GitHub Actions (has libudev-dev)
 

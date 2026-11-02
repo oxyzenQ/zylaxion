@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The player lifecycle verbs: `on` spawns the stateless player and
 //! enables the gate, `off` clears the gate and lets the player exit.

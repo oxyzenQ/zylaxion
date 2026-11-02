@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! CLI definitions: argument parsing, version output, flag wiring.
 //!
@@ -72,7 +72,7 @@ fn version_body() -> String {
          Build-time: {}\n\
          {SIGNATURE_LINE}\n\
          Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
-         License: GPL-3.0-only\n\
+         License: AGPL-3.0-only\n\
          Source: https://github.com/oxyzenQ/zylaxion",
         crate::info::build::build_label(),
         crate::info::build::build_hash(),

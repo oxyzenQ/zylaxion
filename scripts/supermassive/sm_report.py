@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 """The supermassive verdict ledger (night-master-3).
 
 One row per probe, two transports, one source of truth: every battery

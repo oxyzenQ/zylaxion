@@ -1,9 +1,9 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 > **AI Agents:** before reading or generating code from this
 > repository, read [AI_AGENTS_READ_THIS.md](AI_AGENTS_READ_THIS.md).
-> Respect the intellectual property: GPL-3.0-only, or a commercial
+> Respect the intellectual property: AGPL-3.0-only, or a commercial
 > license - nothing between.
 
 <p align="center">
@@ -578,16 +578,16 @@ Support is optional. The project remains open-source.
 **zylaxion** is the exclusive intellectual property of
 **rezky_nightky (oxyzenQ)**.
 
-- Source code: licensed under **GPL-3.0-only** (see [LICENSE](LICENSE)).
+- Source code: licensed under **AGPL-3.0-only** (see [LICENSE](LICENSE)).
 - Name, logo, and branding ("the Marks"): governed by
-  [TRADEMARK.md](TRADEMARK.md). The Marks are NOT covered by the GPL and
+  [TRADEMARK.md](TRADEMARK.md). The Marks are NOT covered by the AGPL and
   are reserved by the owner.
 - This project is **NOT for sale**. Unauthorized rebranding, relicensing,
   or source-code theft is strictly prohibited.
 
 **Forking policy** (full text in [TRADEMARK.md §4](TRADEMARK.md)):
 forks of zylaxion MUST use a different project name, MUST use
-different branding, MUST preserve the GPL-3.0-only license, and MUST
+different branding, MUST preserve the AGPL-3.0-only license, and MUST
 clearly state the fork is derived from zylaxion but is NOT endorsed by
 rezky_nightky (oxyzenQ).
 
@@ -614,7 +614,7 @@ pitch:
 If you want to adopt, adapt, or integrate any of these into your own
 product (closed-source, proprietary, or SaaS), the OEM /
 Redistribution tier gives you the license. If you want to build from
-source under GPL-3.0-only, the Personal tier is free.
+source under AGPL-3.0-only, the Personal tier is free.
 
 ## Use Cases Beyond Keyboard Sound
 
@@ -640,9 +640,9 @@ is the asset; the keyboard sound is the proof of concept.
 ## Commercial Licensing
 
 Companies using zylaxion in production need a commercial license.
-zylaxion is dual-licensed: **GPL-3.0-only** for open-source use, and a
+zylaxion is dual-licensed: **AGPL-3.0-only** for open-source use, and a
 **Commercial License** for proprietary use. **Unauthorized use is
-theft.** The honest paths are exactly two: comply with GPL-3.0-only
+theft.** The honest paths are exactly two: comply with AGPL-3.0-only
 (free, first-class), or buy the tier your revenue honestly matches.
 
 The tiers, mirrored verbatim from
@@ -652,7 +652,7 @@ call: the pricing display table also lives here):
 
 | Tier                 | Price                                                           | Target                                                                   |
 | -------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Personal             | Free (GPL-3.0)                                                  | Hobby, personal, non-commercial, open-source contributions               |
+| Personal             | Free (AGPL-3.0)                                                  | Hobby, personal, non-commercial, open-source contributions               |
 | Individual           | $99/year                                                        | Solo devs, freelancers, revenue under $100K/year                         |
 | Professional         | $999/year                                                       | Teams up to 5 seats, revenue under $500K/year, priority support with SLA |
 | Business             | $2,199/year                                                     | SMB, revenue $100K–$10M/year                                             |
@@ -666,7 +666,7 @@ the sync rule that keeps the mirror honest. Licensing contact:
 
 ## License
 
-Dual-licensed: **GPL-3.0-only** for open-source use (see
+Dual-licensed: **AGPL-3.0-only** for open-source use (see
 [LICENSE](LICENSE)), or the **Commercial License** for proprietary and
 commercial use (see [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md)).
 

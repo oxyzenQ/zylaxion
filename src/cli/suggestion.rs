@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! CLI suggestion engine — the closest-match core (the zelynic
 //! `cli/suggestion.rs` lineage, ported in night-improve-19).

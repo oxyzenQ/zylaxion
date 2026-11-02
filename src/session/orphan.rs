@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The orphaned-player lifecycle (night-improve-27): the class-of-bug
 //! fix for the daemonless architecture's one lifecycle seam.

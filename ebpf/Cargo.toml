@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 
 # The pure-Rust eBPF crate (night-improve-23; night-improve-25 restores
 # the approved plan): ONE binary, the tap.
@@ -34,7 +34,7 @@ name = "zylaxion-ebpf"
 version = "80.0.2"
 edition = "2024"
 publish = false
-license = "GPL-3.0-only"
+license = "AGPL-3.0-only"
 repository = "https://github.com/oxyzenQ/zylaxion"
 description = "Pure-Rust eBPF tap (fentry/kprobe on input_event) for zylaxion, cross-compiled with aya-ebpf and embedded by the userspace loader."
 

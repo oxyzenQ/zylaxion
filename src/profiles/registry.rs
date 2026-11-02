@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The compiled preset registry — the single source of truth for every
 //! acoustic preset zylaxion ships (night-improve-22, the no-config law).

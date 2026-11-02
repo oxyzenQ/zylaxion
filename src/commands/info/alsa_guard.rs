@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The ALSA stderr guard (night-improve-29, the CLI/UX tidy): one
 //! device probe's lifetime without libasound's C-level error log.

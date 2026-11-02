@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 # OS: Linux only — zylaxion is a Linux eBPF tool; no other OS is supported.
 #
 # ZYLAXION PREBUILT eBPF PARITY CHECK (night-improve-31, the zelynic

@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 
 //! The userspace eBPF surface (night-improve-23, the daemonless
 //! architecture; night-improve-25 restores the approved attach chain).

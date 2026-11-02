@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: AGPL-3.0-only
 //
 // zylaxion eBPF tap, the pure-Rust BPF source (night-improve-23;
 // night-improve-25 restores the approved plan: a passive kernel-side
@@ -300,9 +300,13 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-// The license section must stay GPL: the tap runs in the kernel's
-// input path and the zylaxion family declares GPL. A mismatch here
-// would fail the verifier at program load time on a real host.
+// The license section must stay the literal string "GPL": the kernel
+// verifier's gpl-only helper gate matches that family of strings, and
+// an "AGPL" spelling is not on its list — a mismatch here would fail
+// the program at load time on a real host. This is the kernel's
+// naming convention for helper access, not the project's license:
+// zylaxion's source is AGPL-3.0-only, and the string below is the
+// knob that unlocks the gpl-only helpers the tap needs.
 #[unsafe(no_mangle)]
 #[unsafe(link_section = "license")]
 static LICENSE: [u8; 4] = *b"GPL\0";

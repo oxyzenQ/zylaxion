@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only
 """Environment probes for the supermassive battery (night-master-3).
 
 Pure /proc and /sys reads plus a couple of guarded shell outs — the
