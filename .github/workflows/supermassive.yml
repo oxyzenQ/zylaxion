@@ -120,8 +120,8 @@ jobs:
           # (night-badas-4: cpal's alsa-sys resolves alsa.pc via
           # pkg-config); pkg-config rides preinstalled on both runner
           # images and costs no fetch.
-          APT_OPTS="-o Acquire::Retries=5 -o Acquire::http::Timeout=45"
-          if sudo timeout 300 apt-get $APT_OPTS install -y -qq \
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 300 apt-get "${APT_OPTS[@]}" install -y -qq \
               libasound2-dev pkg-config; then
             echo "apt: the fast path landed (the image's lists held)"
           else
@@ -129,8 +129,8 @@ jobs:
             landed=""
             for attempt in 1 2 3; do
               echo "--- apt attempt $attempt: update + install ---"
-              if sudo timeout 240 apt-get $APT_OPTS update \
-                && sudo timeout 600 apt-get $APT_OPTS install -y -qq \
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq \
                      libasound2-dev pkg-config; then
                 landed="attempt $attempt"
                 break
@@ -225,8 +225,8 @@ jobs:
           # (night-badas-4: cpal's alsa-sys resolves alsa.pc via
           # pkg-config); pkg-config rides preinstalled on both runner
           # images and costs no fetch.
-          APT_OPTS="-o Acquire::Retries=5 -o Acquire::http::Timeout=45"
-          if sudo timeout 300 apt-get $APT_OPTS install -y -qq \
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 300 apt-get "${APT_OPTS[@]}" install -y -qq \
               libasound2-dev pkg-config; then
             echo "apt: the fast path landed (the image's lists held)"
           else
@@ -234,8 +234,8 @@ jobs:
             landed=""
             for attempt in 1 2 3; do
               echo "--- apt attempt $attempt: update + install ---"
-              if sudo timeout 240 apt-get $APT_OPTS update \
-                && sudo timeout 600 apt-get $APT_OPTS install -y -qq \
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq \
                      libasound2-dev pkg-config; then
                 landed="attempt $attempt"
                 break
@@ -326,8 +326,8 @@ jobs:
           # (night-badas-4: cpal's alsa-sys resolves alsa.pc via
           # pkg-config); pkg-config rides preinstalled on both runner
           # images and costs no fetch.
-          APT_OPTS="-o Acquire::Retries=5 -o Acquire::http::Timeout=45"
-          if sudo timeout 300 apt-get $APT_OPTS install -y -qq \
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 300 apt-get "${APT_OPTS[@]}" install -y -qq \
               libasound2-dev pkg-config; then
             echo "apt: the fast path landed (the image's lists held)"
           else
@@ -335,8 +335,8 @@ jobs:
             landed=""
             for attempt in 1 2 3; do
               echo "--- apt attempt $attempt: update + install ---"
-              if sudo timeout 240 apt-get $APT_OPTS update \
-                && sudo timeout 600 apt-get $APT_OPTS install -y -qq \
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq \
                      libasound2-dev pkg-config; then
                 landed="attempt $attempt"
                 break
@@ -434,8 +434,8 @@ jobs:
           # (night-badas-4: cpal's alsa-sys resolves alsa.pc via
           # pkg-config); pkg-config rides preinstalled on both runner
           # images and costs no fetch.
-          APT_OPTS="-o Acquire::Retries=5 -o Acquire::http::Timeout=45"
-          if sudo timeout 300 apt-get $APT_OPTS install -y -qq \
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 300 apt-get "${APT_OPTS[@]}" install -y -qq \
               libasound2-dev pkg-config; then
             echo "apt: the fast path landed (the image's lists held)"
           else
@@ -443,8 +443,8 @@ jobs:
             landed=""
             for attempt in 1 2 3; do
               echo "--- apt attempt $attempt: update + install ---"
-              if sudo timeout 240 apt-get $APT_OPTS update \
-                && sudo timeout 600 apt-get $APT_OPTS install -y -qq \
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq \
                      libasound2-dev pkg-config; then
                 landed="attempt $attempt"
                 break
@@ -537,8 +537,8 @@ jobs:
           # (night-badas-4: cpal's alsa-sys resolves alsa.pc via
           # pkg-config); pkg-config rides preinstalled on both runner
           # images and costs no fetch.
-          APT_OPTS="-o Acquire::Retries=5 -o Acquire::http::Timeout=45"
-          if sudo timeout 300 apt-get $APT_OPTS install -y -qq \
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 300 apt-get "${APT_OPTS[@]}" install -y -qq \
               libasound2-dev pkg-config; then
             echo "apt: the fast path landed (the image's lists held)"
           else
@@ -546,8 +546,8 @@ jobs:
             landed=""
             for attempt in 1 2 3; do
               echo "--- apt attempt $attempt: update + install ---"
-              if sudo timeout 240 apt-get $APT_OPTS update \
-                && sudo timeout 600 apt-get $APT_OPTS install -y -qq \
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq \
                      libasound2-dev pkg-config; then
                 landed="attempt $attempt"
                 break
@@ -659,8 +659,8 @@ jobs:
           # (night-badas-4: cpal's alsa-sys resolves alsa.pc via
           # pkg-config); pkg-config rides preinstalled on both runner
           # images and costs no fetch.
-          APT_OPTS="-o Acquire::Retries=5 -o Acquire::http::Timeout=45"
-          if sudo timeout 300 apt-get $APT_OPTS install -y -qq \
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 300 apt-get "${APT_OPTS[@]}" install -y -qq \
               libasound2-dev pkg-config; then
             echo "apt: the fast path landed (the image's lists held)"
           else
@@ -668,8 +668,8 @@ jobs:
             landed=""
             for attempt in 1 2 3; do
               echo "--- apt attempt $attempt: update + install ---"
-              if sudo timeout 240 apt-get $APT_OPTS update \
-                && sudo timeout 600 apt-get $APT_OPTS install -y -qq \
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq \
                      libasound2-dev pkg-config; then
                 landed="attempt $attempt"
                 break
@@ -801,8 +801,8 @@ jobs:
           # (night-badas-4: cpal's alsa-sys resolves alsa.pc via
           # pkg-config); pkg-config rides preinstalled on both runner
           # images and costs no fetch.
-          APT_OPTS="-o Acquire::Retries=5 -o Acquire::http::Timeout=45"
-          if sudo timeout 300 apt-get $APT_OPTS install -y -qq \
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 300 apt-get "${APT_OPTS[@]}" install -y -qq \
               libasound2-dev pkg-config; then
             echo "apt: the fast path landed (the image's lists held)"
           else
@@ -810,8 +810,8 @@ jobs:
             landed=""
             for attempt in 1 2 3; do
               echo "--- apt attempt $attempt: update + install ---"
-              if sudo timeout 240 apt-get $APT_OPTS update \
-                && sudo timeout 600 apt-get $APT_OPTS install -y -qq \
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq \
                      libasound2-dev pkg-config; then
                 landed="attempt $attempt"
                 break
