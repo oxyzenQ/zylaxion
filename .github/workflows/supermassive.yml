@@ -189,9 +189,9 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo timeout 240 apt-get -o Acquire::Retries=5 \
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 update -qq
-          sudo timeout 600 apt-get -o Acquire::Retries=5 \
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
@@ -257,9 +257,9 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo timeout 240 apt-get -o Acquire::Retries=5 \
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 update -qq
-          sudo timeout 600 apt-get -o Acquire::Retries=5 \
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
@@ -332,9 +332,9 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo timeout 240 apt-get -o Acquire::Retries=5 \
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 update -qq
-          sudo timeout 600 apt-get -o Acquire::Retries=5 \
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
@@ -402,9 +402,9 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo timeout 240 apt-get -o Acquire::Retries=5 \
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 update -qq
-          sudo timeout 600 apt-get -o Acquire::Retries=5 \
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
@@ -491,9 +491,9 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo timeout 240 apt-get -o Acquire::Retries=5 \
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 update -qq
-          sudo timeout 600 apt-get -o Acquire::Retries=5 \
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
@@ -602,11 +602,13 @@ jobs:
         run: |
           # The arm64 lane needs the same ALSA headers every compile
           # lane needs (night-badas-4: cpal's alsa-sys resolves
-          # alsa.pc via pkg-config). The archive-mirror kill timers
-          # (the run 40291698597 stall class) ride here too.
-          sudo timeout 240 apt-get -o Acquire::Retries=5 \
+          # alsa.pc via pkg-config). The apt defenses are the estate
+          # shape (night-ci-split-3: Acquire::Retries=5 +
+          # Acquire::http::Timeout=45, no outer kill timer — the
+          # per-session timeout is the honest floor).
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 update -qq
-          sudo timeout 600 apt-get -o Acquire::Retries=5 \
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
