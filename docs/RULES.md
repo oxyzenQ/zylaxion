@@ -204,13 +204,16 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 - **Maintenance schedule:** Weekly Monday 07:00 UTC.
 - **Bot identity:** Commits as `github-actions[bot]`.
 - **Workflow titles:** the `Dragon Guard - <lane>` family, exactly as
-  in the zelynic reference (CI, Supermassive, Miri, Release,
-  Dependency Maintenance, crates.io publish, Gate-keepers, Security
-  Audit) — one family, one grep surface (docs/GLOSSARY.md,
+  in the zelynic reference (CI, Supermassive, Supermassive E2E, Miri,
+  Release, Dependency Maintenance, crates.io publish, Gate-keepers,
+  Security Audit) — one family, one grep surface (docs/GLOSSARY.md,
   "Dragon Guard").
-- **Supermassive E2E leg names:** the zelynic low/best specs shape —
-  `supermassive test - low specs (the 5.15 documented floor)` and
-  `supermassive test - best specs (the archive's head)` (night-badas-5).
+- **Supermassive lane names:** the hosted deep battery runs as many
+  small lanes in `supermassive.yml` (`supermassive lane - ...`), and
+  the KVM floor lives in `supermassive-e2e.yml` (night-ci-split-1).
+  The E2E leg names keep the zelynic low/best specs shape —
+  `supermassive e2e - low specs (the 5.15 documented floor)` and
+  `supermassive e2e - best specs (the archive's head)` (night-badas-5).
   No musl twins: glibc is the only libc the matrix ships.
 - **Linting:** Run `actionlint` and `yamllint` on `.github/workflows/*`.
 

@@ -551,7 +551,7 @@ battery, the micro-VM legs prove the rest inside a real kernel:
 |---------|----------------|-------------|
 | [supermassive rootless self-test](scripts/supermassive/supermassive-test.sh) | The env probes, the CLI/UX battery, and the static claims | `./scripts/supermassive/supermassive-test.sh --self-test` |
 | [supermassive full battery](scripts/supermassive/supermassive-test.sh) | The tap lifecycle, the night-dinner-3 repro, a real user typing through uinput, telemetry, PCM witness | `sudo ./scripts/supermassive/supermassive-test.sh --full` |
-| KVM micro-VM E2E (CI) | The zero-to-hero chain inside a real kernel (5.15 floor & latest) | `.github/workflows/supermassive.yml` |
+| KVM micro-VM E2E (CI) | The zero-to-hero chain inside a real kernel (5.15 floor & latest) | `.github/workflows/supermassive-e2e.yml` |
 | [the workspace test tree](scripts/build.sh) | Unit + doc tests, plus fmt and clippy | `./scripts/build.sh check-all -q` |
 | [the gate suite](scripts/gate-keepers.sh) | Permissions, SPDX headers, LOC caps, language, release parity | `./scripts/gate-keepers.sh` |
 
