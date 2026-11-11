@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  Keyboard sound for Linux, computed in the kernel. A passive eBPF input tap voices every keystroke through pure procedural synthesis — zero samples, zero daemons, zero config files.
+  Keyboard sound for Linux, computed in the kernel. A passive eBPF input tap voices every keystroke through pure procedural synthesis. Boring and stealth.
 </p>
 
 <div align="center">
