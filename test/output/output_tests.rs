@@ -71,8 +71,8 @@ fn stdout_lane_helpers_are_plain_under_the_test_harness() {
         // night-dragon-maintenance-1: the banner law — the family's
         // one title-line shape, brand purple bold.
         assert_eq!(
-            section("zylaxion doctor"),
-            "\x1b[1;38;2;168;85;247m━━━ zylaxion doctor ━━━\x1b[0m"
+            section("zylaxion diagnostics report doctor"),
+            "\x1b[1;38;2;168;85;247m━━━ zylaxion diagnostics report doctor ━━━\x1b[0m"
         );
         assert_eq!(
             tip_line("fix: start PipeWire"),
@@ -98,7 +98,10 @@ fn stdout_lane_helpers_are_plain_under_the_test_harness() {
         // night-dragon-maintenance-1: the banner law — the family's
         // one title-line shape, byte-identical to the sibling
         // zejtron's.
-        assert_eq!(section("zylaxion doctor"), "━━━ zylaxion doctor ━━━");
+        assert_eq!(
+            section("zylaxion diagnostics report doctor"),
+            "━━━ zylaxion diagnostics report doctor ━━━"
+        );
         assert_eq!(tip_line("fix: start PipeWire"), "fix: start PipeWire");
         assert_eq!(ok_marker("  <- active"), "  <- active");
         // The zelynic Warnings row: two-space indent, the bang, the

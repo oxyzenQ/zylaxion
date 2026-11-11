@@ -33,12 +33,14 @@ fn reference_carries_every_subcommand_and_group() {
         );
     }
     for heading in [
-        "Run (the eBPF control plane, night-improve-23):",
+        "Usage:",
+        "Examples:",
+        "Run:",
         "Diagnostics:",
         "Discover:",
-        "Global flags:",
+        "Global options:",
         "Pro mode:",
-        "Advanced flags:",
+        "Advanced options:",
     ] {
         assert!(
             text.contains(heading),
@@ -204,6 +206,17 @@ fn the_banner_subtitle_is_the_crate_description_verbatim() {
     assert!(
         flattened.contains(description),
         "the help banner must carry the Cargo.toml description: {description}"
+    );
+}
+
+/// The banner carries the masterclass one-line identity: the name and
+/// the role on the single purple frame line (the zelynic banner law).
+#[test]
+fn the_banner_carries_the_name_and_tagline() {
+    let text = render_reference(false);
+    assert!(
+        text.contains("━━━ zylaxion — keyboard sound, computed in the kernel ━━━"),
+        "the banner must open with the name and the role"
     );
 }
 

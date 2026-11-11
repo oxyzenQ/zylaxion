@@ -21,7 +21,10 @@ use super::alsa_guard::QuietAlsa;
 /// no time crate). The output geometry (banner, key/value rows,
 /// Warnings block) is the family law [`crate::output`] documents.
 pub fn cmd_doctor() {
-    println!("{}\n", crate::output::section("zylaxion doctor"));
+    println!(
+        "{}\n",
+        crate::output::section("zylaxion diagnostics report doctor")
+    );
 
     let mut ok = true;
     // Privilege awareness (night-improve-16, the audit's warn lane):

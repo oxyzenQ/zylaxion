@@ -50,9 +50,10 @@ fn wrap_prose(text: &str, width: usize) -> Vec<String> {
     lines
 }
 
-/// Render the end-to-end reference: usage, commands grouped by role,
-/// examples, global flags, the Pro mode estate (short aliases, the
-/// environment law, the hidden verb), and the no-subcommand contract.
+/// Render the end-to-end reference: usage, examples, commands grouped
+/// by role, the global options, the Pro mode estate (short aliases,
+/// the environment law, the hidden verb), and the no-subcommand
+/// contract.
 ///
 /// Pure function of the color decision so tests can pin the plain
 /// text byte-for-byte ([`print_reference`] computes the gate from the
@@ -76,7 +77,9 @@ pub(crate) fn render_reference(color: bool) -> String {
     let grey = |t: &str| span(GREY_OPEN, t, color);
     let ok = |t: &str| span(OK_OPEN, t, color);
 
-    push(brand("━━━ zylaxion ━━━"));
+    push(brand(
+        "━━━ zylaxion — keyboard sound, computed in the kernel ━━━",
+    ));
     push(String::new());
     // night-hunter-2: the subtitle is the Cargo.toml description,
     // word-wrapped — the drift pin in the test tree holds it against
@@ -86,7 +89,24 @@ pub(crate) fn render_reference(color: bool) -> String {
     }
     push(String::new());
 
-    push(brand("Run (the eBPF control plane, night-improve-23):"));
+    // The masterclass usage block (the zelynic help lineage): every
+    // reference opens with the one usage line and three runnable
+    // examples, so the quick-start lives above the full command tour.
+    push(brand("Usage:"));
+    push(String::new());
+    push(grey("  zylaxion [command] [options]"));
+    push(String::new());
+    push(brand("Examples:"));
+    push(String::new());
+    push("  # hear it right now (the compiled default preset)".into());
+    push(ok("  zylaxion on"));
+    push("  # the deep read appends the kernel-side typing telemetry".into());
+    push(ok("  zylaxion status --verbose"));
+    push("  # the first stop when audio is silent".into());
+    push(ok("  zylaxion doctor"));
+    push(String::new());
+
+    push(brand("Run:"));
     push(String::new());
     push(grey("  sudo zylaxion attach"));
     push("      Plant the kernel-side tap + pinned control plane (once per boot).".into());
@@ -142,7 +162,7 @@ pub(crate) fn render_reference(color: bool) -> String {
     push("      List available audio backends.".into());
     push(String::new());
 
-    push(brand("Global flags:"));
+    push(brand("Global options:"));
     push(String::new());
     for (spelling, desc) in [
         (
@@ -200,7 +220,7 @@ pub(crate) fn render_reference(color: bool) -> String {
     ];
     let hidden_verbs: &[(&str, &str)] = &[(
         "zylaxion _play",
-        "the internal stateless player behind the\non verb; it owns no flags of its own —\nrun it in the foreground for the full\nerror when it dies at startup",
+        "the internal stateless player behind the\non verb; it owns no options of its own —\nrun it in the foreground for the full\nerror when it dies at startup",
     )];
     // night-hunter-2: the volume verb's escape flag was taught only in
     // the Run section's prose — the Pro mode estate documents it as a
@@ -252,7 +272,7 @@ pub(crate) fn render_reference(color: bool) -> String {
     push(ok("      zylaxion volume -p 60"));
     push(ok("      zylaxion status -v"));
     push(String::new());
-    push("  Advanced flags:".into());
+    push("  Advanced options:".into());
     push(String::new());
     for (spelling, desc) in advanced_flags {
         pro_row(&mut push, pro_col, &grey(spelling), spelling, desc);
