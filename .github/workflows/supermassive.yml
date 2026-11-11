@@ -32,8 +32,9 @@
 # input device on a runner. What the battery therefore proves — and proves
 # deeply, on the pinned toolchain, not a floating one:
 #   - the full test surface of the unified package, every target class
-#     (lib, bins, tests, examples, benches, doc tests — one lane per
-#     class since the split) and every feature combination (the Zactrix
+#     that exists (the package is binary-only — bins, tests, examples,
+#     benches; the lib and doc-test classes do not exist here) and
+#     every feature combination (the Zactrix
 #     engine's procedural synthesis, profile math, orchestrator wiring,
 #     CLI/config/daemon unit contracts are pure computation and run
 #     headless by design);
@@ -92,8 +93,8 @@ jobs:
       - name: Formatting gate
         run: cargo fmt --all -- --check
 
-  test-lib:
-    name: supermassive lane - unit battery (lib + bins)
+  test-units:
+    name: supermassive lane - unit battery (the bin crate)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -160,8 +161,12 @@ jobs:
             ${{ runner.os }}-supermassive-lib-
             ${{ runner.os }}-supermassive-
 
-      - name: Unit battery (lib + bins, all features)
-        run: cargo test --lib --bins --all-features
+      # The package is binary-only (the module tree wires into
+      # main.rs — there is no [lib] target, so --lib and --doc have
+      # nothing to select and would error). The bin target's unit
+      # tree IS the unit battery.
+      - name: Unit battery (the bin crate, all features)
+        run: cargo test --bins --all-features
 
   test-integration:
     name: supermassive lane - integration battery
@@ -296,9 +301,10 @@ jobs:
             ${{ runner.os }}-supermassive-targets-
             ${{ runner.os }}-supermassive-
 
-      - name: Documentation tests
-        run: cargo test --doc --all-features
-
+      # The package is binary-only: cargo test --doc errors with "no
+      # library targets found" (doc tests select the lib), so the
+      # target-class lane runs the examples and the benches; the
+      # documentation's own compile proof is the doc-build lane.
       - name: Example targets
         run: cargo test --examples --all-features
 
