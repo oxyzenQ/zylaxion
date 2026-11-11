@@ -407,7 +407,7 @@ pub(super) fn read_validated_ebpf_object(path: &std::path::Path) -> Result<Vec<u
 /// little-endian, version 1), ET_REL + EM_BPF (the only shape bpf-linker
 /// emits), and a section header table that exists, uses 64-byte entries,
 /// and lies fully inside the file (bpf-linker places it LAST, which makes
-/// this the truncation killer). Deliberately not checked: semantic
+/// this the truncation guard). Deliberately not checked: semantic
 /// content (programs, maps, relocations) — that is aya's own job at load
 /// time.
 pub(super) fn validate_ebpf_object(data: &[u8]) -> Result<(), String> {
