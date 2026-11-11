@@ -562,3 +562,125 @@ jobs:
             grep -E '^MASS-(RESULT|VERDICT)' /tmp/claims.log || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── night-arm-1: the arm64 server proof lane ──────────────────────────
+  # The owner's arm64 mandate: zylaxion must run on modern ARM64
+  # servers. This lane builds the `cargo pro-native-arm64-gnu` alias
+  # on the free native arm64 runner (ubuntu-24.04-arm — no QEMU, no
+  # cross-compile: the silicon IS the target, so target-cpu=native is
+  # honest and the glibc the binary links is the runner's own). The
+  # lane mirrors the release-shape lane's structure (the same
+  # bootstrap-ebpf.sh pair, the same cache shape) and adds the arm64
+  # target to rustup, then proves the binary's build identity and
+  # hardware-free surfaces (-V, -h) the same way release-shape does.
+  #
+  # The release matrix (release.yml) stays x86_64-only: an arm64
+  # cross-build from an x86 runner cannot honor the glibc parity the
+  # release contract pins, and bumping the release matrix is the
+  # owner's call. This lane is the CI proof that the arm64 alias and
+  # profile hold; arm64 server operators run the alias directly.
+  arm64-native:
+    name: supermassive lane - arm64 server (pro-native-arm64-gnu)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+        with:
+          persist-credentials: false
+
+      - name: Install system dependencies
+        run: |
+          # The arm64 lane needs the same ALSA headers every compile
+          # lane needs (night-badas-4: cpal's alsa-sys resolves
+          # alsa.pc via pkg-config). The archive-mirror kill timers
+          # (the run 40291698597 stall class) ride here too.
+          sudo timeout 240 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 update -qq
+          sudo timeout 600 apt-get -o Acquire::Retries=5 \
+            -o Acquire::http::Timeout=45 install -y -qq \
+            libasound2-dev pkg-config
+
+      - name: Add the arm64 gnu target to rustup
+        run: rustup target add aarch64-unknown-linux-gnu
+
+      - name: Compute the build-prerequisites cache key
+        id: prereq
+        run: |
+          # Both toolchain pins and the bootstrap script fold into one
+          # hash, so the tools cache can never serve a stale pin.
+          echo "key=${{ hashFiles('**/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the build-prerequisites cache (the pinned toolchains + the bootstrap bins)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ~/.rustup/toolchains
+            ~/.cargo/bin
+            ~/.local/bin
+          key: ${{ runner.os }}-arm64-supermassive-tools-${{ steps.prereq.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-arm64-supermassive-tools-
+
+      - name: Install pinned toolchain (rust-toolchain.toml governs)
+        run: rustup show active-toolchain
+
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-arm64-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-arm64-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-arm64-supermassive-native-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-arm64-supermassive-native-
+
+      - name: Build the arm64 native shape (pro-native-arm64-gnu alias)
+        run: cargo pro-native-arm64-gnu --locked
+
+      # night-dinner-4 + night-dinner-5: the prebuilt parity pin rides
+      # here too — an arm64 build must leave the prebuilt lane in step
+      # with the ebpf/ tree it shipped from.
+      - name: The prebuilt lane is in parity after the build
+        run: ./scripts/dev/regenerate-ebpf-prebuilt.sh --check
+
+      - name: Binary identity and hardware-free surfaces
+        run: |
+          BIN="target/aarch64-unknown-linux-gnu/pro-native-arm64-gnu/zylaxion"
+          file "${BIN}"
+          ldd "${BIN}" || true
+          du -h "${BIN}"
+          echo "--- zylaxion -V (the build identity) ---"
+          "${BIN}" -V
+          echo "--- the build label is the arm64 alias ---"
+          "${BIN}" -V | grep -F "Build: local-pro-native-arm64-gnu"
+          echo "--- zylaxion -h (first 20 lines) ---"
+          "${BIN}" -h | head -20
+
+      - name: Arm64 inventory (the step summary)
+        if: always()
+        run: |
+          BIN="target/aarch64-unknown-linux-gnu/pro-native-arm64-gnu/zylaxion"
+          {
+            echo "## supermassive — arm64 server (pro-native-arm64-gnu)"
+            echo
+            echo '```'
+            file "${BIN}" 2>/dev/null || true
+            "${BIN}" -V 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
