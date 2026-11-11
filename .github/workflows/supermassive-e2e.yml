@@ -258,7 +258,7 @@ jobs:
           # fresh every run — that is the dynamic doctrine — and keys
           # its cache on the resolved version.
           if [ "${{ matrix.leg.pocket }}" = "latest" ]; then
-            sudo timeout 240 apt-get -o Acquire::Retries=5 \
+            sudo apt-get -o Acquire::Retries=5 \
               -o Acquire::http::Timeout=45 update -qq
             PATTERN='linux-image-unsigned-[0-9]+\.[0-9]+\.0-[0-9]+-generic'
             IMG=$(apt-cache search --names-only "$PATTERN" 2>/dev/null \
@@ -313,7 +313,7 @@ jobs:
             # leg onto the newest 5.15, and the floor is the MINIMUM.
             echo "deb http://archive.ubuntu.com/ubuntu/ jammy main" \
               | sudo tee /etc/apt/sources.list.d/jammy-floor.list >/dev/null
-            sudo timeout 240 apt-get -o Acquire::Retries=5 \
+            sudo apt-get -o Acquire::Retries=5 \
               -o Acquire::http::Timeout=45 update \
               -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/jammy-floor.list \
               -o Dir::Etc::sourceparts=/dev/null \
@@ -326,7 +326,7 @@ jobs:
             # here, with the discovery evidence below).
             echo "deb http://archive.ubuntu.com/ubuntu/ focal main" \
               | sudo tee /etc/apt/sources.list.d/focal-below-floor.list >/dev/null
-            sudo timeout 240 apt-get -o Acquire::Retries=5 \
+            sudo apt-get -o Acquire::Retries=5 \
               -o Acquire::http::Timeout=45 update \
               -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/focal-below-floor.list \
               -o Dir::Etc::sourceparts=/dev/null \
