@@ -18,6 +18,7 @@ and the pre-v10 release notes live next to it in
 
 ## [Released]
 
+v80.0.4
 v80.0.3
 v80.0.2
 v80.0.1

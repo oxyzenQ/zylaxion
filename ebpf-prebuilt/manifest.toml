@@ -19,15 +19,15 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-02T15:29:58Z"
+generated = "2026-11-11T16:58:06Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "4f3684937d97350e379f3510881baf59a477b7d95b8ccfbeff3a5bf42d93180b"
+ebpf_tree_blake3 = "41891ccd4d2968b96dfd04f96db753ef2fdfa1a76b3611c3e8634bc0a75a11ec"
 built_by = "rezky_nightky <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zylaxion-tap"
-blake3 = "b874325e8aee50512d9e44a7f74be882a31ca31f5c69ce5a7bcae43af5242640"
+blake3 = "774ffa0d8ca1f403edce756fb4e9ac0f0ed59ecbf5edc8ea663acf8e494e9fd6"
 size = 2936
 
 [contract]
@@ -36,4 +36,4 @@ size = 2936
 # documented for the registry consumer; a chain change rewrites this
 # list in the same commit that changes the ebpf/ tree.
 attach_targets = ["fentry:input_event", "kprobe:input_event"]
-version = "80.0.3"
+version = "80.0.4"
