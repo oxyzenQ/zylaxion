@@ -64,7 +64,7 @@ fn validate_and_clamp_is_noop_on_safe_profile() {
 #[test]
 fn validate_and_clamp_clamps_out_of_bounds_decay() {
     let mut p = good_profile();
-    // The killer case from the prompt: decay = 9999. Without
+    // The decisive case from the prompt: decay = 9999. Without
     // clamping this would cause an infinite render loop because
     // the envelope never decays below voice_off_threshold.
     p.decay.coefficient = 9999.0;

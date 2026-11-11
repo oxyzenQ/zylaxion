@@ -471,7 +471,7 @@ passive, the player is disposable:
 zylaxion stays out of the user's way while doing serious work
 underneath: it plants a passive kernel probe, it synthesizes sound
 from mathematics, and it owns nothing. The interface rarely changes.
-Features don't explode. Every release makes it slightly more stable,
+Features do not pile up. Every release makes it slightly more stable,
 slightly faster, slightly easier to maintain.
 
 ### What zylaxion IS
@@ -676,7 +676,8 @@ Companies using zylaxion in production need a commercial license.
 zylaxion is dual-licensed: **AGPL-3.0-only** for open-source use, and a
 **Commercial License** for proprietary use. **Unauthorized use is
 theft.** The honest paths are exactly two: comply with AGPL-3.0-only
-(free, first-class), or buy the tier your revenue honestly matches.
+(free, first-class, not a trial), or buy the tier your revenue
+honestly matches.
 
 The tiers, mirrored verbatim from
 [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) section 3 — the
