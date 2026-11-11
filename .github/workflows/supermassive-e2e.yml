@@ -71,29 +71,53 @@ jobs:
           # outlives this step — no later step can read it back.
           persist-credentials: false
 
+      - name: Harden the runner DNS
+        run: |
+          # The zejtron night recipe, adopted for the same fleet (the
+          # 43048319555 outage evidence): the runner's Azure resolver
+          # serves dead answers for the ubuntu.com zones only —
+          # security.ubuntu.com failed 'Temporary failure resolving'
+          # for two straight hours while github.com and docker.io kept
+          # answering from the same runner, and the same hosts resolve
+          # clean from outside Azure. The public resolvers go IN FRONT
+          # of /etc/resolv.conf — appending would fall past glibc's
+          # three-slot MAXNS window and the dead Azure resolver would
+          # still be tried first. One step heals every network
+          # consumer downstream in this lane: the apt mirror file, the
+          # kernel-pocket fetches, and the container lane (whose
+          # daemon inherited the poisoned resolver at boot — that one
+          # also carries explicit --dns flags).
+          {
+            printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n'
+            sudo cat /etc/resolv.conf
+          } | sudo tee /etc/resolv.conf > /dev/null
+
       - name: Install system dependencies
         run: |
-          # The apt stall class (the run 40291698597 lineage, still live
-          # through e0e1fdd: every compile lane died exit-124 inside
-          # 'apt-get update' — the index refresh fans out to a dozen
-          # archive hosts and one trickling mirror stalls the whole
-          # step). The shape now skips the fan-out in the common case:
-          # the runner image ships package lists ~10 days fresh, so the
-          # fast path installs directly (one host, a few small debs,
-          # Retries=5 + per-session Timeout=45). Only a failed install
-          # earns the update, and the update earns three named attempts
-          # (the download_deb doctrine): each inside its own kill
-          # timer, the -qq veil lifted so the log shows the Hit:/Get:
-          # lines between attempts. libasound2-dev is the real payload
-          # (night-badas-4: cpal's alsa-sys resolves alsa.pc via
-          # pkg-config); pkg-config rides preinstalled on both runner
-          # images and costs no fetch.
+          # The apt stall class, fully named by the zejtron night
+          # evidence (three layers, all live during the 43048319555
+          # outage): (1) the runner's Azure resolver serves dead
+          # ubuntu.com zones — the DNS guard step upstream heals the
+          # host; (2) the azure mirror itself hangs without output —
+          # the fast path below bails in 90 seconds and the fallback
+          # repoints the deb822 sources at archive.ubuntu.com (Fastly,
+          # a different CDN entirely); (3) only a failed install earns
+          # the update lane — three named attempts, each inside its
+          # own kill timer, the -qq veil lifted so the log shows the
+          # Hit:/Get: lines between attempts. libasound2-dev is the
+          # real payload (night-badas-4: cpal's alsa-sys resolves
+          # alsa.pc via pkg-config); pkg-config rides preinstalled on
+          # both runner images and costs no fetch.
           APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
-          if sudo timeout 300 apt-get "${APT_OPTS[@]}" install -y -qq \
+          if sudo timeout 90 apt-get "${APT_OPTS[@]}" install -y -qq \
               libasound2-dev pkg-config; then
             echo "apt: the fast path landed (the image's lists held)"
           else
-            echo "apt: the fast path failed - the update lane, three named attempts"
+            echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
+            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list 2>/dev/null || true
             landed=""
             for attempt in 1 2 3; do
               echo "--- apt attempt $attempt: update + install ---"
@@ -239,20 +263,47 @@ jobs:
       # The legs hold no toolchain and build nothing (night-ci-split-1:
       # the payload crosses as an artifact), so the host needs only the
       # VM runner and the initramfs assembler — no ALSA headers here.
+      - name: Harden the runner DNS
+        run: |
+          # The zejtron night recipe, adopted for the same fleet (the
+          # 43048319555 outage evidence): the runner's Azure resolver
+          # serves dead answers for the ubuntu.com zones only —
+          # security.ubuntu.com failed 'Temporary failure resolving'
+          # for two straight hours while github.com and docker.io kept
+          # answering from the same runner, and the same hosts resolve
+          # clean from outside Azure. The public resolvers go IN FRONT
+          # of /etc/resolv.conf — appending would fall past glibc's
+          # three-slot MAXNS window and the dead Azure resolver would
+          # still be tried first. One step heals every network
+          # consumer downstream in this lane: the apt mirror file, the
+          # kernel-pocket fetches, and the container lane (whose
+          # daemon inherited the poisoned resolver at boot — that one
+          # also carries explicit --dns flags).
+          {
+            printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n'
+            sudo cat /etc/resolv.conf
+          } | sudo tee /etc/resolv.conf > /dev/null
+
       - name: Install qemu + cpio
         run: |
-          # The same apt doctrine as every install step (the stall
-          # class, still live through e0e1fdd): fast-path install
-          # first — the image's package lists are fresh enough for
-          # these packages — and only a failure earns the update lane,
-          # three named attempts, each inside its own kill timer.
-          # cpio is preinstalled; the fetch is qemu-system-x86's.
+          # The same three-layer doctrine as every install step: the
+          # DNS guard step upstream heals the resolver; the fast path
+          # is a real download (qemu-system-x86 is large), so its bail
+          # stays generous at 600s; only a failure repoints the
+          # sources off the azure mirror (archive.ubuntu.com, Fastly)
+          # and earns the update lane — three named attempts, each
+          # inside its own kill timer. cpio is preinstalled; the fetch
+          # is qemu-system-x86's.
           APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
           if sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y \
               --no-install-recommends qemu-system-x86 cpio; then
             echo "apt: the fast path landed (the image's lists held)"
           else
-            echo "apt: the fast path failed - the update lane, three named attempts"
+            echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
+            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list 2>/dev/null || true
             landed=""
             for attempt in 1 2 3; do
               echo "--- apt attempt $attempt: update + install ---"
@@ -501,7 +552,12 @@ jobs:
           # night-dragon-lts: a retried step on the same runner instance
           # hits the container-name conflict — clear any survivor first.
           docker rm -f zylaxion-rootfs >/dev/null 2>&1 || true
-          docker run --name zylaxion-rootfs -d ubuntu:24.04 sleep infinity
+          # night-arm-3 layer 2 (the zejtron evidence): the daemon
+          # captured the poisoned Azure resolver at boot — a rootfs
+          # container does not inherit the host file the DNS guard
+          # step fixed. Explicit resolvers ride with the container.
+          docker run --dns 1.1.1.1 --dns 8.8.8.8 \
+            --name zylaxion-rootfs -d ubuntu:24.04 sleep infinity
           docker exec zylaxion-rootfs timeout 240 apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 update -qq
           # python3: the engine. sudo + passwd: the real-user lane.
