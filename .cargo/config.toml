@@ -9,6 +9,7 @@
 # pro-(os)-(arch)-(cpu)-libc. The live shapes:
 #
 #   pro-native-gnu            host CPU, dynamic glibc (desktop dev)
+#   pro-native-arm64-gnu      arm64 server, native CPU, dynamic glibc
 #   pro-linux-amd64-gnu       portable x86_64 baseline, dynamic glibc
 #   pro-linux-amd64-v3-gnu    x86-64-v3 tier, dynamic glibc
 #   pro-linux-amd64-v4-gnu    x86-64-v4 tier, dynamic glibc
@@ -124,6 +125,44 @@ pro-linux-amd64-v4-gnu = [
   "env.ZYLAXION_BUILD=\"local-pro-linux-amd64-v4-gnu\"",
   "--config",
   "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\",\"-C\",\"link-arg=-Wl,-z,now\"]",
+]
+
+# ── the arm64 native server alias (night-arm-1, the zelynic arm64
+#    lineage, adapted to zylaxion's gnu estate) ──────────────────────────
+#
+# Owner directive: zylaxion must run on modern ARM64 servers. The
+# alias mirrors zelynic's pro-native-arm64 lane, with one estate-honest
+# difference: zylaxion ships glibc (the owner retired the musl static
+# lane by call in night-dragon-maintenance-T1 — a musl cross-build from
+# a glibc host welds glibc's libasound onto a musl CRT), so the arm64
+# target is aarch64-unknown-linux-gnu, dynamic, with the same
+# -Wl,-z,now full-RELRO hardening every gnu alias in this file ships.
+#
+# This is a NATIVE build alias — it compiles for the host CPU
+# (-C target-cpu=native), so it builds honestly only on an aarch64 host
+# (the CI arm64 lane runs on ubuntu-24.04-arm). On an x86_64 host the
+# alias still resolves but cargo errors at link with the host's lld —
+# the honest failure, not a silent cross-compile that would ship a
+# glibc-mismatched binary. The release matrix (release.yml) stays
+# x86_64-only: an arm64 cross-build from an x86 runner cannot honor
+# the glibc parity the release contract pins, and bumping the release
+# matrix is the owner's call. This alias is the build-from-source path
+# for arm64 server operators and the CI proof leg.
+#
+# The profile (pro-native-arm64-gnu, in Cargo.toml) inherits release
+# unchanged and lands the artifact in its own target dir
+# (target/aarch64-unknown-linux-gnu/pro-native-arm64-gnu/zylaxion),
+# never clobbering an x86 build or target/release/.
+pro-native-arm64-gnu = [
+  "build",
+  "--profile",
+  "pro-native-arm64-gnu",
+  "--target",
+  "aarch64-unknown-linux-gnu",
+  "--config",
+  "env.ZYLAXION_BUILD=\"local-pro-native-arm64-gnu\"",
+  "--config",
+  "build.rustflags=[\"-C\",\"target-cpu=native\",\"-C\",\"link-arg=-Wl,-z,now\"]",
 ]
 
 # The zactrix audit harness (scripts/audit/harness — the standalone
