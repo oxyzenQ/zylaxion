@@ -67,17 +67,27 @@ license terms.
 | Tier                 | Price                                                           | Target                                                                   |
 | -------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | Personal             | Free (AGPL-3.0)                                                  | Hobby, personal, non-commercial, open-source contributions               |
-| Individual           | $99/year                                                        | Solo devs, freelancers, revenue under $100K/year                         |
-| Professional         | $999/year                                                       | Teams up to 5 seats, revenue under $500K/year, priority support with SLA |
+| Professional         | $1,899/year                                                     | Solo devs, freelancers, revenue under $100K/year                         |
 | Business             | $2,199/year                                                     | SMB, revenue $100K–$10M/year                                             |
 | Enterprise Internal  | $19,999/year                                                    | Enterprise >$10M/year, internal use only, NO redistribution              |
 | OEM / Redistribution | $79,999/year OR $129,999 one-time + $25,999.80/year maintenance | Embedding or reselling in a shipped product; redistribution rights       |
 
-**Professional vs Individual.** Individual ($99/year) is single-seat
-for solo developers and freelancers. Professional ($999/year) covers
-teams up to 5 seats at revenue under $500K, with priority support
-and a response SLA. The architecture licensed is identical;
-Professional adds seats and support, not patterns.
+**Professional, not $99.** Professional ($1,899/year) is the entry
+paid tier: single-seat for solo developers and freelancers at revenue
+under $100K. The former Individual ($99/year) tier is retired in this
+revision — any Individual-tier customer who bought before this
+revision is grandfathered at $99 for the term they bought. Teams from
+$100K of revenue ride Business. The architecture licensed is
+identical; the price is the honest cost of a serious LTS project, not
+a volume discount.
+
+**Why $1,899, not $99.** This is a serious LTS project: the tree
+ships dated audit documents, formal declarations, and claims that are
+verifiable from the source, and that burden is paid on every release.
+The commercial buyer is a professional whose infrastructure value
+pays off the license in one shift. The $99 Individual tier was
+retired in this revision and the ladder now matches the
+serious-tool standard set across the portfolio (zelynic, zejtron).
 
 **Enterprise Internal vs OEM / Redistribution.** Enterprise Internal
 ($19,999/year) is internal use only — run zylaxion on any number of
@@ -130,7 +140,10 @@ Notes:
   price they bought, for the term they bought. The business end moves
   with the work: Business $2,199/year and Company $29,999/year were
   the owner's pricing call for zylaxion (night-improve-17) — Personal
-  stays free and Individual holds at $99/year. Existing Company-tier
+  stays free, and the Individual ($99/year) tier was retired in this
+  revision (night-price-2): Professional ($1,899/year) is the entry
+  paid tier, and Individual-tier buyers are grandfathered at the
+  $99 they bought, for the term they bought. Existing Company-tier
   customers at $29,999 keep their purchased price for their purchased
   term — the Company tier is renamed to OEM / Redistribution with
   identical rights, so nothing changes for existing buyers, and the
@@ -224,7 +237,7 @@ is the asset; the keyboard sound is the proof of concept.
 
 ## 6. What Each Tier Grants
 
-Every paid tier — Individual, Professional, Business, Enterprise
+Every paid tier — Professional, Business, Enterprise
 Internal, and OEM / Redistribution — grants, for the license term:
 
 - **Use without AGPL copyleft** — the right to use, modify, and integrate

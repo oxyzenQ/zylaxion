@@ -206,18 +206,22 @@ patterns: eBPF input tap, daemonless control plane, Zactrix Engine
 LTS-frozen with six proofs, zero-sample DSP discipline,
 micro-randomization law) and "Use Cases Beyond Keyboard Sound"
 (accessibility, VDI, embedded devices, game engines, security
-tooling, hardware keyboards). The Individual tier ($99) licenses the
-keyboard sound. The Enterprise Internal tier ($19,999/year) licenses
+tooling, hardware keyboards). The Professional tier ($1,899/year)
+licenses the keyboard sound for a solo developer or freelancer. The
+Enterprise Internal tier ($19,999/year) licenses
 the architecture for internal use; OEM / Redistribution ($79,999/year,
 or $129,999 perpetual + 20%/year) licenses it for embedding and
 resale. Different products, different prices.
 
-### Why is there no Professional tier for a team of 3?
+### Is there a tier for a small studio, between solo and Business?
 
-There is — Professional ($999/year) covers teams up to 5 seats at
-revenue under $500K. Individual ($99) is single-seat; Business
-($2,199) is for revenue $100K–$10M and is disproportionately heavy
-for a small studio. Professional bridges the gap.
+There is — Professional ($1,899/year) is the entry paid tier: solo
+developers, freelancers, and small teams at revenue under $100K.
+Business ($2,199) starts at $100K and is disproportionately heavy
+for a small studio; Professional bridges the gap. The former $99
+Individual tier is retired in this revision — existing
+Individual-tier buyers are grandfathered at $99 for the term they
+bought.
 
 ### What is the difference between Enterprise Internal and OEM / Redistribution?
 
