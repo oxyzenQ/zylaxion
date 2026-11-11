@@ -496,6 +496,12 @@ jobs:
           mkdir -p rootfs/opt/zylaxion/modules
           git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C rootfs/opt/zylaxion
           cp "$GITHUB_WORKSPACE/payload/zylaxion" rootfs/opt/zylaxion/zylaxion
+          # night-ci-split-2: the artifact round-trip does not carry
+          # the executable bit (the upload zip stores the plain 0644),
+          # and test -x below fails silently — the mode is restored
+          # explicitly, the from-source law's bytes keep the bytes
+          # honest and this lane keeps the mode honest.
+          chmod 755 rootfs/opt/zylaxion/zylaxion
           test -x rootfs/opt/zylaxion/zylaxion
           # The below-floor leg stages no modules (the empty mods dir
           # is the honest shape there) — the glob guard keeps the cp
