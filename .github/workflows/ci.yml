@@ -75,11 +75,44 @@ jobs:
       # ALSA headers remain a build prerequisite.
       - name: Install system dependencies
         run: |
-          # The supermassive apt idiom (retries + connect timeout): a
-          # flaky mirror stays a retry, not a red run.
-          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 update -qq
-          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 install -y -qq \
-            libasound2-dev pkg-config
+          # The apt stall class (the run 40291698597 lineage, still live
+          # through e0e1fdd: every compile lane died exit-124 inside
+          # 'apt-get update' — the index refresh fans out to a dozen
+          # archive hosts and one trickling mirror stalls the whole
+          # step). The shape now skips the fan-out in the common case:
+          # the runner image ships package lists ~10 days fresh, so the
+          # fast path installs directly (one host, a few small debs,
+          # Retries=5 + per-session Timeout=45). Only a failed install
+          # earns the update, and the update earns three named attempts
+          # (the download_deb doctrine): each inside its own kill
+          # timer, the -qq veil lifted so the log shows the Hit:/Get:
+          # lines between attempts. libasound2-dev is the real payload
+          # (night-badas-4: cpal's alsa-sys resolves alsa.pc via
+          # pkg-config); pkg-config rides preinstalled on both runner
+          # images and costs no fetch.
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 300 apt-get "${APT_OPTS[@]}" install -y -qq \
+              libasound2-dev pkg-config; then
+            echo "apt: the fast path landed (the image's lists held)"
+          else
+            echo "apt: the fast path failed - the update lane, three named attempts"
+            landed=""
+            for attempt in 1 2 3; do
+              echo "--- apt attempt $attempt: update + install ---"
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq \
+                     libasound2-dev pkg-config; then
+                landed="attempt $attempt"
+                break
+              fi
+              if [ "$attempt" = 3 ]; then
+                echo "::error::apt stalled on all three named attempts"
+                exit 1
+              fi
+              sleep 20
+            done
+            echo "apt: landed on $landed"
+          fi
 
       - name: Install Rust toolchain
         run: rustup default stable
