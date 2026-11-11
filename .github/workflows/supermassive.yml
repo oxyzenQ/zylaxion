@@ -105,12 +105,21 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          # The archive-mirror kill timers (the run 40291698597 stall
-          # class, closed on every door of this workflow): a trickling
-          # mirror dies loudly inside its budget, never a silent burn.
-          sudo timeout 240 apt-get -o Acquire::Retries=5 \
+          # The archive-mirror stall class (the run 40291698597 lineage):
+          # Acquire::Retries=5 reopens on hard errors, and
+          # Acquire::http::Timeout=45 kills a dead session fast. The
+          # outer `timeout` kill timer that night-ci-split-1 added here
+          # was retired by night-ci-split-3: it fired on a legitimately
+          # slow-but-recovering update (zero output for 240s, exit 124,
+          # the whole job dead) — a recovering mirror is the common
+          # case on a cold runner, not the rare wedge the timer guarded
+          # against. The zelynic reference carries no outer kill timer
+          # for the same reason; the per-session timeout is the honest
+          # floor. libasound2-dev: cpal's alsa-sys resolves alsa.pc via
+          # pkg-config (night-badas-4).
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 update -qq
-          sudo timeout 600 apt-get -o Acquire::Retries=5 \
+          sudo apt-get -o Acquire::Retries=5 \
             -o Acquire::http::Timeout=45 install -y -qq \
             libasound2-dev pkg-config
 
