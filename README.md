@@ -687,8 +687,7 @@ call: the pricing display table also lives here):
 | Tier                 | Price                                                           | Target                                                                   |
 | -------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | Personal             | Free (AGPL-3.0)                                                  | Hobby, personal, non-commercial, open-source contributions               |
-| Individual           | $99/year                                                        | Solo devs, freelancers, revenue under $100K/year                         |
-| Professional         | $999/year                                                       | Teams up to 5 seats, revenue under $500K/year, priority support with SLA |
+| Professional         | $1,899/year                                                     | Solo devs, freelancers, revenue under $100K/year                         |
 | Business             | $2,199/year                                                     | SMB, revenue $100K–$10M/year                                             |
 | Enterprise Internal  | $19,999/year                                                    | Enterprise >$10M/year, internal use only, NO redistribution              |
 | OEM / Redistribution | $79,999/year OR $129,999 one-time + $25,999.80/year maintenance | Embedding or reselling in a shipped product; redistribution rights       |
@@ -697,6 +696,17 @@ Payment is USD-pegged crypto (Solana / Ethereum / Bitcoin). A price
 move refreshes this table and its canonical twin in the same commit —
 the sync rule that keeps the mirror honest. Licensing contact:
 [with.rezky@gmail.com](mailto:with.rezky@gmail.com).
+
+**Why $1,899, not $99.** zylaxion's entry paid tier starts at $1,899
+(Professional), not $99. This is a serious LTS project: it ships
+dated audit documents, formal declarations, and claims verifiable
+from the tree, and that burden is paid every night. The commercial
+buyer is a professional whose infrastructure value pays off the
+license in one shift. The $99 Individual tier was retired in this
+revision; any Individual-tier customer who bought before this
+revision is grandfathered at $99 for the term they bought. Full
+reasoning and the market calibration live in
+[COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md).
 
 ## License
 
