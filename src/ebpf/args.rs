@@ -41,7 +41,7 @@
 /// passive observer of the event values and must never touch the
 /// device object.
 ///
-/// Dead-code note (the KeyRingEvent precedent, src/ebpf/loader.rs):
+/// Dead-code note (the KeyRingEvent precedent, src/ebpf/loader/mod.rs):
 /// the userspace crate compiles this module for its tests and as the
 /// single source of truth the ebpf crate `#[path]`-includes; the
 /// PRODUCTION constructor calls live on the ebpf side, so a plain

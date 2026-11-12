@@ -271,7 +271,8 @@ pub enum Commands {
     /// The explicit `name = "_play"` is load-bearing (night-improve-25,
     /// the hunt find under the Pro mode work): clap derives `play` from
     /// the bare variant, but every call site spells the verb with the
-    /// underscore — sound.rs spawns `.arg("_play")`, its startup-error
+    /// underscore — sound/lifecycle.rs spawns `.arg("_play")`, its
+    /// startup-error
     /// strings teach `zylaxion _play`, and player.rs names it the same.
     /// Before the pin the spawn was a verb clap rejects ("unrecognized
     /// subcommand '_play'"), so `zylaxion on` could never start the
