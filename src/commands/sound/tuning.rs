@@ -33,7 +33,7 @@ pub fn cmd_preset(name: &str) {
             process::exit(1);
         }
     };
-    if let Err(e) = control.set(PRESET_ID_SLOT, preset_index, 0) {
+    if let Err(e) = control.set(PRESET_ID_SLOT, &preset_index, 0) {
         crate::output::error(format!("cannot write the preset slot: {e}"));
         process::exit(1);
     }
@@ -79,7 +79,7 @@ pub fn cmd_volume(percent: u32, force_this: bool) {
             process::exit(1);
         }
     };
-    if let Err(e) = control.set(VOLUME_PCT_SLOT, percent, 0) {
+    if let Err(e) = control.set(VOLUME_PCT_SLOT, &percent, 0) {
         crate::output::error(format!("cannot write the volume slot: {e}"));
         process::exit(1);
     }

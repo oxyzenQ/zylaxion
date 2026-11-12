@@ -119,11 +119,11 @@ pub fn cmd_on(cli_preset: Option<String>) {
     };
     // Write the control plane BEFORE spawning: the player reads its
     // initial posture from the map at startup.
-    if let Err(e) = control.set(PRESET_ID_SLOT, preset_index, 0) {
+    if let Err(e) = control.set(PRESET_ID_SLOT, &preset_index, 0) {
         crate::output::error(format!("cannot write the preset slot: {e}"));
         process::exit(1);
     }
-    if let Err(e) = control.set(VOLUME_PCT_SLOT, volume_percent, 0) {
+    if let Err(e) = control.set(VOLUME_PCT_SLOT, &volume_percent, 0) {
         crate::output::error(format!("cannot write the volume slot: {e}"));
         process::exit(1);
     }
@@ -186,7 +186,7 @@ pub fn cmd_on(cli_preset: Option<String>) {
         // write actually landed — the sibling slot writes above exit on
         // error, so this one does too. A swallowed failure used to
         // print "sound already on" while the kernel gate stayed 0.
-        if let Err(e) = control.set(ENABLED_SLOT, 1, 0) {
+        if let Err(e) = control.set(ENABLED_SLOT, &1, 0) {
             crate::output::error(format!("cannot write the enabled slot: {e}"));
             process::exit(1);
         }
@@ -224,8 +224,8 @@ pub fn cmd_on(cli_preset: Option<String>) {
     // failure diagnosis stays honest: the parent's error messages
     // name `zylaxion _play` in the foreground, where the player's
     // log lane is visible again.
-    let _ = control.set(STATE_SLOT, STATE_IDLE, 0);
-    let _ = control.set(PLAYER_PID_SLOT, 0, 0);
+    let _ = control.set(STATE_SLOT, &STATE_IDLE, 0);
+    let _ = control.set(PLAYER_PID_SLOT, &0, 0);
     use std::os::unix::process::CommandExt as _;
     let spawn = std::process::Command::new(exe)
         .arg(PLAYER_SPAWN_VERB)
@@ -244,7 +244,7 @@ pub fn cmd_on(cli_preset: Option<String>) {
 
     // Enable the gate BEFORE waiting: the tap only rings when enabled=1,
     // and the player's readiness race loses nothing either way.
-    if let Err(e) = control.set(ENABLED_SLOT, 1, 0) {
+    if let Err(e) = control.set(ENABLED_SLOT, &1, 0) {
         crate::output::error(format!("cannot enable the sound: {e}"));
         let _ = child.kill();
         process::exit(1);
@@ -259,7 +259,7 @@ pub fn cmd_on(cli_preset: Option<String>) {
                  environment verdicts, or run `zylaxion _play` in a terminal to \
                  see the player's own output",
             );
-            let _ = control.set(ENABLED_SLOT, 0, 0);
+            let _ = control.set(ENABLED_SLOT, &0, 0);
             process::exit(1);
         }
         if control.get(&STATE_SLOT, 0).unwrap_or(0) == STATE_RUNNING {
@@ -272,7 +272,7 @@ pub fn cmd_on(cli_preset: Option<String>) {
                  `zylaxion _play` in a terminal to see the player's own output",
             );
             let _ = child.kill();
-            let _ = control.set(ENABLED_SLOT, 0, 0);
+            let _ = control.set(ENABLED_SLOT, &0, 0);
             process::exit(1);
         }
         std::thread::sleep(SETTLE_STEP);
@@ -400,12 +400,12 @@ pub fn cmd_off() {
         // read lie — so it is checked. The registration clears are
         // hygiene for an already-dead pid and stay best-effort: the
         // next `on` re-clears them on its spawn path.
-        if let Err(e) = control.set(ENABLED_SLOT, 0, 0) {
+        if let Err(e) = control.set(ENABLED_SLOT, &0, 0) {
             crate::output::error(format!("cannot clear the enabled flag: {e}"));
             process::exit(1);
         }
-        let _ = control.set(PLAYER_PID_SLOT, 0, 0);
-        let _ = control.set(STATE_SLOT, STATE_IDLE, 0);
+        let _ = control.set(PLAYER_PID_SLOT, &0, 0);
+        let _ = control.set(STATE_SLOT, &STATE_IDLE, 0);
         // night-dragon-maintenance-4: the no-player shape is passive
         // — the calm-grey tier, matching the not-attached arm above.
         println!(
@@ -417,7 +417,7 @@ pub fn cmd_off() {
 
     // The stop protocol: clear the gate, the player's watcher sees it
     // within 100 ms, fades out, and unregisters itself.
-    if let Err(e) = control.set(ENABLED_SLOT, 0, 0) {
+    if let Err(e) = control.set(ENABLED_SLOT, &0, 0) {
         crate::output::error(format!("cannot clear the enabled flag: {e}"));
         process::exit(1);
     }

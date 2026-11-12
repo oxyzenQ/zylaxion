@@ -101,7 +101,7 @@ pub(super) fn plant(bpf: &mut Ebpf) -> Result<TapKind, AttachError> {
         ];
         for (slot, value) in defaults {
             control_map
-                .set(slot, value, 0)
+                .set(slot, &value, 0)
                 .map_err(|e| AttachError::Unknown {
                     detail: format!("control init failed at slot {slot}: {e}"),
                 })?;
@@ -128,7 +128,7 @@ pub(super) fn plant(bpf: &mut Ebpf) -> Result<TapKind, AttachError> {
             })?;
         for code in KEYMAP_KEYCODE_DOMAIN {
             keymap
-                .insert(code, 0, 0)
+                .insert(&code, &0, 0)
                 .map_err(|e| AttachError::Unknown {
                     detail: format!("keymap init failed at keycode {code}: {e}"),
                 })?;
