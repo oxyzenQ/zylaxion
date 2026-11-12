@@ -40,7 +40,7 @@
 // never matter because no device fd exists.
 //
 // The two programs (the loader picks, in order — see
-// src/ebpf/loader.rs, the attach chain):
+// src/ebpf/loader/, the attach chain):
 //
 //   fentry/input_event   BPF_PROG_TYPE_TRACING on input_event() via
 //                        the BTF trampoline. Zero-overhead. Requires
@@ -109,7 +109,7 @@ use args::InputEventArgs;
 const EV_KEY: u32 = 0x01;
 
 /// Control map slots (the index contract with the userspace loader
-/// — src/ebpf/loader.rs reads and writes the same slots; keep both
+/// — src/ebpf/loader/ reads and writes the same slots; keep both
 /// sides in lockstep).
 pub mod control_slots {
     /// 1 while the sound is on. The kernel gate reads ONLY this slot.
@@ -135,7 +135,7 @@ pub mod control_slots {
 pub const STATS_TOTAL: u32 = 256;
 
 /// The ring buffer record — layout contract with the userspace
-/// player (src/ebpf/loader.rs KeyRingEvent). 24 bytes, 8-aligned:
+/// player (src/ebpf/loader/mod.rs KeyRingEvent). 24 bytes, 8-aligned:
 /// repr(C) puts ts_us at 0 and the three u32s at 8/12/16, with four
 /// trailing pad bytes — the identical shape on both sides is the
 /// contract (same repr, same field order, same Rust ABI).

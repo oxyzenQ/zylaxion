@@ -202,7 +202,7 @@ signal-hook = { version = "0.4", default-features = false }
 # 0.3.1 era with the cpal 0.18 bump; one copy of the native link, zero
 # supply-chain surface beyond cpal's own choice). Target-gated to
 # Linux because that is where cpal's ALSA host lives. The ONE use: the quiet-ALSA probe guard in
-# src/commands/info.rs — libasound's C-level error log (up to eight
+# src/commands/info/alsa_guard.rs — libasound's C-level error log (up to eight
 # raw `ALSA lib ...` lines on a cardless host) cannot spew across the
 # rendered CLI surfaces; the guard restores the library default on
 # drop so the player path keeps its full diagnosis.
