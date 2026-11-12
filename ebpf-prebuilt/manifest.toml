@@ -22,7 +22,7 @@ schema = 2
 generated = "2026-11-12T09:45:48Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "d2db4138c5ae15d726983898a797f6800181747212ca3091ea269a33b3763f73"
+ebpf_tree_blake3 = "29f2c191ac1a9e29edc4aee7056cb83127314f60e2d23611c39e1985c84e2102"
 built_by = "rezky_nightky <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
