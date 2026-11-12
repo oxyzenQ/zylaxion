@@ -197,6 +197,14 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   `release.yml` wake ONLY on a pushed `v*` tag (the tag-means-publish
   contract, the zelynic NIGHT-ask-1 shape) — never blind-triggered by
   ordinary pushes.
+- **Per-job time budget (night-zen-2):** every CI job carries an
+  explicit `timeout-minutes`, and the estate floor is 10 minutes per
+  job. A lane may be sized above the floor to its measured cold
+  record (the fail-fast doctrine, not a speed claim), but no job may
+  sit below it: a cold-cache miss is allowed to buy its compile
+  honestly, and the measured cold records on the deep lanes reach
+  16-17 minutes — a sub-10-minute ceiling would kill exactly those
+  runs.
 - **Node.js:** `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` in all workflow env.
 - **Dependabot:** REMOVED. Do not use Dependabot.
 - **Dependency updates:** Custom `maintenance.yml` workflow auto-updates deps
