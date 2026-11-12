@@ -172,9 +172,9 @@ VoicePool (3216 bytes, 51 cache lines):
 
 | Cache Level | Size | VoicePool Fit | Status |
 |:---|:---|:---|:---|
-| L1D | 32 KB | 10× VoicePool | ✅ Full pool fits 10× |
-| L2 | 256-512 KB | 80-160× VoicePool | ✅ Massive headroom |
-| L3 | 2-8 MB | 600-2500× VoicePool | ✅ Not even close |
+| L1D | 32 KB | 10× VoicePool | yes Full pool fits 10× |
+| L2 | 256-512 KB | 80-160× VoicePool | yes Massive headroom |
+| L3 | 2-8 MB | 600-2500× VoicePool | yes Not even close |
 
 **Evidence-based verdict:** The entire VoicePool (3.2 KB) fits comfortably in L1D cache. Iterating 16 voices of 200 bytes each touches 3.2 KB — well within L1D capacity. No cache misses in the hot path under normal operation.
 
@@ -192,14 +192,14 @@ VoicePool (3216 bytes, 51 cache lines):
 
 | Code Path | Allocates? | Evidence |
 |:---|:---|:---|
-| `process_sample()` | ❌ No | Only `[f32; 2]` stack local, f32 arithmetic |
-| `render_sample()` | ❌ No | Inlined xorshift, TPT SVF math, no heap types |
-| `TptSvf::process()` | ❌ No | Pure math, stack only |
-| `cpal callback (F32)` | ❌ No | `try_pop()`, clamp, write to `&mut [f32]` |
-| `cpal callback (I16)` | ❌ No | Same + integer conversion |
-| `trigger()` | ❌ No | Array indexing, struct field writes |
-| `write_sample()` | ❌ No | `HeapRb::try_push()` — pre-allocated ring buffer |
-| `Orchestrator::run()` | ❌ No | Pre-allocated `[[f32;2]; 64]` stack array |
+| `process_sample()` | No | Only `[f32; 2]` stack local, f32 arithmetic |
+| `render_sample()` | No | Inlined xorshift, TPT SVF math, no heap types |
+| `TptSvf::process()` | No | Pure math, stack only |
+| `cpal callback (F32)` | No | `try_pop()`, clamp, write to `&mut [f32]` |
+| `cpal callback (I16)` | No | Same + integer conversion |
+| `trigger()` | No | Array indexing, struct field writes |
+| `write_sample()` | No | `HeapRb::try_push()` — pre-allocated ring buffer |
+| `Orchestrator::run()` | No | Pre-allocated `[[f32;2]; 64]` stack array |
 
 **Evidence-based verdict: ZERO allocations in all audio paths.** Code verified by inspection; `cargo check` confirms no `Box`, `Vec`, `String`, or `format!` in the render modules.
 
@@ -207,14 +207,14 @@ VoicePool (3216 bytes, 51 cache lines):
 
 | Location | Lock? | Mechanism |
 |:---|:---|:---|
-| Ring buffer producer | ❌ | `HeapRb::try_push()` — lock-free SPSC, single CAS |
-| Ring buffer consumer | ❌ | `HeapRb::try_pop()` — lock-free SPSC, single CAS |
-| Model swap (read) | ❌ | `ArcSwap::load()` — single `Ordering::Acquire` load |
-| Model swap (write) | ❌ | `ArcSwap::store()` — single `Ordering::Release` store |
-| Stop flag (read) | ❌ | `AtomicBool::load(Ordering::Relaxed)` |
-| Stop flag (write) | ❌ | `AtomicBool::store(Ordering::Relaxed)` |
-| Keystroke counter | ❌ | `AtomicU64::fetch_add(Ordering::Relaxed)` |
-| Instance lock | ⚠️ | `flock()` at startup only (not in render path) |
+| Ring buffer producer | no | `HeapRb::try_push()` — lock-free SPSC, single CAS |
+| Ring buffer consumer | no | `HeapRb::try_pop()` — lock-free SPSC, single CAS |
+| Model swap (read) | no | `ArcSwap::load()` — single `Ordering::Acquire` load |
+| Model swap (write) | no | `ArcSwap::store()` — single `Ordering::Release` store |
+| Stop flag (read) | no | `AtomicBool::load(Ordering::Relaxed)` |
+| Stop flag (write) | no | `AtomicBool::store(Ordering::Relaxed)` |
+| Keystroke counter | no | `AtomicU64::fetch_add(Ordering::Relaxed)` |
+| Instance lock | WARN: | `flock()` at startup only (not in render path) |
 
 **Evidence-based verdict: ZERO locks in render/audio paths.** The only lock (`flock`) is acquired once at process start.
 
@@ -222,11 +222,11 @@ VoicePool (3216 bytes, 51 cache lines):
 
 | Operation | Blocks? | Location |
 |:---|:---|:---|
-| `recv_timeout(1ms)` | ⚠️ Yes | Orchestrator loop — blocks main thread, NOT audio callback |
-| `cpal callback` | ❌ No | Only `try_pop()` — non-blocking |
-| `try_push()` | ❌ No | Returns immediately (silent drop if full) |
-| `try_pop()` | ❌ No | Returns immediately (silence if empty) |
-| `thread::sleep(1ms)` | ⚠️ Yes | Input event loop — expected idle behavior |
+| `recv_timeout(1ms)` | Yes (warn) | Orchestrator loop — blocks main thread, NOT audio callback |
+| `cpal callback` | No | Only `try_pop()` — non-blocking |
+| `try_push()` | No | Returns immediately (silent drop if full) |
+| `try_pop()` | No | Returns immediately (silence if empty) |
+| `thread::sleep(1ms)` | Yes (warn) | Input event loop — expected idle behavior |
 
 **Evidence-based verdict: No blocking in audio callback.** Orchestrator uses `recv_timeout` with 1ms timeout — acceptable for a keyboard sound effect daemon.
 
@@ -234,11 +234,11 @@ VoicePool (3216 bytes, 51 cache lines):
 
 | Path | Syscalls? | Notes |
 |:---|:---|:---|
-| `process_sample()` | ❌ | Pure userspace |
-| `render_sample()` | ❌ | Pure userspace |
-| `cpal callback` | ❌ | ALSA buffer write is mmap'd, no syscall per sample |
-| `recv_timeout()` | ✅ | `ppoll()` — 1 per iteration max |
-| `try_push()` / `try_pop()` | ❌ | Atomic CAS, no syscall |
+| `process_sample()` | no | Pure userspace |
+| `render_sample()` | no | Pure userspace |
+| `cpal callback` | no | ALSA buffer write is mmap'd, no syscall per sample |
+| `recv_timeout()` | yes | `ppoll()` — 1 per iteration max |
+| `try_push()` / `try_pop()` | no | Atomic CAS, no syscall |
 
 **Evidence-based verdict: Zero syscalls in the audio callback thread. One `ppoll` per orchestrator iteration.**
 
@@ -246,12 +246,12 @@ VoicePool (3216 bytes, 51 cache lines):
 
 | Location | Can Panic? | Evidence |
 |:---|:---|:---|
-| `process_sample()` | ❌ | No `unwrap()`, no `expect()`, no division by zero, no index out of bounds |
-| `render_sample()` | ❌ | No `unwrap()`, f32 NaN is checked downstream |
-| `TptSvf::process()` | ❌ | Division by `(1.0 + g*(g+k))` — bounded below by 1.0 |
-| `trigger()` | ❌ | `expect("MAX_POLYPHONY > 0")` — compile-time constant, cannot fail |
-| `cpal callback` | ❌ | All NaN/Inf guarded; `try_pop()` returns `Option` |
-| `try_push()` | ❌ | Returns `Result`, error silently ignored |
+| `process_sample()` | no | No `unwrap()`, no `expect()`, no division by zero, no index out of bounds |
+| `render_sample()` | no | No `unwrap()`, f32 NaN is checked downstream |
+| `TptSvf::process()` | no | Division by `(1.0 + g*(g+k))` — bounded below by 1.0 |
+| `trigger()` | no | `expect("MAX_POLYPHONY > 0")` — compile-time constant, cannot fail |
+| `cpal callback` | no | All NaN/Inf guarded; `try_pop()` returns `Option` |
+| `try_push()` | no | Returns `Result`, error silently ignored |
 
 **Evidence-based verdict: No panic paths in render/audio code.** The only `expect()` is on a compile-time constant.
 
@@ -263,11 +263,11 @@ VoicePool (3216 bytes, 51 cache lines):
 
 | Structure | Type | Capacity | Growth? |
 |:---|:---|:---|:---|
-| `VoicePool.voices` | `[Voice; 16]` | Fixed 3,200 B | ❌ Never grows |
-| `HeapRb<[f32;2]>` | Ring buffer | Fixed 131,072 B (16,384 frames) | ❌ Pre-allocated |
-| `crossbeam::unbounded()` | Channel | Unbounded in theory | ⚠️ Only if orchestrator stalls |
-| `HashMap<u32, KeyOverride>` | Override map | Fixed at config load | ❌ Never grows |
-| `batch` array | `[[f32;2]; 64]` | Stack, 512 B | ❌ Stack-allocated |
+| `VoicePool.voices` | `[Voice; 16]` | Fixed 3,200 B | no Never grows |
+| `HeapRb<[f32;2]>` | Ring buffer | Fixed 131,072 B (16,384 frames) | no Pre-allocated |
+| `crossbeam::unbounded()` | Channel | Unbounded in theory | WARN: Only if orchestrator stalls |
+| `HashMap<u32, KeyOverride>` | Override map | Fixed at config load | no Never grows |
+| `batch` array | `[[f32;2]; 64]` | Stack, 512 B | no Stack-allocated |
 
 **Channel growth analysis:** `crossbeam_channel::unbounded()` could grow unboundedly if the orchestrator stalls while key events arrive. At human typing speed (~5-10 events/sec), growth is self-limiting. Worst case: orchestrator thread deadlocked → events accumulate. But with 1ms timeout and no blocking in the loop, stall is extremely unlikely.
 
@@ -319,12 +319,12 @@ SIGTERM/SIGINT/SIGQUIT received
 
 | Tool | Status | Evidence |
 |:---|:---|:---|
-| `cargo fmt --check` | ✅ PASS | Zero formatting violations |
-| `cargo clippy -- -D warnings` | ✅ PASS | Zero clippy warnings (lint level: deny) |
-| `cargo test` | ✅ PASS | All unit + doc tests pass |
-| `cargo audit` | ⚠️ NOT RUN | `cargo-audit` not installed in this environment |
-| `cargo miri` | ⚠️ NOT RUN | Miri not installed — no unsafe code to check regardless |
-| Sanitizers (ASAN/UBSAN/TSAN) | ⚠️ NOT RUN | Requires nightly Rust + sanitizer runtime |
+| `cargo fmt --check` | PASS | Zero formatting violations |
+| `cargo clippy -- -D warnings` | PASS | Zero clippy warnings (lint level: deny) |
+| `cargo test` | PASS | All unit + doc tests pass |
+| `cargo audit` | WARN: NOT RUN | `cargo-audit` not installed in this environment |
+| `cargo miri` | WARN: NOT RUN | Miri not installed — no unsafe code to check regardless |
+| Sanitizers (ASAN/UBSAN/TSAN) | WARN: NOT RUN | Requires nightly Rust + sanitizer runtime |
 
 ### 6.2 Release Profile Compliance
 
@@ -332,12 +332,12 @@ SIGTERM/SIGINT/SIGQUIT received
 |:---|:---|:---|:---|
 | `lto` | `"thin"` | `true` | **Proven 30-40% slower** render path |
 | `panic` | `"unwind"` | `"abort"` | **Proven 300 KB larger** binary |
-| `opt-level` | `3` | `3` | ✅ Compliant |
-| `codegen-units` | `1` | `1` | ✅ Compliant |
-| `strip` | `true` | `true` | ✅ Compliant |
-| `overflow-checks` | `false` | (not specified) | ✅ Acceptable for audio DSP |
-| `debug` | `false` | (not specified) | ✅ Correct for release |
-| `incremental` | `false` | (not specified) | ✅ Correct for release |
+| `opt-level` | `3` | `3` | yes Compliant |
+| `codegen-units` | `1` | `1` | yes Compliant |
+| `strip` | `true` | `true` | yes Compliant |
+| `overflow-checks` | `false` | (not specified) | yes Acceptable for audio DSP |
+| `debug` | `false` | (not specified) | yes Correct for release |
+| `incremental` | `false` | (not specified) | yes Correct for release |
 
 ### 6.3 Binary Size Comparison
 
@@ -419,16 +419,16 @@ SIGTERM/SIGINT/SIGQUIT received
 
 | Check | Status |
 |:---|:---|
-| `cargo fmt --check` | ✅ PASS |
-| `cargo clippy -- -D warnings` | ✅ PASS |
-| `cargo test` | ✅ PASS |
-| `cargo audit` | ⚠️ Not run (tool not installed) |
-| Zero allocations in render path | ✅ CONFIRMED |
-| Zero locks in render path | ✅ CONFIRMED |
-| Zero blocking in audio callback | ✅ CONFIRMED |
-| Graceful shutdown | ✅ CONFIRMED |
-| No memory leaks | ✅ CONFIRMED |
-| No race conditions | ✅ CONFIRMED |
+| `cargo fmt --check` | PASS |
+| `cargo clippy -- -D warnings` | PASS |
+| `cargo test` | PASS |
+| `cargo audit` | WARN: Not run (tool not installed) |
+| Zero allocations in render path | yes CONFIRMED |
+| Zero locks in render path | yes CONFIRMED |
+| Zero blocking in audio callback | yes CONFIRMED |
+| Graceful shutdown | yes CONFIRMED |
+| No memory leaks | yes CONFIRMED |
+| No race conditions | yes CONFIRMED |
 
 ### False Positives From Prior Audit
 

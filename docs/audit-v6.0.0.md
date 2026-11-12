@@ -119,35 +119,35 @@ At 44.1 kHz with 4 active voices: ~13.7 Mflops. Negligible for any modern CPU.
 
 ## 3. Realtime Safety Audit
 
-### ✅ NO ALLOCATIONS in audio/render path
+### yes NO ALLOCATIONS in audio/render path
 
 | Function | Allocates? | Evidence |
 |----------|-----------|----------|
-| `VoicePool::process_sample()` | ❌ No | Only f32 arithmetic, array indexing |
-| `MechanicalClick::render_sample()` | ❌ No | Inline xorshift + TPT SVF math |
-| `CpalSink::write_sample()` | ❌ No | `HeapRb::try_push` — pre-allocated |
-| `cpal callback (F32)` | ❌ No | Only `try_pop` + clamp |
-| `cpal callback (I16)` | ❌ No | Same + integer conversion |
-| `Orchestrator::run()` batch allocation | ❌ No | Pre-allocated `[[f32;2]; 64]` on stack |
+| `VoicePool::process_sample()` | No | Only f32 arithmetic, array indexing |
+| `MechanicalClick::render_sample()` | No | Inline xorshift + TPT SVF math |
+| `CpalSink::write_sample()` | No | `HeapRb::try_push` — pre-allocated |
+| `cpal callback (F32)` | No | Only `try_pop` + clamp |
+| `cpal callback (I16)` | No | Same + integer conversion |
+| `Orchestrator::run()` batch allocation | No | Pre-allocated `[[f32;2]; 64]` on stack |
 
-### ✅ NO MUTEXES/LOCKS in audio/render path
+### yes NO MUTEXES/LOCKS in audio/render path
 
 | Location | Lock? | Mechanism |
 |----------|-------|-----------|
-| Ring buffer (producer) | ❌ | Lock-free SPSC (`HeapRb`) |
-| Ring buffer (consumer) | ❌ | Lock-free SPSC |
-| Model swap | ❌ | `ArcSwap::load()` — single atomic read |
-| Stop flag | ❌ | `AtomicBool::load(Relaxed)` |
-| Keystroke counter | ❌ | `AtomicU64::fetch_add(Relaxed)` |
+| Ring buffer (producer) | no | Lock-free SPSC (`HeapRb`) |
+| Ring buffer (consumer) | no | Lock-free SPSC |
+| Model swap | no | `ArcSwap::load()` — single atomic read |
+| Stop flag | no | `AtomicBool::load(Relaxed)` |
+| Keystroke counter | no | `AtomicU64::fetch_add(Relaxed)` |
 
-### ⚠️ BLOCKING OPS (Warm Path)
+### BLOCKING OPS (Warm Path)
 
 | Location | Block? | Severity |
 |----------|--------|----------|
-| `recv_timeout(1ms)` in orchestrator | ⚠️ Yes | **Medium** — blocks orchestrator thread but NOT audio callback |
-| `cpal callback` | ✅ No | Zero blocking — only try_pop |
+| `recv_timeout(1ms)` in orchestrator | Yes (warn) | **Medium** — blocks orchestrator thread but NOT audio callback |
+| `cpal callback` | yes No | Zero blocking — only try_pop |
 
-### ✅ HIDDEN LATENCY SOURCES — None found
+### yes HIDDEN LATENCY SOURCES — None found
 
 - No `Vec::push`, no `format!`, no `println!` in any render path
 - No I/O in audio callback
@@ -158,7 +158,7 @@ At 44.1 kHz with 4 active voices: ~13.7 Mflops. Negligible for any modern CPU.
 
 ## 4. Engine Optimization
 
-### 4.1 🔴 O(n) Hot Path — Voice Iteration (CRITICAL)
+### 4.1 O(n) Hot Path — Voice Iteration (CRITICAL)
 
 **Location:** `pool.rs:process_sample()` line ~125
 
@@ -178,7 +178,7 @@ for voice in &mut self.voices {       // always 16 iterations
 
 **Severity:** **CRITICAL** — This is the single biggest perf issue in the render path.
 
-### 4.2 🟡 Voice Stealing — Two-Pass O(n) (MEDIUM)
+### 4.2 Voice Stealing — Two-Pass O(n) (MEDIUM)
 
 **Location:** `pool.rs:trigger()` lines ~80-100
 
@@ -199,7 +199,7 @@ let idx = self.voices.iter().position(|v| !v.is_active())  // Pass 1: O(n)
 
 **Severity:** **MEDIUM** — Not in audio callback, but inelegant. Fix alongside the active-voice tracking refactor.
 
-### 4.3 🟡 Cache Locality — SynthState Size (MEDIUM)
+### 4.3 Cache Locality — SynthState Size (MEDIUM)
 
 **Problem:** `SynthState` is ~180 bytes (45 × f32 + 1 × bool + 2 × u32 + 1 × u32). With 16 voices packed in an array, that's ~2,880 bytes. Iterating all 16 every sample touches 2.9 KB — easily fits in L1D (32KB on modern x86_64), so cache pressure is minimal at current polyphony.
 
@@ -209,13 +209,13 @@ let idx = self.voices.iter().position(|v| !v.is_active())  // Pass 1: O(n)
 
 **Severity:** **MEDIUM** — Currently fine; a constraint, not a bug.
 
-### 4.4 🟢 Branch Prediction — Well-handled (LOW)
+### 4.4 Branch Prediction — Well-handled (LOW)
 
 The `is_active()` branch in `process_sample` loops is the dominant branch. When voices are idle, the branch is perfectly predictable (always false). When 4 voices are active, the pattern depends on voice allocation order, but the pool-filling order is deterministic (slot 0, 1, 2...), so the branch alternates between true (first N slots) and false (rest). Branch predictor handles this cleanly.
 
 **Recommendation:** None needed. Current code is branch-predictor-friendly.
 
-### 4.5 🟢 SIMD Opportunities (LOW)
+### 4.5 SIMD Opportunities (LOW)
 
 **Current state:** All TPT SVF math is scalar `f32`. With `MAX_POLYPHONY=16` and 3 independent filters per voice, there are 48 scalar filter computes per sample.
 
@@ -227,7 +227,7 @@ The `is_active()` branch in `process_sample` loops is the dominant branch. When 
 
 **Recommendation:** Do NOT attempt SIMD optimization. The complexity isn't justified for 13 Mflops. If `MAX_POLYPHONY` is raised to 64+, revisit with SoA layout.
 
-### 4.6 🟢 Excitation PRNG — xorshift32 is correct choice (INFO)
+### 4.6 Excitation PRNG — xorshift32 is correct choice (INFO)
 
 xorshift32 provides excellent statistical quality with 3 cycles of XOR + shift. LCG (multiply-add) would be ~1 cycle faster but produces lower-quality noise with visible patterns in audio. The current choice is optimal for audio-rate noise generation.
 
@@ -235,7 +235,7 @@ xorshift32 provides excellent statistical quality with 3 cycles of XOR + shift. 
 
 ## 5. Audio Quality
 
-### 5.1 🔴 Hard-Clip Limiter — Master Volume 5.5× (CRITICAL)
+### 5.1 Hard-Clip Limiter — Master Volume 5.5× (CRITICAL)
 
 **Location:** `pool.rs:process_sample()` lines ~135-145
 
@@ -261,7 +261,7 @@ if l.is_finite() { l.clamp(-1.0, 1.0) } else { 0.0 }
 
 **Severity:** **CRITICAL** — User-audible distortion artifact under normal typing.
 
-### 5.2 🟡 Gain Staging — No Headroom Management (HIGH)
+### 5.2 Gain Staging — No Headroom Management (HIGH)
 
 **Problem:** The signal chain has no gain-stage normalization:
 
@@ -277,23 +277,23 @@ There is no per-voice amplitude normalization, no master compression, and no act
 
 **Severity:** **HIGH** — Gain staging is fundamentally broken for polyphonic playback.
 
-### 5.3 🟢 Stereo Rendering — Equal-Power Pan Law (INFO)
+### 5.3 Stereo Rendering — Equal-Power Pan Law (INFO)
 
 Uses `cos(theta) / sin(theta)` with `theta ∈ [0, π/2]`. This is the standard equal-power pan law. Correct for mono-to-stereo spatialization. No issues.
 
-### 5.4 🟢 Clipping Strategy Audit Summary
+### 5.4 Clipping Strategy Audit Summary
 
 | Stage | Clipping? | Type |
 |-------|-----------|------|
-| Excitation noise | ❌ | Bounded to [-1, 1] by xorshift/normalize |
-| TPT SVF output | ❌ | Bounded by filter stability (TPT guarantee) |
-| Voice mixing | ❌ | Unbounded sum — this is the problem |
-| Master volume | ⚠️ | 5.5× multiplication — saturates instantly |
-| Final clamp | 🔴 | Hard brickwall — harsh distortion |
-| Ring buffer write | ❌ | f32, no overflow |
-| cpal callback | ✅ | Defense-in-depth NaN/Inf guard + clamp |
+| Excitation noise | no | Bounded to [-1, 1] by xorshift/normalize |
+| TPT SVF output | no | Bounded by filter stability (TPT guarantee) |
+| Voice mixing | no | Unbounded sum — this is the problem |
+| Master volume | WARN: | 5.5× multiplication — saturates instantly |
+| Final clamp | CRITICAL | Hard brickwall — harsh distortion |
+| Ring buffer write | no | f32, no overflow |
+| cpal callback | yes | Defense-in-depth NaN/Inf guard + clamp |
 
-### 5.5 🔴 Housing Excitation — PRNG Data Race (CRITICAL)
+### 5.5 Housing Excitation — PRNG Data Race (CRITICAL)
 
 **Location:** `mechanical.rs:render_sample()` housing excitation path
 
@@ -336,21 +336,21 @@ let noise_for_housing = (state.noise_state as f32 / u32::MAX as f32) * 2.0 - 1.0
 
 ## 6. Long-Endurance Stability
 
-### 6.1 ✅ Memory Growth — None Detected
+### 6.1 yes Memory Growth — None Detected
 
 | Structure | Type | Growth? |
 |-----------|------|---------|
-| VoicePool::voices | `[Voice; 16]` | ❌ Fixed array |
-| Ring buffer | `HeapRb<[f32;2]>` (16384) | ❌ Pre-allocated |
-| Orchestrator::batch | `[[f32;2]; 64]` | ❌ Stack-allocated |
-| Channel queues | crossbeam unbounded | ⚠️ Grows if producer outpaces consumer |
-| HashMap overrides | `HashMap<u32, KeyProfile>` | ❌ Fixed at config load |
+| VoicePool::voices | `[Voice; 16]` | no Fixed array |
+| Ring buffer | `HeapRb<[f32;2]>` (16384) | no Pre-allocated |
+| Orchestrator::batch | `[[f32;2]; 64]` | no Stack-allocated |
+| Channel queues | crossbeam unbounded | WARN: Grows if producer outpaces consumer |
+| HashMap overrides | `HashMap<u32, KeyProfile>` | no Fixed at config load |
 
 **Channel Growth Risk:** `crossbeam_channel::unbounded()` for input events. If the orchestrator thread stalls (e.g., during heavy OS load), key events accumulate unboundedly. In practice, keyboard typing is ~5-10 events/sec, so growth is self-limiting. No known path to unbounded growth under normal operation.
 
 **Verdict:** **SAFE** — No memory growth risk under normal operation.
 
-### 6.2 ✅ Resource Leaks — None Detected
+### 6.2 yes Resource Leaks — None Detected
 
 | Resource | Cleanup Mechanism |
 |----------|-------------------|
@@ -365,7 +365,7 @@ let noise_for_housing = (state.noise_state as f32 / u32::MAX as f32) * 2.0 - 1.0
 
 **Verdict:** **SAFE** — No resource leaks. Cleanup is explicit and correct.
 
-### 6.3 ✅ Thread Lifecycle — Correct
+### 6.3 yes Thread Lifecycle — Correct
 
 | Thread | Created | Destruction | Risk |
 |--------|---------|-------------|------|
@@ -377,13 +377,13 @@ let noise_for_housing = (state.noise_state as f32 / u32::MAX as f32) * 2.0 - 1.0
 
 **Verdict:** **SAFE** — All threads are properly scoped.
 
-### 6.4 ✅ Audio Underrun Risk
+### 6.4 yes Audio Underrun Risk
 
 Ring buffer at 16384 frames ≈ 370 ms at 44.1 kHz. ALSA/PipeWire typically requests 1024-frame periods ≈ 23 ms. The orchestrator renders up to 64 frames per iteration and checks vacancy before writing. Recovery from a 350 ms scheduler stall is possible without underrun.
 
 **Verdict:** **SAFE** — Buffer is generously sized for desktop Linux.
 
-### 6.5 ✅ Race Conditions — None in Critical Path
+### 6.5 yes Race Conditions — None in Critical Path
 
 All cross-thread shared state is either:
 - Lock-free SPSC ring buffer (producer in orchestrator, consumer in cpal callback)
@@ -392,7 +392,7 @@ All cross-thread shared state is either:
 
 **Verdict:** **SAFE** — No data races possible.
 
-### 6.6 ✅ Atomic Contention — Minimal
+### 6.6 yes Atomic Contention — Minimal
 
 | Atomic | Contention Risk |
 |--------|-----------------|
@@ -403,7 +403,7 @@ All cross-thread shared state is either:
 
 **Verdict:** **SAFE** — No contention. Relaxed ordering is correct everywhere.
 
-### 6.7 ⚠️ config-watcher — Partial File Read Risk (LOW)
+### 6.7 WARN config-watcher — Partial File Read Risk (LOW)
 
 The watcher reads `config.toml` at whatever mtime it sees. If an editor does an in-place write (not atomic rename), the poll may hit a partially-written file. `parse_config` will fail on malformed TOML, the watcher logs a warning and keeps the old model. Next poll retries.
 
@@ -417,7 +417,7 @@ The watcher reads `config.toml` at whatever mtime it sees. If an editor does an 
 
 ## 7. Build & Release Infrastructure
 
-### 7.1 🔴 Release Profile — Misconfiguration (HIGH)
+### 7.1 Release Profile — Misconfiguration (HIGH)
 
 **RULES.md specifies:**
 ```toml
@@ -443,7 +443,7 @@ panic = "abort"
 
 **Severity:** **HIGH** — Violates documented release spec. Binary is larger and potentially slower than intended.
 
-### 7.2 🟡 RULES.md Self-Violations (MEDIUM)
+### 7.2 RULES.md Self-Violations (MEDIUM)
 
 **Rule: Core engine ≤ 1,000 LOC**
 - `zactrix-engine`: 822 LOC (pool.rs=735, lib.rs=26, voice.rs=61)
@@ -456,7 +456,7 @@ panic = "abort"
 
 **Severity:** **MEDIUM** — Either the rules need updating or the code needs splitting. The 1,000-LOC limit for the engine is quite aggressive and may not be achievable without significant refactoring.
 
-### 7.3 🟡 Build-time Dependency — Missing System Libraries (MEDIUM)
+### 7.3 Build-time Dependency — Missing System Libraries (MEDIUM)
 
 Building requires: `libasound2-dev`, `libinput-dev`, `libudev-dev`, `pkg-config`. The build fails without them (as confirmed during this audit). This is documented in RULES.md but not automatically detected with a helpful error message.
 
@@ -468,23 +468,20 @@ Building requires: `libasound2-dev`, `libinput-dev`, `libudev-dev`, `pkg-config`
 
 ## 8. Summary of Findings
 
-### Critical (🔴)
-
+### Critical
 | # | Finding | Location | Impact |
 |---|---------|----------|--------|
 | C1 | O(n) voice scan in audio render path | `pool.rs:process_sample()` | 60-80% wasted CPU at low polyphony |
 | C2 | Brickwall hard-clipper at 5.5× gain | `pool.rs:process_sample()` | Audible distortion under polyphony |
 | C3 | Housing excitation PRNG off-by-one | `mechanical.rs:render_sample()` | Decorrelated thock vs click |
 
-### High (🟠)
-
+### High
 | # | Finding | Location | Impact |
 |---|---------|----------|--------|
 | H1 | No dynamic headroom management | `pool.rs` + gain staging | Inconsistent loudness per polyphony |
 | H2 | Release profile doesn't match RULES.md | `Cargo.toml` | Larger binary, suboptimal LTO |
 
-### Medium (🟡)
-
+### Medium
 | # | Finding | Location | Impact |
 |---|---------|----------|--------|
 | M1 | Two-pass O(n) voice stealing | `pool.rs:trigger()` | Inelegant but low cost at N=16 |
