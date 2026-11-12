@@ -76,7 +76,7 @@ fn reap_player_from_map() -> Vec<String> {
     }
     // The gate first: the player's own watcher (100 ms) exits cleanly —
     // the fade-out path, not the signal path, whenever it can be.
-    if let Err(e) = control.set(ENABLED_SLOT, 0, 0) {
+    if let Err(e) = control.set(ENABLED_SLOT, &0, 0) {
         log::warn!("cannot clear the enabled gate for the player: {e}");
     }
     // The identity gate (night-total-lts-1): the signals below fly

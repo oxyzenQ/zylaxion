@@ -179,11 +179,11 @@ pub fn cmd_play() {
 
     // ── Register self: starting.
     let my_pid = nix::unistd::getpid().as_raw();
-    if let Err(e) = control.set(PLAYER_PID_SLOT, my_pid as u32, 0) {
+    if let Err(e) = control.set(PLAYER_PID_SLOT, &(my_pid as u32), 0) {
         crate::output::error(format!("cannot register the player pid: {e}"));
         process::exit(1);
     }
-    if let Err(e) = control.set(STATE_SLOT, STATE_STARTING, 0) {
+    if let Err(e) = control.set(STATE_SLOT, &STATE_STARTING, 0) {
         log::warn!("cannot set the starting state: {e}");
     }
 
@@ -393,7 +393,7 @@ pub fn cmd_play() {
 
     // ── Announce readiness: the state slot flips to running, and the
     //    control plane is now fully live for the CLI surfaces.
-    if let Err(e) = control.set(STATE_SLOT, STATE_RUNNING, 0) {
+    if let Err(e) = control.set(STATE_SLOT, &STATE_RUNNING, 0) {
         log::warn!("cannot set the running state: {e}");
     }
     log::info!("ready — press any key to hear it");
@@ -412,9 +412,9 @@ pub fn cmd_play() {
     //    plays" lie the off verb's comments call load-bearing. When the
     //    stop WAS gate-driven (the off verb's enabled=0 write), this
     //    write stores the same value — a harmless no-op.
-    let _ = control.set(STATE_SLOT, STATE_IDLE, 0);
-    let _ = control.set(PLAYER_PID_SLOT, 0, 0);
-    let _ = control.set(ENABLED_SLOT, 0, 0);
+    let _ = control.set(STATE_SLOT, &STATE_IDLE, 0);
+    let _ = control.set(PLAYER_PID_SLOT, &0, 0);
+    let _ = control.set(ENABLED_SLOT, &0, 0);
     bridge_stop.store(true, Ordering::Relaxed);
     let _ = bridge.join();
     let _ = watcher.join();
@@ -453,9 +453,9 @@ const STATE_FAILED: u32 = 3;
 /// reads "sound on" against a player that died before it ever ran
 /// (the same law the clean-exit unregister below follows).
 fn fail(control: &mut aya::maps::Array<MapData, u32>, message: String) -> ! {
-    let _ = control.set(STATE_SLOT, STATE_FAILED, 0);
-    let _ = control.set(PLAYER_PID_SLOT, 0, 0);
-    let _ = control.set(ENABLED_SLOT, 0, 0);
+    let _ = control.set(STATE_SLOT, &STATE_FAILED, 0);
+    let _ = control.set(PLAYER_PID_SLOT, &0, 0);
+    let _ = control.set(ENABLED_SLOT, &0, 0);
     crate::output::error(message);
     process::exit(1);
 }

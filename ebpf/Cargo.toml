@@ -39,7 +39,9 @@ repository = "https://github.com/oxyzenQ/zylaxion"
 description = "Pure-Rust eBPF tap (fentry/kprobe on input_event) for zylaxion, cross-compiled with aya-ebpf and embedded by the userspace loader."
 
 [dependencies]
-aya-ebpf = "0.2.1"
+# night-enhance-1: 0.2.1 -> 0.3, the upstream pairing of the aya 0.16
+# userspace pin (aya-obj 0.6 rides the same release train).
+aya-ebpf = "0.3"
 
 [[bin]]
 name = "zylaxion-tap"
