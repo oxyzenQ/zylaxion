@@ -403,7 +403,7 @@ All cross-thread shared state is either:
 
 **Verdict:** **SAFE** — No contention. Relaxed ordering is correct everywhere.
 
-### 6.7 WARN config-watcher — Partial File Read Risk (LOW)
+### 6.7 config-watcher — Partial File Read Risk (LOW)
 
 The watcher reads `config.toml` at whatever mtime it sees. If an editor does an in-place write (not atomic rename), the poll may hit a partially-written file. `parse_config` will fail on malformed TOML, the watcher logs a warning and keeps the old model. Next poll retries.
 

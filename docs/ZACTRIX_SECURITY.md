@@ -332,8 +332,9 @@ socketpair/socket/connect/bind/listen, reqwest/ureq/hyper/http):
 zero socket call sites in `src/`. The only phrase-level hits are doc
 comments and the channel `Disconnected` variants — no syscall.
 `Command::new` appears exactly twice, same as 3.6: the player spawn
-(`src/commands/sound.rs:255`, self-exec, no network) and the curl
-invocation in `--check-update` (`src/commands/update.rs:163`).
+(`src/commands/sound/lifecycle.rs:230`, self-exec, no network) and
+the curl invocation in `--check-update`
+(`src/commands/update.rs:96`).
 
 **`--check-update` unchanged:** constant compile-time URL
 (`https://api.github.com/repos/oxyzenQ/zylaxion/releases/latest`),
