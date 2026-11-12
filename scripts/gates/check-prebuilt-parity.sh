@@ -42,6 +42,13 @@
 #      in row 3 reads on-disk content, so a hidden file's local churn
 #      hashes into the pin while the commit stages the old bytes; the
 #      pin then passes locally and fails CI's clean checkout.
+#   5. The shipped object carries no .BTF/.BTF.ext sections — the
+#      CO-RE posture row (night-frontier-1): no BTF sections means no
+#      type-relocation surface, which is why ONE object ports across
+#      the E2E kernel span without recompiles
+#      (docs/CO_RE_PORTABILITY.md). A future --btf build is a
+#      conscious frontier move that must flip this row, the doc, and
+#      the recipe in one commit.
 #
 # Deliberately NOT checked: a rebuild-and-byte-compare of the object.
 # Byte reproducibility is a host property, not a contract — the
@@ -164,6 +171,28 @@ for name in zylaxion-tap; do
                         fail "${name} carries undefined GLOBAL symbols the aya loader cannot relocate: ${undef_globals}"
                 else
                         pass "${name} has no undefined GLOBAL symbols (the loader's relocation surface is closed)"
+                fi
+                # The CO-RE posture row (night-frontier-1): the shipped
+                # object must carry no .BTF/.BTF.ext sections — the tap
+                # reads kernel function arguments, never kernel struct
+                # fields, so its relocation surface is empty and ONE
+                # object ports across the whole E2E kernel span without
+                # recompiles (docs/CO_RE_PORTABILITY.md). A build that
+                # turns on the BTF recipe (RUSTFLAGS='-Cdebuginfo=2
+                # -Clink-arg=--btf', ebpf/.cargo/config.toml) to read an
+                # INTERNAL kernel struct is a conscious frontier move:
+                # it must flip this row, the doc, and the recipe in the
+                # same commit — never drift in silently. The field scan
+                # (not a fixed column) is load-bearing: readelf pads the
+                # [Nr] bracket differently for one- and two-digit
+                # indices, so the section name changes column.
+                btf_sections="$(readelf -SW "$file" 2>/dev/null |
+                        awk '{for (i = 1; i <= NF; i++) if ($i ~ /^\.BTF/) print $i}' |
+                        sort -u | tr '\n' ' ' | tr -d '[:cntrl:]')"
+                if [ -n "$btf_sections" ]; then
+                        fail "${name} carries BTF section(s) [${btf_sections}] — the compile-once posture is gone (docs/CO_RE_PORTABILITY.md): either drop the --btf build flags, or move the CO-RE frontier deliberately and update this row, the doc, and the recipe in the same commit"
+                else
+                        pass "${name} carries no BTF sections (the compile-once posture: an empty relocation surface — docs/CO_RE_PORTABILITY.md)"
                 fi
         else
                 echo "SKIP: readelf not found — the GLOBAL-symbol row on ${name} is unverified here (CI carries binutils and runs this row)"
