@@ -200,7 +200,9 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 - **Node.js:** `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` in all workflow env.
 - **Dependabot:** REMOVED. Do not use Dependabot.
 - **Dependency updates:** Custom `maintenance.yml` workflow auto-updates deps
-  and commits directly to `main`. NO PRs. NO branch spam.
+  (every tracked lock via `scripts/dev/update-deps.sh`, night-zen-1 — root,
+  fuzz/, ebpf/, scripts/audit/harness/) and commits directly to `main`.
+  NO PRs. NO branch spam.
 - **Maintenance schedule:** Weekly Monday 07:00 UTC.
 - **Bot identity:** Commits as `github-actions[bot]`.
 - **Workflow titles:** the `Dragon Guard - <lane>` family, exactly as
