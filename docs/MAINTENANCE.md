@@ -111,6 +111,21 @@ without it. Feature-flag off what a dependency pulls but zylaxion
 never uses (the env_logger `default-features = false` shape is the
 precedent).
 
+The weekly lane (`Dragon Guard - Dependency Maintenance`) refreshes
+EVERY tracked lock, not just the root one (night-zen-1): the repo
+carries four lock surfaces (root, fuzz/, ebpf/,
+scripts/audit/harness/), and a bare `cargo update` at the root left
+the sibling locks drifting. The lane runs
+`scripts/dev/update-deps.sh`, which auto-detects each tracked
+manifest via `git ls-files` and updates in place. When the ebpf tree
+moves (its lock in practice), the same script regenerates the
+prebuilt lane through its one writer
+(`scripts/dev/regenerate-ebpf-prebuilt.sh`) — the rebuilt object and
+rewritten manifest ride the same maintenance commit, so
+`check-prebuilt-parity.sh` never trips on a stale pin. The lane
+already bootstraps the ebpf prerequisites before the update step,
+which is what the regen path requires.
+
 ## The root-owned pycache trap (the zelynic incident, documented)
 
 Anatomy of the incident (observed on the zelynic sibling, recorded

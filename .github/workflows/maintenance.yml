@@ -64,8 +64,15 @@ jobs:
           ./scripts/dev/bootstrap-ebpf.sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      # night-zen-1: every tracked Cargo.lock rides the lane now, not
+      # just the root one — the script auto-detects each manifest
+      # (root, fuzz/, ebpf/, scripts/audit/harness/) and, when the ebpf
+      # tree moves, regenerates the prebuilt lane through its one
+      # writer so the parity pin never ships stale. The bootstrap step
+      # above provides the regen prerequisites (nightly pin, bpf-linker,
+      # b3sum).
       - name: Update dependencies
-        run: cargo update
+        run: ./scripts/dev/update-deps.sh
 
       - name: Check formatting
         run: cargo fmt --all -- --check
