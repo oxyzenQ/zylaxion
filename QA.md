@@ -71,20 +71,23 @@ Source: https://github.com/oxyzenQ/zylaxion
 
 ## Q3 — What does `doctor` check, and can it fail a script?
 
-`src/commands/info.rs`, four sections:
+`src/commands/info/doctor.rs`, four sections:
 
 1. **Build facts** — version, commit, variant, build time, rustc,
    profile (compile-time truth, never counts against the verdict).
-2. **Input group membership** — the user must be in the `input`
-   group to read evdev devices; failure prints the exact `usermod`
-   fix.
+2. **Kernel / eBPF capability** — the probe in `doctor_kernel.rs`
+   reports the BTF/tracing posture, the bpffs pin state, and the
+   input-tap verdict; a hostile or missing kernel surface fails the
+   station with the exact fix.
 3. **`XDG_RUNTIME_DIR`** — the IPC socket and lock file land here;
    missing or unwritable is a failure with the export fix.
-4. **Audio server** — best-effort probe of the default output device
-   through cpal.
+4. **Audio server** — probe of the default output device through
+   cpal; the doctor opens the device, so a dead audio server fails
+   the report.
 
-The exit code reflects the hard checks (sections 2 and 3, plus audio
-degradation), so `zylaxion doctor` is scriptable as a health probe.
+The exit code reflects the hard checks (the kernel/eBPF capability
+station, `XDG_RUNTIME_DIR`, and the audio-server probe), so
+`zylaxion doctor` is scriptable as a health probe.
 The doctor speaks in word verdicts (green/red lanes through
 `src/output/mod.rs`), not glyph decorations.
 
