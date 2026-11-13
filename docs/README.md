@@ -64,6 +64,9 @@ with its evidence.
 ### ...understand the design
 
 [PHILOSOPHY.md](PHILOSOPHY.md) — why the boring and stealth.
+[INNOVATIONS.md](INNOVATIONS.md) — the innovation ledger: every
+mechanism the engine and tap carry, the problem it kills, and the
+file where the truth lives.
 [EBPF_ONLY_VS_DAEMON.md](EBPF_ONLY_VS_DAEMON.md) — the honest ledger
 of the eBPF-only bet: what the daemon deletion wins, what it costs,
 and who the trade serves.
