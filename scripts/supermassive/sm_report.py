@@ -23,6 +23,12 @@ from __future__ import annotations
 import sys
 import time
 
+# The root-owned pycache guard (night-cafe-1, the same law the
+# supermassive-test entry and sm_static carry): a direct run of this
+# module must never leave root-owned bytecode caches beside the
+# scripts.
+sys.dont_write_bytecode = True
+
 # ANSI only when stdout is a terminal; the serial console and CI logs
 # stay clean text.
 _USE_COLOR = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()

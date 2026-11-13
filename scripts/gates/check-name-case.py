@@ -37,6 +37,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+# The root-owned pycache guard (night-cafe-1, the same law the
+# supermassive-test entry and sm_static carry): a direct run of this
+# module must never leave root-owned bytecode caches beside the
+# scripts.
+sys.dont_write_bytecode = True
+
 ROOT = Path(__file__).resolve().parents[2]
 NAME = "zylaxion"
 UPPER = NAME.upper()

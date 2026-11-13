@@ -15,6 +15,13 @@ import os
 import re
 import shutil
 import subprocess
+import sys
+
+# The root-owned pycache guard (night-cafe-1, the same law the
+# supermassive-test entry and sm_static carry): a direct run of this
+# module must never leave root-owned bytecode caches beside the
+# scripts.
+sys.dont_write_bytecode = True
 
 
 def run(cmd: list[str], timeout: int = 60) -> tuple[int, str]:
