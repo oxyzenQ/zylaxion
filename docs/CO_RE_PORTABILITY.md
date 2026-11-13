@@ -14,7 +14,9 @@ the one property that would change it.
 
 The premise is inverted for this codebase: the shipped tap already IS
 a compile-once object. One 2960-byte `zylaxion-tap.o` is built by the
-prebuilt lane, embedded into the binary, and loads on every supported
+prebuilt lane (tracked as the `zylaxion-tap.o.gz` package with its
+`.b3sum` sidecar — the night-cafe-1 packaging law: raw binaries are
+never tracked), embedded into the binary, and loads on every supported
 kernel without a per-kernel recompile — the property CO-RE is famous
 for is already the shipping posture. What the tap does not use is
 CO-RE's specific machinery (.BTF.ext field relocations), and the
@@ -25,8 +27,9 @@ the exact recipe for the day the premise changes.
 
 ## The evidence, layer by layer
 
-**Binary.** The shipped object carries zero BTF sections: `readelf -S
-ebpf-prebuilt/zylaxion-tap.o` lists `.text` and `.rel.text` (plus
+**Binary.** The shipped object carries zero BTF sections: `readelf -S`
+over the package-extracted `ebpf-prebuilt/zylaxion-tap.o.gz` bytes
+lists `.text` and `.rel.text` (plus
 standard furniture) and no `.BTF` / `.BTF.ext`. No BTF.ext means no
 type-relocation records — the object holds no compiled-in assumptions
 about any kernel's type layout to relocate. The byte-identical object
