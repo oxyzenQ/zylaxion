@@ -85,10 +85,13 @@ read -r -d '' BLOCK_TEXT <<'EOF' || true
 EOF
 mapfile -t BLOCK_LINES <<<"${BLOCK_TEXT}"
 
-RED='\033'
-GREEN='\033'
-YELLOW='\033'
-NC='\033'
+# The shell brand palette (night-cafe-1): the RED/GREEN/YELLOW/NC
+# usage sites map onto the tiers inside the palette — the same bytes
+# the CLI renders, plain text when piped. This replaces the truncated
+# literal escapes this block used to carry (a lone ESC byte and no
+# color at all).
+# shellcheck disable=SC1091
+. "${REPO_ROOT}/scripts/lib/ux_palette.sh"
 
 CHECKED=0
 OK_BOTTOM=0

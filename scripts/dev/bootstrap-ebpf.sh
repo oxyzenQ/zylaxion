@@ -91,10 +91,11 @@ TOOLCHAIN_FILE="${REPO_ROOT}/ebpf/rust-toolchain.toml"
 LOCAL_BIN="${HOME}/.local/bin"
 TMP_DIR=""
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-NC='\033[0m'
+# The shell brand palette (night-cafe-1): the RED/GREEN/YELLOW/NC
+# usage sites map onto the tiers inside the palette — the same bytes
+# the CLI renders, plain text when piped.
+# shellcheck disable=SC1091
+. "${SCRIPT_DIR}/../lib/ux_palette.sh"
 
 ok() { echo -e "${GREEN}[bootstrap-ebpf]${NC} $1"; }
 warn() { echo -e "${YELLOW}[bootstrap-ebpf]${NC} $1"; }

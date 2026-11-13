@@ -278,10 +278,15 @@ ensure_latest_sha() {
 }
 
 # ── output helpers (red failure, yellow skip, green keep) ───────────────
-readonly C_RED='\033[0;31m'
-readonly C_GREEN='\033[0;32m'
-readonly C_YELLOW='\033[0;33m'
-readonly C_NC='\033[0m'
+# The shell brand palette (night-cafe-1): the C_* names map onto the
+# tiers inside the palette — the same bytes the CLI renders, plain
+# text when piped.
+# shellcheck disable=SC1091
+. "${REPO_ROOT}/scripts/lib/ux_palette.sh"
+readonly C_RED="$UX_ERR"
+readonly C_GREEN="$UX_OK"
+readonly C_YELLOW="$UX_WARN"
+readonly C_NC="$UX_RESET"
 
 HEALED=0
 KEPT=0

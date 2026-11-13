@@ -55,11 +55,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${SCRIPT_DIR}"
 
-# Colors
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[0;33m'
-readonly NC='\033[0m'
+# Colors — the shell brand palette (night-cafe-1): the RED/GREEN/
+# YELLOW/NC usage sites map onto the tiers inside the palette — the
+# same bytes the CLI renders, plain text when piped.
+# shellcheck disable=SC1091
+. "${SCRIPT_DIR}/../lib/ux_palette.sh"
 
 # Read current version from the root Cargo.toml (the package version).
 current_version() {
