@@ -187,9 +187,8 @@ pub(super) fn build_ebpf_objects() {
 /// tree pin; this runs the generator script's --check verdict after
 /// every successful source-built staging and, on staleness, lets the
 /// script regenerate the lane immediately — so the next `git status`
-/// shows the refreshed manifest.toml, the zylaxion-tap.o.gz package
-/// and its .b3sum sidecar to commit alongside the change that caused
-/// them (the raw .o stays a local product, night-cafe-1).
+/// shows the refreshed manifest.toml + zylaxion-tap.o.gz package and
+/// its .b3sum sidecar to commit (the raw .o stays local, night-cafe-1).
 ///
 /// Host-independent by the same law the parity gate records: the
 /// freshly built object's bytes are never compared against the pins
@@ -243,8 +242,7 @@ pub(super) fn refresh_prebuilt_lane(manifest_dir: &std::path::Path) {
         Ok(r) if r.status.success() => println!(
             "cargo:warning=ebpf-prebuilt/ refreshed automatically: the manifest pins lagged \
              the ebpf/ tree or the freshly built object — commit the refreshed manifest.toml, \
-             the zylaxion-tap.o.gz package and its .b3sum sidecar together with the change \
-             that staled them"
+             the zylaxion-tap.o.gz package and its .b3sum sidecar"
         ),
         _ => println!(
             "cargo:warning=ebpf-prebuilt/ is stale and the automatic refresh failed — run \
