@@ -392,26 +392,15 @@ else
                 "bpftool could not show the pinned program: $(echo "$PROG_SHOW" | head -1)"
         fi
     fi
-    if [[ -f "ebpf-prebuilt/zylaxion-tap.o.gz" && -f "ebpf-prebuilt/zylaxion-tap.o.b3sum" && -f "ebpf-prebuilt/manifest.toml" ]]; then
-        # The tracked lane is the .gz package plus its .b3sum sidecar
-        # (night-cafe-1): verify the sidecar over the package bytes,
-        # then hash the extracted object against the manifest pin.
-        ZACTRIX_EXTRACT=""
-        if ( cd ebpf-prebuilt && b3sum -c zylaxion-tap.o.b3sum >/dev/null 2>&1 ); then
-            ZACTRIX_EXTRACT="$(mktemp -d "${TMPDIR:-/tmp}/zactrix-tap.XXXXXX")"
-            gunzip -c ebpf-prebuilt/zylaxion-tap.o.gz >"${ZACTRIX_EXTRACT}/zylaxion-tap.o"
-            MEASURED_SHA="$(b3sum "${ZACTRIX_EXTRACT}/zylaxion-tap.o" | awk '{print $1}')"
-            rm -rf "${ZACTRIX_EXTRACT}"
-        else
-            MEASURED_SHA="sidecar-mismatch"
-        fi
+    if [[ -f "ebpf-prebuilt/zylaxion-tap.o" && -f "ebpf-prebuilt/manifest.toml" ]]; then
+        MEASURED_SHA="$(b3sum ebpf-prebuilt/zylaxion-tap.o | awk '{print $1}')"
         PINNED_SHA="$(grep -A1 'name = "zylaxion-tap"' ebpf-prebuilt/manifest.toml | grep 'blake3' | grep -oP '"\K[0-9a-f]+' | head -1)"
         if [[ -n "$PINNED_SHA" && "$MEASURED_SHA" == "$PINNED_SHA" ]]; then
             verdict PASS "R4 prebuilt object parity" \
-                "sidecar verified, extracted blake3 ${MEASURED_SHA:0:16}... matches the manifest pin (what this host loads is what the tree certifies)"
+                "blake3 ${MEASURED_SHA:0:16}... matches the manifest pin (what this host loads is what the tree certifies)"
         else
             verdict FAIL "R4 prebuilt object parity" \
-                "measured ${MEASURED_SHA:0:16}... vs pinned ${PINNED_SHA:0:16}... — the prebuilt lane is stale or its sidecar is damaged; run scripts/dev/regenerate-ebpf-prebuilt.sh"
+                "measured ${MEASURED_SHA:0:16}... vs pinned ${PINNED_SHA:0:16}... — the prebuilt lane is stale; run scripts/dev/regenerate-ebpf-prebuilt.sh"
         fi
     else
         verdict INCONCLUSIVE "R4 prebuilt object parity" \

@@ -5,11 +5,9 @@
 // night-improve-5 shape): a crates.io tarball carries no ebpf/ tree
 // (cargo's package walk cannot carry the detached nested workspace),
 // so the tap object rides the tarball as the maintainer-built
-// ebpf-prebuilt lane - since night-cafe-1 the zylaxion-tap.o.gz
-// package plus its .b3sum sidecar (raw binaries are never tracked)
-// - with its provenance manifest. This module extracts the package
-// and stages the object into OUT_DIR for the loader's include_bytes!
-// embedding.
+// ebpf-prebuilt/zylaxion-tap.o with its provenance manifest. This
+// module stages that object into OUT_DIR for the loader's
+// include_bytes! embedding.
 //
 // The hard rule the manifest's own header names: the object blake3
 // MUST match the staged bytes before anything is staged - a stale or
@@ -23,7 +21,6 @@
 // anchors on that exact shape - no TOML crate, std only.
 
 use std::path::Path;
-use std::process::{Command, Stdio};
 
 /// The staged object's OUT_DIR name - the exact path the host crate
 /// embeds via include_bytes!(concat!(env!("OUT_DIR"), "/zylaxion-tap.o")).
@@ -31,13 +28,6 @@ use std::process::{Command, Stdio};
 /// suffix names the artifact for what it is - a relocatable BPF ELF
 /// object (the zejtron ebpf-prebuilt/zejtron-ebpf.o shape).
 pub(super) const STAGED_OBJECT_NAME: &str = "zylaxion-tap.o";
-
-/// The tracked package name (night-cafe-1): the raw object is a local
-/// regeneration/extraction product and is never tracked - the
-/// registry tarball carries the .gz package plus its .b3sum sidecar
-/// (the Cargo.toml include list), and this lane decompresses exactly
-/// those tracked bytes.
-pub(super) const PREBUILT_PACKAGE_NAME: &str = "zylaxion-tap.o.gz";
 
 /// The manifest pin a registry extract verifies its staged bytes
 /// against: the [[object]] row of ebpf-prebuilt/manifest.toml.
@@ -56,7 +46,7 @@ pub(super) fn stage_prebuilt_object(manifest_dir: &Path, out_dir: &Path) {
     // Watched only on the lane that consumes it: a git checkout builds
     // its object from ebpf/ and never reads this directory.
     println!("cargo:rerun-if-changed={}", prebuilt_dir.display());
-    let package_path = prebuilt_dir.join(PREBUILT_PACKAGE_NAME);
+    let object_path = prebuilt_dir.join(STAGED_OBJECT_NAME);
     let manifest_path = prebuilt_dir.join("manifest.toml");
 
     let pin_text = std::fs::read_to_string(&manifest_path).unwrap_or_else(|e| {
@@ -79,12 +69,11 @@ pub(super) fn stage_prebuilt_object(manifest_dir: &Path, out_dir: &Path) {
         )
     });
 
-    let data = extract_prebuilt_package(&package_path).unwrap_or_else(|e| {
+    let data = std::fs::read(&object_path).unwrap_or_else(|e| {
         panic!(
-            "the prebuilt package {} could not be extracted ({e}) - the registry tarball \
-             is incomplete without it (the tracked lane is the .gz package plus its \
-             .b3sum sidecar, night-cafe-1); report this as a packaging bug",
-            package_path.display()
+            "the prebuilt object {} is unreadable ({e}) - the registry tarball is \
+             incomplete without it; report this as a packaging bug",
+            object_path.display()
         )
     });
 
@@ -93,10 +82,10 @@ pub(super) fn stage_prebuilt_object(manifest_dir: &Path, out_dir: &Path) {
     // verification the prebuilt lane exists to enforce.
     crate::ebpf::validate_ebpf_object(&data).unwrap_or_else(|problem| {
         panic!(
-            "the prebuilt eBPF object extracted from {} failed structural validation \
-             ({problem}) - the staged lane is damaged; regenerate it with \
+            "the prebuilt eBPF object {} failed structural validation ({problem}) - the \
+             staged lane is damaged; regenerate it with \
              ./scripts/dev/regenerate-ebpf-prebuilt.sh and re-package",
-            package_path.display()
+            object_path.display()
         )
     });
     verify_prebuilt_bytes(&data, &pin).unwrap_or_else(|drift| {
@@ -115,35 +104,6 @@ pub(super) fn stage_prebuilt_object(manifest_dir: &Path, out_dir: &Path) {
         "cargo:warning=zylaxion: eBPF object staged from ebpf-prebuilt/ (registry-prebuilt \
          lane, manifest-verified)"
     );
-}
-
-/// The night-cafe-1 extraction: the tracked lane is the .gz package
-/// (gzip -9 -n, byte-reproducible) plus its .b3sum sidecar, so the
-/// registry lane decompresses the package here before the manifest
-/// verification runs over the raw bytes. The gzip CLI is a core
-/// Linux utility and zylaxion is Linux-only, so std-only process
-/// spawning keeps the build dependency set untouched (no compression
-/// crate rides this lane).
-fn extract_prebuilt_package(package_path: &Path) -> Result<Vec<u8>, String> {
-    let out = Command::new("gzip")
-        .arg("-dc")
-        .arg(package_path)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .map_err(|e| format!("gzip could not be spawned: {e}"))?;
-    if !out.status.success() {
-        return Err(format!(
-            "gzip -dc exited with {}: {}",
-            out.status,
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
-    }
-    if out.stdout.is_empty() {
-        return Err("the package decompressed to zero bytes - a truncated package".to_owned());
-    }
-    Ok(out.stdout)
 }
 
 /// The prebuilt lane's contract, factored out pure: the staged bytes
