@@ -34,8 +34,11 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-RED='\033[0;31m'
-NC='\033[0m'
+# The shell brand palette (night-cafe-1): this gate renders the same
+# tiers the CLI renders — UX_ERR for the failures, plain text when
+# piped. The RED/NC usage sites map onto the tiers inside the palette.
+# shellcheck disable=SC1091
+. "${REPO_ROOT}/scripts/lib/ux_palette.sh"
 
 MISSING=0
 WRONG=0
