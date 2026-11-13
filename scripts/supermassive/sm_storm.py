@@ -60,8 +60,15 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 import threading
 import time
+
+# The root-owned pycache guard (night-cafe-1, the same law the
+# supermassive-test entry and sm_static carry): a direct run of this
+# module must never leave root-owned bytecode caches beside the
+# scripts for the project-local modules it imports below.
+sys.dont_write_bytecode = True
 
 from sm_audio import (  # noqa: E402 - the engine family's shared instruments
     _KeyboardInjector,
@@ -71,7 +78,7 @@ from sm_audio import (  # noqa: E402 - the engine family's shared instruments
     _run_as_user,
     _unpriv_bpf_disabled,
 )
-from sm_report import Ledger, Step
+from sm_report import Ledger, Step  # noqa: E402
 
 STORM_SECONDS = 8.0
 FINAL_PRESSES_FLOOR = 50
