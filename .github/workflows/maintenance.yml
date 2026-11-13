@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     # night-dragon-lts: bounded patience + the write scope lives HERE,
     # on the one job that pushes — the top level stays read-only.
-    timeout-minutes: 30
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:

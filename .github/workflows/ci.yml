@@ -55,8 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     # night-dragon-lts: the compile lanes carry the same bounded-patience
     # law the rest of the estate runs on — a wedged lane dies with a
-    # named timeout instead of eating the runner's hour.
-    timeout-minutes: 30
+    # named timeout: the ten-minute estate cap, not the runner's hour.
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -192,7 +192,7 @@ jobs:
     name: eBPF tap build
     runs-on: ubuntu-latest
     # night-dragon-lts: bounded patience, same law as the check job.
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin

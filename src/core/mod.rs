@@ -422,7 +422,7 @@ impl<S: AudioSink> Orchestrator<S> {
                 Ok(event) => {
                     // v10.2.0 (S4): reset the heartbeat on any event.
                     // The input thread is alive and producing events —
-                    // the daemon is healthy.
+                    // the player is healthy.
                     last_event_monotonic = std::time::Instant::now();
                     heartbeat_debug_emitted = false;
                     heartbeat_warn_emitted = false;

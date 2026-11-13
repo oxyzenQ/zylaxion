@@ -24,8 +24,8 @@
 #     is cached behind the workflow's own hash, and the fresh payload
 #     + tree + init are injected on every run — nothing stale can ride.
 # Each leg is engineered toward a five-minute warm target; the
-# timeout-minutes lines stay the estate's fail-fast doctrine — sized
-# to the measured cold records, not a speed claim.
+# timeout-minutes lines carry the estate-wide ten-minute cap
+# (owner-decided): every job fails fast at ten minutes.
 #
 # The three legs cross the kernel span exactly as before
 # (night-dragon-maintenance-4): below the floor, the focal 5.4 refusal
@@ -62,7 +62,7 @@ jobs:
   payload:
     name: supermassive e2e - the v3 payload (built once)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -216,7 +216,7 @@ jobs:
     # cache) lands in minutes; 20 is the last-resort line that catches
     # a cold archive day or a wedged runner node.
     needs: payload
-    timeout-minutes: 20
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:

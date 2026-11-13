@@ -83,7 +83,7 @@ jobs:
     # night-dinner-6: a fail-fast cap, not a speed claim — the scoped
     # suite lands in ~4 minutes on the measured record; 20 gives 5x
     # headroom before a runaway interpreted run burns the runner.
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, the zelynic estate SHA pin

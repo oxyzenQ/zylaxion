@@ -381,7 +381,9 @@ fetched from an unsigned source.
 `cargo audit --deny warnings` exits 0 against all three lockfiles:
 the workspace lock (150 packages), the ebpf crate lock (31), the
 audit harness lock (119), against 1314 RustSec advisories. Zero
-vulnerabilities, zero warnings.
+vulnerabilities, zero warnings. Counts reflect that pass; the
+night-audit-2 re-measure reads 129 root and 28 ebpf lockfile crates. Counts reflect that pass; the
+night-audit-2 re-measure reads 129 root and 28 ebpf lockfile crates.
 
 **The lockfile absences, re-verified:** `time`, `serde`, `serde_json`,
 `toml`, `chrono`, `jiff` — none present in the workspace lock. The

@@ -3,7 +3,7 @@
 
 //! Real-time audio output via cpal with lock-free ring buffer bridging.
 //!
-//! This crate connects the [`crate::engine::VoicePool`] to the OS audio
+//! This module connects the [`crate::engine::VoicePool`] to the OS audio
 //! server (PipeWire / PulseAudio / ALSA) through a zero-lock, zero-allocation
 //! audio callback.
 //!
@@ -178,7 +178,7 @@ impl CpalSink {
         // output devices if `default_output_device()` returns None.
         // PipeWire/PulseAudio's "default device" can be unset (e.g.
         // after `pactl unset-default-sink`) — without this fallback,
-        // the daemon would exit with a generic "no device" error even
+        // the player would exit with a generic "no device" error even
         // when audio devices are present and available. We log the
         // fallback so the user knows the default wasn't picked.
         let device = match host.default_output_device() {

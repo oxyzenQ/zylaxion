@@ -71,7 +71,7 @@ jobs:
   ci_gate:
     name: CI gate (commit+tag push)
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 10
     # actions: write (not read) — the gate's infra-failure carve-out
     # re-runs the failed jobs of a run whose failures all carry
     # GitHub-infra signatures. Read-only would make every such flake a
@@ -99,7 +99,7 @@ jobs:
     name: Publish to crates.io (${{ github.ref_name }})
     runs-on: ubuntu-24.04
     needs: ci_gate
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin

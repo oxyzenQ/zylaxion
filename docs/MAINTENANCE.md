@@ -13,7 +13,7 @@ gates exist, not to run the levers.
 The single sanctioned tool is `scripts/dev/version-to.sh`:
 
 ```bash
-./scripts/dev/version-to.sh v11.1.0
+./scripts/dev/version-to.sh v80.2.0
 ```
 
 What it does (all lanes verified in-situ):

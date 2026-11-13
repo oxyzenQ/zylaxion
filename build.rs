@@ -135,7 +135,7 @@ mod blake3;
 // ── The commit-sha chain (the sibling zejtron build.rs lineage) ─────
 
 /// First step of the commit-sha chain: `git rev-parse --short=7 HEAD`
-/// from the workspace root. Returns `None` when git is absent, fails
+/// from the repo root. Returns `None` when git is absent, fails
 /// (no `.git` — a registry extract), or answers something other than
 /// usable hex.
 fn git_short_sha() -> Option<String> {
@@ -244,7 +244,7 @@ fn format_build_time_utc() -> String {
 /// days-since-epoch to (year, month, day). All arithmetic is on `i64` to
 /// avoid unsigned-underflow issues when subtracting the 719468-day shift
 /// constant. The runtime twin of this core lives in
-/// `src/info/clock.rs` (the daemon log timestamp lane) — the pairing is
+/// `src/info/clock.rs` (the log timestamp lane) — the pairing is
 /// deliberate: zero time crates on both surfaces.
 fn format_unix_secs_as_build_time(total_secs: i64) -> String {
     let days_since_epoch = total_secs.div_euclid(86_400);
