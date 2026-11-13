@@ -10,15 +10,23 @@
 # makes `cargo install zylaxion` land the full-featured binary on a
 # plain stable toolchain (cargo's package walk cannot carry the
 # detached ebpf/ workspace, so the registry tarball ships this object
-# instead; provenance: ebpf-prebuilt/manifest.toml).
+# instead; provenance: ebpf-prebuilt/manifest.toml). Since
+# night-cafe-1 the tracked lane is the .gz package plus its .b3sum
+# sidecar (raw binaries are never tracked): the gate verifies the
+# sidecar over the package bytes, extracts the package into a private
+# temp dir, and runs every structural row over the extracted bytes —
+# the same bootstrap posture the zelynic labs-exp batteries apply.
 #
 # What is checked, and why each row is load-bearing:
-#   1. The object exists and is a structurally sane ELF (magic +
-#      minimum size). A missing or truncated object would make the
-#      registry lane's build.rs panic on every `cargo install`.
-#   2. Every manifest [[object]] row matches the file on disk
-#      (blake3 + size). A tampered or partially refreshed directory
-#      fails here instead of shipping an unaccounted artifact.
+#   1. The package and its sidecar exist and the package's bytes
+#      verify against the sidecar; the extracted object is a
+#      structurally sane ELF (magic + minimum size). A missing or
+#      damaged package would make the registry lane's build.rs panic
+#      on every `cargo install`.
+#   2. Every manifest [[object]] row matches the extracted object
+#      bytes (blake3 + size). A tampered or partially refreshed
+#      directory fails here instead of shipping an unaccounted
+#      artifact.
 #   3. The manifest's ebpf_tree_blake3 equals the blake3 over the
 #      LC_ALL=C byte-sorted (NUL-separated) b3sum listing of the
 #      git-tracked ebpf/ files — the STALENESS killer: any change
@@ -83,7 +91,15 @@ cd "$REPO_ROOT"
 
 PREBUILT_DIR="ebpf-prebuilt"
 MANIFEST="${PREBUILT_DIR}/manifest.toml"
+PACKAGE_GZ="${PREBUILT_DIR}/zylaxion-tap.o.gz"
+SIDECAR="${PREBUILT_DIR}/zylaxion-tap.o.b3sum"
 FAILED=0
+
+# The extracted bytes live in a private temp dir for this run only
+# (the raw object is a local product, night-cafe-1 - the gate never
+# writes into the tree). The EXIT trap tears it down even on Ctrl-C.
+EXTRACT_DIR=""
+trap '[ -n "${EXTRACT_DIR:-}" ] && rm -rf "${EXTRACT_DIR}"' EXIT
 
 fail() {
         echo "FAIL: $*"
@@ -110,7 +126,7 @@ ebpf_tree_blake3() {
                 awk '{print $1}'
 }
 
-# ── 1. the lane exists and its object is structurally sane ────────
+# ── 0. the lane and its digest tool exist at all ───────────────────
 if [ ! -d "$PREBUILT_DIR" ]; then
         fail "ebpf-prebuilt/ is missing — the registry lane cannot ship. Run ./scripts/dev/regenerate-ebpf-prebuilt.sh"
         echo "FAIL: 1 of 4 checks (lane missing)"
@@ -132,13 +148,36 @@ if ! b3sum --version 2>/dev/null | grep -q '1.8.7'; then
         exit 1
 fi
 
+# ── 1. the lane exists, its package verifies against the sidecar,
+#      and the extracted object is structurally sane ────────────────
+# The tracked bytes are the .gz package plus its .b3sum sidecar
+# (night-cafe-1); every structural row below reads the extracted
+# bytes, never the package or any raw object the working tree may
+# happen to carry.
+EXTRACT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/zylaxion-parity.XXXXXX")"
+if [ ! -f "$PACKAGE_GZ" ]; then
+        fail "${PACKAGE_GZ} is missing — regenerate with ./scripts/dev/regenerate-ebpf-prebuilt.sh"
+else
+        pass "package present (${PACKAGE_GZ})"
+fi
+if [ ! -f "$SIDECAR" ]; then
+        fail "${SIDECAR} is missing — the package rides with its sidecar (night-cafe-1)"
+elif [ -f "$PACKAGE_GZ" ]; then
+        if ( cd "$PREBUILT_DIR" && b3sum -c "zylaxion-tap.o.b3sum" >/dev/null ); then
+                pass "package bytes verify against the sidecar (b3sum -c)"
+        else
+                fail "${PACKAGE_GZ} does not match its sidecar — the tracked lane is damaged"
+        fi
+        gunzip -c "$PACKAGE_GZ" >"${EXTRACT_DIR}/zylaxion-tap.o"
+fi
+
 # One object today; the loop stays the manifest's growth path (a
 # second pinned object slots in here without a rewrite).
 # shellcheck disable=SC2043
 for name in zylaxion-tap; do
-        file="${PREBUILT_DIR}/${name}.o"
+        file="${EXTRACT_DIR}/${name}.o"
         if [ ! -f "$file" ]; then
-                fail "${file} is missing — regenerate with ./scripts/dev/regenerate-ebpf-prebuilt.sh"
+                fail "the extracted ${name} object is absent — the package failed to extract; regenerate with ./scripts/dev/regenerate-ebpf-prebuilt.sh"
                 continue
         fi
         magic="$(head -c 4 "$file" | od -An -tx1 | tr -d ' \n')"
@@ -204,9 +243,9 @@ if [ -f "$MANIFEST" ]; then
         # One line per [[object]] block: "name blake3 size"
         while read -r name want_sha want_size; do
                 [ -n "$name" ] || continue
-                file="${PREBUILT_DIR}/${name}.o"
+                file="${EXTRACT_DIR}/${name}.o"
                 if [ ! -f "$file" ]; then
-                        fail "manifest names ${name} but the file is absent"
+                        fail "manifest names ${name} but the extracted object is absent (the package failed to extract)"
                         continue
                 fi
                 got_sha="$(b3sum "$file" | awk '{print $1}')"
