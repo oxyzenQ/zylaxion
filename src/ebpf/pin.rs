@@ -73,6 +73,23 @@ pub fn error_marker_present() -> bool {
     Path::new(PIN_MAP_ERROR).exists()
 }
 
+/// Whether the current user could actually unlink the pins: the
+/// kernel's own access(2) answer for write permission on the pin
+/// directory (night-total-lts-2). Unlink permission lives on the
+/// CONTAINING DIRECTORY, not the file — a hand-over that owns the pin
+/// files but not the directory lets the user open every map yet never
+/// detach. Root bypasses DAC entirely, so callers combine this pure
+/// fact with `euid_is_root()` and let the privilege gate own the
+/// negation discipline.
+///
+/// Every error path reads as NOT removable (EACCES on a foreign
+/// directory, the bpffs mount remounted read-only, a vanished
+/// directory): the safe direction — the pre-flight refuses and
+/// nothing is touched.
+pub fn pins_removable_by_current_user() -> bool {
+    nix::unistd::access(PIN_DIR, nix::unistd::AccessFlags::W_OK).is_ok()
+}
+
 /// Unpin everything (best-effort, idempotent). Returns the names that
 /// were actually removed so `detach` can report honestly, plus the
 /// classified outcome of the pin-directory removal. The failure marker

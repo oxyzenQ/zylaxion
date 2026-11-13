@@ -108,3 +108,59 @@ fn attach_requirement_allows_root() {
         "root must pass the gate — the sudo lane is the intended entry"
     );
 }
+
+/// night-total-lts-2: the detach requirement — the four-way polarity
+/// matrix (the night-badas-1 discipline: the facts flow in as read,
+/// the requirement owns every negation, and the tests pin BOTH ways).
+#[test]
+fn detach_requirement_refuses_non_root_without_unlink() {
+    let msg = detach_requirement(false, false).expect("no root + no unlink = refused");
+    assert!(
+        msg.contains("detach refused"),
+        "refusal must name the verb, got: {msg}"
+    );
+    assert!(
+        msg.contains("belongs to another user"),
+        "refusal must name the ownership fact, got: {msg}"
+    );
+    assert!(
+        msg.contains("unlink permission lives on the pin directory"),
+        "refusal must teach the permission law, got: {msg}"
+    );
+    assert!(
+        msg.contains("tip: sudo zylaxion detach"),
+        "refusal must carry the runnable fix, got: {msg}"
+    );
+    assert!(
+        msg.contains("nothing was touched"),
+        "refusal must promise the pre-flight no-mutation shape, got: {msg}"
+    );
+    assert!(
+        msg.contains("stays alive"),
+        "refusal must promise the player survives, got: {msg}"
+    );
+}
+
+#[test]
+fn detach_requirement_passes_root_regardless_of_unlink() {
+    assert!(
+        detach_requirement(true, false).is_none(),
+        "root bypasses DAC — the gate must not refuse root"
+    );
+}
+
+#[test]
+fn detach_requirement_passes_removable_user() {
+    assert!(
+        detach_requirement(false, true).is_none(),
+        "a user with unlink permission (the hand-over lane) must pass"
+    );
+}
+
+#[test]
+fn detach_requirement_passes_root_and_removable() {
+    assert!(
+        detach_requirement(true, true).is_none(),
+        "the trivially-passing corner must stay None"
+    );
+}

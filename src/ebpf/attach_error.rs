@@ -122,8 +122,13 @@ impl fmt::Display for AttachError {
                 or none)."
                 .to_string(),
             AttachError::Unknown { detail } => {
+                // Command-neutral verb (night-total-lts-2): the detach
+                // lane's classified races render through this variant
+                // too, and "the attach failed" printed under a detach
+                // run was its own dirty bug. The context is which
+                // command the user ran; the sentence stays honest.
                 format!(
-                    "the attach failed for an unclassified reason: {}.",
+                    "the operation failed for an unclassified reason: {}.",
                     detail.trim_end()
                 )
             }

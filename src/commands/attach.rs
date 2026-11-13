@@ -16,9 +16,13 @@
 //!
 //! `detach` unpins everything — after it, NOTHING of zylaxion exists in
 //! the kernel. It stays reachable unprivileged: unlink permission on the
-//! pin files decides, which is exactly the ownership the attach handed
-//! out. A running player never survives it (night-improve-27): the
-//! reaping happens inside the teardown, before the first pin unlinks.
+//! pin DIRECTORY decides, which is exactly the ownership the attach
+//! hands out (night-total-lts-2: the hand-over chowns the directory too
+//! — owning pins you cannot unlink was a half hand-over). A detach that
+//! cannot complete refuses in the pre-flight gate before anything is
+//! touched: the running player survives it. After the gate passes, a
+//! running player never survives the teardown (night-improve-27): the
+//! reaping happens before the first pin unlink.
 
 use std::process;
 
@@ -76,6 +80,24 @@ pub fn cmd_attach() {
 /// Handle `zylaxion detach`.
 pub fn cmd_detach() {
     init_logger();
+
+    // The pre-flight gate (night-total-lts-2, the mutation-before-
+    // validation lesson): a detach that cannot complete refuses
+    // BEFORE anything is touched — the enabled gate stays set, the
+    // running player stays alive, the pins stay planted, the
+    // telemetry keeps accumulating. Same gate shape as `attach`'s
+    // requirement above: the facts flow in as read, the requirement
+    // function owns every negation. Pins absent = the idempotent
+    // no-op success below, whatever the euid.
+    if crate::ebpf::pin::any_pin_present()
+        && let Some(refusal) = crate::session::privilege::detach_requirement(
+            crate::session::privilege::euid_is_root(),
+            crate::ebpf::pin::pins_removable_by_current_user(),
+        )
+    {
+        crate::output::error(refusal);
+        process::exit(1);
+    }
 
     match crate::ebpf::detach() {
         Ok(summary) => {
