@@ -9,6 +9,10 @@
 use super::*;
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "sig_report runs the D3 probe (current_exe/readlink) which Miri isolation refuses - the native CI lane owns it"
+)]
 fn pristine_build_reports_authentic_four_of_four() {
     let (text, verdict) = sig_report();
     assert_eq!(verdict, SigVerdict::Authentic);
@@ -27,6 +31,10 @@ fn pristine_build_reports_authentic_four_of_four() {
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "sig_report runs the D3 probe (current_exe/readlink) which Miri isolation refuses - the native CI lane owns it"
+)]
 fn report_names_the_owner_identity() {
     let (text, _) = sig_report();
     assert!(
@@ -63,6 +71,10 @@ fn self_hash_hashes_the_test_image() {
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "sig_report runs the D3 probe (current_exe/readlink) which Miri isolation refuses - the native CI lane owns it"
+)]
 fn report_shape_is_stable() {
     let (text, verdict) = sig_report();
     assert!(
