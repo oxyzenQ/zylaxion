@@ -34,42 +34,6 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
-### Hardening (night-cafe-1)
-
-- **The packaging law lands on the prebuilt lane.** Raw binaries are
-  never tracked: the maintainer-built `ebpf-prebuilt/zylaxion-tap.o`
-  (the object a registry tarball rides) now publishes as the
-  `zylaxion-tap.o.gz` package with its `.b3sum` sidecar. The raw
-  object is a local regeneration/extraction product under the new
-  `*.o` gitignore law, and `cargo package` excludes it explicitly so
-  a maintainer checkout's local copy can never ride the tarball. All
-  four consumers read the package lane: the generator emits the
-  byte-reproducible package (`gzip -9 -n`) and verifies the manifest
-  pins through either lane in `--check`; `build/prebuilt.rs`
-  decompresses with a std-only `gzip -dc` spawn before the existing
-  ELF validation and manifest verification (no compression crate
-  joins the dependency set); the parity gate verifies the sidecar and
-  runs every structural row over the extracted bytes in a private
-  temp dir; the zactrix audit's R4 row follows the same shape. The
-  manifest still pins the raw object's identity — the packaging
-  changed, the identity surface did not.
-- **The shell lanes render the brand palette.** The five surfaces
-  that still carried their own raw ANSI literals (check-headers,
-  inject-disclaimer, check-actions-pins, bootstrap-ebpf,
-  version-to) now source `scripts/lib/ux_palette.sh` and map their
-  usage names onto the tiers — the same RGB/256/16 bytes the CLI
-  renders, plain text when piped or `NO_COLOR` is set. This also
-  fixes a real defect: inject-disclaimer carried truncated color
-  literals (a lone ESC byte, no color code) that rendered its
-  verdicts as escape garbage.
-- **The root-owned pycache wall closes.** The uniform
-  `sys.dont_write_bytecode = True` guard reaches every python module
-  in the tree (sm_env, sm_report, check-name-case were the stragglers;
-  generate-provenance-words.py imports nothing and needs no guard),
-  completing the shell-layer `PYTHONDONTWRITEBYTECODE=1` coverage —
-  no root-run harness can leave root-owned bytecode caches that a
-  later plain-user `rm -rf` dies on (docs/MAINTENANCE.md).
-
 ### License
 
 - **Three-tier expansion + OEM repricing.** Professional ($999/year)

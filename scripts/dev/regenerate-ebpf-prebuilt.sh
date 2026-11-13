@@ -17,16 +17,6 @@
 # the rewrite below. One writer, reader-shaped gates, no second
 # implementation of the recipe.
 #
-# The night-cafe-1 packaging law: raw binaries are never tracked in
-# this repository. The tracked lane is the .gz package
-# (${OBJECT_NAME}.o.gz) plus its .b3sum sidecar; the raw object stays
-# a local regeneration/extraction product (gitignored). gzip -9 -n is
-# the byte-reproducible pack - no timestamp and no original name ride
-# the gzip header - so repackaging the same object bytes yields the
-# same package bytes and the sidecar holds. The manifest still pins
-# the raw object's identity (blake3 + size), verified over the
-# extracted bytes; the sidecar pins the package bytes themselves.
-#
 # The manifest's ebpf_tree_blake3 recipe (night-dragon-maintenance-0,
 # the zejtron night-weekly-maintenance-1 shape re-hashed from the
 # night-improve-31 sha256 recipe):
@@ -85,8 +75,6 @@ B3SUM_VERSION="1.8.7"
 
 OBJECT_NAME="zylaxion-tap"
 STAGED_OBJECT="ebpf-prebuilt/${OBJECT_NAME}.o"
-PACKAGE="ebpf-prebuilt/${OBJECT_NAME}.o.gz"
-SIDECAR="ebpf-prebuilt/${OBJECT_NAME}.o.b3sum"
 MANIFEST="ebpf-prebuilt/manifest.toml"
 BUILT_OBJECT="ebpf/target/bpfel-unknown-none/release/${OBJECT_NAME}"
 # The validated build pair's second half (the dated nightly pin is the
@@ -139,37 +127,14 @@ if [ "${1:-}" = "--check" ]; then
                 echo "stale: $MANIFEST is missing entirely"
                 exit 1
         }
-        # The identity surface is dual-lane since night-cafe-1: a
-        # maintainer checkout carries the raw regeneration product, a
-        # fresh clone carries only the tracked .gz package. --check
-        # verifies the pinned blake3+size over whichever lane is
-        # present, and the package's own sidecar always rides along.
-        CHECK_TMP=""
-        trap '[ -n "$CHECK_TMP" ] && rm -rf "$CHECK_TMP"' EXIT
-        if [ -f "$STAGED_OBJECT" ]; then
-                VERIFY_SOURCE="the staged $STAGED_OBJECT"
-                STAGED_SHA="$(b3sum "$STAGED_OBJECT" | awk '{print $1}')"
-                STAGED_SIZE="$(stat -c %s "$STAGED_OBJECT")"
-        elif [ -f "$PACKAGE" ]; then
-                CHECK_TMP="$(mktemp -d "${TMPDIR:-/tmp}/zylaxion-prebuilt-check.XXXXXX")"
-                gunzip -c "$PACKAGE" >"${CHECK_TMP}/${OBJECT_NAME}.o"
-                VERIFY_SOURCE="the extracted $PACKAGE"
-                STAGED_SHA="$(b3sum "${CHECK_TMP}/${OBJECT_NAME}.o" | awk '{print $1}')"
-                STAGED_SIZE="$(stat -c %s "${CHECK_TMP}/${OBJECT_NAME}.o")"
-        else
-                echo "stale: the staged $STAGED_OBJECT is missing and the tracked package $PACKAGE is absent"
+        [ -f "$STAGED_OBJECT" ] || {
+                echo "stale: the staged $STAGED_OBJECT is missing"
                 exit 1
-        fi
-        if [ -f "$PACKAGE" ] && [ -f "$SIDECAR" ]; then
-                ( cd ebpf-prebuilt && b3sum -c "${OBJECT_NAME}.o.b3sum" >/dev/null ) || {
-                        echo "stale: the $PACKAGE bytes do not match their $SIDECAR sidecar"
-                        STALE=1
-                }
-        elif [ -f "$PACKAGE" ] || [ -f "$SIDECAR" ]; then
-                echo "stale: the package and its sidecar are a pair - one of $PACKAGE/$SIDECAR is missing"
-                STALE=1
-        fi
+        }
+
         TREE_NOW="$(tree_blake3)"
+        STAGED_SHA="$(b3sum "$STAGED_OBJECT" | awk '{print $1}')"
+        STAGED_SIZE="$(stat -c %s "$STAGED_OBJECT")"
         PIN_TREE="$(awk -F'"' '/^ebpf_tree_blake3 = /{print $2; exit}' "$MANIFEST")"
         PIN_OBJ="$(awk -F'"' '/^blake3 = /{print $2; exit}' "$MANIFEST")"
         PIN_SIZE="$(awk -F' = ' '/^size = /{print $2; exit}' "$MANIFEST")"
@@ -181,11 +146,11 @@ if [ "${1:-}" = "--check" ]; then
                 STALE=1
         }
         [ "$STAGED_SHA" = "$PIN_OBJ" ] || {
-                echo "stale: $VERIFY_SOURCE is not the pinned object bytes ($PIN_OBJ -> $STAGED_SHA)"
+                echo "stale: the staged $STAGED_OBJECT is not the pinned object bytes ($PIN_OBJ -> $STAGED_SHA)"
                 STALE=1
         }
         [ "$STAGED_SIZE" = "$PIN_SIZE" ] || {
-                echo "stale: $VERIFY_SOURCE size no longer matches the pin ($PIN_SIZE -> $STAGED_SIZE)"
+                echo "stale: the staged object size no longer matches the pin ($PIN_SIZE -> $STAGED_SIZE)"
                 STALE=1
         }
         [ "$(toolchain_pin)" = "$PIN_TOOLCHAIN" ] || {
@@ -205,7 +170,7 @@ if [ "${1:-}" = "--check" ]; then
         }
 
         [ "$STALE" -eq 0 ] && {
-                echo "in sync: manifest pins match the ebpf/ tree, the object identity ($VERIFY_SOURCE), the package sidecar, the toolchain pin, and the version mirror"
+                echo "in sync: manifest pins match the ebpf/ tree, the staged copy, the toolchain pin, and the version mirror"
                 exit 0
         }
         exit 1
@@ -285,15 +250,6 @@ BUILT_BY="$(git config user.name >/dev/null 2>&1 && git config user.email >/dev/
 mkdir -p ebpf-prebuilt
 install -m 644 "$BUILT_OBJECT" "$STAGED_OBJECT"
 
-# The night-cafe-1 packaging law: the tracked lane is the .gz package
-# plus its .b3sum sidecar; the raw object above stays a local product
-# (gitignored). gzip -9 -n is the byte-reproducible pack - no
-# timestamp and no original name ride the header - so a repackage of
-# the same object bytes is the same package bytes and the sidecar
-# holds.
-gzip -9 -n -c "$STAGED_OBJECT" >"$PACKAGE"
-( cd ebpf-prebuilt && b3sum "${OBJECT_NAME}.o.gz" >"${OBJECT_NAME}.o.b3sum" )
-
 cat >"$MANIFEST" <<EOF
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: AGPL-3.0-only
@@ -313,9 +269,7 @@ cat >"$MANIFEST" <<EOF
 # [contract] version is the version mirror law: it must equal the
 # root Cargo.toml and ebpf/Cargo.toml versions, and the --check
 # verdict fails the commit when the three disagree. These are the
-# bytes a registry-install build embeds (after extraction - the
-# tracked lane is the ${OBJECT_NAME}.o.gz package plus its
-# .b3sum sidecar, night-cafe-1; the raw object is a local product).
+# bytes a registry-install build embeds.
 
 schema = 2
 generated = "${GENERATED}"
@@ -339,4 +293,3 @@ version = "${VERSION}"
 EOF
 
 echo "manifest written: ${MANIFEST} (object ${OBJ_SHA}, ${OBJ_SIZE} bytes, tree ${TREE_SHA})"
-echo "package written: ${PACKAGE} + ${SIDECAR} (the tracked lane; the raw ${STAGED_OBJECT} stays a local product)"
