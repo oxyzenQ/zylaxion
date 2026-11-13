@@ -57,9 +57,13 @@ cd "${SCRIPT_DIR}"
 
 # Colors — the shell brand palette (night-cafe-1): the RED/GREEN/
 # YELLOW/NC usage sites map onto the tiers inside the palette — the
-# same bytes the CLI renders, plain text when piped.
-# shellcheck disable=SC1091
-. "${SCRIPT_DIR}/../lib/ux_palette.sh"
+# same bytes the CLI renders, plain text when piped. The palette is
+# in-repo (scripts/lib/): SCRIPT_DIR is the repo ROOT here (../..),
+# so the sibling `../lib` form — the zelynic dev-script shape, where
+# SCRIPT_DIR is the scripts/ dir — resolves OUTSIDE this checkout and
+# breaks any layout without a sibling lib/ (the freeze-lts lesson).
+# shellcheck disable=SC1091 source=scripts/lib/ux_palette.sh
+. "${SCRIPT_DIR}/scripts/lib/ux_palette.sh"
 
 # Read current version from the root Cargo.toml (the package version).
 current_version() {
