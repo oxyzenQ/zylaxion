@@ -168,9 +168,35 @@ startup or live — goes through the same clamp (finite, within range,
 else the 5.5 default). One cell, one law, no divergent writers. File
 of truth: `src/engine/pool/mod.rs`.
 
+**14. The compiled preset registry with the validate_and_clamp
+contract.** The config-parse hole it refuses: no config file means no
+parse errors are possible — 24 presets ship as a static registry
+packed by `const fn` constructors (`PRESETS: [Preset; 24]`),
+type-checked at compile time and range-checked by the test tree. Any
+externally supplied profile must survive `validate_and_clamp`, which
+enforces the documented ranges (click 500–8000 Hz, resonance
+0.1–30.0, decay coefficient strictly below 0.9999, housing
+100–1000 Hz) — and the tests pin that every preset survives clamping
+without drift. Files of truth: `src/profiles/registry.rs` (the
+registry, default preset "technical") and `src/profiles/profile/mod.rs`
+(the clamp contract); pinned by `test/profiles/registry_tests.rs`.
+
+**15. The SPSC ring lane (the Mouth bridge).** The realtime hole: the
+synthesizer thread and the audio callback must never share a lock.
+The engine writes stereo frames into a 16384-frame single-producer/
+single-consumer ring (about 370 ms at 44.1 kHz), sized on purpose to
+absorb Linux non-RT scheduler jitter spikes of 30–50 ms without the
+callback ever seeing an empty buffer — worst-case extra latency is
+inaudible for a sound effect that plays for hundreds of milliseconds.
+The ring's vacancy side feeds the orchestrator's adaptive wait and
+the shutdown silence pad, so pacing decisions always read the real
+consumer, never a guess. File of truth: `src/audio/mod.rs`
+(`RING_BUFFER_FRAMES`); the bridge is exercised by
+`test/core/core_tests.rs`.
+
 ## The ears: the passive kernel tap
 
-**14. The passive eBPF tap — one body, two attach programs.** The
+**16. The passive eBPF tap — one body, two attach programs.** The
 everything-hole it replaces: no `/dev/input`, no evdev grab, no udev
 rules, no `input` group, no daemon. A pure-Rust aya-ebpf program
 probes the kernel's own `input_event()` — through an fentry trampoline
@@ -183,7 +209,7 @@ use 64-bit atomic fetch-adds. Files of truth: `ebpf/src/main.rs`
 (maps: control, keymap, events, stats) and the ABI tests in
 `test/ebpf/args_tests.rs`.
 
-**15. The attach chain (fentry, then kprobe, then kprobe-alt) with
+**17. The attach chain (fentry, then kprobe, then kprobe-alt) with
 the TAP_KIND slot.** The portability problem: one attach method does
 not survive every kernel. The chain is a locked four-step ladder —
 fentry on `input_event` (kernel 5.5+), kprobe on `input_event`, then
@@ -194,7 +220,7 @@ once; the symbol is an attach-time parameter. Files of truth:
 `src/ebpf/loader/mod.rs` and `src/ebpf/loader/chain.rs`; vocabulary
 round-trips are pinned in `test/ebpf/loader_tests.rs`.
 
-**16. The raw-syscall pin lanes.** The library limit: Aya's typed
+**18. The raw-syscall pin lanes.** The library limit: Aya's typed
 attach methods return links whose inner handles are not public, and a
 link that is not pinned dies with the attaching process — the tap
 would vanish the moment `attach` exits. Hand-built `bpf()` syscall
@@ -204,7 +230,7 @@ perf event PMU plus link create for kprobe; each ending in
 truth: `src/ebpf/bpf_syscall.rs`; the ABI shapes are pinned by
 `test/ebpf/bpf_syscall_tests.rs`.
 
-**17. AlignedElf — alignment-guaranteed embedding.** The rustc trap:
+**19. AlignedElf — alignment-guaranteed embedding.** The rustc trap:
 `include_bytes!` produces an align-1 static, and the eBPF loader
 rejects unaligned ELF with a healthy artifact — an error that cost a
 real debugging session. The object is embedded through a
@@ -214,7 +240,7 @@ modern rustc), plus an alignment preflight tripwire that fails the
 load before the kernel ever sees a misaligned pointer. File of
 truth: `src/ebpf/embedded.rs`; pinned by `test/ebpf/embedded_tests.rs`.
 
-**18. The attach failure taxonomy with an on-kernel failure marker.**
+**20. The attach failure taxonomy with an on-kernel failure marker.**
 The silent-failure hole: an attach that fails after the process exits
 leaves nothing to read. `AttachError` is a closed nine-variant
 taxonomy where each variant renders a complete sentence and carries a
@@ -225,7 +251,7 @@ are their own variants, not generic errors. Files of truth:
 `src/ebpf/attach_error.rs` and `src/ebpf/loader/orchestrate.rs`;
 pinned by `test/ebpf/attach_error_tests.rs`.
 
-**19. Idempotent attach with self-heal and classified cleanup.** The
+**21. Idempotent attach with self-heal and classified cleanup.** The
 crash-recovery problem: an interrupted attach can leave a partial pin
 set behind. A complete pin set means success (still performing the
 chown hand-over); a partial set is cleaned and the stale directory
@@ -235,7 +261,7 @@ cleanup leaves a DETACHED tap rather than a half-attached one. Files
 of truth: `src/ebpf/loader/orchestrate.rs` and `src/ebpf/pin.rs`;
 removal order is pinned by `test/ebpf/pin_tests.rs`.
 
-**20. The pin hand-over and the bpffs front door.** The ownership
+**22. The pin hand-over and the bpffs front door.** The ownership
 trap: owning a pin is not reaching a pin — a bpffs mount in mode 0700
 (the Debian 13 default) blocks every `stat()` through `/sys/fs/bpf`,
 and the desktop player runs as the user, not root. Attach chowns the
@@ -245,7 +271,7 @@ mount, adds exactly `o+x` to `/sys/fs/bpf` — never `o+r`, pins stay
 0600. Files of truth: `src/ebpf/loader/chain.rs` (hand-over) and
 `src/session/kernel.rs` (the reachability math).
 
-**21. The kernel capability probe — one probe, two consumers.** The
+**23. The kernel capability probe — one probe, two consumers.** The
 drift problem: attach prechecks and doctor reports that re-implement
 their own verdicts disagree. One `probe()` builds the kernel report —
 release parse against the 5.15 floor, BTF full-token search for the
@@ -258,7 +284,7 @@ not proof. File of truth: `src/session/kernel.rs`; seventeen tests in
 
 ## The body: lifecycle, privilege, and the stateless player
 
-**22. The stateless player — kernel-owned state, "cattle, not pet".**
+**24. The stateless player — kernel-owned state, "cattle, not pet".**
 The daemon hole it refuses: zylaxion's only resident process is a
 stateless `zylaxion _play` whose pid and lifecycle state live in the
 pinned control map — "the pidfile lives in the kernel now". The
@@ -268,7 +294,7 @@ survives a 10 s read-failure budget before declaring the tap lost,
 refuses to coredump, and dies on `off` leaving nothing resident.
 File of truth: `src/commands/player.rs`.
 
-**23. The orphan lifecycle: identity gate and escalation ladder.**
+**25. The orphan lifecycle: identity gate and escalation ladder.**
 The double-sound problem: a player that outlives the map it watched
 leaves two players sounding. Before any privileged signal, the
 candidate pid is identity-gated by an exact two-token cmdline match —
@@ -278,7 +304,7 @@ KILL, conclude gone or survived) with bounded 100 ms stages, run
 before unpinning. Files of truth: `src/session/orphan.rs` and
 `src/ebpf/teardown.rs`; pinned by `test/session/orphan_tests.rs`.
 
-**24. The privilege audit table.** The sudo-everywhere disease it
+**26. The privilege audit table.** The sudo-everywhere disease it
 kills: who may run what is a doc-table policy — `on` and `_play`
 REFUSE under root (they belong to the desktop user), `attach`
 REQUIRES root, `off` and `status` stay allowed as rescue verbs, and
@@ -286,7 +312,7 @@ the refusal wordings are pure functions of the euid fact so tests pin
 the contract exactly. File of truth: `src/session/privilege.rs`;
 pinned by `test/session/privilege_tests.rs`.
 
-**25. The no-config law: preset resolution and volume caps.** The
+**27. The no-config law: preset resolution and volume caps.** The
 config-file hole it refuses: resolution is a fixed order — CLI flag,
 then environment, then the control map's stored slot, then the
 compiled default ("technical") — and the environment lane is capped
@@ -297,7 +323,7 @@ hard errors, never silent fallbacks. Files of truth:
 `src/session/preset.rs` and `src/commands/sound/tuning.rs`;
 twenty-five tests in `test/session/preset_tests.rs`.
 
-**26. The errno law for "not attached" verdicts.** The folded-error
+**28. The errno law for "not attached" verdicts.** The folded-error
 hole: `Path::exists` folds EACCES into `false`, so a mode-0700 bpffs
 mount makes an attached tap read as absent and `off` would report
 nothing to do. Pin presence is classified from `stat()`: only
@@ -307,7 +333,7 @@ into an idempotent verdict. File of truth:
 `src/commands/sound/mod.rs`; the classification is pinned by
 `test/commands/sound_tests.rs`.
 
-**27. The orchestrator adaptive wait.** The idle-CPU hole: a fixed
+**29. The orchestrator adaptive wait.** The idle-CPU hole: a fixed
 1 ms polling loop burned a thousand futex wakeups per second — the
 audited cost was roughly 1.9 percent CPU, 76 CPU-minutes on the
 owner's machine. The wait adapts: 1 ms while the pool is active,
@@ -315,7 +341,7 @@ owner's machine. The wait adapts: 1 ms while the pool is active,
 sleep when ring vacancy runs low, with a heartbeat log ladder
 (60 s debug, 5 min warning). File of truth: `src/core/mod.rs`.
 
-**28. The shutdown silence pad.** The pop problem: dropping the
+**30. The shutdown silence pad.** The pop problem: dropping the
 audio sink mid-playback can leave a non-zero offset in the sound
 server's buffer, heard as a pop; and a disconnected device makes
 vacancy read zero forever. Shutdown writes a 1024-frame silence pad
@@ -323,7 +349,7 @@ paced against the ring's producer vacancy, bounded by a 300 ms
 deadline so a dead device cannot stall exit. File of truth:
 `src/core/fade.rs`.
 
-**29. The engine freeze.** The stability contract: the engine is
+**31. The engine freeze.** The stability contract: the engine is
 frozen at a named commit — changes require a documented why that
 passes the maintenance bar — and the freeze itself is enforced by
 doc-pinning tests so a doc edit cannot silently unpin it. Files of
@@ -331,7 +357,7 @@ truth: `src/engine/mod.rs` and `test/engine/freeze_tests.rs`.
 
 ## The workshop: build, audit, and CLI tooling
 
-**30. Two-lane eBPF staging with blake3 pinning.** The reproducibility
+**32. Two-lane eBPF staging with blake3 pinning.** The reproducibility
 problem: the tap object must be byte-traceable to its source. A git
 checkout cross-builds the nested eBPF workspace with a dated nightly
 pin and a committed target spec; otherwise the registry prebuilt
@@ -344,7 +370,7 @@ contract. Files of truth: `build/ebpf.rs`, `build/prebuilt.rs`,
 `build/blake3.rs` (a dependency-free BLAKE3 with test vectors), and
 `ebpf-prebuilt/manifest.toml`.
 
-**31. The commit-sha chain and the no-time-crate build stamp.** The
+**33. The commit-sha chain and the no-time-crate build stamp.** The
 supply-chain rule: the build hash resolves through a fixed chain
 (git rev-parse, then `GITHUB_SHA`, then the vcs-info file), and the
 build date is computed by the Hinnant civil-calendar algorithm —
@@ -353,7 +379,7 @@ the same algorithm runs in the runtime clock lane so report stamps
 match build stamps. Files of truth: `build.rs`, `src/info/clock.rs`,
 and `src/info/build.rs`.
 
-**32. The Zactrix audit instrument — verifier-first tuning.** The
+**34. The Zactrix audit instrument — verifier-first tuning.** The
 tuning-by-ear trap it replaces: the headless harness renders all 24
 presets through the real render path at 96 kHz and measures physical
 metrics over the onset window (spectral centroid drift, spectral
@@ -363,7 +389,7 @@ battery with zero NaN, zero Inf, and a retention-law spread within
 0.02 percent. Files of truth: `scripts/audit/` and
 `docs/ZACTRIX_AUDIT.md`.
 
-**33. The CLI rescue machinery and the one-palette output law.** The
+**35. The CLI rescue machinery and the one-palette output law.** The
 typo wall it removes: preset typos rescue through Levenshtein
 matching (distance 2, case-insensitive, deterministic ties) and long
 flags through Jaro similarity against the failing subcommand's pool;
@@ -373,7 +399,7 @@ cannot drift per-verb. Files of truth: `src/cli/suggestion.rs`,
 `src/cli/ux.rs`, `src/output/mod.rs`, and `src/cli/styles.rs`;
 pinned by `test/cli/ux_tests.rs` and friends.
 
-**34. The journal one-door and the quiet-ALSA guard.** The log-spew
+**36. The journal one-door and the quiet-ALSA guard.** The log-spew
 problem: device probes on a cardless host can print raw ALSA C-level
 errors across rendered CLI surfaces. All verbs log through one
 journal door (UTC stamps from the Hinnant clock), and an RAII guard
@@ -381,13 +407,49 @@ swaps libasound's error handler for a no-op during probes and
 restores it on drop. Files of truth: `src/output/journal.rs` and
 `src/commands/info/alsa_guard.rs`.
 
-**35. The zero-TLS update check.** The supply-chain surface it
+**37. The zero-TLS update check.** The supply-chain surface it
 refuses: `--check-update` shells to `curl` against the GitHub
 releases API with a 15 s timeout and parses the tag with a std-only
 string parser and SemVer comparison — no JSON crate, no HTTP crate,
 no TLS stack in the dependency tree; the root-user refusal exits
 before any network I/O. Files of truth: `src/commands/update.rs` and
 `src/info/version.rs` (fuzz-target covered).
+
+## The test tree that pins the ledger
+
+The ledger is not honored by prose alone: 28 test files carrying 234
+test functions pin the entries above, wired into the crate through
+`#[path]` modules. The family map, so an auditor can walk it in one
+pass:
+
+- `test/profiles/` (mechanical, profiles, registry) — the Zactrix
+  stages, the TPT chain, the housing window, the rate-normalized
+  decay law, micro-randomization, the decoupled noise streams, the
+  pan table, interval attenuation, velocity scaling, and the registry
+  clamp contract (entries 1–10, 14).
+- `test/engine/` (pool, render, freeze) — oldest-first stealing, the
+  smooth release ramp, the clamp and NaN silence net, and the engine
+  freeze declaration (entries 9, 11, 12, 31).
+- `test/core/` — the Orchestrator: the pan law, the timestamp lane,
+  the adaptive wait, and the ring bridge behavior (entries 7, 8, 15,
+  29).
+- `test/ebpf/` (args, loader, bpf_syscall, embedded, attach_error,
+  pin) — the tap ABI shapes, the chain vocabulary and its control
+  slot, the raw-syscall lanes, the AlignedElf guard, the failure
+  taxonomy's wire format, and the classified pin cleanup (entries
+  16–21).
+- `test/session/` (kernel, orphan, privilege, preset) — the capability
+  probe, the orphan identity gate and ladder, the privilege table,
+  and the no-config resolution and caps (entries 23, 25–27).
+- `test/commands/` (player, sound, info, help) — the stateless player
+  vocabulary, the errno classification law, and the doctor surfaces
+  (entries 24, 28).
+- `test/cli/`, `test/info/`, `test/output/` — the CLI rescue
+  machinery, the build-stamp chain, the version grammar (fuzz-target
+  covered), and the journal door (entries 33, 35–37).
+
+A test that names a law outranks any doc that describes it: when the
+two disagree, the test is the evidence, the doc gets the PR.
 
 ## How to verify every claim above
 
