@@ -41,6 +41,7 @@ FAIL in the full lane, where the release shape is the guest contract.
 
 from __future__ import annotations
 
+import gzip
 import re
 import subprocess
 import sys
@@ -267,10 +268,16 @@ def battery(ledger: Ledger, binary: str, tree_root: str, root_lane: bool) -> Non
             )
 
     # ── Claim 2: the prebuilt object is the same species ────────────
+    # The night-cafe-1 packaging law: the tracked lane is the .gz
+    # package plus its .b3sum sidecar, the raw object a local product.
+    # The probe validates the package through its extracted bytes,
+    # treats the sidecar as what it is (checksum text, not an object),
+    # and still validates any raw .o a maintainer checkout carries.
     with Step(ledger, "eBPF — the prebuilt object is a clean BPF ELF"):
         prebuilt = Path(tree_root) / "ebpf-prebuilt"
         objects = [p for p in sorted(prebuilt.iterdir())
-                   if p.is_file() and p.name != "manifest.toml"] if prebuilt.is_dir() else []
+                   if p.is_file() and p.name != "manifest.toml"
+                   and p.suffix != ".b3sum"] if prebuilt.is_dir() else []
         if not objects:
             ledger.skip_row(
                 "the prebuilt tap object is a clean ELF-BPF image",
@@ -280,6 +287,12 @@ def battery(ledger: Ledger, binary: str, tree_root: str, root_lane: bool) -> Non
             bad: list[str] = []
             for obj in objects:
                 data = obj.read_bytes()
+                if obj.name.endswith(".gz"):
+                    try:
+                        data = gzip.decompress(data)
+                    except (OSError, EOFError):
+                        bad.append(f"{obj.name}: not a readable gzip package")
+                        continue
                 if data[:4] != b"\x7fELF" or int.from_bytes(
                     data[18:20], "little"
                 ) != _EM_BPF:
@@ -294,7 +307,7 @@ def battery(ledger: Ledger, binary: str, tree_root: str, root_lane: bool) -> Non
             else:
                 ledger.pass_row(
                     "the prebuilt tap object is a clean ELF-BPF image",
-                    f"{len(objects)} object(s), zero audio magic",
+                    f"{len(objects)} lane(s) validated, zero audio magic",
                 )
 
     # ── Claim 3: no daemon, no config — the strings ─────────────────
