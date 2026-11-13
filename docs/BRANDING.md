@@ -42,7 +42,7 @@ on any casing outside the two families above.
 
 ## Identity
 
-zylaxion is a premium mechanical keyboard sound daemon for Linux.
+zylaxion is a premium mechanical keyboard sound synthesizer for Linux.
 The brand conveys precision, acoustics, craftsmanship, and zero-leakage privacy.
 
 ## Logo

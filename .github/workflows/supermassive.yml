@@ -14,10 +14,8 @@
 # removes the per-lane bootstrap cost, and each lane's cargo cache
 # falls back through restore-keys to the estate-wide supermassive
 # prefix, so a fresh lane warms from the last run of any sibling. The
-# timeout-minutes lines stay what they always were in this estate —
-# fail-fast lines sized to the measured cold records, not a speed
-# claim; the five-minute number is the warm engineering target, and a
-# cold cache miss is allowed to buy its compile honestly.
+# timeout-minutes lines carry the estate-wide ten-minute cap
+# (owner-decided): every job fails fast at ten minutes, warm or cold.
 #
 # History: night-improve-7 named the battery; night-dragon-maintenance-2
 # retired the weekly clock AND the surface globs — every push burns the
@@ -96,7 +94,7 @@ jobs:
   test-units:
     name: supermassive lane - unit battery (the bin crate)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -225,7 +223,7 @@ jobs:
   test-integration:
     name: supermassive lane - integration battery
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -350,7 +348,7 @@ jobs:
   test-targets:
     name: supermassive lane - examples, benches, doc tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -482,7 +480,7 @@ jobs:
   doc-build:
     name: supermassive lane - documentation (warnings denied)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -609,7 +607,7 @@ jobs:
   release-shape:
     name: supermassive lane - release shape proof
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -755,7 +753,7 @@ jobs:
   claims:
     name: supermassive lane - the claims (rootless)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -921,7 +919,7 @@ jobs:
   arm64-native:
     name: supermassive lane - arm64 server (pro-native-arm64-gnu)
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin

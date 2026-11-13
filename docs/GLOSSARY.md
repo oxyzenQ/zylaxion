@@ -40,7 +40,7 @@ drifts between docs is a bug.
 - **Hinnant clock** — Howard Hinnant's `civil_from_days` algorithm
   converting days-since-UNIX-epoch to a calendar date, std-only. The
   project's answer to every wall-clock need: the `Build-time:` stamp
-  (build.rs) and the daemon log timestamps (`clock.rs`). No time
+  (build.rs) and the log timestamps (`clock.rs`). No time
   crate exists in the dependency tree.
 
 ## The release
@@ -85,7 +85,7 @@ drifts between docs is a bug.
   render path is allocation-free by contract.
 - **orchestrator** — the core module's event loop (`src/core/`): input
   events in,
-  voice triggers out, audio batches to the sink; the daemon's core.
+  voice triggers out, audio batches to the sink; the player's core.
 - **IPC socket** — DELETED (night-improve-23): the daemon-era
   `$XDG_RUNTIME_DIR/zylaxion.sock` (mode `0o600`, length-prefixed,
   speaking only the documented verbs) no longer exists; the pinned

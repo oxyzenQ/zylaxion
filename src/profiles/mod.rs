@@ -3,7 +3,7 @@
 
 //! Acoustic profile definitions and DSP models for the Zactrix engine.
 //!
-//! This crate provides the foundational types and traits that define how
+//! This module provides the foundational types and traits that define how
 //! keyboard key events are transformed into audio. It contains zero I/O
 //! dependencies and is purely mathematical in nature.
 //!

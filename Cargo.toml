@@ -10,13 +10,13 @@
 #   src/engine/    <- zactrix-engine   (the voice pool and its voices)
 #   src/profiles/  <- zactrix-profiles (params, model, mechanical, tpt)
 #   src/core/      <- zylaxion-core    (the Orchestrator, the dragon's spine)
-#   src/input/     <- zylaxion-input   (libinput keyboard capture)
+#   src/ebpf/       <- zylaxion-input   (the kernel tap, night-improve-23)
 #   src/audio/     <- zylaxion-output  (cpal sink, SPSC ring bridge)
-#   src/{cli,commands,daemon,info,output,session}/ <- the former binary crate
+#   src/{cli,commands,info,output,session}/ <- the former binary crate
 #
 # One target, one lock graph, one build: the same public surfaces and
 # the same behavior, minus the path-dependency ceremony. The version
-# contract is untouched (11.0.0 lineage, owner-decided bumps only).
+# contract is untouched (owner-decided bumps only).
 
 [package]
 name = "zylaxion"
@@ -158,7 +158,7 @@ crossbeam-channel = "0.5"
 # src/info/clock.rs (Hinnant civil_from_days, std clock), and RUST_LOG keeps
 # the standard comma-separated directive syntax (regex syntax was never
 # a documented zylaxion surface). auto-color stays: the TTY color
-# detection the daemon's journal output relies on.
+# detection the journal output relies on.
 env_logger = { version = "0.11", default-features = false, features = [
     "auto-color",
 ] }

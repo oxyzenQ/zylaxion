@@ -42,8 +42,11 @@ refusal message states as certain.
 All `-V` / `--version` output MUST follow this exact format:
 
 ```
-Version: v0.1.0
-Build: linux-amd64 (11114e7)
+zylaxion: v<version>
+Real-time mechanical keyboard acoustic synthesizer for Linux
+Build: linux-amd64-gnu (<short-sha>)
+Build-time: M/D/YYYY HH:MM (UTC)
+Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
 Copyright: (c) 2026 rezky_nightky (oxyzenQ)
 License: AGPL-3.0-only
 Source: https://github.com/oxyzenQ/zylaxion
@@ -64,7 +67,8 @@ upstream GitHub release.
      continues instead of failing. Install with `cargo install
      cargo-audit` to enable the audit gate.
 - **`scripts/dev/version-to.sh vMAJOR.MINOR.PATCH`:** Single-source-of-truth version bumper.
-  Patches all `Cargo.toml` files. Zero tolerance for manual version edits.
+  Patches the root `Cargo.toml` (no sibling manifest carries its own
+  version). Zero tolerance for manual version edits.
 
 ## Build Prerequisites
 
@@ -191,8 +195,12 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   Audit` (audit.yml, cargo-audit `--deny warnings`) scans on every
   push and PR unfiltered, with the weekly Monday 07:00 UTC clock as
   the between-pushes advisory-DB watch.
-  It is the canonical CVE verdict; the local gatekeeper skips
-  cargo-audit per policy.
+  It is the canonical CVE verdict; the local gate runs cargo audit
+  only when the tool is installed (the optional-if-uninstalled lane).
+- **Every CI job runs under the ten-minute cap:** every
+  `timeout-minutes:` line in `.github/workflows/` is `10` — a job
+  that cannot finish inside ten minutes is mis-sized and gets fixed,
+  not promoted.
 - **Publish lanes are the ONE gated exception:** `crates-io.yml` and
   `release.yml` wake ONLY on a pushed `v*` tag (the tag-means-publish
   contract, the zelynic NIGHT-ask-1 shape) — never blind-triggered by

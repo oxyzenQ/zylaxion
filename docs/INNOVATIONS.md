@@ -211,7 +211,7 @@ use 64-bit atomic fetch-adds. Files of truth: `ebpf/src/main.rs`
 
 **17. The attach chain (fentry, then kprobe, then kprobe-alt) with
 the TAP_KIND slot.** The portability problem: one attach method does
-not survive every kernel. The chain is a locked four-step ladder —
+not survive every kernel. The chain is a locked three-step ladder —
 fentry on `input_event` (kernel 5.5+), kprobe on `input_event`, then
 kprobe on the alternate symbol — and the winner is recorded in the
 control map's `TAP_KIND` slot so status and doctor read the same

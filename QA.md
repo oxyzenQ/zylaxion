@@ -16,9 +16,10 @@ no padding.
 
 ## Q1 — How big is the dependency tree, and what is the no-bloat policy?
 
-The package resolves to **67 unique packages** (`cargo tree
---workspace` count at commit 39586b4, night-improve-21: the six-crate
-workspace became one package and six path deps left the lock), and
+The package resolves to **129 lockfile crates** (`Cargo.lock`
+count, re-measured at the night-audit-2 pass; the 67-package
+`cargo tree --workspace` count was taken at commit 39586b4, right
+after night-improve-21 collapsed the six-crate workspace), and
 the standing contract is
 that every one of them earns its place:
 
@@ -51,6 +52,7 @@ zylaxion: v<version>
 Real-time mechanical keyboard acoustic synthesizer for Linux
 Build: linux-amd64-gnu (<short-sha>)
 Build-time: M/D/YYYY HH:MM (UTC)
+Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
 Copyright: (c) 2026 rezky_nightky (oxyzenQ)
 License: AGPL-3.0-only
 Source: https://github.com/oxyzenQ/zylaxion
@@ -108,7 +110,7 @@ under the same cap.
 ## Q5 — How do I verify a downloaded release binary?
 
 [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md) is the walkthrough:
-sha256/sha512 checksum first, then the GPG signature when the release
+sha512, BLAKE3-256, and SHAKE256 checksums first, then the GPG signature when the release
 carries one, then the smoke checks (`zylaxion -V` should print the
 Build facts that match the release page's declared platform label).
 The release lane builds `x86_64` gnu binaries at the x86-64-v3 and v4

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Runtime UTC clock lane — the daemon log timestamp formatter.
+//! Runtime UTC clock lane — the log timestamp formatter.
 //!
 //! The zelynic clock contract (night-improve-13): any wall-clock need is
 //! answered by the std clock plus Howard Hinnant's `civil_from_days`

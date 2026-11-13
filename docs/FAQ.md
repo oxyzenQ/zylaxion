@@ -19,7 +19,7 @@ Attach once per boot, then play as your own user:
 ```bash
 sudo zylaxion attach      # the one privileged verb, once per boot
 zylaxion on               # spawn the stateless player, sound starts
-zylaxion preset --switch mechanical
+zylaxion preset --switch technical
 zylaxion off              # the player self-exits, zero processes
 ```
 

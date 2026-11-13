@@ -220,7 +220,7 @@ impl VoicePool {
                 // that can be mapped back to typed text via the user's
                 // keyboard layout — leaving it in the slot until the
                 // next trigger is a (small) privacy leak vector if
-                // the daemon crashes and dumps core. Zeroing on
+                // the player crashes and dumps core. Zeroing on
                 // release ensures the slot holds no scancode between
                 // keypress events.
                 voice.scancode = 0;

@@ -34,7 +34,7 @@ tarball's name.
 ### ...contribute
 
 [CONTRIBUTING.md](../CONTRIBUTING.md) — build prerequisites, the
-six-crate structure, the gate discipline. [CLA.md](../CLA.md) — the
+one-package structure, the gate discipline. [CLA.md](../CLA.md) — the
 dual-license contribution grant (one `Signed-off-by:` line accepts
 it). [RULES.md](RULES.md) — the non-negotiables in their shortest
 form.
@@ -71,7 +71,7 @@ file where the truth lives.
 of the eBPF-only bet: what the daemon deletion wins, what it costs,
 and who the trade serves.
 [BRANDING.md](BRANDING.md) — the palette contract (brand purple
-`#A855F7`, the CLI color tiers). [QA.md](QA.md) — verified answers,
+`#A855F7`, the CLI color tiers). [QA.md](../QA.md) — verified answers,
 one question one honest answer. [GLOSSARY.md](GLOSSARY.md) — the
 vocabulary. The historical audit evidence (`audit-v6.0.0*.md`,
 `release-readiness-v6.0.0.md`, `archive/`) is the frozen record —

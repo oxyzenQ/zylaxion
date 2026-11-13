@@ -123,8 +123,9 @@ critical-severity by default, regardless of exploit complexity.
   verdict, bpffs mount, lockdown mode, input-tap verdict, audio
   server reachability) so an operator can verify the environment
   instead of guessing.
-- Release artifacts ship with sha256 checksums and cryptographic
-  signatures — see [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md)
+- Release artifacts ship with SHA-512, BLAKE3-256, and SHAKE256
+  checksums, and GPG signatures when the release lane is configured
+  to sign — see [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md)
   for the verification walkthrough.
 
 ## Audit trail
