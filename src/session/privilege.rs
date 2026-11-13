@@ -137,7 +137,9 @@ pub fn attach_requirement(euid_is_root: bool) -> Option<&'static str> {
 pub fn detach_requirement(euid_is_root: bool, pins_removable: bool) -> Option<&'static str> {
     if !euid_is_root && !pins_removable {
         Some(
-            "detach refused — the pinned control plane belongs to another user and this              user cannot unlink the pins (unlink permission lives on the pin directory,              not the pin files)\n  \
+            "detach refused — the pinned control plane belongs to another user and this \
+             user cannot unlink the pins (unlink permission lives on the pin directory, \
+             not the pin files)\n  \
              tip: sudo zylaxion detach — nothing was touched: any running player stays \
              alive and the tap keeps ringing",
         )
