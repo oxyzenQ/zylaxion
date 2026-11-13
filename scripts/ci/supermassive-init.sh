@@ -35,6 +35,13 @@
 set -u
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
+# The root-owned __pycache__ wall, shell layer (night-cafe-1): any
+# interpreter this script spawns inherits dont-write-bytecode, so no
+# repo-local bytecode lands beside the scripts at any privilege level
+# (the sudo lane's per-file guards carry the same law — sudo's
+# env_reset strips environment guards before the interpreter starts).
+export PYTHONDONTWRITEBYTECODE=1
+
 FAILURES=0
 
 note() {

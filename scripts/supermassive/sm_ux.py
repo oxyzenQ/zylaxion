@@ -17,8 +17,15 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 
-from sm_report import Ledger, Step
+# The root-owned pycache guard (night-cafe-1, the same law the
+# supermassive-test entry and sm_static carry): a direct run of this
+# module must never leave root-owned bytecode caches beside the
+# scripts for the project-local modules it imports below.
+sys.dont_write_bytecode = True
+
+from sm_report import Ledger, Step  # noqa: E402
 
 
 def run_cli(
