@@ -74,8 +74,9 @@ and who the trade serves.
 `#A855F7`, the CLI color tiers). [QA.md](../QA.md) — verified answers,
 one question one honest answer. [GLOSSARY.md](GLOSSARY.md) — the
 vocabulary. The historical audit evidence (`audit-v6.0.0*.md`,
-`release-readiness-v6.0.0.md`, `archive/`) is the frozen record —
-never rewritten; future audit rounds append new files.
+`audit-night-*.md`, `release-readiness-v6.0.0.md`, `archive/`)
+is the frozen record — never rewritten; future audit rounds
+append new files.
 
 ## The frozen-record class
 

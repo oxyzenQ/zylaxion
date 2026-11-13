@@ -383,8 +383,8 @@ mode bits remain the root-host one-liner below.
 ## The fix accounting (second pass)
 
 - **night-total-lts-3**: `src/commands/sound/mod.rs` (the
-  `classify_pin_stat` law + the enum's Reachable contract), 
-  `src/commands/sound/status.rs` (the third arm), 
+  `classify_pin_stat` law + the enum's Reachable contract),
+  `src/commands/sound/status.rs` (the third arm),
   `test/commands/sound_tests.rs` (the law pin), the CHANGELOG
   Fixed entry. Verified: fmt green, full local suite 224/224
   (1.2 s native — the classification is a decision surface, the
@@ -627,9 +627,9 @@ refresh on already-installed hosts.
 - **night-last-total-lts-5 (the skill)**:
   `src/commands/sound/mod.rs` (the `stored_volume_or_fallback` law
   + contract docs), `src/commands/sound/lifecycle.rs` (the restore
-  lane honors `Ok(0)`; the corrected nd-18 comment), 
+  lane honors `Ok(0)`; the corrected nd-18 comment),
   `src/session/preset.rs` (the module header's volume lane now
-  states the seed and the mute semantics), 
+  states the seed and the mute semantics),
   `test/commands/sound_tests.rs` (the
   `stored_volume_law_honors_the_mute` pin), the CHANGELOG Fixed
   entry. Verified: fmt green, clippy `-D warnings` green across
