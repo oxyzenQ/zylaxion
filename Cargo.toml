@@ -176,17 +176,20 @@ env_logger = { version = "0.11", default-features = false, features = [
 log = "0.4"
 # night-security-1: the audited nix API surface is sys::signal::kill,
 # poll::{PollFd, PollFlags, PollTimeout, poll}, unistd::{getpid, geteuid,
-# Pid, User::from_name} and errno::Errno. Only signal, poll and user are
-# real gates: signal = ["process"] in nix's own feature map, so the
-# explicit "process" was a redundant key; errno and the unistd basics
-# compile ungated. feature list = exactly the used gates.
+# Pid, User::from_name, access, AccessFlags} and errno::Errno. Only
+# signal, poll, user and fs are real gates: signal = ["process"] in nix's
+# own feature map, so the explicit "process" was a redundant key; errno
+# and the unistd basics compile ungated. feature list = exactly the used
+# gates. night-total-lts-2: unistd::access (the "fs" gate) joins for the
+# detach pre-flight — one syscall wrapper, the kernel's own
+# unlink-permission answer for the pin directory (access(2) W_OK).
 # night-dinner-9: re-verified on 0.31 — the same three gates map the
 # same surface (signal = ["process"] unchanged, fs/process/ffi stay
 # ungated here because the crate reaches them through std::os::unix),
 # and 0.30's I/O-safety adoption and PollFd Copy removal never touch
 # the audited calls (PollFd::new feeds the array directly; kill's
 # Pid/Option<Signal> shape is stable).
-nix = { version = "0.31", features = ["signal", "poll", "user"] }
+nix = { version = "0.31", features = ["signal", "poll", "user", "fs"] }
 ringbuf = "0.5"
 # night-improve-23: libc survives for the raw BPF/perf syscalls in
 # src/ebpf/bpf_syscall.rs (the tracepoint link pin lane) — the one

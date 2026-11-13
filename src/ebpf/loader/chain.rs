@@ -246,8 +246,10 @@ fn pin_kprobe_program(bpf: &mut Ebpf) -> Result<(), AttachError> {
     Ok(())
 }
 
-/// Chown the pinned files to the desktop user so the unprivileged
-/// player and CLI can open them, then verify the owner can actually
+/// Chown the pinned files and the pin directory to the desktop user so
+/// the unprivileged player and CLI can open them (and DETACH them —
+/// the directory carries the unlink permission, night-total-lts-2),
+/// then verify the owner can actually
 /// WALK to them (night-dinner-3): owning a pin is not reaching a pin —
 /// a bpffs mount in mode 0700 (the Debian 13 default; systemd mounts
 /// the API filesystem shut) blocks every stat() through
@@ -291,6 +293,21 @@ pub(super) fn hand_pins_to_desktop_user() -> String {
 /// annotates the summary note with where the recipient came from.
 fn hand_pins_to(user: &str, entry: &nix::unistd::User, lane: &str) -> String {
     let mut handed = 0usize;
+    // The pin directory FIRST (night-total-lts-2): unlink permission
+    // lives on the containing directory, so a hand-over that stopped at
+    // the pin files left the user able to OPEN the pins but never to
+    // DETACH them — the unprivileged detach then failed dirty, after it
+    // had already killed the player. Owning the directory grants the
+    // user create/unlink rights inside it; the pin files stay 0600.
+    if std::os::unix::fs::chown(
+        std::path::Path::new(pin::PIN_DIR),
+        Some(u32::from(entry.uid)),
+        Some(u32::from(entry.gid)),
+    )
+    .is_ok()
+    {
+        handed += 1;
+    }
     for path in pin::ALL_PINS {
         if std::path::Path::new(path).exists()
             && std::os::unix::fs::chown(

@@ -190,3 +190,27 @@ fn reconstructed_variants_render_the_canonical_pointer() {
     let e = AttachError::from_code(4).expect("code 4 is VerifierRejected");
     assert!(e.to_string().contains("see the attach run's output"), "{e}");
 }
+
+/// night-total-lts-2: the Unknown verb is command-neutral — the detach
+/// lane's classified races render through this variant too, and the old
+/// "the attach failed" wording printed under a `zylaxion detach` run was
+/// its own dirty bug (the user ran detach, the sentence said attach).
+#[test]
+fn unknown_renders_the_neutral_operation_verb() {
+    let e = AttachError::Unknown {
+        detail: "tap detach incomplete: [] removed".to_string(),
+    };
+    let rendered = e.to_string();
+    assert!(
+        rendered.starts_with("the operation failed for an unclassified reason:"),
+        "the verb must be command-neutral, got: {rendered}"
+    );
+    assert!(
+        !rendered.contains("the attach failed"),
+        "the attach verb must stay out of the shared variant, got: {rendered}"
+    );
+    assert!(
+        rendered.ends_with('.'),
+        "the render owns the sentence: {rendered}"
+    );
+}

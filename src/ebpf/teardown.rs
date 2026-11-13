@@ -136,6 +136,10 @@ pub fn detach() -> Result<String, AttachError> {
         .chain(std::iter::once(&pin::PIN_MAP_ERROR))
         .filter(|p| Path::new(p).exists())
         .collect();
+    // The pre-flight gate (cmd_detach) already refused every non-
+    // completable detach, so reaching this point means a RACE (pins
+    // removed or chmod'd mid-teardown) or a read-only bpffs remount —
+    // the classified fallback still names the evidence honestly.
     if !missing.is_empty() {
         return Err(AttachError::Unknown {
             detail: format!(

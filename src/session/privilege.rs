@@ -19,6 +19,7 @@
 //! | `--check-update` | REFUSE               | privileged network round-trip that buys nothing; root-owned files if a download step ever joins |
 //! | `on`, `_play`    | REFUSE               | a root player opens the audio device in root's session — a sound no user desktop shares — and a root-spawned child lingers in root's process table after the invoking terminal is gone |
 //! | `attach`         | REQUIRE              | the inverse lane (night-improve-23): loading and pinning the tap needs CAP_BPF/CAP_PERFMON — root is the honest way in, and the pins are chowned to the invoking sudo user so every other surface stays unprivileged |
+//! | `detach`         | REFUSE               | when the unlink is impossible for this euid (non-root without write permission on the pin directory): the pre-flight refuses BEFORE any mutation — the old shape cleared the gate first and killed the running player (night-total-lts-2) |
 //! | `off`, `status`  | allowed              | the rescue path — must stay reachable to silence or inspect whatever a stray privileged run left behind; read-only or a plain map write against session state |
 //! | `doctor`         | warn                 | the verdicts describe root's session (root is always "in" the input group, root's audio is a different server) — diagnosed as misleading, not fatal |
 //! | everything else  | allowed              | read-only preset surfaces, no state, no network |
@@ -110,6 +111,35 @@ pub fn attach_requirement(euid_is_root: bool) -> Option<&'static str> {
              CAP_BPF/CAP_PERFMON\n  \
              tip: sudo zylaxion attach (the pins are handed to your user; every other \
              zylaxion command stays unprivileged)",
+        )
+    } else {
+        None
+    }
+}
+
+/// Requirement wording for the detach surface (`detach`).
+///
+/// night-total-lts-2, the mutation-before-validation lesson: the old
+/// teardown cleared the enabled gate (the running player's stop
+/// signal) and best-effort-unpinned FIRST, and only then discovered
+/// the unlink refusals — exiting dirty ("the attach failed", while
+/// the user ran `detach`) with the player dead and the pins intact.
+/// The contract now: a detach that cannot complete refuses UP FRONT
+/// and touches nothing — the player stays alive, the tap keeps
+/// ringing, the telemetry keeps accumulating.
+///
+/// The facts flow in as read (positive polarity, the night-badas-1
+/// discipline): the root euid fact and the kernel's own
+/// unlink-permission answer for the pin directory. The refusal fires
+/// exactly when neither fact grants removal; the caller gates on
+/// pins-present, so a pins-absent system stays the idempotent no-op
+/// success whatever the euid.
+pub fn detach_requirement(euid_is_root: bool, pins_removable: bool) -> Option<&'static str> {
+    if !euid_is_root && !pins_removable {
+        Some(
+            "detach refused — the pinned control plane belongs to another user and this              user cannot unlink the pins (unlink permission lives on the pin directory,              not the pin files)\n  \
+             tip: sudo zylaxion detach — nothing was touched: any running player stays \
+             alive and the tap keeps ringing",
         )
     } else {
         None
