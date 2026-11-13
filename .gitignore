@@ -36,3 +36,10 @@ scripts/audit/out/
 # Python bytecode (the supermassive engine is source, never bytecode)
 __pycache__/
 *.pyc
+
+# Compiled objects (night-cafe-1): raw binaries are never tracked in
+# this repository - the tracked lane is the .gz package with its
+# .b3sum sidecar (ebpf-prebuilt/), and the raw object is a local
+# regeneration or extraction product. The fuzz seed corpora ride
+# their own .secs suffix and stay tracked test vectors.
+*.o

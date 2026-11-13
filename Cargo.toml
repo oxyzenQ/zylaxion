@@ -88,8 +88,10 @@ autobenches = false
 #      a git checkout — a lane the tarball cannot offer anyway.
 include = [
     # The build lane: sources, the build script, and its #[path]
-    # module (build/ebpf.rs), plus the prebuilt object a registry
-    # extract stages verbatim.
+    # module (build/ebpf.rs), plus the prebuilt .gz package with its
+    # .b3sum sidecar (night-cafe-1: raw binaries are never tracked) —
+    # the registry extract decompresses the package and stages the
+    # object from its bytes, manifest-verified.
     "src/**",
     "build.rs",
     "build/*.rs",
@@ -115,6 +117,13 @@ include = [
     "CLA.md",
     "QA.md",
     "docs/*.md",
+]
+# night-cafe-1: the raw object is a local regeneration product, never
+# tracked, and it never rides the registry tarball either — a
+# maintainer checkout keeps one beside the tracked package, and the
+# exclude wins over the include glob above.
+exclude = [
+    "ebpf-prebuilt/zylaxion-tap.o",
 ]
 
 [dependencies]
