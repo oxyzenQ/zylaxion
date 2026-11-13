@@ -70,7 +70,7 @@
 //!
 //! # Identity binding between the layers
 //!
-//! The manifest carries "Official Build by <identity> <year>"; the
+//! The manifest carries "Official Build by \<identity\> \<year\>"; the
 //! authors string starts with the same identity. The runtime extracts
 //! the identity core from the materialized manifest (everything after
 //! the marker, minus the year suffix) and requires the authors string
