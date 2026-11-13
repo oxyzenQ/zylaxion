@@ -46,7 +46,8 @@ zylaxion: v<version>
 Real-time mechanical keyboard acoustic synthesizer for Linux
 Build: linux-amd64-gnu (<short-sha>)
 Build-time: M/D/YYYY HH:MM (UTC)
-Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
+Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026
+Depth-matrix: fp=<16-hex> status=verified anchor=b3:<64-hex> layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor
 Copyright: (c) 2026 rezky_nightky (oxyzenQ)
 License: AGPL-3.0-only
 Source: https://github.com/oxyzenQ/zylaxion

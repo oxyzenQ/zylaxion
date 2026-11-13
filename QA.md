@@ -16,8 +16,9 @@ no padding.
 
 ## Q1 — How big is the dependency tree, and what is the no-bloat policy?
 
-The package resolves to **129 lockfile crates** (`Cargo.lock`
-count, re-measured at the night-audit-2 pass; the 67-package
+The package resolves to **136 lockfile crates** (`Cargo.lock`
+count, re-measured at the night-signature-advanced-1 pass; the
+67-package
 `cargo tree --workspace` count was taken at commit 39586b4, right
 after night-improve-21 collapsed the six-crate workspace), and
 the standing contract is
@@ -52,7 +53,8 @@ zylaxion: v<version>
 Real-time mechanical keyboard acoustic synthesizer for Linux
 Build: linux-amd64-gnu (<short-sha>)
 Build-time: M/D/YYYY HH:MM (UTC)
-Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
+Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026
+Depth-matrix: fp=<16-hex> status=verified anchor=b3:<64-hex> layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor
 Copyright: (c) 2026 rezky_nightky (oxyzenQ)
 License: AGPL-3.0-only
 Source: https://github.com/oxyzenQ/zylaxion

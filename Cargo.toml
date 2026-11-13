@@ -132,6 +132,17 @@ arc-swap = "1.7"
 # validated. Unconditional since
 # night-dragon-maintenance-0: every zylaxion build carries the tap.
 aya = { version = "0.16" }
+# night-signature-advanced-1: the depth-matrix anchor's runtime recompute
+# (the masked provenance seal, src/info/signature.rs) and the sig
+# report's binary-self-hash. Owner mandate for speed, the cosmostrix
+# parity: the anchor recompute runs on every -V and
+# the self-hash reads the whole release artifact (~10 MB), the surface
+# where blake3's speed is load-bearing. default-features = false and the
+# "pure" feature keep blake3's build.rs from compiling ANY C/asm path
+# (the C toolchain probe is a supply-chain surface this tree refuses;
+# the "std" + "pure" pair is the documented pure-Rust configuration).
+# Pure-Rust blake3 is still fast at this scale (~0.5 GB/s class).
+blake3 = { version = "1", default-features = false, features = ["std", "pure"] }
 clap = { version = "4", features = ["derive"] }
 # night-dinner-10: on 0.18 - the dedicated move the night-dinner-9
 # comment mapped (zero RustSec advisories against 0.15.x made it a

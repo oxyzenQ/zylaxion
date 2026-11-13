@@ -7,9 +7,12 @@
 //! contract: brand header (`zylaxion: v<ver>` + the one-line tagline,
 //! each line its own brand-purple wrap on a TTY), then the plain
 //! build-facts body — `Build:`, `Build-time:`, `Signature:`,
-//! `Copyright:`, `License:`, `Source:`. The build facts come from
-//! [`crate::info::build`] (the Hinnant clock stamps them, no time
-//! crate). Two surfaces share ONE body so they cannot drift:
+//! `Depth-matrix:`, `Copyright:`, `License:`, `Source:`. The build
+//! facts come from [`crate::info::build`] (the Hinnant clock stamps
+//! them, no time crate) and the Signature/Depth-matrix/Copyright
+//! identity lines materialize from [`crate::info::signature`], the
+//! masked provenance depth matrix (night-signature-advanced-1). Two
+//! surfaces share ONE body so they cannot drift:
 //! `-V` / `--version` intercepted in `main.rs` renders the brand header
 //! in purple on a TTY via [`print_version_report`], and clap's own
 //! version rendering (every other path) carries the same lines through
@@ -40,21 +43,6 @@ pub mod ux;
 /// the registry-facing description a `cargo search` shows.
 pub(crate) const ABOUT: &str = env!("CARGO_PKG_DESCRIPTION");
 
-/// The `Signature:` line as ONE contiguous literal (the zelynic
-/// NIGHT-blade-4 discipline ported, night-dragon-maintenance-T1):
-/// release.yml's verification legs grep exact bytes out of the binary
-/// (`grep -aFq`, no encoding layer), so the claim stays contiguous by
-/// construction — never a format! join. The claim "Pure eBPF builtin"
-/// is true of every zylaxion build: the unkillable-ebpf law
-/// (night-dragon-maintenance-0) removed the feature table, so every
-/// lane — the source-built object on a git checkout, the
-/// registry-prebuilt object staged from ebpf-prebuilt/ — rides inside
-/// the binary via include_bytes!; no build flag can produce a dormant
-/// binary. Which lane produced the object is the doctor's answer, not
-/// the brand surface's (the zelynic NIGHT-dinner-3 shape).
-const SIGNATURE_LINE: &str =
-    "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)";
-
 /// The plain-text body of the version report (everything after the
 /// brand header). Separated from [`long_version`] /
 /// [`print_version_report`] so tests can assert the full line set
@@ -63,20 +51,33 @@ const SIGNATURE_LINE: &str =
 /// `Build-time:` is stamped by `build.rs` via Howard Hinnant's
 /// civil_from_days algorithm — `M/D/YYYY HH:MM (UTC)` — so no time
 /// crate is needed anywhere in the dependency tree (night-improve-13).
-/// The `Signature:` line (night-dragon-maintenance-T1) is the one-line
-/// identity in the zelynic reference shape, kept grep-able from
-/// scripts (`zylaxion -V | grep Signature`).
+///
+/// The `Signature:` line, the `Depth-matrix:` line, and the
+/// `Copyright:` identity all come from [`crate::info::signature`] —
+/// the masked provenance depth matrix (night-signature-advanced-1).
+/// The ownership claim does NOT exist as plaintext in the binary: it
+/// rides masked u64 words and materializes at runtime, so a thief's
+/// `strings(1)`/`rg` sweep over the artifact finds nothing to strip.
+/// The line label `Signature:` stays a static prefix so scripts keep
+/// their grep handle (`zylaxion -V | grep Signature`); the release
+/// verification legs grep the materialized `-V` output, not the
+/// artifact bytes (see release.yml).
 fn version_body() -> String {
+    let provenance = crate::info::signature::provenance_view();
     format!(
         "Build: {} ({})\n\
          Build-time: {}\n\
-         {SIGNATURE_LINE}\n\
-         Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
+         Signature: {}\n\
+         {}\n\
+         Copyright: (c) 2026 {}\n\
          License: AGPL-3.0-only\n\
          Source: https://github.com/oxyzenQ/zylaxion",
         crate::info::build::build_label(),
         crate::info::build::build_hash(),
         crate::info::build::build_time(),
+        provenance.manifest,
+        provenance.depth_line,
+        provenance.authors,
     )
 }
 
@@ -110,14 +111,24 @@ fn long_version() -> &'static str {
 /// header line carries its OWN brand-purple `#A855F7` regular-weight
 /// wrap on a TTY — the single-line law ([`crate::output::brand`]; the
 /// former one-wrap-around-two-lines shape painted both lines with one
-/// span and rode the bold section-banner weight). When piped (non-TTY)
-/// everything is plain text so ANSI codes never leak into scripts or
-/// log files. The body stays on plain lines so it is easy to grep from
-/// scripts (`zylaxion -V | grep Build-time`, `| grep Signature`).
+/// span and rode the bold section-banner weight). The one body-line
+/// exception (night-signature-advanced-1): the `Depth-matrix:` line
+/// rides the status-green tier on a color-capable stdout — it is the
+/// affirmative verdict of the embedded provenance, not a build fact.
+/// When piped (non-TTY) everything is plain text so ANSI codes never
+/// leak into scripts or log files. The remaining body stays on plain
+/// lines so it is easy to grep from scripts
+/// (`zylaxion -V | grep Build-time`, `| grep Signature`).
 pub fn print_version_report() {
     let (header, body) = version_report_payload();
     crate::output::print_stdout_line(&header);
-    crate::output::print_stdout_line(&body);
+    for line in body.lines() {
+        if line.starts_with("Depth-matrix: ") {
+            crate::output::print_stdout_line(&crate::output::ok_line(line));
+        } else {
+            crate::output::print_stdout_line(line);
+        }
+    }
 }
 
 /// The `-V` payload in its two terminal shapes, separated so the color
@@ -253,6 +264,14 @@ pub enum Commands {
 
     /// Print system health diagnostic
     Doctor,
+
+    /// Render the provenance depth-matrix report
+    /// (night-signature-advanced-1): the four verification depths over
+    /// the masked signature layers — runtime identity, layer binding,
+    /// the blake3 anchor recompute, and the running image's own
+    /// self-hash fingerprint. Exit 2 when any depth fails, so release
+    /// lanes and scripts can gate on the verdict.
+    Sig,
 
     /// Load and pin the eBPF tap (the kernel-side control plane).
     /// Run under sudo — the one privileged surface; the pins are handed

@@ -145,6 +145,7 @@ fn main() {
             } => commands::sound::cmd_volume(percent, force_this),
             cli::Commands::Status { verbose } => commands::sound::cmd_status(verbose),
             cli::Commands::Doctor => commands::info::cmd_doctor(),
+            cli::Commands::Sig => commands::sig::cmd_sig(),
             cli::Commands::Attach => commands::attach::cmd_attach(),
             cli::Commands::Detach => commands::attach::cmd_detach(),
             cli::Commands::Play => commands::player::cmd_play(),
