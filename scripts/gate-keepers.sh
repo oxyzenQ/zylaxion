@@ -183,6 +183,7 @@ SKIP_FILES = {
     "release-readiness-v6.0.0.md",
 }
 SKIP_SUFFIXES = (".png", ".lock")
+SKIP_PREFIXES = ("audit-night-",)
 
 
 def is_emoji(cp):
@@ -193,7 +194,8 @@ findings = []
 for root, dirnames, filenames in os.walk("."):
     dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
     for name in sorted(filenames):
-        if name in SKIP_FILES or name.endswith(SKIP_SUFFIXES):
+        if (name in SKIP_FILES or name.endswith(SKIP_SUFFIXES)
+                or name.startswith(SKIP_PREFIXES)):
             continue
         path = os.path.join(root, name)
         try:

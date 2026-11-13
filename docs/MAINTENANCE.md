@@ -63,6 +63,15 @@ cargo pro-linux-amd64-v3-gnu && ./target/x86_64-unknown-linux-gnu/pro-linux-amd6
 ./scripts/gates/check-release-parity.sh
 ```
 
+## The owner's machine audit
+
+The owner runbook is `scripts/audit/owner-forensic-audit.sh`
+(DEPTHBORE-1): five unprivileged tests against the real desktop
+machine — idle CPU, active CPU, memory footprint, SIGKILL recovery,
+and clean signal stop — run as the user who runs `zylaxion on`, with
+the tap already attached. It prints raw measurements next to every
+verdict and runs on the owner's machine, never in CI.
+
 ## The gate-keepers
 
 `./scripts/gate-keepers.sh` before every push; CI re-runs the same

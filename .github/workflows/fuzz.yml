@@ -42,6 +42,8 @@
 # The committed seed anchors (fuzz/seeds/) carry hand-built inputs -
 # the real-world kernel-release shapes, the JSON payloads, the domain
 # boundary seconds - that the lane copies into the working corpus
+# (the empty kernel_release seed is the deliberate empty-input anchor,
+# not an accident)
 # before every run, so the fuzzer starts inside the parse paths from
 # run one instead of spending its budget rediscovering valid input
 # byte by byte. The grown corpus still stays out of git
