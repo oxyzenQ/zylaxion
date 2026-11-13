@@ -139,6 +139,20 @@ fn detach_requirement_refuses_non_root_without_unlink() {
         msg.contains("stays alive"),
         "refusal must promise the player survives, got: {msg}"
     );
+    // The render law (the wide-terminal lesson): the refusal is ONE
+    // logical line — the terminal owns the wrap, never the source. A
+    // pre-wrapped line 0 (hardcoded mid-line spacing) reads as giant
+    // gaps on a wide terminal and double-wraps on a narrow one; this
+    // pin holds the reflow in place byte-shape and all.
+    let line0 = msg.lines().next().expect("refusal carries a line 0");
+    assert!(
+        !line0.contains("  "),
+        "line 0 must be a single logical line (terminal wraps, not the source), got: {line0:?}"
+    );
+    assert!(
+        line0.contains("and this user cannot unlink the pins"),
+        "the reflowed line 0 must read as one sentence, got: {line0:?}"
+    );
 }
 
 #[test]
