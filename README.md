@@ -90,9 +90,9 @@ binary itself.
 Two structural decisions define the tool's footprint. Both are audited
 facts about this tree, not aspirations.
 
-**Peak lean dependency.** The tool carries 11 portable direct
+**Peak lean dependency.** The tool carries 12 portable direct
 dependencies plus one Linux-gated link (alsa-sys, the ALSA stderr
-guard) and 129 lockfile crates, features trimmed to what is used
+guard) and 136 lockfile crates, features trimmed to what is used
 (env_logger's timestamp and regex feature trees are gone — the build
 stamp is computed in `build.rs` via Hinnant's civil_from_days, so no
 time crate rides the tree; signal-hook's channel/iterator modules and

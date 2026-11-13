@@ -293,12 +293,19 @@ jobs:
                 || { echo "::error::Expected embedded build label ${LABEL}"; exit 1; }
               grep -aFq "License: AGPL-3.0-only" "${BIN}" \
                 || { echo "::error::Expected embedded license literal"; exit 1; }
-              # The Signature literal at its UTF-8 em-dash: strings(1)
-              # splits multi-byte sequences and would silently miss —
-              # grep -aFq matches the raw bytes (the zelynic release
-              # parity, night-dragon-maintenance-T1).
-              grep -aFq "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)" "${BIN}" \
-                || { echo "::error::Expected embedded signature literal"; exit 1; }
+              # The signature identity is MASKED at rest
+              # (night-signature-advanced-1): the ownership claim exists
+              # only as opaque u64 words in .rodata, so the artifact
+              # carries no greppable mark — that is the anti-rebrand
+              # design, and the old signature-bytes leg is gone on
+              # purpose. What this non-executing leg still proves is
+              # the depth-matrix machinery: the Depth-matrix format
+              # literals and the layers token, identity-free by
+              # construction.
+              grep -aFq "Depth-matrix: fp=" "${BIN}" \
+                || { echo "::error::Expected embedded depth-matrix literal"; exit 1; }
+              grep -aFq "layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor" "${BIN}" \
+                || { echo "::error::Expected embedded provenance layers token"; exit 1; }
               grep -aFq "${VERSION}" "${BIN}" \
                 || { echo "::error::Binary does not embed tag version '${VERSION}' (Cargo.toml/tag drift)"; exit 1; }
               echo "embedded build metadata verified (execution skipped: AVX-512 baseline)"
@@ -306,7 +313,10 @@ jobs:
             *-v3-*)
               # AVX2/BMI2/FMA baseline: every x86_64 runner since
               # Haswell executes it — run the artifact itself, plus
-              # the Build: label and version checks.
+              # the Build: label and version checks, and the
+              # materialized signature surface (the masked layers
+              # materialize at runtime; the artifact bytes cannot be
+              # grepped for the identity, the -V output can).
               "${BIN}" -V
               "${BIN}" -V | grep -F "Build: ${LABEL}" \
                 || { echo "::error::Expected 'Build: ${LABEL}' in -V"; exit 1; }
@@ -316,6 +326,12 @@ jobs:
                 || { echo "::error::Expected 'Build-time:' line in -V"; exit 1; }
               "${BIN}" -V | grep -F "Signature: Pure eBPF builtin" \
                 || { echo "::error::Expected 'Signature:' line in -V"; exit 1; }
+              "${BIN}" -V | grep -F "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026" \
+                || { echo "::error::Expected materialized signature manifest in -V"; exit 1; }
+              "${BIN}" -V | grep -F "status=verified" \
+                || { echo "::error::Expected Depth-matrix status=verified in -V"; exit 1; }
+              "${BIN}" sig | grep -F "SIGNATURE: AUTHENTIC (4/4 depths verified)" \
+                || { echo "::error::Expected sig verdict AUTHENTIC 4/4"; exit 1; }
               ;;
           esac
           echo "=== ldd ==="

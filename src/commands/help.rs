@@ -161,6 +161,10 @@ pub(crate) fn render_reference(color: bool) -> String {
     push(grey("  zylaxion list-backends"));
     push("      List available audio backends.".into());
     push(String::new());
+    push(grey("  zylaxion sig"));
+    push("      Provenance depth-matrix report: the embedded masked".into());
+    push("      signature, verified layer by layer (exit 2 on tamper).".into());
+    push(String::new());
 
     push(brand("Global options:"));
     push(String::new());

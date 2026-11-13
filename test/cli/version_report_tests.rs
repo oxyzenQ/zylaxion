@@ -31,12 +31,15 @@ fn strip_brand_spans(line: &str) -> String {
 /// night-improve-13 contract: the version report carries every
 /// documented line exactly once, in the zelynic reference order —
 /// Build, then Build-time directly after it, then the Signature, then
-/// Copyright, License, Source.
+/// the Depth-matrix (night-signature-advanced-1), then Copyright,
+/// License, Source.
 #[test]
 fn version_report_carries_the_zelynic_line_contract() {
     let body = version_body();
     for line in [
-        "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)",
+        "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026",
+        "Depth-matrix: fp=",
+        "layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor",
         "Copyright: (c) 2026 rezky_nightky (oxyzenQ)",
         "License: AGPL-3.0-only",
         "Source: https://github.com/oxyzenQ/zylaxion",
@@ -46,7 +49,8 @@ fn version_report_carries_the_zelynic_line_contract() {
     }
     // Ordering: Build-time sits directly after the Build line, the
     // Signature directly after Build-time (the zelynic reference
-    // shape), Copyright directly after the Signature.
+    // shape), the Depth-matrix directly after the Signature
+    // (night-signature-advanced-1), Copyright directly after that.
     let lines: Vec<&str> = body.lines().collect();
     let build_idx = lines
         .iter()
@@ -61,27 +65,41 @@ fn version_report_carries_the_zelynic_line_contract() {
         "Signature must directly follow Build-time: {lines:?}"
     );
     assert!(
-        lines[build_idx + 3].starts_with("Copyright: "),
-        "Copyright must directly follow Signature: {lines:?}"
+        lines[build_idx + 3].starts_with("Depth-matrix: "),
+        "Depth-matrix must directly follow Signature: {lines:?}"
+    );
+    assert!(
+        lines[build_idx + 4].starts_with("Copyright: "),
+        "Copyright must directly follow Depth-matrix: {lines:?}"
     );
 }
 
-/// night-dragon-maintenance-T1: the Signature line rides the zelynic
-/// reference shape as ONE contiguous literal (SIGNATURE_LINE) — its
-/// exact bytes are the bytes release.yml's verification legs grep out
-/// of the binary (`grep -aFq`, no encoding layer). Pin the literal so
-/// a reword fails here, at test time, not in a release leg; the
-/// release probe's other greppable line stays contiguous too.
+/// night-signature-advanced-1: the Signature line materializes the
+/// masked manifest verbatim — the full manifest as ONE contiguous
+/// line (never a join artifact), the Depth-matrix line carries the
+/// verified status and the layers token, and the license bytes stay
+/// contiguous for the release probe. The identity no longer exists in
+/// the artifact at rest (the strings-invisibility pin lives in
+/// test/info/signature_tests.rs); the release verification legs grep
+/// the materialized `-V` output instead of the artifact bytes.
 #[test]
-fn signature_line_is_the_contiguous_release_grep_bytes() {
-    assert_eq!(
-        SIGNATURE_LINE,
-        "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)"
-    );
+fn signature_surface_materializes_the_masked_layers() {
     let body = version_body();
     assert!(
-        body.contains(SIGNATURE_LINE),
-        "the body carries the signature verbatim, never a join"
+        body.contains(
+            "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026"
+        ),
+        "the materialized manifest renders after the Signature: prefix"
+    );
+    assert!(
+        body.contains(" status=verified "),
+        "the pristine body reports verified"
+    );
+    assert!(
+        body.contains(
+            "layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor"
+        ),
+        "the layers token describes the masked + anchored scheme"
     );
     assert!(
         body.contains("License: AGPL-3.0-only"),
@@ -91,14 +109,19 @@ fn signature_line_is_the_contiguous_release_grep_bytes() {
 
 /// night-dragon-maintenance-T1: the estate-parity law (the zelynic
 /// version_report_body_is_plain_estate_parity shape) — the -V body
-/// rides the DEFAULT terminal color: no ANSI escape bytes in the body,
-/// ever. The header is the only colored surface this report emits.
+/// rides the DEFAULT terminal color by construction: the payload
+/// carries no ANSI escape bytes, ever. The color law lives at the
+/// print site, never in the payload: print_version_report wraps the
+/// header lines in brand purple and — the night-signature-advanced-1
+/// exception — the Depth-matrix line in status green, only on a
+/// color-capable stdout; piped output stays byte-identical plain.
 #[test]
 fn version_report_body_is_plain_estate_parity() {
     let (_header, body) = version_report_payload();
     assert!(
         !body.contains('\x1b'),
-        "the -V body must print plain — no color wrap around the multi-line build facts"
+        "the -V payload must print plain — color wraps are the print \
+         site's decision, never the payload's"
     );
 }
 

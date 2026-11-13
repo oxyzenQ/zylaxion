@@ -68,8 +68,19 @@ name's platform id:
 ./zylaxion -V
 # Build: pro-linux-amd64-v3-gnu (<short-sha>) <- must match the label
 # Build-time: M/D/YYYY HH:MM (UTC)            <- Hinnant-stamped UTC
-# Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
+# Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026
+# Depth-matrix: ... status=verified ...       <- the provenance seal, green on a TTY
+./zylaxion sig
+# verdict: SIGNATURE: AUTHENTIC (4/4 depths verified)  <- exit 2 on any tamper
 ```
+
+The ownership claim is embedded MASKED (night-signature-advanced-1):
+the artifact carries no greppable identity, so a rebrand that strips
+the wording still materializes the original owner. The Depth-matrix
+line reports `status=verified` only when the masked layers, their
+fingerprints, the identity binding, and the blake3 anchor all
+recompute — `status=tampered` (or a nonzero `sig` exit) is the honest
+signal that the artifact was patched.
 
 ## Verifying an older release (pre-BLAKE3 archives)
 

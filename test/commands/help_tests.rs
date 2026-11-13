@@ -26,6 +26,7 @@ fn reference_carries_every_subcommand_and_group() {
         "doctor",
         "list-presets",
         "list-backends",
+        "sig",
     ] {
         assert!(
             text.contains(&format!("zylaxion {command}")),

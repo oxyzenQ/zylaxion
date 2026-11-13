@@ -9,7 +9,11 @@
 //!   time, rustc, profile), assembled by the `build.rs` epoch suite.
 //! - [`clock`] — Howard Hinnant's `civil_from_days` runtime clock
 //!   (ISO millis stamps), zero time crates in the dependency tree.
+//! - [`signature`] — the masked provenance depth matrix
+//!   (night-signature-advanced-1): the ownership claim embedded as
+//!   opaque words, materialized only on the `-V` surface.
 
 pub mod build;
 pub mod clock;
+pub mod signature;
 pub mod version;

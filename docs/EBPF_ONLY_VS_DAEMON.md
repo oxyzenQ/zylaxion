@@ -87,8 +87,8 @@ blunted anyway.
 The honest arithmetic is not "fewer crates is better" — it is which
 crates the binary needs to do its one job.
 
-- The current tree: 11 portable direct dependencies plus one
-  Linux-gated link (alsa-sys, the ALSA stderr guard), 129 lockfile
+- The current tree: 12 portable direct dependencies plus one
+  Linux-gated link (alsa-sys, the ALSA stderr guard), 136 lockfile
   crates, and every feature gate mapped to a live call site
   (night-security-1 audited them gate by gate). The Linux-resolved
   graph is 52 crates; the rest of the lock is the other platforms'
