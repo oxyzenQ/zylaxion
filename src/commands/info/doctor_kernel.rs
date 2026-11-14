@@ -181,7 +181,7 @@ pub(super) fn kernel_station(root: bool) -> bool {
                     )
                 );
                 ok = false;
-            } else {
+            } else if reach.pin_dir_present {
                 println!(
                     "{}",
                     crate::output::kv(
@@ -238,6 +238,28 @@ pub(super) fn kernel_station(root: bool) -> bool {
                         ok = false;
                     }
                 }
+            } else {
+                // night-total-lts-5, the stale-claim lesson: the old
+                // final else rendered "uid N walks to the pins" even
+                // when the pin directory did not exist — after a full
+                // sudo detach the very next doctor claimed a reach to
+                // pins that were no longer in the kernel. The facts
+                // were live (this branch runs from a fresh stat every
+                // invocation); the claim over them was not: with no
+                // pins planted the reach is a capability, not a state.
+                // The line now names the absence dynamically — the
+                // same stat that fed the old wording feeds the branch.
+                println!(
+                    "{}",
+                    crate::output::kv(
+                        "pin reach:",
+                        &crate::output::ok_line(&format!(
+                            "no pins planted — the mount is walkable by uid {uid} (mount \
+                             mode {:o}); the next attach decides the pins' reach",
+                            reach.root_mode
+                        ))
+                    )
+                );
             }
         } else {
             println!(
