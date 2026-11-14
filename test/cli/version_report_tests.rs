@@ -40,7 +40,7 @@ fn version_report_carries_the_zelynic_line_contract() {
         "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026",
         "Depth-matrix: fp=",
         "layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor",
-        "Copyright: (c) 2026 rezky_nightky (oxyzenQ)",
+        "Copyright: (c) 2026 rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>",
         "License: AGPL-3.0-only",
         "Source: https://github.com/oxyzenQ/zylaxion",
     ] {

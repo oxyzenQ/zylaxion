@@ -50,7 +50,7 @@ Usage:
 # line's identity, which must start with the manifest's identity core
 # (everything after "Official Build by ", minus the year suffix).
 MANIFEST = "Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026"
-AUTHORS = "rezky_nightky (oxyzenQ)"
+AUTHORS = "rezky_nightky (oxyzenQ) <with dot rezky at gmail dot com>"
 
 # Per-layer seeds. Decoys with no external meaning; rotating them is a
 # supported operation (re-run this tool, paste the new block). Both must
