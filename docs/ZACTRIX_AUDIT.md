@@ -556,17 +556,34 @@ Proven here, on the A/B machine, x86-64: the pin is read back from
 the hardware (five policy tests), the pin corrects a hostile
 full-IEEE host, the byte delta is confined 253 dB below the
 measurand floor, the physical laws hold, and the active cost
-dropped. The AArch64 side now has its own lane instead of an open
-question: night-depth-mariana-2 lands the cross-arch proof surface —
-`scripts/audit/zactrix-rates-parity.sh` (runs the rates mode once,
-diffs the per-preset x per-rate rows against
-`scripts/audit/rates-parity-baseline.txt`, the post-law hashes this
-machine stamped), exercised by
-`.github/workflows/rates-parity-arm64.yml` on an arm64 runner. The
-arm64 run's clean diff is the proof that the same seed, the same
-rate, and the same pinned floating-point policy render the same
-bytes on both shipped architectures — measured, not argued; the run
-history is the verdict record.
+dropped. Proven on the arm64 CI runner (night-depth-mariana-2, the
+parity lane): the FZ pin reads back from FPCR (ambient word 0x0 →
+law word 0x1000000 after a pool construction), and the law's own
+delta is dust-confined there too — 12 of 24 presets byte-identical,
+every first divergent sample at -313.1 dB, 0 gate failures. The
+same instrument, the same split, the same floor on both shipped
+architectures: the output-flush contract is symmetric, measured.
+
+## The cross-arch boundary, measured
+
+The parity lane also measured where cross-arch byte identity STOPS:
+the attack-region fingerprints (the first 512 samples — pure
+excitation and init-shaped coefficients) differ on every one of the
+24 presets between the x86-64 A/B machine and the arm64 runner. The
+divergence therefore happens before any render dust can exist: the
+init-time transcendental math (the c^(R/S) curve coefficients, tan/
+exp/pow-family calls) resolves through the per-target libm, and
+those bits are the machine's, not the contract's. The tail's pure
+mul/add arithmetic is exact cross-arch — the rows whose streams
+never touch a divergent coefficient match byte-for-byte across
+architectures — but the coefficients upstream of it are not. The
+boundary is named, measured, and recorded; closing it is the
+correctly-rounded pure-Rust transcendental lane (the estate's
+known endgame for the byte-identity contract), and the parity lane
+keeps the boundary visible: its cross-arch row diff is RECORDED in
+every run log, never silently gated, so any movement of the
+libm surface (glibc version, ifunc dispatch, a new runner CPU) is
+named in the log the day it happens.
 
 <!-- ZYLAXION-DISCLAIMER -->
 <!--

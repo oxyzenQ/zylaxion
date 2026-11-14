@@ -4,18 +4,21 @@
 # DRAGON GUARD - CROSS-ARCH PARITY (arm64) — the byte-identity proof lane
 # =============================================================================
 #
-# night-depth-mariana-2: the lane that turns the denormal policy law's
-# cross-arch symmetry from a specification argument into a measured
-# fact. The arm64 runner renders every shipped preset through the same
-# real VoicePool path (the audit harness carries the render trees and
-# no eBPF build requirement, so no bootstrap is needed here — the
-# measurand is the render, and the render is what must match) and
-# diffs the per-preset x per-rate rows against the committed baseline
-# stamped on the x86-64 A/B machine under the law
-# (scripts/audit/rates-parity-baseline.txt). A clean diff is the
-# proof: same seed, same rate, same pinned floating-point policy,
-# same bytes — the "same input → same sound, every time" claim now
-# holds across architectures, measured, not argued.
+# night-depth-mariana-2: the lane that pins the cross-arch facts.
+# Two fatal gates run on the arm64 runner: the delta instrument (the
+# FZ pin read back from FPCR; the law's own delta gated at the -60 dB
+# measurand floor — the dust-confined claim, measured on THIS arch)
+# and the same-arch parity diff (this runner's rows against the
+# committed arm64 baseline — byte stability across machines of the
+# same architecture, fresh runners included). The CROSS-ARCH row diff
+# against the x86-64 baseline is RECORDED, never gated: the
+# attack-region fingerprints measured on both sides locate the
+# divergence in the init-time transcendental math (per-target libm),
+# before any render dust can exist — the boundary
+# docs/ZACTRIX_AUDIT.md names, closed later by the correctly-rounded
+# pure-Rust transcendental lane. The audit harness carries the render
+# trees and no eBPF build requirement, so no bootstrap is needed —
+# the measurand is the render.
 #
 # The same blind posture every push-triggered lane in the estate
 # carries: no path filter, no branch filter — a filtered lane can be
@@ -104,8 +107,23 @@ jobs:
 
       - name: Cross-arch diagnostic + render parity (arm64 vs the committed baseline)
         run: |
-          # The delta instrument runs first (the pin readback, the
-          # law's own delta, the attack fingerprints — the columns the
-          # parity investigation reads), then the fatal parity gate.
+          # Fatal gate 1 — the delta instrument: the pin readback (is
+          # FZ actually set on this runner), the law's own
+          # ambient-vs-law delta per preset, gated at the -60 dB
+          # measurand floor (the dust-confined claim, measured on
+          # this arch), and the attack fingerprints (the columns the
+          # boundary investigation reads).
           cargo run --release -q --manifest-path scripts/audit/harness/Cargo.toml -- --denormal-delta
-          ./scripts/audit/zactrix-rates-parity.sh
+          # Fatal gate 2 — same-arch parity: this runner's rows
+          # against the committed arm64 baseline. On the first run
+          # after a re-baseline removal the lane stamps instead: it
+          # prints the full row table and fails with the one-command
+          # instruction, so the baseline can only be born from a
+          # logged run.
+          if [ -f scripts/audit/rates-parity-baseline-arm64.txt ]; then
+            ./scripts/audit/zactrix-rates-parity.sh scripts/audit/rates-parity-baseline-arm64.txt
+          else
+            grep '^| `' scripts/audit/out/rates-parity-run.txt
+            echo "::error::scripts/audit/rates-parity-baseline-arm64.txt is missing - stamp it from the row table above (night-depth-mariana-2), commit, and the lane turns green on the next run"
+            exit 1
+          fi
