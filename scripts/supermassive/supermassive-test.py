@@ -67,6 +67,8 @@ os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from sm_audio import battery as audio_battery  # noqa: E402
+from sm_btf import battery as btf_battery  # noqa: E402
+from sm_repro import battery as repro_battery  # noqa: E402
 from sm_env import (  # noqa: E402
     asound_cards,
     bpffs_mounted,
@@ -202,6 +204,12 @@ def self_test(binary: str) -> int:
     ux_battery(ledger, binary, full_mode=False)
     audio_battery(ledger, binary, user="", tree_root=REPO_ROOT, root_lane=False)
     static_battery(ledger, binary, REPO_ROOT, root_lane=False)
+    # night-frontier-2B: the depth verification legs — the
+    # reproducible-build attestation (two builds, one stamp) and the
+    # kernel matrix (the tap's contract on the pinned LTS BTF
+    # snapshots). Both audit their shipped instruments' verdicts.
+    repro_battery(ledger, binary, REPO_ROOT, root_lane=False)
+    btf_battery(ledger, binary, REPO_ROOT, root_lane=False)
     return ledger.finish()
 
 

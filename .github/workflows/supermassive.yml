@@ -196,6 +196,17 @@ jobs:
           restore-keys: |
             ebpf-build-${{ runner.os }}-
 
+      # night-frontier-2B: the kernel matrix's sha256-pinned distro
+      # kernel images (~300 MB cold) cache between runs, keyed on the
+      # pin table — a warm lane skips the fetch entirely; the sha256
+      # verification runs regardless, so a moved artifact is named,
+      # never silently ridden.
+      - name: Restore the kernel matrix artifact cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: ~/.cache/zylaxion-kernel-matrix
+          key: kernel-matrix-${{ runner.os }}-${{ hashFiles('scripts/audit/zactrix-kernel-matrix.sh') }}
+
       - name: Install the eBPF build prerequisites
         run: |
           ./scripts/dev/bootstrap-ebpf.sh
@@ -325,6 +336,17 @@ jobs:
           restore-keys: |
             ebpf-build-${{ runner.os }}-
 
+      # night-frontier-2B: the kernel matrix's sha256-pinned distro
+      # kernel images (~300 MB cold) cache between runs, keyed on the
+      # pin table — a warm lane skips the fetch entirely; the sha256
+      # verification runs regardless, so a moved artifact is named,
+      # never silently ridden.
+      - name: Restore the kernel matrix artifact cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: ~/.cache/zylaxion-kernel-matrix
+          key: kernel-matrix-${{ runner.os }}-${{ hashFiles('scripts/audit/zactrix-kernel-matrix.sh') }}
+
       - name: Install the eBPF build prerequisites
         run: |
           ./scripts/dev/bootstrap-ebpf.sh
@@ -449,6 +471,17 @@ jobs:
           key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
           restore-keys: |
             ebpf-build-${{ runner.os }}-
+
+      # night-frontier-2B: the kernel matrix's sha256-pinned distro
+      # kernel images (~300 MB cold) cache between runs, keyed on the
+      # pin table — a warm lane skips the fetch entirely; the sha256
+      # verification runs regardless, so a moved artifact is named,
+      # never silently ridden.
+      - name: Restore the kernel matrix artifact cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: ~/.cache/zylaxion-kernel-matrix
+          key: kernel-matrix-${{ runner.os }}-${{ hashFiles('scripts/audit/zactrix-kernel-matrix.sh') }}
 
       - name: Install the eBPF build prerequisites
         run: |
@@ -581,6 +614,17 @@ jobs:
           key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
           restore-keys: |
             ebpf-build-${{ runner.os }}-
+
+      # night-frontier-2B: the kernel matrix's sha256-pinned distro
+      # kernel images (~300 MB cold) cache between runs, keyed on the
+      # pin table — a warm lane skips the fetch entirely; the sha256
+      # verification runs regardless, so a moved artifact is named,
+      # never silently ridden.
+      - name: Restore the kernel matrix artifact cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: ~/.cache/zylaxion-kernel-matrix
+          key: kernel-matrix-${{ runner.os }}-${{ hashFiles('scripts/audit/zactrix-kernel-matrix.sh') }}
 
       - name: Install the eBPF build prerequisites
         run: |
@@ -753,7 +797,11 @@ jobs:
   claims:
     name: supermassive lane - the claims (rootless)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # night-frontier-2B: the lane now carries the depth verification
+    # legs (the reproducible-build attestation compiles the tree twice;
+    # the kernel matrix fetches three sha256-pinned kernel images on a
+    # cold cache) — the ten-minute cap could not hold the honest run.
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -854,6 +902,17 @@ jobs:
           key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
           restore-keys: |
             ebpf-build-${{ runner.os }}-
+
+      # night-frontier-2B: the kernel matrix's sha256-pinned distro
+      # kernel images (~300 MB cold) cache between runs, keyed on the
+      # pin table — a warm lane skips the fetch entirely; the sha256
+      # verification runs regardless, so a moved artifact is named,
+      # never silently ridden.
+      - name: Restore the kernel matrix artifact cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: ~/.cache/zylaxion-kernel-matrix
+          key: kernel-matrix-${{ runner.os }}-${{ hashFiles('scripts/audit/zactrix-kernel-matrix.sh') }}
 
       - name: Install the eBPF build prerequisites
         run: |

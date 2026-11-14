@@ -133,6 +133,33 @@ ran live, and `sudo zylaxion detach` cleanly reaped the player
 through the cleared gate — the full evidence chain for both this
 entry and the attach-side fix.
 
+## The BTF matrix, measured (night-frontier-2B)
+
+The floor claim above stopped being a claim: the tap's kernel
+contract is verified on every push against real BTF snapshots of the
+three LTS lines, extracted from sha256-pinned distro kernel images
+(`scripts/audit/zactrix-kernel-matrix.sh`, the pin table inside is
+the only legal way the artifacts change). Measured on the A/B
+machine, 3/3 PASS — each row is the loader's own aya-obj path: object
+parse, the CO-RE posture measured (the shipped object carries no
+`.BTF.ext`), the relocation chain clean, and the fentry target
+`input_event` resolving to a BTF `Func` id (the exact lookup
+`FEntry::load` performs at attach):
+
+| kernel line | snapshot (sha256-pinned artifact) | verdict |
+|---|---|---|
+| 5.15 LTS | Ubuntu jammy `5.15.0-97-generic` (11.6 MB image, BTF 5,193,059 B) | PASS |
+| 6.1 LTS | Debian bookworm `6.1.0-50-amd64` (8.2 MB image, BTF 4,351,479 B) | PASS |
+| 6.6 LTS | Arch Linux LTS `6.6.72-1-lts` (13.1 MB image, BTF 5,296,425 B) | PASS |
+
+Honesty notes, recorded not hidden: the BTF row proves the
+load-time facts (parse, relocations, the fentry id) — the runtime
+half (trampoline attach, the map-fd patching) stays a live-kernel
+fact the sections above cover with their observed sessions; the live
+sandbox host (5.10.134) passes the same instrument as evidence that
+the instrument works, and counts toward nothing — it is below the
+supported floor.
+
 <!-- ZYLAXION-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

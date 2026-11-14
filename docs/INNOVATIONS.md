@@ -411,6 +411,23 @@ the same algorithm runs in the runtime clock lane so report stamps
 match build stamps. Files of truth: `build.rs`, `src/info/clock.rs`,
 and `src/info/build.rs`.
 
+night-frontier-2B turns the stamp into a reproducible-build
+attestation: the timestamp honors `SOURCE_DATE_EPOCH` (the
+reproducible-builds standard — decimal digits only, a malformed pin
+is visibly ignored per the standard's own fallback law) and the
+clock that answered is stamped alongside (`ZYLAXION_EPOCH_SOURCE`);
+the dependency set rides the binary as a lockfile fingerprint
+(`ZYLAXION_LOCK_HASH`, FNV-1a 64 over the `Cargo.lock` bytes — the
+byte-stream twin of the audit estate's fnv1a64, still std only). The
+doctor's BUILD block names both facts; `-V` stays frozen. The proof
+instrument (`scripts/dev/verify-reproducible-build.sh`) builds the
+pro alias twice from one commit in two separate target directories
+with the epoch pinned to the HEAD commit's own timestamp: on the A/B
+toolchain the two binaries came out **byte-identical** (sha256
+`007cfa43…` on both), the full reproducible-builds property, not
+just the stamps — and the supermassive claims lane audits the
+attestation every push.
+
 **34. The Zactrix audit instrument — verifier-first tuning.** The
 tuning-by-ear trap it replaces: the headless harness renders all 24
 presets through the real render path at 96 kHz and measures physical
@@ -471,6 +488,32 @@ and exits 2 on any tamper. Files of truth: `src/info/signature.rs`,
 `src/commands/sig.rs`, and
 `scripts/release/generate-provenance-words.py`; pinned by
 `test/info/signature_tests.rs` and `test/commands/sig_tests.rs`.
+
+**39. The kernel matrix proof — the "5.15+" floor measured, not
+claimed.** The floor question: the tap's kernel contract (the fentry
+`attach_btf_id` resolved at load time from the target kernel's own
+BTF) was verified against real BTF snapshots of the three LTS lines —
+Ubuntu jammy 5.15.0-97, Debian bookworm 6.1.0-50, Arch LTS 6.6.72-1 —
+each extracted from a sha256-pinned distro kernel image (the pin
+table is the only legal way the artifacts change), decompressed to
+the vmlinux ELF with the kernel's own extract-vmlinux shape, carved
+to the raw `.BTF` section with objcopy, and verified through the
+loader's own aya-obj path: object parse, the measured CO-RE posture
+(`has_btf_relocations() == false` on the shipped object), the
+relocation chain clean, and `input_event` resolving to a BTF `Func`
+id — the exact lookup `FEntry::load` performs at attach. Map-fd
+relocation stays a live-kernel fact (the snapshot cannot mint fds);
+the harness records the map inventory and the attach chain owns that
+verdict. The driver (`scripts/audit/zactrix-kernel-matrix.sh`) and
+the harness mode (`--btf-matrix`) run on every push in the
+supermassive claims lane (artifacts cached, sha256 verified on every
+run); the matrix read 3/3 PASS on the A/B machine and the live host
+BTF (5.10) rides as instrument evidence only — below the supported
+floor, never counted. Files of truth:
+`scripts/audit/zactrix-kernel-matrix.sh`,
+`scripts/audit/harness/src/btfmatrix.rs`; the measured matrix is
+recorded in `docs/KERNEL_COMPATIBILITY.md` and
+`docs/CO_RE_PORTABILITY.md`.
 
 ## The test tree that pins the ledger
 

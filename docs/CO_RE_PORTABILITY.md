@@ -114,6 +114,25 @@ deliberately instead of drifting into it.
   the source.
 -->
 
+## The kernel matrix, measured (night-frontier-2B)
+
+The "no BTF.ext on the shipped object" verdict above is now measured
+on every push, against real kernel BTF: the kernel matrix
+(`scripts/audit/zactrix-kernel-matrix.sh` + the harness's
+`--btf-matrix` mode) extracts the embedded `.BTF` from sha256-pinned
+distro kernel images of the three LTS lines (Ubuntu jammy 5.15,
+Debian bookworm 6.1, Arch LTS 6.6), parses the shipped
+`zylaxion-tap.o` through the loader's own aya-obj path, and asserts,
+per snapshot: `has_btf_relocations() == false` (the posture this
+page documents, verified on the real object), the relocation chain
+clean (`relocate_btf`, `relocate_externs`, `relocate_calls`), and
+the fentry target `input_event` resolving to a BTF `Func` id — the
+exact lookup `FEntry::load` performs. 3/3 PASS measured; the
+map-fd patching stays a live-kernel fact (the snapshot cannot mint
+fds), recorded as the map inventory instead. The day the tap grows
+real field relocations, this matrix becomes the gate that says so —
+the instrument already rides every push.
+
 <!-- ZYLAXION-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

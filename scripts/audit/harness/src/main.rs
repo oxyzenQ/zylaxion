@@ -56,6 +56,7 @@ mod reload;
 mod rt;
 mod soak;
 mod stability;
+mod btfmatrix;
 
 use engine::VoicePool;
 use profiles::{KeyTrigger, MechanicalClick, registry_all};
@@ -148,6 +149,23 @@ fn main() {
     // preset, the decay law and the hashes across rates).
     if args.iter().any(|a| a == "--rates") {
         rates::run_rates();
+        return;
+    }
+
+    // night-frontier-2B: the kernel matrix mode — the tap's kernel
+    // contract (parse, CO-RE posture, relocations, the fentry target)
+    // verified against one BTF snapshot, without a kernel.
+    if let Some(pos) = args.iter().position(|a| a == "--btf-matrix") {
+        let path = args
+            .get(pos + 1)
+            .unwrap_or_else(|| panic!("--btf-matrix needs a BTF snapshot path"));
+        let label = args
+            .iter()
+            .position(|a| a == "--btf-label")
+            .and_then(|p| args.get(p + 1))
+            .map(String::as_str)
+            .unwrap_or("snapshot");
+        btfmatrix::run_btf_matrix(path, label);
         return;
     }
 
