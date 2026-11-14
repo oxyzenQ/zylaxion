@@ -62,7 +62,7 @@ const ATTACK_SAMPLES: usize = 512;
 /// The law's flush bits for THIS architecture: FTZ+DAZ on x86-64
 /// (MXCSR bits 15 and 6), FZ on AArch64 (FPCR bit 24).
 #[cfg(target_arch = "x86_64")]
-const LAW_FLUSH_BITS: u64 = 0x8040;
+const LAW_FLUSH_BITS: u64 = 0x8000;
 #[cfg(target_arch = "aarch64")]
 const LAW_FLUSH_BITS: u64 = 1 << 24;
 

@@ -73,10 +73,10 @@ truth: `src/profiles/mechanical/init.rs` (the shape constants, e.g.
 Hz and Q to `[0.1, 30.0]`). night-depth-mariana-1 completes the
 byte-identity thread with the denormal policy law: `VoicePool`
 construction pins the render lane's floating-point control word —
-FTZ+DAZ on x86-64, FZ on AArch64 (the architecture defines FZ as
-flushing denormalized inputs AND outputs, the same pair in one word,
-so the policy is cross-arch symmetric by specification) — one write
-per pool, never per sample. The voice tail's subnormal band (the
+FTZ on x86-64, FZ on AArch64, the same output-flush contract in
+each control word (DAZ was measured byte-irrelevant — FTZ+DAZ and
+FTZ-only render identical hashes — and is deliberately excluded) —
+one write per pool, never per sample. The voice tail's subnormal band (the
 audit's dust finding) stops paying SSE microcode assists: the active
 lane measured 71 → 38 CPU ticks per ~55 s window (~1.29% → ~0.69% of
 one core), the byte delta against the pre-law ambient posture is
@@ -86,14 +86,17 @@ on whatever control word a host or library left behind. File of
 truth: `src/engine/denormals.rs`; pinned by
 `test/engine/denormal_policy_tests.rs`; the trade and the
 re-baseline are recorded in `docs/ZACTRIX_AUDIT.md`. night-depth-
-mariana-2 turns the cross-arch half from a specification argument
-into a measured fact: the committed parity baseline
-(`scripts/audit/rates-parity-baseline.txt` — the post-law hashes
-stamped on the x86-64 A/B machine), the drift detector
-(`scripts/audit/zactrix-rates-parity.sh` — same rates mode, rows
-diffed, no wrapper rewrite), and the arm64 proof lane
-(`.github/workflows/rates-parity-arm64.yml`) whose clean diff is the
-same-seed-same-bytes proof across both shipped architectures.
+mariana-2 pins the cross-arch facts with the parity lane
+(`scripts/audit/zactrix-rates-parity.sh`, the committed same-arch
+baselines, `.github/workflows/rates-parity-arm64.yml`): the FZ pin
+is read back from FPCR on the arm64 runner and the law's delta is
+dust-confined there too (-313.1 dB, 0 gate failures — the same
+split as x86-64); the lane also MEASURED where cross-arch byte
+identity stops — the attack fingerprints (init-shaped
+coefficients) differ on every preset, the init-time transcendentals
+resolve through per-target libm — a boundary that is recorded in
+every run log and closed later by the correctly-rounded pure-Rust
+transcendental lane.
 
 **2. The triple TPT SVF chain.** The thinness problem: a single
 filter leaves the high-frequency click present but the body missing.
