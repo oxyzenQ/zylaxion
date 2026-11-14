@@ -12,7 +12,8 @@
 //! formats its stamps through here instead.
 //!
 //! The compile-time twin of this core lives in `build.rs`
-//! (`ZYLAXION_BUILD_TIME` — the `M/D/YYYY HH:MM (UTC)` build stamp). The
+//! (`ZYLAXION_BUILD_TIME` — the `YYYY-MM-DD HH:MMZ` ISO 8601 build
+//! stamp, night-pro-1). The
 //! pairing is deliberate: zero time crates on both surfaces.
 //!
 //! Shape: `2026-10-11T07:41:44.284Z` — the same millisecond-precision UTC

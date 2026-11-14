@@ -155,11 +155,12 @@ fn version_report_header_is_two_single_brand_lines() {
     assert_eq!(strip_brand_spans(second), ABOUT);
 }
 
-/// The Build-time stamp carries the Hinnant shape
-/// `M/D/YYYY HH:MM (UTC)` (or the documented "unknown" fallback) —
-/// never an empty string or a foreign format.
+/// The Build-time stamp carries the Hinnant ISO 8601 shape
+/// `YYYY-MM-DD HH:MMZ` (night-pro-1, the estate-wide format; or the
+/// documented "unknown" fallback) — never an empty string or a
+/// foreign format.
 #[test]
-fn build_time_stamp_shape_is_m_d_yyyy_hh_mm_utc() {
+fn build_time_stamp_shape_is_iso8601_yyyy_mm_dd_hh_mm_z() {
     let line = version_body()
         .lines()
         .find(|l| l.starts_with("Build-time: "))
@@ -169,10 +170,14 @@ fn build_time_stamp_shape_is_m_d_yyyy_hh_mm_utc() {
     if line == "unknown" {
         return; // degraded path, documented
     }
-    assert!(line.ends_with(" (UTC)"), "shape: {line}");
-    let body = line.trim_end_matches(" (UTC)");
-    let (date, time) = body.split_once(' ').expect("M/D/YYYY HH:MM split");
-    assert_eq!(date.matches('/').count(), 2, "M/D/YYYY shape: {date}");
+    assert!(line.ends_with('Z'), "shape: {line}");
+    let body = line.trim_end_matches('Z');
+    let (date, time) = body.split_once(' ').expect("YYYY-MM-DD HH:MM split");
+    let parts: Vec<&str> = date.split('-').collect();
+    assert_eq!(parts.len(), 3, "YYYY-MM-DD shape: {date}");
+    assert_eq!(parts[0].len(), 4, "YYYY shape: {date}");
+    assert_eq!(parts[1].len(), 2, "MM shape: {date}");
+    assert_eq!(parts[2].len(), 2, "DD shape: {date}");
     assert_eq!(time.matches(':').count(), 1, "HH:MM shape: {time}");
 }
 

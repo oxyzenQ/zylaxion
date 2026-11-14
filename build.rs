@@ -222,7 +222,8 @@ fn rustc_stamp() -> String {
 }
 
 /// Read the system clock and render the build time as
-/// `M/D/YYYY HH:MM (UTC)`. "unknown" only when the host clock sits
+/// `YYYY-MM-DD HH:MMZ` (ISO 8601, UTC; night-pro-1, the estate-wide
+/// format). "unknown" only when the host clock sits
 /// before the UNIX epoch (unreachable in practice).
 fn format_build_time_utc() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -235,7 +236,9 @@ fn format_build_time_utc() -> String {
 }
 
 /// Pure formatting function — takes unix-epoch seconds and returns
-/// `M/D/YYYY HH:MM (UTC)`. Separated from `format_build_time_utc` so the
+/// `YYYY-MM-DD HH:MMZ` (ISO 8601, UTC; night-pro-1 aligns the stamp
+/// with the flagship's format, replacing the US-ambiguous
+/// `M/D/YYYY HH:MM (UTC)` shape). Separated from `format_build_time_utc` so the
 /// algorithm is unit-testable without depending on the wall clock.
 ///
 /// Algorithm: split `total_secs` into days + seconds-of-day, then use
@@ -254,7 +257,7 @@ fn format_unix_secs_as_build_time(total_secs: i64) -> String {
 
     let (year, month, day) = civil_from_days(days_since_epoch);
 
-    format!("{month}/{day}/{year} {hour:02}:{minute:02} (UTC)")
+    format!("{year:04}-{month:02}-{day:02} {hour:02}:{minute:02}Z")
 }
 
 /// Howard Hinnant's `civil_from_days`: converts days-since-1970-01-01
@@ -288,25 +291,25 @@ mod tests {
     #[test]
     fn build_time_format_matches_known_unix_epochs() {
         // UNIX epoch: 1970-01-01 00:00:00 UTC.
-        assert_eq!(format_unix_secs_as_build_time(0), "1/1/1970 00:00 (UTC)");
+        assert_eq!(format_unix_secs_as_build_time(0), "1970-01-01 00:00Z");
 
         // 2000-01-01 00:00:00 UTC = 946_684_800 seconds since epoch.
         assert_eq!(
             format_unix_secs_as_build_time(946_684_800),
-            "1/1/2000 00:00 (UTC)"
+            "2000-01-01 00:00Z"
         );
 
         // 2024-02-29 12:34:00 UTC = 1_709_210_040 seconds since epoch.
         // Leap-day boundary check — Feb 29 must not roll to Mar 1.
         assert_eq!(
             format_unix_secs_as_build_time(1_709_210_040),
-            "2/29/2024 12:34 (UTC)"
+            "2024-02-29 12:34Z"
         );
 
         // 2026-08-04 15:30:00 UTC = 1_785_857_400 seconds since epoch.
         assert_eq!(
             format_unix_secs_as_build_time(1_785_857_400),
-            "8/4/2026 15:30 (UTC)"
+            "2026-08-04 15:30Z"
         );
     }
 
@@ -316,7 +319,7 @@ mod tests {
         // seconds are dropped (minute precision), never rounded up.
         assert_eq!(
             format_unix_secs_as_build_time(1_709_210_440),
-            "2/29/2024 12:40 (UTC)"
+            "2024-02-29 12:40Z"
         );
     }
 
@@ -327,8 +330,8 @@ mod tests {
         // arithmetic, not panic or underflow. -60 = 1969-12-31 23:59 UTC.
         let result = format_unix_secs_as_build_time(-60);
         assert!(
-            result.ends_with("(UTC)"),
-            "negative-epoch result should still be (UTC)-suffixed: {result}"
+            result.ends_with('Z'),
+            "negative-epoch result should still be Z-suffixed: {result}"
         );
         assert!(
             result.contains("1969"),
