@@ -18,11 +18,16 @@
 //! compatibility fix, or a measured improvement proven by the audit
 //! harness.
 
+mod denormals;
 mod pool;
 mod voice;
 
 pub use pool::VoicePool;
 pub use voice::Voice;
+
+#[cfg(test)]
+#[path = "../../test/engine/denormal_policy_tests.rs"]
+mod denormal_policy_tests;
 
 // night-improve-21: the former convenience re-exports of SAMPLE_RATE
 // and MAX_POLYPHONY are retired with the unification — the profiles

@@ -476,6 +476,93 @@ need a physically longer ring stage, which remains an owner-level
 architecture decision. The four refusals stay as authored: the audit
 measures identities, not wishes.
 
+# The denormal policy law — night-depth-mariana-1
+
+## The finding
+
+After night-depth-hardening-1 the render tail is pure IEEE-754
+mul/add, and exactly one environment variable was still unpinned:
+the floating-point control word. Nothing in the tree read or wrote
+MXCSR/FPCR — every published render hash was measured under whatever
+posture the host left behind (on the A/B machine: MXCSR 0x00001f80,
+flush bits clear). A host or a library that ships flush-to-zero set
+would silently re-baseline every hash on that machine, and the two
+shipped architectures would disagree in the tail's subnormal band —
+the region the audit's own earlier finding describes: the click and
+spring integrator states end below the smallest normal f32.
+
+## The instrument
+
+Two measurements, both through the real VoicePool render path:
+
+1. **The delta instrument** (`--denormal-delta`, the rates audit's
+   sibling): one keystroke per preset at 48 kHz, rendered twice in
+   one process — once under the pre-law ambient control word, once
+   under the pinned law — then the first sample whose bits differ is
+   located and its level reported relative to the stream peak.
+2. **The footprint A/B** (state-b, 60 s, 5 keys/s, the real
+   orchestrator loop): the active cost of producing sound with and
+   without the pinned law.
+
+## The numbers
+
+- **Where the bytes diverge:** 12 of 24 presets render byte-identical
+  under the law (their tails never enter the subnormal band at 48
+  kHz). The other 12 diverge, and on every one the FIRST divergent
+  sample sits at **-313.1 dB** relative to the stream peak — 253 dB
+  below the -60 dB measurand floor the tail endpoint is defined at.
+  Gate: 0 failures.
+- **What the measurands do:** voice lifetime, ring decay and tail
+  endpoint print identical across the pre-law and post-law rates
+  matrices; the rates audit's law gates stay PASS (0 of 24 presets,
+  cross-run diff-clean).
+- **What the law buys:** the active lane's CPU cost dropped from 71
+  to 38 CPU ticks between the t=5 s and t=60 s samples (~1.29% →
+  ~0.69% of one core on the A/B machine, a 46% relative reduction) —
+  the subnormal-band SSE microcode assists leave the render path.
+  The idle lane (state-c) is untouched: 7 → 6 ticks, the noise
+  floor.
+
+## The law
+
+`VoicePool` construction now pins the calling thread's control word
+(one write per pool, never per sample): FTZ + DAZ on x86-64 (MXCSR
+bits 15 and 6), FZ on AArch64 (FPCR bit 24) — the architecture
+defines FZ as flushing denormalized input operands AND output
+results for scalar and vector f32, the DAZ+FTZ pair in one word, so
+the policy is symmetric by specification across both shipped lanes.
+Rounding mode and exception masks are preserved (read-modify-write).
+The audio callback thread is untouched by design. The full-IEEE
+branch (pin the bits clear) was measured and rejected: it keeps the
+pre-law hashes but leaves the measured 45% active-cost reduction on
+the table and pins no efficiency — the trade is recorded, not
+hidden.
+
+## The re-baseline
+
+The law's hashes are the estate's new bytes: every published
+per-preset × per-rate hash from the pre-law posture is superseded
+(this document's historical matrices record their own era; the
+post-law hashes live with the rates audit and the cross-arch parity
+baseline). What did NOT change: every physical measurand, every law
+gate, and 12 of 24 preset renders outright. What the change buys:
+the byte-identity contract no longer depends on the ambient
+control-register state of the machine it runs on, and the voice
+tail's dust band stops paying microcode assists.
+
+## What is proven, what rides the next lane
+
+Proven here, on the A/B machine, x86-64: the pin is read back from
+the hardware (five policy tests), the pin corrects a hostile
+full-IEEE host, the byte delta is confined 253 dB below the
+measurand floor, the physical laws hold, and the active cost
+dropped. NOT yet proven here: the AArch64 side — the FZ word's
+symmetry is a specification argument plus per-arch policy tests
+until the cross-arch parity lane renders the same presets on an
+arm64 runner and diffs against the committed baseline hashes. That
+lane is the next night-depth step, and its result is the proof that
+closes the cross-arch branch of this finding.
+
 <!-- ZYLAXION-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
