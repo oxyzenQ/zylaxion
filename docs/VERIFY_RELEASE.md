@@ -67,7 +67,7 @@ name's platform id:
 ```bash
 ./zylaxion -V
 # Build: pro-linux-amd64-v3-gnu (<short-sha>) <- must match the label
-# Build-time: M/D/YYYY HH:MM (UTC)            <- Hinnant-stamped UTC
+# Build-time: YYYY-MM-DD HH:MMZ               <- Hinnant-stamped UTC (ISO 8601)
 # Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026
 # Depth-matrix: ... status=verified ...       <- the provenance seal, green on a TTY
 ./zylaxion sig

@@ -49,7 +49,8 @@ pub(crate) const ABOUT: &str = env!("CARGO_PKG_DESCRIPTION");
 /// without capturing output.
 ///
 /// `Build-time:` is stamped by `build.rs` via Howard Hinnant's
-/// civil_from_days algorithm — `M/D/YYYY HH:MM (UTC)` — so no time
+/// civil_from_days algorithm — `YYYY-MM-DD HH:MMZ` (ISO 8601, UTC;
+/// night-pro-1, the estate-wide format) — so no time
 /// crate is needed anywhere in the dependency tree (night-improve-13).
 ///
 /// The `Signature:` line, the `Depth-matrix:` line, and the

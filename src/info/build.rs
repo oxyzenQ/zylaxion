@@ -196,7 +196,7 @@ pub(crate) fn build_hash() -> &'static str {
 ///
 /// Computed by Howard Hinnant's civil_from_days algorithm inside
 /// build.rs (night-improve-13, the zelynic NIGHT-hunt-6 lineage) —
-/// `M/D/YYYY HH:MM (UTC)` — so no time crate (chrono/jiff and friends)
+/// `YYYY-MM-DD HH:MMZ` (ISO 8601, UTC) — so no time crate (chrono/jiff and friends)
 /// is needed anywhere in the dependency tree. Falls back to "unknown"
 /// only when the build script could not read the system clock
 /// (pre-UNIX_EPOCH host clock).
