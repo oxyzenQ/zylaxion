@@ -153,6 +153,13 @@ const MASKED_MANIFEST_WORDS: [u64; 9] = [
 /// The const eval unmasks the words and folds the clear bytes directly —
 /// the plaintext manifest never exists as a literal in this module, so
 /// it cannot leak into `.rodata` through this computation.
+///
+/// Scope note (night-pro-1 audit): the digest runs over the CLEAR
+/// manifest bytes only, so it pins the identity CLAIM, not the
+/// artifact. Two family tools whose manifests are byte-identical
+/// (zylaxion and zelynic) legitimately report the same `fp=` value by
+/// design; artifact identity stays the D3 anchor's job (and the
+/// `sig` report's binary self-hash pins the bytes on disk).
 const MANIFEST_FINGERPRINT: u64 =
     layer_fingerprint(&MASKED_MANIFEST_WORDS, MANIFEST_SEED, MANIFEST_BYTE_LEN);
 
@@ -164,8 +171,8 @@ const MANIFEST_FINGERPRINT: u64 =
 // inside the same artifact.
 
 pub(crate) const AUTHORS_SEED: u64 = 0x4E7B2C918A5FD370;
-pub(crate) const AUTHORS_BYTE_LEN: usize = 23; // 3 words
-const MASKED_AUTHORS_WORDS: [u64; 3] = [0x8D46F60D64B9AF89, 0x439697486CCF461C, 0x695DA21A908AF0AB];
+pub(crate) const AUTHORS_BYTE_LEN: usize = 57; // 8 words
+const MASKED_AUTHORS_WORDS: [u64; 8] = [0x8D46F60D64B9AF89, 0x439697486CCF461C, 0x495DA21A908AF0AB, 0x64C0B1434096AFE5, 0xA6F86A0C45E48BA2, 0x324D73EF5170C229, 0x1E843DA60B32F6D0, 0xD396CEEB8565C876];
 
 /// D2 digest over the clear authors bytes (same law as D0).
 const AUTHORS_FINGERPRINT: u64 =
@@ -186,10 +193,10 @@ const AUTHORS_FINGERPRINT: u64 =
 /// and must be done together with a generator re-run.
 const ANCHOR_DOMAIN: &[u8] = b"zylaxion/depth-matrix/v1";
 
-/// The embedded anchor (generator output).
+/// The embedded anchor (generator output, night-pro-1 authors regen).
 pub(crate) const DEPTH_ANCHOR: [u8; 32] = [
-    0xB5, 0x6B, 0x0D, 0x57, 0xC0, 0x71, 0x02, 0x7A, 0x45, 0x16, 0x4E, 0x32, 0x96, 0x40, 0x61, 0x87,
-    0xE0, 0xEA, 0x90, 0x00, 0xDB, 0x84, 0xB7, 0x1E, 0x7D, 0xA7, 0xDE, 0x66, 0xDC, 0x1F, 0xFB, 0x02,
+    0xE9, 0xA0, 0xCD, 0x3C, 0x16, 0xCC, 0x1C, 0x54, 0xBF, 0xB5, 0x11, 0x20, 0x33, 0x16, 0x34, 0x98,
+    0xA1, 0xD0, 0xC5, 0x71, 0x1B, 0xEE, 0x15, 0x56, 0x00, 0x23, 0x35, 0x34, 0x5E, 0xED, 0xA5, 0x39,
 ];
 
 // --- Compile-time fold ------------------------------------------------
