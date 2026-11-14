@@ -69,9 +69,26 @@ pub fn cmd_doctor() {
     );
     println!("{}", crate::output::kv("Commit:", &build.git_sha));
     println!("{}", crate::output::kv("Variant:", &build.variant));
-    println!("{}", crate::output::kv("Built:", &build.build_time));
+    println!(
+        "{}",
+        crate::output::kv(
+            // night-frontier-2B: the stamp names its own clock — the
+            // reproducible posture (SOURCE_DATE_EPOCH pinned) reads
+            // differently from a live wall-clock build.
+            "Built:",
+            &format!("{} ({})", build.build_time, build.epoch_source)
+        )
+    );
     println!("{}", crate::output::kv("Rustc:", &build.rustc_version));
     println!("{}", crate::output::kv("Profile:", &build.profile));
+    println!(
+        "{}",
+        // night-frontier-2B, the lockfile attestation: the dependency
+        // set's fingerprint — two builds of one commit stamp the same
+        // value, a manifest or registry drift shows here before any
+        // run.
+        crate::output::kv("Lock:", &build.lock_hash)
+    );
 
     // 1. Kernel / eBPF capability (night-improve-23, the eBPF-only
     //    floor): the whole station lives in doctor_kernel.rs now (the

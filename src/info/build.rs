@@ -86,6 +86,12 @@ pub(crate) struct BuildInfo {
     pub rustc_version: String,
     /// The one-line profile verdict (see [`profile_line`]).
     pub profile: String,
+    /// The workspace dependency-set fingerprint (FNV-1a 64 over
+    /// Cargo.lock, see [`lock_hash`]).
+    pub lock_hash: String,
+    /// Which clock answered the build-time stamp (see
+    /// [`epoch_source`]).
+    pub epoch_source: String,
 }
 
 impl BuildInfo {
@@ -99,6 +105,8 @@ impl BuildInfo {
             build_time: build_time().to_string(),
             rustc_version: rustc_version().to_string(),
             profile: profile_line(),
+            lock_hash: lock_hash().to_string(),
+            epoch_source: epoch_source().to_string(),
         }
     }
 }
@@ -202,6 +210,28 @@ pub(crate) fn build_hash() -> &'static str {
 /// (pre-UNIX_EPOCH host clock).
 pub(crate) fn build_time() -> &'static str {
     option_env!("ZYLAXION_BUILD_TIME").unwrap_or("unknown")
+}
+
+/// The workspace dependency-set fingerprint stamped by build.rs:
+/// FNV-1a 64 over the `Cargo.lock` bytes (night-frontier-2B, the
+/// lockfile attestation). Two builds of one commit stamp the same
+/// hash; a manifest or registry drift changes it. "unknown" only
+/// when the stamp was absent (a hand-pruned tree without a lock) —
+/// the doctor reports the fact, never a guess.
+pub(crate) fn lock_hash() -> &'static str {
+    option_env!("ZYLAXION_LOCK_HASH").unwrap_or("unknown")
+}
+
+/// Which clock answered the build-time stamp (night-frontier-2B, the
+/// reproducible-build epoch law): "SOURCE_DATE_EPOCH" when the
+/// environment pinned the epoch (the reproducible-builds standard —
+/// every machine pinning it renders the same stamp bytes), or
+/// "wall-clock" when the build time was taken live. Stamped by
+/// build.rs alongside the timestamp so the doctor names its source;
+/// "unknown" only when the stamp was absent (an out-of-tree
+/// compilation of the module alone).
+pub(crate) fn epoch_source() -> &'static str {
+    option_env!("ZYLAXION_EPOCH_SOURCE").unwrap_or("unknown")
 }
 
 #[cfg(test)]
