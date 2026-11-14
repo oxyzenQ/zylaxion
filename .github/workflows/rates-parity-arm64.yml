@@ -1,0 +1,107 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: AGPL-3.0-only
+# =============================================================================
+# DRAGON GUARD - CROSS-ARCH PARITY (arm64) — the byte-identity proof lane
+# =============================================================================
+#
+# night-depth-mariana-2: the lane that turns the denormal policy law's
+# cross-arch symmetry from a specification argument into a measured
+# fact. The arm64 runner renders every shipped preset through the same
+# real VoicePool path (the audit harness carries the render trees and
+# no eBPF build requirement, so no bootstrap is needed here — the
+# measurand is the render, and the render is what must match) and
+# diffs the per-preset x per-rate rows against the committed baseline
+# stamped on the x86-64 A/B machine under the law
+# (scripts/audit/rates-parity-baseline.txt). A clean diff is the
+# proof: same seed, same rate, same pinned floating-point policy,
+# same bytes — the "same input → same sound, every time" claim now
+# holds across architectures, measured, not argued.
+#
+# The same blind posture every push-triggered lane in the estate
+# carries: no path filter, no branch filter — a filtered lane can be
+# blindsided by a change its globs never named. Concurrency keeps a
+# fresh push from stacking on a running lane.
+#
+# Action pins: release-commit SHAs with version tokens, the
+# night-improve-8 estate — kept current by
+# scripts/gates/check-actions-pins.sh.
+# =============================================================================
+---
+name: Dragon Guard - Cross-Arch Parity (arm64)
+
+"on":
+  push:
+  pull_request:
+  workflow_dispatch: {}
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    runs-on: ubuntu-24.04-arm
+    # night-dragon-lts: the bounded-patience law — the harness build
+    # plus the 24 x 5 render sweep fits well inside the ten-minute
+    # estate cap; a wedged lane dies with a name, not an hour.
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+        with:
+          # night-dragon-maintenance-6: the checkout token never
+          # outlives this step — no later step can read it back.
+          persist-credentials: false
+
+      - name: Harden the runner DNS
+        run: |
+          # The zejtron night recipe (the 43048319555 outage evidence):
+          # the Azure resolver serves dead answers for the ubuntu.com
+          # zones; the public resolvers go IN FRONT of resolv.conf so
+          # the apt lane below never sees them first.
+          {
+            printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n'
+            sudo cat /etc/resolv.conf
+          } | sudo tee /etc/resolv.conf > /dev/null
+
+      - name: Install system dependencies
+        run: |
+          # The apt stall class, named by the ci.yml evidence: fast
+          # path first, then the mirror repoint + the update lane,
+          # three named attempts. libasound2-dev is the real payload
+          # (cpal's alsa-sys resolves alsa.pc via pkg-config); the
+          # rust-toolchain.toml pin governs every cargo invocation.
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 90 apt-get "${APT_OPTS[@]}" install -y -qq \
+              libasound2-dev pkg-config; then
+            echo "apt: the fast path landed (the image's lists held)"
+          else
+            echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
+            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list 2>/dev/null || true
+            landed=""
+            for attempt in 1 2 3; do
+              echo "--- apt attempt $attempt: update + install ---"
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq \
+                     libasound2-dev pkg-config; then
+                landed="attempt $attempt"
+                break
+              fi
+            done
+            [ -n "$landed" ] || { echo "apt: all three attempts failed"; exit 1; }
+            echo "apt: landed on $landed"
+          fi
+
+      - name: Cross-arch render parity (arm64 vs the committed baseline)
+        run: |
+          ./scripts/audit/zactrix-rates-parity.sh
