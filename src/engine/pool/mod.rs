@@ -104,6 +104,16 @@ impl VoicePool {
     /// - **3.0**: external monitor speakers or quiet laptop speakers.
     /// - **0.5**: subtle background effect.
     pub fn with_volume(master_volume: f32) -> Self {
+        // night-depth-mariana-1, the denormal policy law: the calling
+        // thread (the same thread that will run the render loop) gets
+        // one pinned floating-point environment — flush-to-zero mode,
+        // FTZ+DAZ on x86-64, FZ on AArch64, one symmetric policy — so
+        // the byte-identity contract no longer depends on the ambient
+        // control-register state a host or a library left behind, and
+        // the voice tail's subnormal band stops paying microcode
+        // assists. One write per pool construction, never per sample;
+        // see super::denormals for the law's why.
+        super::denormals::pin_render_lane();
         Self {
             voices: core::array::from_fn(|_| Voice::new()),
             trigger_counter: 0,

@@ -46,6 +46,7 @@ mod audio;
 #[path = "../../../../src/core/mod.rs"]
 mod core;
 
+mod delta;
 mod fft;
 mod footprint;
 mod metrics;
@@ -147,6 +148,15 @@ fn main() {
     // preset, the decay law and the hashes across rates).
     if args.iter().any(|a| a == "--rates") {
         rates::run_rates();
+        return;
+    }
+
+    // night-depth-mariana-1: the delta instrument — where exactly the
+    // denormal policy law's bytes diverge from the pre-law ambient
+    // posture, and at what level the first divergence sits (the gate:
+    // at or below the -60 dB measurand floor).
+    if args.iter().any(|a| a == "--denormal-delta") {
+        delta::run_delta();
         return;
     }
 

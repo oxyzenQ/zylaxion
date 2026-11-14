@@ -70,7 +70,22 @@ free of libm variance across distros and glibc versions. Files of
 truth: `src/profiles/mechanical/init.rs` (the shape constants, e.g.
 `TAU_CLICK_S = 0.001`) and `src/profiles/mechanical/render.rs`
 (the per-sample coefficient path, cutoff clamped to `[20, 0.45*sr]`
-Hz and Q to `[0.1, 30.0]`).
+Hz and Q to `[0.1, 30.0]`). night-depth-mariana-1 completes the
+byte-identity thread with the denormal policy law: `VoicePool`
+construction pins the render lane's floating-point control word —
+FTZ+DAZ on x86-64, FZ on AArch64 (the architecture defines FZ as
+flushing denormalized inputs AND outputs, the same pair in one word,
+so the policy is cross-arch symmetric by specification) — one write
+per pool, never per sample. The voice tail's subnormal band (the
+audit's dust finding) stops paying SSE microcode assists: the active
+lane measured 71 → 38 CPU ticks per ~55 s window (~1.29% → ~0.69% of
+one core), the byte delta against the pre-law ambient posture is
+proven confined 253 dB below the -60 dB measurand floor (the
+`--denormal-delta` instrument), and the contract no longer depends
+on whatever control word a host or library left behind. File of
+truth: `src/engine/denormals.rs`; pinned by
+`test/engine/denormal_policy_tests.rs`; the trade and the
+re-baseline are recorded in `docs/ZACTRIX_AUDIT.md`.
 
 **2. The triple TPT SVF chain.** The thinness problem: a single
 filter leaves the high-frequency click present but the body missing.
