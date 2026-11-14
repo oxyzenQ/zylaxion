@@ -12,7 +12,7 @@ use super::*;
 /// pre-registry construction default (KeyProfile::default()). Pin the
 /// input explicitly so the suite stays deterministic no matter which
 /// preset the compiled DEFAULT_PRESET names.
-fn model_at_default_profile() -> MechanicalClick {
+pub(super) fn model_at_default_profile() -> MechanicalClick {
     MechanicalClick::with_profile(KeyProfile::default(), crate::profiles::SAMPLE_RATE as u32)
 }
 

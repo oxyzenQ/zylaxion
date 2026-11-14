@@ -96,7 +96,34 @@ identity stops — the attack fingerprints (init-shaped
 coefficients) differ on every preset, the init-time transcendentals
 resolve through per-target libm — a boundary that is recorded in
 every run log and closed later by the correctly-rounded pure-Rust
-transcendental lane.
+transcendental lane. night-frontier-3C removes the self-inflicted
+half of that wobble NOW: the f64 curve-anchor law — every curve
+constant init_state bakes (the envelope steps, the curve deltas, the
+housing TPT trio, the pan pair, the high-pass coefficient, the
+decay/release/ambient powers) is computed in f64 and quantized ONCE
+to f32 through one `anchor` rounding, and init_state runs off the
+audio callback, so the wider precision costs nothing at runtime.
+Measured on the A/B machine over the shipped domain: the anchor now
+sits within half an f32 spacing of the f64 truth on EVERY family
+(the correctly-rounded guarantee, 266-test suite), where the pre-law
+f32 chains lost up to ~47 spacings on the high-pass coefficient at
+96 kHz, ~72 at 192 kHz, and — where a rounded intermediate feeds a
+transcendental whose result lands near zero — up to thousands of
+spacings on the pan pair at the stereo extremes (6413 at
+p = 1 - 1/8192; the f32 theta rounds onto pi/2 itself at the exact
+extreme). The honest limit is pinned with the same numbers: the
+pure-exp step and pure-pow families measured at or below one spacing
+pre-law on this domain (their intermediates were already correctly
+rounded) — the law gives them one consistent rule, not accuracy;
+and the fit is untouched: `zactrix-verify.sh` A/B against the
+pre-law build reports identical metric rows and grades on every
+preset (the C/B grades some presets carry are pre-existing and
+unchanged). Cross-libm byte-identity stays the deferred
+transcendental lane's job — this lane ends the rounding wobble the
+tree itself was adding. Files of truth:
+`src/profiles/mechanical/init.rs` (`anchor`, the f64 shape
+constants); pinned by the `night_frontier_3c_*` tests in
+`test/profiles/mechanical_tests.rs`.
 
 **2. The triple TPT SVF chain.** The thinness problem: a single
 filter leaves the high-frequency click present but the body missing.

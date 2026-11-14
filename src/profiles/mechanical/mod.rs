@@ -333,5 +333,8 @@ mod init;
 mod render;
 
 #[cfg(test)]
+#[path = "../../../test/profiles/curve_anchor_tests.rs"]
+mod curve_anchor_tests;
+#[cfg(test)]
 #[path = "../../../test/profiles/mechanical_tests.rs"]
 mod tests;
