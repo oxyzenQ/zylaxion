@@ -111,10 +111,14 @@ f32 chains lost up to ~47 spacings on the high-pass coefficient at
 transcendental whose result lands near zero — up to thousands of
 spacings on the pan pair at the stereo extremes (6413 at
 p = 1 - 1/8192; the f32 theta rounds onto pi/2 itself at the exact
-extreme). The honest limit is pinned with the same numbers: the
+extreme). The honest limit, recorded with the same numbers: the
 pure-exp step and pure-pow families measured at or below one spacing
-pre-law on this domain (their intermediates were already correctly
-rounded) — the law gives them one consistent rule, not accuracy;
+pre-law on this domain under the host glibc (their intermediates
+were already correctly rounded) — the law gives them one consistent
+rule there, not accuracy; Miri's own libm then measured the pre-law
+f32 powf at one-plus spacing on the same expression, so the pre-law
+upper bound is a libm property while the new-anchor guarantee held
+under both libms (the Miri failure is recorded, not hidden);
 and the fit is untouched: `zactrix-verify.sh` A/B against the
 pre-law build reports identical metric rows and grades on every
 preset (the C/B grades some presets carry are pre-existing and

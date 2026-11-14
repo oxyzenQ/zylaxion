@@ -601,9 +601,16 @@ anchor sits within half an f32 spacing of the f64 truth on every
 family; the pre-law chains lost up to ~47 spacings on the high-pass
 coefficient at 96 kHz (~72 at 192 kHz) and thousands on the pan pair
 at the stereo extremes (6413 at p = 1 - 1/8192). The exp-step and
-pure-pow families measured at or below one spacing pre-law — the law
-gives them one consistent rule, not accuracy, and the tests pin that
-limit so a future formula change cannot silently degrade them. The
+pure-pow families measured at or below one spacing pre-law under the
+host glibc — the law gives them one consistent rule there, not
+accuracy; Miri's own libm then measured the pre-law f32 powf at
+one-plus spacing on the same expression (the Miri run failed the
+glibc-pinned upper bound and the pin was reclassified as a recorded
+measurement, both libm numbers kept), so the pre-law upper bound is
+a libm property. The lane's universal guarantees held under both
+libms: the new anchor within half a spacing of the f64 truth, and
+the pre-law chains measurably losing steps where a rounded
+intermediate feeds a transcendental. The
 fit is untouched: `zactrix-verify.sh` A/B against the pre-law build
 reports identical metric rows and grades on every preset. The
 cross-libm half of the boundary (per-target f64 libm answers) is
