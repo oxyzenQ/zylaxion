@@ -222,3 +222,45 @@ fn the_cleanup_core_is_idempotent_on_an_already_clean_directory() {
         "the second rmdir must read as AlreadyAbsent, got {second_outcome:?}"
     );
 }
+
+#[test]
+#[cfg_attr(miri, ignore)]
+fn a_permission_walled_rmdir_keeps_its_errno_named() {
+    // night-total-lts-3, the field-report reappearance: on a stock
+    // systemd bpffs mount a non-root detach unlinks every pin (the
+    // hand-over owns the directory) but the final rmdir needs write on
+    // the root-owned PARENT (/sys/fs/bpf, mode 0700) and dies EACCES.
+    // The classifier's contract: that errno stays NAMED —
+    // Unexpected(PermissionDenied), never swallowed into a benign
+    // class — because the detach consumer owns the benign-stub policy
+    // and every other consumer keeps it fatal. Fixture: a 0555 parent
+    // wall over plain temp dirs, never real bpffs.
+    use std::os::unix::fs::PermissionsExt;
+    if nix::unistd::Uid::effective().is_root() {
+        // Root bypasses DAC — the wall cannot exist under root, so the
+        // polarity this pin holds is unreachable there. Skip honestly.
+        return;
+    }
+    let base = fixture_dir("permission-wall");
+    let walled = base.join("stub");
+    std::fs::create_dir(&walled).expect("fixture stub must create");
+    std::fs::set_permissions(&base, std::fs::Permissions::from_mode(0o555))
+        .expect("fixture wall must set");
+    let outcome = remove_dir_classified(&walled);
+    std::fs::set_permissions(&base, std::fs::Permissions::from_mode(0o755))
+        .expect("fixture wall must lift");
+    let _ = std::fs::remove_dir_all(&base);
+    match outcome {
+        PinDirRemoval::Unexpected(e) => {
+            assert_eq!(
+                e.kind(),
+                std::io::ErrorKind::PermissionDenied,
+                "the walled rmdir must name the permission errno, got {e}"
+            );
+        }
+        other => panic!(
+            "a permission-walled rmdir must classify as Unexpected(PermissionDenied), \
+             got {other:?}"
+        ),
+    }
+}

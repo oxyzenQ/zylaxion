@@ -11,7 +11,10 @@
 use std::path::Path;
 
 /// Root pin directory on bpffs. Everything zylaxion leaves in the
-/// kernel lives under this one directory — `detach` removes it whole.
+/// kernel lives under this one directory — `detach` removes it whole
+/// (best-effort: a permission-walled rmdir — write on the root-owned
+/// bpffs parent — leaves the empty stub, named in the summary and
+/// swept by the next sudo attach or sudo detach; night-total-lts-3).
 pub const PIN_DIR: &str = "/sys/fs/bpf/zylaxion";
 
 /// Program pin (the tap program itself, for introspection and reload).
@@ -139,6 +142,12 @@ pub fn remove_entries_and_dir(entries: &[&str], dir: &Path) -> (Vec<String>, Pin
 /// The classified outcome of the pin-directory removal (night-improve-26,
 /// the D3 cleanup): the rmdir is no longer a silent best-effort — every
 /// outcome is named, and only the two benign ones pass quietly.
+/// night-total-lts-3: the classifier owns the errno, the consumer owns
+/// the policy — the detach lane reads
+/// [`PinDirRemoval::Unexpected`] carrying
+/// [`std::io::ErrorKind::PermissionDenied`] as the benign stub outcome
+/// (the empty directory cannot be rmdir'd for lack of write on the
+/// root-owned parent); every other consumer keeps it fatal.
 #[derive(Debug)]
 pub enum PinDirRemoval {
     /// The directory was removed — the cleanup is complete.
