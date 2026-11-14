@@ -260,9 +260,22 @@ impl AttachError {
             ProgramError::Btf(err) => AttachError::FentryUnavailable {
                 reason: format!("vmlinux BTF lookup failed: {err}"),
             },
-            ProgramError::LoadError { verifier_log, .. } => AttachError::VerifierRejected {
-                detail: verifier_log.to_string(),
-            },
+            ProgramError::LoadError { verifier_log, .. } => {
+                // night-depth-hardening-1: the verifier log's wording,
+                // line count, and state-dump depth differ per kernel
+                // version (5.15 vs 6.x print different context for the
+                // same rejection), so the user-visible verdict keeps
+                // only the tail — the last lines carry the actual
+                // rejection verdict — and the full log rides the info
+                // journal. The tail bound keeps the live output shape
+                // stable across kernels while the classification (the
+                // code-4 marker) stays untouched.
+                let full = verifier_log.to_string();
+                log::info!("BPF verifier rejected the tap program, full log:\n{full}");
+                AttachError::VerifierRejected {
+                    detail: verifier_tail(&full, 3),
+                }
+            }
             ProgramError::SyscallError(sc) if is_permission(&sc.io_error) => {
                 AttachError::PermissionDenied
             }
@@ -277,6 +290,33 @@ impl AttachError {
 /// privilege refusals, whatever lane reported them.
 fn is_permission(e: &std::io::Error) -> bool {
     matches!(e.raw_os_error(), Some(libc::EPERM) | Some(libc::EACCES))
+}
+
+/// The verifier log tail (night-depth-hardening-1): the last `keep`
+/// non-empty lines, each trimmed and capped at 120 characters, joined
+/// with " | ". Verifier logs end with the verdict line and often open
+/// with hundreds of state-dump lines whose wording and ordering are
+/// kernel-version-specific; the tail is the load-bearing, bounded half
+/// of the log — same input, same output, on every kernel shape.
+fn verifier_tail(log_text: &str, keep: usize) -> String {
+    let lines: Vec<&str> = log_text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect();
+    let start = lines.len().saturating_sub(keep);
+    lines[start..]
+        .iter()
+        .map(|line| {
+            if line.chars().count() > 120 {
+                let capped: String = line.chars().take(120).collect();
+                format!("{capped}...")
+            } else {
+                (*line).to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" | ")
 }
 
 /// errno -> the strerror text (the marker doctor line never sees this;

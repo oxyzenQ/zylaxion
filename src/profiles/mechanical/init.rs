@@ -200,6 +200,21 @@ pub(super) fn init_state(
     state.housing_k = 1.0 / profile.housing.resonance;
     state.housing_mix = profile.housing.mix;
 
+    // night-depth-hardening-1: the housing curve is the constant
+    // itself (Zactrix stage C), so its full TPT coefficient trio and
+    // the bandpass level normalizer are derived HERE, once, instead of
+    // being recomputed from the same g and k on every sample. Same
+    // expressions, same order, same f32 values the per-sample block
+    // produced — a pure hoist, bit-identical output.
+    state.housing_a1 = 1.0 / (1.0 + state.housing_g * (state.housing_g + state.housing_k));
+    state.housing_a2 = state.housing_g * state.housing_a1;
+    state.housing_a3 = state.housing_g * state.housing_g * state.housing_a1;
+    state.housing_gain = if state.housing_k > 0.0 {
+        1.0 / state.housing_k
+    } else {
+        1.0
+    };
+
     // Pre-compute excitation burst duration in samples
     state.excitation_samples = (profile.click.duration_ms * 0.001 * sr) as u32;
     state.excitation_samples = state.excitation_samples.max(1);
@@ -292,6 +307,15 @@ pub(super) fn init_state(
     state.spring_ic2eq = 0.0;
     state.housing_ic1eq = 0.0;
     state.housing_ic2eq = 0.0;
+
+    // Reset the frozen-coefficient lanes (night-depth-hardening-1).
+    // The voice pool reuses this state across keypresses, so a stale
+    // frozen flag from the previous voice would skip the new curve's
+    // ramp entirely. The frozen coefficient slots need no reset: they
+    // are only read while the flag is set, and the flag is re-armed
+    // here.
+    state.click_coeff_frozen = false;
+    state.spring_coeff_frozen = false;
 
     // Reset envelope and sample counter. Uses the drifted amplitude
     // so the entire voice starts at a slightly different level each

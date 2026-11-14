@@ -11,9 +11,12 @@
 //! The sound is generated through three stages. The two upper stages
 //! carry the Zactrix time-variant spectral envelope (night-private-
 //! research-2xblade): their cutoff and Q move along physics-derived
-//! curves, so the per-sample path computes two tan() evaluations per
-//! sample — the curves are authored in seconds and Hz and are sample-
-//! rate invariant by construction:
+//! curves, so the per-sample path evaluates tan() only while a curve
+//! is still moving — the frozen-coefficient lanes (night-depth-
+//! hardening-1) retire both evaluations once the curve's remaining
+//! travel falls under a quarter rounding bucket, and the voice tail
+//! runs pure IEEE-754 mul/add. The curves are authored in seconds and
+//! Hz and are sample-rate invariant by construction:
 //!
 //! 1. **Excitation** — A short burst (1–3 ms) of shaped white noise simulates
 //!    the physical impact of the keycap stem hitting the switch housing. A

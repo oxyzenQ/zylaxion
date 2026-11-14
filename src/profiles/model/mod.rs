@@ -15,8 +15,12 @@ use crate::profiles::{KeyProfile, KeyTrigger};
 /// pre-allocated array. It is passed to [`AcousticModel::render_sample`] on
 /// every sample tick and persists across calls.
 ///
-/// All filter coefficients and pre-computed values are stored here so that
-/// the render path never needs to call `tan()` or perform division.
+/// Every pre-computable value is stored here so the render path never
+/// allocates and leaves the libm transcendentals only while a Zactrix
+/// curve is still moving: the click/spring TPT coefficients are frozen
+/// at the curve's bitwise convergence (the frozen-coefficient lanes
+/// below), the housing stage is fully pre-computed, and the voice tail
+/// runs pure IEEE-754 mul/add — the same bytes on every distro.
 #[derive(Debug, Clone)]
 pub struct SynthState {
     // --- TPT SVF filter state (click path) ---
@@ -100,6 +104,51 @@ pub struct SynthState {
     /// Spring resonance curve amplitude: starting k (a quarter of the
     /// preset Q) minus the anchor k.
     pub spring_k_delta: f32,
+
+    // --- Frozen-coefficient lanes (night-depth-hardening-1) ---
+    // The TPT coefficients g/a1/a2/a3 are pure functions of the clamped
+    // curve inputs (fc, k), and those inputs are monotone: the curve
+    // state e only decays (a multiply by a step < 1 can round back to
+    // the same value but never upward). The render path freezes the
+    // coefficients once the curve's REMAINING TRAVEL (|delta| * e, the
+    // largest distance either input can still move) is below a quarter
+    // of the current input's rounding bucket — a bitwise-equality probe
+    // would be WRONG here: near convergence the per-sample step is
+    // about one ULP, so fc plateaus for a sample or two and then drops
+    // one more bucket, and a freeze on that transient plateau would
+    // capture a value the true curve immediately contradicts. With the
+    // travel bound, fc(n) and k(n) are provably final: the whole
+    // remaining curve cannot move either input out of its rounding
+    // bucket, so the frozen trio equals every value a recomputation
+    // would produce from there on. The tan() call and the a1/a2/a3
+    // derivation then leave the per-sample loop for the whole voice
+    // tail, the audio callback runs pure IEEE-754 mul/add/sub/div
+    // (correctly rounded on every architecture), and libm variance
+    // across distros and glibc versions cannot leak into the hot loop.
+    /// Click stage frozen flag: set when the click curve's remaining
+    /// travel falls below a quarter rounding bucket on both inputs.
+    pub click_coeff_frozen: bool,
+    /// Frozen click TPT coefficients, valid while `click_coeff_frozen`.
+    pub click_a1: f32,
+    pub click_a2: f32,
+    pub click_a3: f32,
+    /// Spring stage frozen flag (same travel-bound law as the click
+    /// stage).
+    pub spring_coeff_frozen: bool,
+    /// Frozen spring TPT coefficients, valid while `spring_coeff_frozen`.
+    pub spring_a1: f32,
+    pub spring_a2: f32,
+    pub spring_a3: f32,
+    /// Housing TPT coefficients, pre-computed once in `init_state` —
+    /// the housing curve is the constant itself (Zactrix stage C), so
+    /// its coefficient block carries no curve inputs and recomputing it
+    /// per sample was pure waste.
+    pub housing_a1: f32,
+    pub housing_a2: f32,
+    pub housing_a3: f32,
+    /// Housing bandpass level normalizer `1 / housing_k`, pre-computed
+    /// in `init_state` (the render path's branch-free read).
+    pub housing_gain: f32,
 
     // --- TPT SVF filter state (housing path, v4.2.0+) ---
     /// First integrator state for the housing filter.
@@ -271,6 +320,18 @@ impl Default for SynthState {
             spring_fc_end: 0.0,
             spring_fc_delta: 0.0,
             spring_k_delta: 0.0,
+            click_coeff_frozen: false,
+            click_a1: 0.0,
+            click_a2: 0.0,
+            click_a3: 0.0,
+            spring_coeff_frozen: false,
+            spring_a1: 0.0,
+            spring_a2: 0.0,
+            spring_a3: 0.0,
+            housing_a1: 0.0,
+            housing_a2: 0.0,
+            housing_a3: 0.0,
+            housing_gain: 1.0,
             housing_ic1eq: 0.0,
             housing_ic2eq: 0.0,
             housing_g: 0.0,
@@ -328,9 +389,10 @@ pub trait AcousticModel: Send + Sync {
     /// Initialize the synthesis state from a profile.
     ///
     /// Called once before the first [`render_sample`](Self::render_sample) call.
-    /// Implementers should pre-compute all filter coefficients, pan gains, and
-    /// timing values here so that `render_sample` is free of division and
-    /// transcendentals.
+    /// Implementers should pre-compute all constant coefficients, pan gains,
+    /// and timing values here so that `render_sample` never allocates and
+    /// leaves transcendentals only while a time-variant curve is still
+    /// moving (the frozen-coefficient lanes retire them at convergence).
     fn init_state(
         &self,
         profile: &KeyProfile,
