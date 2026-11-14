@@ -11,10 +11,13 @@
 use std::path::Path;
 
 /// Root pin directory on bpffs. Everything zylaxion leaves in the
-/// kernel lives under this one directory — `detach` removes it whole
-/// (best-effort: a permission-walled rmdir — write on the root-owned
-/// bpffs parent — leaves the empty stub, named in the summary and
-/// swept by the next sudo attach or sudo detach; night-total-lts-3).
+/// kernel lives under this one directory — `detach` removes it whole.
+/// night-total-lts-4: completing that removal needs BOTH halves —
+/// unlink permission on this directory (the pins) and write on its
+/// parent (the rmdir) — and the pre-flight gate refuses a non-root
+/// detach missing either, so only a mid-flight race can leave the
+/// empty stub (named in the summary and swept by the next sudo attach
+/// or sudo detach; night-total-lts-3 named the wall first).
 pub const PIN_DIR: &str = "/sys/fs/bpf/zylaxion";
 
 /// Program pin (the tap program itself, for introspection and reload).
@@ -93,6 +96,31 @@ pub fn pins_removable_by_current_user() -> bool {
     nix::unistd::access(PIN_DIR, nix::unistd::AccessFlags::W_OK).is_ok()
 }
 
+/// Whether the current user could also rmdir the pin directory itself:
+/// the kernel's own access(2) answer for write-and-execute permission
+/// on the pin directory's PARENT (night-total-lts-4). rmdir permission
+/// lives on the parent — on a stock systemd bpffs mount that parent is
+/// the root-owned 0700 mount root (/sys/fs/bpf), which no unprivileged
+/// user will ever hold, so this fact is what separates "the pins can
+/// be unlinked" from "the teardown can complete". Root bypasses DAC
+/// entirely, so callers combine this pure fact with `euid_is_root()`
+/// and let the privilege gate own the negation discipline.
+///
+/// Every error path reads as NOT removable (EACCES on the mount root,
+/// a remounted or vanished parent): the safe direction — the
+/// pre-flight refuses and nothing is touched.
+pub fn pin_dir_removable_by_current_user() -> bool {
+    let parent = match Path::new(PIN_DIR).parent() {
+        Some(p) => p,
+        None => return false,
+    };
+    nix::unistd::access(
+        parent,
+        nix::unistd::AccessFlags::W_OK | nix::unistd::AccessFlags::X_OK,
+    )
+    .is_ok()
+}
+
 /// Unpin everything (best-effort, idempotent). Returns the names that
 /// were actually removed so `detach` can report honestly, plus the
 /// classified outcome of the pin-directory removal. The failure marker
@@ -147,7 +175,9 @@ pub fn remove_entries_and_dir(entries: &[&str], dir: &Path) -> (Vec<String>, Pin
 /// [`PinDirRemoval::Unexpected`] carrying
 /// [`std::io::ErrorKind::PermissionDenied`] as the benign stub outcome
 /// (the empty directory cannot be rmdir'd for lack of write on the
-/// root-owned parent); every other consumer keeps it fatal.
+/// root-owned parent) — rare now: the night-total-lts-4 pre-flight
+/// gate refuses the non-root detach up front, so only a mid-flight
+/// permission race reaches it; every other consumer keeps it fatal.
 #[derive(Debug)]
 pub enum PinDirRemoval {
     /// The directory was removed — the cleanup is complete.
