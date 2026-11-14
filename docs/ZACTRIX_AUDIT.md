@@ -550,18 +550,23 @@ the byte-identity contract no longer depends on the ambient
 control-register state of the machine it runs on, and the voice
 tail's dust band stops paying microcode assists.
 
-## What is proven, what rides the next lane
+## What is proven, what rides the parity lane
 
 Proven here, on the A/B machine, x86-64: the pin is read back from
 the hardware (five policy tests), the pin corrects a hostile
 full-IEEE host, the byte delta is confined 253 dB below the
 measurand floor, the physical laws hold, and the active cost
-dropped. NOT yet proven here: the AArch64 side — the FZ word's
-symmetry is a specification argument plus per-arch policy tests
-until the cross-arch parity lane renders the same presets on an
-arm64 runner and diffs against the committed baseline hashes. That
-lane is the next night-depth step, and its result is the proof that
-closes the cross-arch branch of this finding.
+dropped. The AArch64 side now has its own lane instead of an open
+question: night-depth-mariana-2 lands the cross-arch proof surface —
+`scripts/audit/zactrix-rates-parity.sh` (runs the rates mode once,
+diffs the per-preset x per-rate rows against
+`scripts/audit/rates-parity-baseline.txt`, the post-law hashes this
+machine stamped), exercised by
+`.github/workflows/rates-parity-arm64.yml` on an arm64 runner. The
+arm64 run's clean diff is the proof that the same seed, the same
+rate, and the same pinned floating-point policy render the same
+bytes on both shipped architectures — measured, not argued; the run
+history is the verdict record.
 
 <!-- ZYLAXION-DISCLAIMER -->
 <!--

@@ -85,7 +85,15 @@ proven confined 253 dB below the -60 dB measurand floor (the
 on whatever control word a host or library left behind. File of
 truth: `src/engine/denormals.rs`; pinned by
 `test/engine/denormal_policy_tests.rs`; the trade and the
-re-baseline are recorded in `docs/ZACTRIX_AUDIT.md`.
+re-baseline are recorded in `docs/ZACTRIX_AUDIT.md`. night-depth-
+mariana-2 turns the cross-arch half from a specification argument
+into a measured fact: the committed parity baseline
+(`scripts/audit/rates-parity-baseline.txt` — the post-law hashes
+stamped on the x86-64 A/B machine), the drift detector
+(`scripts/audit/zactrix-rates-parity.sh` — same rates mode, rows
+diffed, no wrapper rewrite), and the arm64 proof lane
+(`.github/workflows/rates-parity-arm64.yml`) whose clean diff is the
+same-seed-same-bytes proof across both shipped architectures.
 
 **2. The triple TPT SVF chain.** The thinness problem: a single
 filter leaves the high-frequency click present but the body missing.
