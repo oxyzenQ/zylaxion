@@ -128,16 +128,18 @@ fn night_frontier_3c_the_pre_law_f32_chain_measurably_loses_steps() {
         old_worst = old_worst.max(anchor_gap(oldv, truth));
     }
     assert!(old_worst > 0.55, "housing g pre-law worst gap: {old_worst}");
-    // The documented honest limits: the pure-pow and pure-exp families
-    // measured at or below 0.5 spacings pre-law on this domain (their
-    // intermediates are already correctly rounded) — the law gives
-    // them one consistent rule, not accuracy. These assertions pin
-    // that measurement so a future formula change that DOES degrade
-    // them gets noticed instead of silently ridden.
-    let old_step = (-1.0 / (sr * 0.001_f32)).exp();
-    assert!(anchor_gap(old_step, f64::exp(-1.0 / (f64::from(sr) * 0.001))) < 1.0);
-    let old_rel = 0.04_f32.powf(1.0 / (0.002 * sr));
-    assert!(anchor_gap(old_rel, 0.04_f64.powf(1.0 / (0.002 * f64::from(sr)))) < 1.0);
+    // The recorded honest limit, NOT asserted as a universal law: on
+    // the A/B machine's glibc the exp-step and pure-pow families
+    // measured at or below one spacing pre-law on this domain — the
+    // law gives them one consistent rule, not accuracy there. Miri's
+    // own libm then measured the pre-law f32 powf at one-plus spacing
+    // on the same expression, which is exactly the point: the pre-law
+    // upper bound is a libm property, while the lane's universal
+    // guarantee (the new anchor within half a spacing of the f64
+    // truth) held under both libms. The Miri measurement is recorded
+    // in docs/ZACTRIX_AUDIT.md next to the glibc one; asserting
+    // either number as a law would make this suite lie on the other
+    // platform.
 }
 
 #[test]

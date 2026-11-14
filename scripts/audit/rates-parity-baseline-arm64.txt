@@ -3,157 +3,161 @@
 #
 # night-depth-mariana-2: the arm64 same-arch parity baseline — the
 # per-preset x per-rate rates-audit rows stamped on the ubuntu-24.04-arm
-# CI runner UNDER the denormal policy law (FZ pinned, FPCR bit 24),
-# born from the logged stamp run (Dragon Guard - Cross-Arch Parity,
-# run 43573535994, commit e5c0e93). The arm64 lane gates its own
+# CI runner UNDER the denormal policy law (FZ pinned, FPCR bit 24).
+# Re-baseline history: born from the logged stamp run (Dragon Guard -
+# Cross-Arch Parity, run 43573535994, commit e5c0e93); restamped for
+# night-frontier-3C (the f64 curve-anchor law — the init-shaped
+# coefficients moved by their measured corrections, see
+# docs/ZACTRIX_AUDIT.md "The f64 curve-anchor law, measured") from
+# the logged run (Dragon Guard - Cross-Arch Parity, run 43581686243,
+# commit 3951e61). The arm64 lane gates its own
 # rows against THIS file: a clean diff proves the bytes are stable
 # across machines of the same architecture. The cross-arch row diff
 # against the x86-64 baseline is RECORDED, never gated (the
 # init-time transcendental boundary — docs/ZACTRIX_AUDIT.md).
 # Regenerate ONLY through a documented re-baseline (the law moves
 # first, the cause is logged).
-
-| `technical` | 44 | 425.26 | 0.00 | 20.95 | 47387fde1a374caa | yes |
-| `technical` | 48 | 425.27 | 0.00 | 20.90 | b90603025d0fc4d9 | yes |
-| `technical` | 88 | 425.23 | 0.00 | 19.63 | ece1654e8fbe330a | yes |
-| `technical` | 96 | 425.23 | 0.00 | 19.55 | 81ca98fe09cfc4bc | yes |
-| `technical` | 192 | 425.16 | 1429.28 | 16.22 | a7fec5fe562071a5 | yes |
+| `technical` | 44 | 425.26 | 0.00 | 20.95 | 1bb81becd425af79 | yes |
+| `technical` | 48 | 425.27 | 0.00 | 20.90 | 6871db8f4a7b4168 | yes |
+| `technical` | 88 | 425.23 | 0.00 | 19.63 | 4fcd627ee2da4dea | yes |
+| `technical` | 96 | 425.23 | 0.00 | 19.55 | 2aa649df3f010f88 | yes |
+| `technical` | 192 | 425.16 | 1429.27 | 16.22 | deef5bdc9981240d | yes |
 | `technical` | spread | lifetime 425.16-425.27 ms, spread 0.0257% (law PASS; target < 0.5) | composite ring fit 1/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 16.22-20.95 ms, spread 29.19% (recorded: excitation statistics, not a law measurand) | - | - |
-| `cherryMX` | 44 | 507.35 | 0.00 | 24.33 | 7acec8d8b7f46c98 | yes |
-| `cherryMX` | 48 | 507.33 | 0.00 | 23.31 | a09c84399fb2bd10 | yes |
-| `cherryMX` | 88 | 507.36 | 0.00 | 22.81 | 2a6c2f8e6bab2333 | yes |
-| `cherryMX` | 96 | 507.38 | 0.00 | 22.67 | 9a38840e67a74eaa | yes |
-| `cherryMX` | 192 | 507.41 | 1466.46 | 19.06 | 783d994907222721 | yes |
+| `cherryMX` | 44 | 507.35 | 0.00 | 24.33 | d8ecc9f5833e554d | yes |
+| `cherryMX` | 48 | 507.33 | 0.00 | 23.31 | d96760cbb40ef81a | yes |
+| `cherryMX` | 88 | 507.36 | 0.00 | 22.81 | 3576339028962e68 | yes |
+| `cherryMX` | 96 | 507.38 | 0.00 | 22.67 | 56c6097027a20959 | yes |
+| `cherryMX` | 192 | 507.41 | 1466.46 | 19.06 | 432d33296a652a5b | yes |
 | `cherryMX` | spread | lifetime 507.33-507.41 ms, spread 0.0144% (law PASS; target < 0.5) | composite ring fit 1/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 19.06-24.33 ms, spread 27.67% (recorded: excitation statistics, not a law measurand) | - | - |
-| `classic` | 44 | 315.10 | 0.00 | 78.64 | cb337c94f7af2aea | yes |
-| `classic` | 48 | 315.10 | 0.00 | 78.56 | 49e97f68bd3324c0 | yes |
-| `classic` | 88 | 315.12 | 0.00 | 70.84 | 78ced126f8ede7b2 | yes |
-| `classic` | 96 | 315.10 | 0.00 | 69.32 | 0dbbd71c0fcac693 | yes |
-| `classic` | 192 | 315.08 | 466.28 | 60.14 | 08ea9d0808f35e97 | yes |
+| `classic` | 44 | 315.10 | 0.00 | 78.64 | a983918846c95fd5 | yes |
+| `classic` | 48 | 315.10 | 0.00 | 78.56 | 8dede2d1d6be1ae3 | yes |
+| `classic` | 88 | 315.12 | 0.00 | 70.84 | 9f6cce4077c1eb33 | yes |
+| `classic` | 96 | 315.10 | 0.00 | 69.32 | a1fbe0afeedf3870 | yes |
+| `classic` | 192 | 315.08 | 466.27 | 60.14 | 6bb2e5737c124b75 | yes |
 | `classic` | spread | lifetime 315.08-315.12 ms, spread 0.0131% (law PASS; target < 0.5) | composite ring fit 1/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 60.14-78.64 ms, spread 30.77% (recorded: excitation statistics, not a law measurand) | - | - |
-| `studio` | 44 | 815.10 | 0.00 | 29.86 | 5985b8238fae597b | yes |
-| `studio` | 48 | 815.12 | 0.00 | 29.79 | bc35afc0baa5ca28 | yes |
-| `studio` | 88 | 814.99 | 0.00 | 27.99 | 0e1d3ea3354561b3 | yes |
-| `studio` | 96 | 815.17 | 0.00 | 26.80 | dc7fe4db6228c8f1 | yes |
-| `studio` | 192 | 815.19 | 1253.71 | 23.73 | 38fe310fe0f508cf | yes |
+| `studio` | 44 | 815.10 | 0.00 | 29.86 | 2aca297305b87498 | yes |
+| `studio` | 48 | 815.12 | 0.00 | 29.79 | bbc9b8c3fa1b33ff | yes |
+| `studio` | 88 | 814.99 | 0.00 | 27.99 | e2e492e6c093e001 | yes |
+| `studio` | 96 | 815.17 | 0.00 | 26.80 | fb8109d7089b6664 | yes |
+| `studio` | 192 | 815.19 | 1253.71 | 23.73 | 43f90791f7083edf | yes |
 | `studio` | spread | lifetime 814.99-815.19 ms, spread 0.0250% (law PASS; target < 0.5) | composite ring fit 1/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 23.73-29.86 ms, spread 25.83% (recorded: excitation statistics, not a law measurand) | - | - |
-| `elegant` | 44 | 204.65 | 0.00 | 23.40 | 2d00009b4ee03294 | yes |
-| `elegant` | 48 | 204.65 | 0.00 | 23.33 | de1bbcebcd99c605 | yes |
-| `elegant` | 88 | 204.65 | 0.00 | 20.24 | 05ab06c1263890cc | yes |
-| `elegant` | 96 | 204.64 | 0.00 | 20.10 | ff2cc638376b10f9 | yes |
-| `elegant` | 192 | 204.66 | 1391.80 | 17.06 | 58334ac5f68235fc | yes |
+| `elegant` | 44 | 204.65 | 0.00 | 23.40 | 83c055e49fc16b67 | yes |
+| `elegant` | 48 | 204.65 | 0.00 | 23.33 | 19db3da8994955c0 | yes |
+| `elegant` | 88 | 204.65 | 0.00 | 20.24 | c6245b0fc69f39aa | yes |
+| `elegant` | 96 | 204.64 | 0.00 | 20.10 | e5c4687be1c6b1d1 | yes |
+| `elegant` | 192 | 204.66 | 1391.69 | 17.06 | 9661925c20c98c5c | yes |
 | `elegant` | spread | lifetime 204.64-204.66 ms, spread 0.0102% (law PASS; target < 0.5) | composite ring fit 1/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 17.06-23.40 ms, spread 37.19% (recorded: excitation statistics, not a law measurand) | - | - |
-| `whisper` | 44 | 75.17 | 3136.18 | 8.64 | cc503764b178fbb0 | yes |
-| `whisper` | 48 | 75.17 | 2682.35 | 8.33 | 2fb6ec1af43df2d5 | yes |
-| `whisper` | 88 | 75.17 | 4318.09 | 7.76 | c71ee44c2e8a020e | yes |
+| `whisper` | 44 | 75.17 | 3136.18 | 8.64 | c3dc2782d4c51440 | yes |
+| `whisper` | 48 | 75.17 | 2682.35 | 8.33 | 51c4fa8f0a0e0a91 | yes |
+| `whisper` | 88 | 75.17 | 4318.09 | 7.76 | e4f1082d73962600 | yes |
 | `whisper` | 96 | 75.17 | 4264.54 | 7.95 | 3b62298e2a94ef05 | yes |
-| `whisper` | 192 | 75.16 | 2686.62 | 6.87 | 27832d008a8606da | yes |
-| `whisper` | spread | lifetime 75.16-75.17 ms, spread 0.0115% (law PASS; target < 0.5) | composite ring fit 5/5 rates, spread 60.9817% | tail endpoint 6.87-8.64 ms, spread 25.76% (recorded: excitation statistics, not a law measurand) | - | - |
-| `linear` | 44 | 246.60 | 0.00 | 31.22 | 537971cc35d90a6f | yes |
-| `linear` | 48 | 246.60 | 0.00 | 31.17 | ce233800a075c217 | yes |
-| `linear` | 88 | 246.59 | 0.00 | 28.98 | b9baf2f6f023c289 | yes |
-| `linear` | 96 | 246.60 | 0.00 | 27.65 | 6e182e9fedf632a7 | yes |
-| `linear` | 192 | 246.59 | 0.00 | 24.24 | 55f7eec42eb1c96f | yes |
+| `whisper` | 192 | 75.16 | 2686.62 | 6.87 | aa833890e72b572f | yes |
+| `whisper` | spread | lifetime 75.16-75.17 ms, spread 0.0115% (law PASS; target < 0.5) | composite ring fit 5/5 rates, spread 60.9816% | tail endpoint 6.87-8.64 ms, spread 25.76% (recorded: excitation statistics, not a law measurand) | - | - |
+| `linear` | 44 | 246.60 | 0.00 | 31.22 | f9cfdb13b68902bc | yes |
+| `linear` | 48 | 246.60 | 0.00 | 31.17 | de55ad54a544da88 | yes |
+| `linear` | 88 | 246.59 | 0.00 | 28.97 | b76e770a9466fb21 | yes |
+| `linear` | 96 | 246.60 | 0.00 | 27.65 | 9fb5cf2201cac290 | yes |
+| `linear` | 192 | 246.59 | 0.00 | 24.24 | c639addabdb1d2f9 | yes |
 | `linear` | spread | lifetime 246.59-246.60 ms, spread 0.0068% (law PASS; target < 0.5) | composite ring fit 0/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 24.24-31.22 ms, spread 28.79% (recorded: excitation statistics, not a law measurand) | - | - |
-| `tactile` | 44 | 357.76 | 0.00 | 21.25 | a4be44a2660db89d | yes |
-| `tactile` | 48 | 357.75 | 0.00 | 20.17 | 88a401a3644c5c6a | yes |
-| `tactile` | 88 | 357.74 | 0.00 | 19.66 | 40bcc18495d6779f | yes |
-| `tactile` | 96 | 357.74 | 0.00 | 19.53 | d16d0e387e277a50 | yes |
-| `tactile` | 192 | 357.77 | 1296.84 | 16.77 | 9f63613728a7a633 | yes |
+| `tactile` | 44 | 357.76 | 0.00 | 21.25 | 7db89bd7b3da0af7 | yes |
+| `tactile` | 48 | 357.75 | 0.00 | 20.17 | 2f396e6d66e1f582 | yes |
+| `tactile` | 88 | 357.74 | 0.00 | 19.66 | 6cec70d7c894a7be | yes |
+| `tactile` | 96 | 357.74 | 0.00 | 19.53 | ea6d180eac97017b | yes |
+| `tactile` | 192 | 357.77 | 1296.96 | 16.77 | 303ac65f5bf627ef | yes |
 | `tactile` | spread | lifetime 357.74-357.77 ms, spread 0.0073% (law PASS; target < 0.5) | composite ring fit 1/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 16.77-21.25 ms, spread 26.73% (recorded: excitation statistics, not a law measurand) | - | - |
-| `clicky` | 44 | 641.34 | 643.60 | 65.53 | 0987b238aea41577 | yes |
-| `clicky` | 48 | 641.31 | 604.52 | 65.44 | 53c2d6ffb4b8847c | yes |
-| `clicky` | 88 | 641.30 | 777.00 | 60.99 | 93160aa2be0ba66f | yes |
-| `clicky` | 96 | 641.38 | 776.96 | 61.73 | ccbb69eeb8158034 | yes |
-| `clicky` | 192 | 641.19 | 621.23 | 53.87 | 4bafdeaa9825e59f | yes |
-| `clicky` | spread | lifetime 641.19-641.38 ms, spread 0.0284% (law PASS; target < 0.5) | composite ring fit 5/5 rates, spread 28.5326% | tail endpoint 53.87-65.53 ms, spread 21.65% (recorded: excitation statistics, not a law measurand) | - | - |
-| `ibm_model_m` | 44 | 1235.15 | 417.45 | 91.79 | 7089f896eb180712 | yes |
-| `ibm_model_m` | 48 | 1235.23 | 495.97 | 90.48 | 42b753d72844eda7 | yes |
-| `ibm_model_m` | 88 | 1235.22 | 438.69 | 84.92 | e11f754a66fc5f1e | yes |
-| `ibm_model_m` | 96 | 1234.98 | 313.74 | 84.86 | c8308bae7434554f | yes |
-| `ibm_model_m` | 192 | 1235.65 | 499.07 | 71.85 | 5badbdeed51938fc | yes |
-| `ibm_model_m` | spread | lifetime 1234.98-1235.65 ms, spread 0.0544% (law PASS; target < 0.5) | composite ring fit 5/5 rates, spread 59.0697% | tail endpoint 71.85-91.79 ms, spread 27.75% (recorded: excitation statistics, not a law measurand) | - | - |
-| `topre` | 44 | 407.48 | 83.48 | 32.27 | 25b53da1e34990d6 | yes |
-| `topre` | 48 | 407.50 | 247.53 | 30.40 | 54f17cabcabc3c74 | yes |
-| `topre` | 88 | 407.47 | 741.60 | 26.87 | 67707c6ab3d44c25 | yes |
-| `topre` | 96 | 407.47 | 663.24 | 30.31 | d7b3893a7d767a5e | yes |
-| `topre` | 192 | 407.41 | 855.08 | 27.43 | 155d298963f21e66 | yes |
-| `topre` | spread | lifetime 407.41-407.50 ms, spread 0.0230% (law PASS; target < 0.5) | composite ring fit 5/5 rates, spread 924.3404% | tail endpoint 26.87-32.27 ms, spread 20.08% (recorded: excitation statistics, not a law measurand) | - | - |
-| `cherry_mx_black` | 44 | 175.08 | 0.00 | 33.99 | eba725ca4cdde667 | yes |
-| `cherry_mx_black` | 48 | 175.08 | 0.00 | 33.88 | 2905e1915bddb905 | yes |
-| `cherry_mx_black` | 88 | 175.07 | 0.00 | 30.39 | e1f97d1d82f6f3b2 | yes |
-| `cherry_mx_black` | 96 | 175.07 | 0.00 | 29.03 | 814f05fae46e9172 | yes |
-| `cherry_mx_black` | 192 | 175.09 | 0.00 | 25.61 | 08e7d8bbb55b9299 | yes |
+| `clicky` | 44 | 641.34 | 643.58 | 65.53 | 11f758d6aecc18dd | yes |
+| `clicky` | 48 | 641.31 | 604.52 | 65.44 | 9591c1d68c2697d6 | yes |
+| `clicky` | 88 | 641.30 | 776.96 | 60.99 | 17ac4469997c6186 | yes |
+| `clicky` | 96 | 641.38 | 776.91 | 61.74 | 2c65482fcbf198c4 | yes |
+| `clicky` | 192 | 641.19 | 621.23 | 53.87 | a9b5541a8ad64123 | yes |
+| `clicky` | spread | lifetime 641.19-641.38 ms, spread 0.0284% (law PASS; target < 0.5) | composite ring fit 5/5 rates, spread 28.5249% | tail endpoint 53.87-65.53 ms, spread 21.65% (recorded: excitation statistics, not a law measurand) | - | - |
+| `ibm_model_m` | 44 | 1235.15 | 417.45 | 91.79 | f6fb231b95ca23fd | yes |
+| `ibm_model_m` | 48 | 1235.23 | 496.00 | 90.48 | 7b5260c22f41b067 | yes |
+| `ibm_model_m` | 88 | 1235.22 | 438.74 | 84.92 | 1b251854a33b5e93 | yes |
+| `ibm_model_m` | 96 | 1234.98 | 313.74 | 84.86 | 6ff18e89de32f280 | yes |
+| `ibm_model_m` | 192 | 1235.65 | 499.07 | 71.85 | fa550b40224fdb00 | yes |
+| `ibm_model_m` | spread | lifetime 1234.98-1235.65 ms, spread 0.0544% (law PASS; target < 0.5) | composite ring fit 5/5 rates, spread 59.0703% | tail endpoint 71.85-91.79 ms, spread 27.75% (recorded: excitation statistics, not a law measurand) | - | - |
+| `topre` | 44 | 407.48 | 83.49 | 32.27 | 5d10fe911b308db8 | yes |
+| `topre` | 48 | 407.50 | 247.54 | 30.40 | d71cf9b3fca300e8 | yes |
+| `topre` | 88 | 407.47 | 741.60 | 26.87 | 0c5268af2ad70079 | yes |
+| `topre` | 96 | 407.47 | 663.22 | 30.31 | 770823d25d714679 | yes |
+| `topre` | 192 | 407.41 | 855.08 | 27.43 | 721ef71004afd6fc | yes |
+| `topre` | spread | lifetime 407.41-407.50 ms, spread 0.0230% (law PASS; target < 0.5) | composite ring fit 5/5 rates, spread 924.1819% | tail endpoint 26.87-32.27 ms, spread 20.08% (recorded: excitation statistics, not a law measurand) | - | - |
+| `cherry_mx_black` | 44 | 175.08 | 0.00 | 33.99 | af7e674ac5d3cd8c | yes |
+| `cherry_mx_black` | 48 | 175.08 | 0.00 | 33.88 | db966971b3e3e37e | yes |
+| `cherry_mx_black` | 88 | 175.07 | 0.00 | 30.39 | 0733a7891d53d45f | yes |
+| `cherry_mx_black` | 96 | 175.07 | 0.00 | 29.03 | 3cfc20779ea1eea7 | yes |
+| `cherry_mx_black` | 192 | 175.09 | 0.00 | 25.61 | 74973341fe532ee1 | yes |
 | `cherry_mx_black` | spread | lifetime 175.07-175.09 ms, spread 0.0147% (law PASS; target < 0.5) | composite ring fit 0/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 25.61-33.99 ms, spread 32.73% (recorded: excitation statistics, not a law measurand) | - | - |
-| `cherry_mx_clear` | 44 | 313.02 | 0.00 | 29.89 | 06d53e9df3ab6bab | yes |
-| `cherry_mx_clear` | 48 | 313.00 | 0.00 | 29.79 | 23d2ec847372061c | yes |
-| `cherry_mx_clear` | 88 | 313.02 | 0.00 | 28.00 | b5a3e6b602db7912 | yes |
-| `cherry_mx_clear` | 96 | 313.01 | 0.00 | 26.81 | 4eb8cb1f0209c479 | yes |
-| `cherry_mx_clear` | 192 | 312.98 | 0.00 | 23.80 | 9fa9690a795a5b22 | yes |
+| `cherry_mx_clear` | 44 | 313.02 | 0.00 | 29.89 | 25b39a02ce2cfaca | yes |
+| `cherry_mx_clear` | 48 | 313.00 | 0.00 | 29.79 | 7947b947b8f65c0c | yes |
+| `cherry_mx_clear` | 88 | 313.02 | 0.00 | 28.02 | bb039b637abb1fc4 | yes |
+| `cherry_mx_clear` | 96 | 313.01 | 0.00 | 26.81 | 1c6d624af4b22454 | yes |
+| `cherry_mx_clear` | 192 | 312.98 | 0.00 | 23.80 | 45cf2bb8329abfcc | yes |
 | `cherry_mx_clear` | spread | lifetime 312.98-313.02 ms, spread 0.0101% (law PASS; target < 0.5) | composite ring fit 0/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 23.80-29.89 ms, spread 25.59% (recorded: excitation statistics, not a law measurand) | - | - |
-| `cherry_mx_silver` | 44 | 232.88 | 0.00 | 17.32 | 1ea832ad4a9b8b7a | yes |
-| `cherry_mx_silver` | 48 | 232.88 | 0.00 | 17.25 | 9487e910d24f3f0c | yes |
-| `cherry_mx_silver` | 88 | 232.86 | 0.00 | 16.81 | cfa3f121c816822b | yes |
-| `cherry_mx_silver` | 96 | 232.86 | 0.00 | 16.04 | 249c8c3fe8ee7be6 | yes |
-| `cherry_mx_silver` | 192 | 232.86 | 0.00 | 13.86 | 83d83fd95cc879ac | yes |
+| `cherry_mx_silver` | 44 | 232.88 | 0.00 | 17.32 | 45556e2d78cdde58 | yes |
+| `cherry_mx_silver` | 48 | 232.88 | 0.00 | 17.25 | be00a0744273b720 | yes |
+| `cherry_mx_silver` | 88 | 232.86 | 0.00 | 16.81 | 47d0845df41e5fec | yes |
+| `cherry_mx_silver` | 96 | 232.86 | 0.00 | 16.04 | 51b292c6c38bc262 | yes |
+| `cherry_mx_silver` | 192 | 232.86 | 0.00 | 13.86 | 6fc36f4900b631ec | yes |
 | `cherry_mx_silver` | spread | lifetime 232.86-232.88 ms, spread 0.0097% (law PASS; target < 0.5) | composite ring fit 0/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 13.86-17.32 ms, spread 25.00% (recorded: excitation statistics, not a law measurand) | - | - |
-| `buckling_spring` | 44 | 680.63 | 457.57 | 70.18 | 3903b5ef87518616 | yes |
-| `buckling_spring` | 48 | 680.60 | 375.75 | 68.83 | 6fbc24ac77f781e9 | yes |
-| `buckling_spring` | 88 | 680.59 | 0.00 | 64.23 | 198ca9f83adb8005 | yes |
-| `buckling_spring` | 96 | 680.67 | 523.04 | 62.94 | dd19f2bccd8ffcd9 | yes |
-| `buckling_spring` | 192 | 680.47 | 522.94 | 57.08 | b4dfeb53de7ede15 | yes |
+| `buckling_spring` | 44 | 680.63 | 457.55 | 70.18 | de49833ecdbcdb55 | yes |
+| `buckling_spring` | 48 | 680.60 | 375.75 | 68.83 | 72a4cb7db768125f | yes |
+| `buckling_spring` | 88 | 680.59 | 0.00 | 64.23 | 35086a6a503e9b45 | yes |
+| `buckling_spring` | 96 | 680.67 | 522.99 | 62.94 | c3c21bb98c459181 | yes |
+| `buckling_spring` | 192 | 680.47 | 522.94 | 57.08 | f97b21bcf6918d84 | yes |
 | `buckling_spring` | spread | lifetime 680.47-680.67 ms, spread 0.0291% (law PASS; target < 0.5) | composite ring fit 4/5 rates, spread NaN% | tail endpoint 57.08-70.18 ms, spread 22.96% (recorded: excitation statistics, not a law measurand) | - | - |
-| `alps_skcm` | 44 | 515.62 | 232.99 | 95.22 | c8d427e89d9ec037 | yes |
-| `alps_skcm` | 48 | 515.58 | 297.32 | 93.56 | 3610d6df8be107e7 | yes |
-| `alps_skcm` | 88 | 515.62 | 305.02 | 87.95 | d0440a6d5e1908b0 | yes |
-| `alps_skcm` | 96 | 515.65 | 370.32 | 87.78 | 34bc07a119ce5796 | yes |
-| `alps_skcm` | 192 | 515.67 | 360.31 | 73.82 | 68ffed8148db9ca1 | yes |
-| `alps_skcm` | spread | lifetime 515.58-515.67 ms, spread 0.0172% (law PASS; target < 0.5) | composite ring fit 5/5 rates, spread 58.9440% | tail endpoint 73.82-95.22 ms, spread 28.99% (recorded: excitation statistics, not a law measurand) | - | - |
-| `gateron_yellow` | 44 | 310.75 | 0.00 | 85.60 | e49246c37bd54572 | yes |
-| `gateron_yellow` | 48 | 310.73 | 0.00 | 85.40 | 717a46aaa0baf2be | yes |
-| `gateron_yellow` | 88 | 310.75 | 0.00 | 74.72 | 019d9f69bcf75077 | yes |
-| `gateron_yellow` | 96 | 310.74 | 0.00 | 74.59 | b8a453d7ac5b6f3b | yes |
-| `gateron_yellow` | 192 | 310.71 | 0.00 | 63.68 | 71c36bd511b20d82 | yes |
-| `gateron_yellow` | spread | lifetime 310.71-310.75 ms, spread 0.0112% (law PASS; target < 0.5) | composite ring fit 0/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 63.68-85.60 ms, spread 34.43% (recorded: excitation statistics, not a law measurand) | - | - |
-| `zealios_v2` | 44 | 362.38 | 0.00 | 26.26 | 0f51e348dedf1bb2 | yes |
-| `zealios_v2` | 48 | 362.40 | 0.00 | 26.15 | 1295655def194dc4 | yes |
-| `zealios_v2` | 88 | 362.38 | 0.00 | 24.41 | ae156185296c24b7 | yes |
-| `zealios_v2` | 96 | 362.38 | 0.00 | 24.32 | 6d7dbb1cc7ddb0a6 | yes |
-| `zealios_v2` | 192 | 362.40 | 0.00 | 21.19 | e9ee6404136d14f9 | yes |
+| `alps_skcm` | 44 | 515.62 | 232.97 | 95.22 | 5a381bf57ca1dd3a | yes |
+| `alps_skcm` | 48 | 515.58 | 297.32 | 93.56 | 4b8ecc3e77c4a201 | yes |
+| `alps_skcm` | 88 | 515.62 | 305.02 | 87.95 | bdcab802ce057d21 | yes |
+| `alps_skcm` | 96 | 515.65 | 370.27 | 87.79 | 15328738c8b01974 | yes |
+| `alps_skcm` | 192 | 515.67 | 360.43 | 73.82 | 0dcd59daf4dc781d | yes |
+| `alps_skcm` | spread | lifetime 515.58-515.67 ms, spread 0.0172% (law PASS; target < 0.5) | composite ring fit 5/5 rates, spread 58.9365% | tail endpoint 73.82-95.22 ms, spread 28.99% (recorded: excitation statistics, not a law measurand) | - | - |
+| `gateron_yellow` | 44 | 310.75 | 0.00 | 85.60 | f1d0bf045033ff6f | yes |
+| `gateron_yellow` | 48 | 310.73 | 0.00 | 85.40 | dd9436f7c7bc47b8 | yes |
+| `gateron_yellow` | 88 | 310.75 | 0.00 | 74.72 | 9f1d9bca0be7eaba | yes |
+| `gateron_yellow` | 96 | 310.74 | 0.00 | 74.59 | e98da75989adb27e | yes |
+| `gateron_yellow` | 192 | 310.71 | 0.00 | 63.68 | c767d7809038c349 | yes |
+| `gateron_yellow` | spread | lifetime 310.71-310.75 ms, spread 0.0112% (law PASS; target < 0.5) | composite ring fit 0/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 63.68-85.60 ms, spread 34.42% (recorded: excitation statistics, not a law measurand) | - | - |
+| `zealios_v2` | 44 | 362.38 | 0.00 | 26.26 | ff9905786fa15a99 | yes |
+| `zealios_v2` | 48 | 362.40 | 0.00 | 26.15 | 64dec5d43c52f0bb | yes |
+| `zealios_v2` | 88 | 362.38 | 0.00 | 24.41 | b8c1d6a5bded031a | yes |
+| `zealios_v2` | 96 | 362.38 | 0.00 | 24.32 | bf7318b860946f2d | yes |
+| `zealios_v2` | 192 | 362.40 | 0.00 | 21.19 | 3d2d136a60b17d1a | yes |
 | `zealios_v2` | spread | lifetime 362.38-362.40 ms, spread 0.0072% (law PASS; target < 0.5) | composite ring fit 0/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 21.19-26.26 ms, spread 23.93% (recorded: excitation statistics, not a law measurand) | - | - |
-| `rotary_encoder` | 44 | 100.45 | 0.00 | 5.71 | c5a35f857bb0f80a | yes |
-| `rotary_encoder` | 48 | 100.46 | 0.00 | 5.56 | 9b329b69e50fd32d | yes |
-| `rotary_encoder` | 88 | 100.45 | 4536.15 | 5.41 | ff99b8d1e5bc3925 | yes |
-| `rotary_encoder` | 96 | 100.46 | 4123.59 | 4.98 | de26ab7cfb818b09 | yes |
-| `rotary_encoder` | 192 | 100.44 | 6979.49 | 4.97 | 281995e7bdc001d8 | yes |
+| `rotary_encoder` | 44 | 100.45 | 0.00 | 5.71 | 73971e1511137909 | yes |
+| `rotary_encoder` | 48 | 100.46 | 0.00 | 5.56 | 5ed143c2936e0f95 | yes |
+| `rotary_encoder` | 88 | 100.45 | 4536.15 | 5.41 | 8ec975ff60c7f2e5 | yes |
+| `rotary_encoder` | 96 | 100.46 | 4123.59 | 4.98 | f8342d869e17a5b5 | yes |
+| `rotary_encoder` | 192 | 100.44 | 6979.49 | 4.97 | c1a832a1a6a6d701 | yes |
 | `rotary_encoder` | spread | lifetime 100.44-100.46 ms, spread 0.0156% (law PASS; target < 0.5) | composite ring fit 3/5 rates, spread NaN% | tail endpoint 4.97-5.71 ms, spread 15.00% (recorded: excitation statistics, not a law measurand) | - | - |
-| `cyber_deck` | 44 | 153.74 | 0.00 | 6.17 | 95099c290df1791f | yes |
-| `cyber_deck` | 48 | 153.73 | 3711.40 | 7.04 | 217a3196a8c6d8d6 | yes |
-| `cyber_deck` | 88 | 153.73 | 3754.33 | 6.85 | 9bad751b56f2cf8b | yes |
-| `cyber_deck` | 96 | 153.74 | 4159.84 | 6.93 | 889c06dc9dba305d | yes |
-| `cyber_deck` | 192 | 153.73 | 3316.39 | 6.23 | a042679946436259 | yes |
+| `cyber_deck` | 44 | 153.74 | 0.00 | 6.17 | 925430dd434030b0 | yes |
+| `cyber_deck` | 48 | 153.73 | 3711.40 | 7.04 | fa73daf9e0022f5f | yes |
+| `cyber_deck` | 88 | 153.73 | 3754.33 | 6.85 | c357d127194a121f | yes |
+| `cyber_deck` | 96 | 153.74 | 4159.85 | 6.93 | d8e41cefbdfac7fe | yes |
+| `cyber_deck` | 192 | 153.73 | 3316.38 | 6.23 | 8786175c959a66cb | yes |
 | `cyber_deck` | spread | lifetime 153.73-153.74 ms, spread 0.0080% (law PASS; target < 0.5) | composite ring fit 4/5 rates, spread NaN% | tail endpoint 6.17-7.04 ms, spread 14.17% (recorded: excitation statistics, not a law measurand) | - | - |
-| `oceanic` | 44 | 1513.65 | 0.00 | 165.53 | 6f94f232125ca948 | yes |
-| `oceanic` | 48 | 1513.85 | 0.00 | 160.94 | 58c1226343b8f229 | yes |
-| `oceanic` | 88 | 1513.27 | 0.00 | 139.32 | cdd5521b51d90018 | yes |
-| `oceanic` | 96 | 1513.92 | 0.00 | 138.91 | 57750fbdc8cf96ea | yes |
-| `oceanic` | 192 | 1512.97 | 233.01 | 122.68 | 9ad994eeca53b6c7 | yes |
-| `oceanic` | spread | lifetime 1512.97-1513.92 ms, spread 0.0627% (law PASS; target < 0.5) | composite ring fit 1/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 122.68-165.53 ms, spread 34.93% (recorded: excitation statistics, not a law measurand) | - | - |
-| `glass_tactile` | 44 | 2110.29 | 0.00 | 5.03 | 40c4b6ce5c88b131 | yes |
-| `glass_tactile` | 48 | 2109.85 | 0.00 | 4.90 | 50f6f72b6207dc9e | yes |
-| `glass_tactile` | 88 | 2109.54 | 4707.93 | 4.74 | a4e75fd839a6a15e | yes |
-| `glass_tactile` | 96 | 2110.82 | 6311.11 | 4.97 | 6cdb5e0839b93e77 | yes |
-| `glass_tactile` | 192 | 2110.86 | 6253.13 | 4.94 | bfe85b8b0e813ee3 | yes |
+| `oceanic` | 44 | 1513.65 | 0.00 | 165.51 | 625bf764a5b16363 | yes |
+| `oceanic` | 48 | 1513.85 | 0.00 | 160.94 | ec85d4313f2d7a2c | yes |
+| `oceanic` | 88 | 1513.27 | 0.00 | 139.31 | 3efd26f4d5c531b5 | yes |
+| `oceanic` | 96 | 1513.92 | 0.00 | 138.92 | f48ef4e1a82a2421 | yes |
+| `oceanic` | 192 | 1512.97 | 233.01 | 122.68 | 62285280b0338a19 | yes |
+| `oceanic` | spread | lifetime 1512.97-1513.92 ms, spread 0.0627% (law PASS; target < 0.5) | composite ring fit 1/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 122.68-165.51 ms, spread 34.91% (recorded: excitation statistics, not a law measurand) | - | - |
+| `glass_tactile` | 44 | 2110.29 | 0.00 | 5.03 | 73ce3737989df482 | yes |
+| `glass_tactile` | 48 | 2109.85 | 0.00 | 4.90 | 342d30c01632002b | yes |
+| `glass_tactile` | 88 | 2109.54 | 4707.93 | 4.74 | feaa989e148de515 | yes |
+| `glass_tactile` | 96 | 2110.82 | 6311.13 | 4.97 | 293f723cff1e41d7 | yes |
+| `glass_tactile` | 192 | 2110.86 | 6253.14 | 4.94 | dfb0568a40026f6e | yes |
 | `glass_tactile` | spread | lifetime 2109.54-2110.86 ms, spread 0.0628% (law PASS; target < 0.5) | composite ring fit 3/5 rates, spread NaN% | tail endpoint 4.74-5.03 ms, spread 6.22% (recorded: excitation statistics, not a law measurand) | - | - |
-| `retro_typewriter` | 44 | 680.63 | 299.46 | 89.61 | fa14f2afe24c2868 | yes |
-| `retro_typewriter` | 48 | 680.60 | 340.43 | 87.75 | bc7e503a81d969ef | yes |
-| `retro_typewriter` | 88 | 680.59 | 358.98 | 85.27 | b11afbf613442d48 | yes |
-| `retro_typewriter` | 96 | 680.67 | 350.09 | 85.06 | 47aa1a0c0c3abc55 | yes |
-| `retro_typewriter` | 192 | 680.47 | 385.38 | 70.20 | a97192f58604c62e | yes |
-| `retro_typewriter` | spread | lifetime 680.47-680.67 ms, spread 0.0291% (law PASS; target < 0.5) | composite ring fit 5/5 rates, spread 28.6909% | tail endpoint 70.20-89.61 ms, spread 27.66% (recorded: excitation statistics, not a law measurand) | - | - |
-| `neon_pulse` | 44 | 420.20 | 0.00 | 23.36 | 9e16ed1042088313 | yes |
-| `neon_pulse` | 48 | 420.23 | 0.00 | 23.27 | b18bbfb0ebbf293b | yes |
-| `neon_pulse` | 88 | 420.18 | 0.00 | 21.80 | 0c573d5ddd211c89 | yes |
-| `neon_pulse` | 96 | 420.19 | 0.00 | 21.73 | 7e92417860a38d95 | yes |
-| `neon_pulse` | 192 | 420.12 | 2106.85 | 19.01 | fe05decb21d1c3da | yes |
+| `retro_typewriter` | 44 | 680.63 | 299.46 | 89.61 | 8dff565f3a8ad46f | yes |
+| `retro_typewriter` | 48 | 680.60 | 340.45 | 87.75 | c6eb2c94d39ab2af | yes |
+| `retro_typewriter` | 88 | 680.59 | 359.03 | 85.27 | eeca145c7f5743ce | yes |
+| `retro_typewriter` | 96 | 680.67 | 350.09 | 85.06 | 3380137258f477f8 | yes |
+| `retro_typewriter` | 192 | 680.47 | 385.38 | 70.20 | 5b16b6656a57ba97 | yes |
+| `retro_typewriter` | spread | lifetime 680.47-680.67 ms, spread 0.0291% (law PASS; target < 0.5) | composite ring fit 5/5 rates, spread 28.6904% | tail endpoint 70.20-89.61 ms, spread 27.66% (recorded: excitation statistics, not a law measurand) | - | - |
+| `neon_pulse` | 44 | 420.20 | 0.00 | 23.36 | e582b38bd3ec9910 | yes |
+| `neon_pulse` | 48 | 420.23 | 0.00 | 23.27 | ca44aaa9b2503b3a | yes |
+| `neon_pulse` | 88 | 420.18 | 0.00 | 21.80 | 2e24b0090854b9c6 | yes |
+| `neon_pulse` | 96 | 420.19 | 0.00 | 21.73 | dcce9fb7a3c6e4e1 | yes |
+| `neon_pulse` | 192 | 420.12 | 2106.85 | 19.01 | ba4f31bd49f9bbca | yes |
 | `neon_pulse` | spread | lifetime 420.12-420.23 ms, spread 0.0260% (law PASS; target < 0.5) | composite ring fit 1/5 rates (< 3 clean fits: the shipped ring is short against the fixed window at high rates - the lifetime is the exact measurand) | tail endpoint 19.01-23.36 ms, spread 22.89% (recorded: excitation statistics, not a law measurand) | - | - |
