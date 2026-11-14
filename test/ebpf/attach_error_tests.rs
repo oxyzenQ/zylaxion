@@ -214,3 +214,29 @@ fn unknown_renders_the_neutral_operation_verb() {
         "the render owns the sentence: {rendered}"
     );
 }
+
+/// night-depth-hardening-1: the verifier tail keeps the last `keep`
+/// non-empty lines — the rejection verdict — and drops the kernel-
+/// version-specific state-dump head, so the same rejection renders the
+/// same bounded shape on 5.15 and 6.x alike.
+#[test]
+fn verifier_tail_keeps_the_last_non_empty_lines_only() {
+    let log = "\nstate 1: R0=inv1\n\nstate 42: R0_w=1\nbackedge from insn 7 to 1\n";
+    assert_eq!(
+        verifier_tail(log, 2),
+        "state 42: R0_w=1 | backedge from insn 7 to 1"
+    );
+}
+
+#[test]
+fn verifier_tail_caps_line_length_and_handles_short_logs() {
+    // A 200-character line is capped at 120 characters plus the
+    // ellipsis marker; a log shorter than the keep bound is returned
+    // whole; an empty log renders as the empty string.
+    let long = format!("x{}", "y".repeat(199));
+    let tail = verifier_tail(&long, 3);
+    assert_eq!(tail.chars().count(), 123, "120 cap + the ... marker");
+    assert!(tail.ends_with("..."));
+    assert_eq!(verifier_tail("only one line", 3), "only one line");
+    assert_eq!(verifier_tail("", 3), "");
+}

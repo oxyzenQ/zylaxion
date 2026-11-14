@@ -130,12 +130,45 @@ impl AcousticModel for ZactrixEngine {
         // construction; the clamps are a safety net, not a shaping
         // surface (every preset's curve lives far inside them).
         state.click_e *= state.click_step;
-        let fc = (state.click_fc_end + state.click_fc_delta * state.click_e).clamp(20.0, 0.45 * sr);
-        let k = (state.click_k + state.click_k_delta * state.click_e).clamp(0.1, 30.0);
-        let g = (std::f32::consts::PI * fc / sr).tan();
-        let a1 = 1.0 / (1.0 + g * (g + k));
-        let a2 = g * a1;
-        let a3 = g * g * a1;
+        // night-depth-hardening-1: the frozen-coefficient lane, travel-
+        // bound law. The clamped curve inputs (fc, k) are monotone in e,
+        // and once the curve's REMAINING TRAVEL (delta * e, the largest
+        // distance either input can still move) is below a quarter of
+        // the input's rounding bucket, both inputs are provably final —
+        // a bitwise-equality probe would freeze on a one-ULP transient
+        // plateau and drift one bucket later, so the freeze keys on the
+        // travel bound instead. From there the stored trio equals every
+        // value a recomputation would produce: reuse is bit-exact, and
+        // the tan() call plus the a1/a2/a3 derivation leave the
+        // per-sample loop for the whole voice tail.
+        let (a1, a2, a3) = if state.click_coeff_frozen {
+            (state.click_a1, state.click_a2, state.click_a3)
+        } else {
+            let fc =
+                (state.click_fc_end + state.click_fc_delta * state.click_e).clamp(20.0, 0.45 * sr);
+            let k = (state.click_k + state.click_k_delta * state.click_e).clamp(0.1, 30.0);
+            let g = (std::f32::consts::PI * fc / sr).tan();
+            let a1 = 1.0 / (1.0 + g * (g + k));
+            let a2 = g * a1;
+            let a3 = g * g * a1;
+            // ULP(fc) >= fc * EPSILON / 2 for every normal f32, so the
+            // quarter-bucket travel bound is fc * EPSILON / 8, and the
+            // remaining travel is |delta| * e (the spring delta is
+            // negative whenever a preset's spring sits above its
+            // click). Both shipped-curve clamps are outside this law's
+            // reach: the click cutoff starts and stays below 0.45 * sr,
+            // and k lives in (0.1, 30) by construction (anchor >=
+            // 1/Q_max, start 4x the anchor).
+            if state.click_fc_delta.abs() * state.click_e < fc * f32::EPSILON / 8.0
+                && state.click_k_delta.abs() * state.click_e < k * f32::EPSILON / 8.0
+            {
+                state.click_coeff_frozen = true;
+                state.click_a1 = a1;
+                state.click_a2 = a2;
+                state.click_a3 = a3;
+            }
+            (a1, a2, a3)
+        };
 
         let v3 = excitation - state.click_ic2eq;
         let v1 = a1 * state.click_ic1eq + a2 * v3;
@@ -156,13 +189,33 @@ impl AcousticModel for ZactrixEngine {
         // frequency — this is the "spring" sound characteristic of
         // mechanical switches.
         state.spring_e *= state.spring_step;
-        let sfc =
-            (state.spring_fc_end + state.spring_fc_delta * state.spring_e).clamp(20.0, 0.45 * sr);
-        let sk = (state.spring_k + state.spring_k_delta * state.spring_e).clamp(0.1, 30.0);
-        let sg = (std::f32::consts::PI * sfc / sr).tan();
-        let sa1 = 1.0 / (1.0 + sg * (sg + sk));
-        let sa2 = sg * sa1;
-        let sa3 = sg * sg * sa1;
+        // Frozen-coefficient lane, spring stage: the same travel-bound
+        // law as the click stage above (night-depth-hardening-1). The
+        // curve may travel up or down per preset — monotonicity, not
+        // direction, is what the travel bound requires. The spring
+        // cutoff starts at the click band (below 0.45 * sr by the
+        // click stage's own clamp) and k lives in (0.1, 30), so the
+        // clamps stay outside the law's reach.
+        let (sa1, sa2, sa3) = if state.spring_coeff_frozen {
+            (state.spring_a1, state.spring_a2, state.spring_a3)
+        } else {
+            let sfc = (state.spring_fc_end + state.spring_fc_delta * state.spring_e)
+                .clamp(20.0, 0.45 * sr);
+            let sk = (state.spring_k + state.spring_k_delta * state.spring_e).clamp(0.1, 30.0);
+            let sg = (std::f32::consts::PI * sfc / sr).tan();
+            let sa1 = 1.0 / (1.0 + sg * (sg + sk));
+            let sa2 = sg * sa1;
+            let sa3 = sg * sg * sa1;
+            if state.spring_fc_delta.abs() * state.spring_e < sfc * f32::EPSILON / 8.0
+                && state.spring_k_delta.abs() * state.spring_e < sk * f32::EPSILON / 8.0
+            {
+                state.spring_coeff_frozen = true;
+                state.spring_a1 = sa1;
+                state.spring_a2 = sa2;
+                state.spring_a3 = sa3;
+            }
+            (sa1, sa2, sa3)
+        };
 
         let sv3 = excitation - state.spring_ic2eq;
         let sv1 = sa1 * state.spring_ic1eq + sa2 * sv3;
@@ -182,11 +235,14 @@ impl AcousticModel for ZactrixEngine {
         // We use the bandpass output (hv1) directly — the housing thock
         // is a low-frequency body, not a sharp transient, so we don't
         // mix in the highpass component like we do for the click.
-        let hg = state.housing_g;
-        let hk = state.housing_k;
-        let ha1 = 1.0 / (1.0 + hg * (hg + hk));
-        let ha2 = hg * ha1;
-        let ha3 = hg * hg * ha1;
+        // night-depth-hardening-1: the housing coefficients are the
+        // init-time constants (the curve is the constant itself), so
+        // the render path reads the pre-computed trio instead of
+        // re-deriving it from the same g and k every sample — the same
+        // f32 values, one pure hoist.
+        let ha1 = state.housing_a1;
+        let ha2 = state.housing_a2;
+        let ha3 = state.housing_a3;
 
         let hv3 = housing_excitation - state.housing_ic2eq;
         let hv1 = ha1 * state.housing_ic1eq + ha2 * hv3;
@@ -202,11 +258,10 @@ impl AcousticModel for ZactrixEngine {
         // (`1/k`) to bring it to a comparable level so `housing.mix`
         // behaves as a true level control rather than being dominated
         // by the bandpass attenuation.
-        let housing_gain = if state.housing_k > 0.0 {
-            1.0 / state.housing_k
-        } else {
-            1.0
-        };
+        // The bandpass level normalizer rides the init-time constants
+        // too (night-depth-hardening-1): `1 / housing_k`, derived once
+        // in init_state with the same branch law.
+        let housing_gain = state.housing_gain;
         let mut mixed = click_out + sv1 * state.spring_mix + hv1 * state.housing_mix * housing_gain;
 
         // ── Stage 3b: Ambient rattle (optional) ─────────────────────

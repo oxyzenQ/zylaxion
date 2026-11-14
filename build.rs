@@ -71,6 +71,22 @@ fn main() {
         .or_else(packaged_vcs_sha)
         .unwrap_or_else(|| "unknown".to_string());
 
+    // night-depth-hardening-1: provenance precision. A dirty work tree
+    // must not present itself as the clean commit — the doctor's BUILD
+    // lane and `sig` read this stamp as the binary's provenance. The
+    // git-checkout lane answers `git status --porcelain`; the registry
+    // lane answers the cargo-written `dirty` flag (git is absent
+    // there). "unknown" stays untouched — there is no commit to
+    // qualify.
+    let tree_dirty = git_tree_dirty()
+        .or_else(packaged_vcs_dirty)
+        .unwrap_or(false);
+    let hash = if hash != "unknown" && tree_dirty {
+        format!("{hash}-dirty")
+    } else {
+        hash
+    };
+
     println!("cargo:rustc-env=GIT_HASH={}", hash);
     // Watched so a registry extract and a dev checkout never share one
     // stale verdict: the file only exists on tarball builds, and its
@@ -184,6 +200,54 @@ fn packaged_vcs_sha() -> Option<String> {
         std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
     let text = std::fs::read_to_string(manifest_dir.join(".cargo_vcs_info.json")).ok()?;
     parse_vcs_sha_json(&text)
+}
+
+/// The git-checkout dirty verdict (night-depth-hardening-1):
+/// `git status --porcelain` output is non-empty when any tracked file
+/// differs from HEAD or any untracked file is present — build outputs
+/// live in .gitignore'd paths, so a normal build tree stays clean.
+/// `None` when git is absent or fails — the packaged lane answers
+/// instead.
+fn git_tree_dirty() -> Option<bool> {
+    let output = Command::new("git")
+        .args(["status", "--porcelain"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    Some(!output.stdout.is_empty())
+}
+
+/// Third step's dirty twin (night-depth-hardening-1): extracts the
+/// `"dirty"` flag out of a `.cargo_vcs_info.json` document with the
+/// same pure-string law as [`parse_vcs_sha_json`] (anchor on the key,
+/// no JSON crate). `None` when the flag is absent — clean publishes
+/// omit it.
+fn packaged_vcs_dirty() -> Option<bool> {
+    let manifest_dir =
+        std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
+    let text = std::fs::read_to_string(manifest_dir.join(".cargo_vcs_info.json")).ok()?;
+    parse_vcs_dirty_json(&text)
+}
+
+/// Parses the `"dirty"` boolean out of a `.cargo_vcs_info.json`
+/// document. Pure string extraction — the value must be the literal
+/// `true` or `false` token right after the key's colon; anything else
+/// falls through as absent.
+fn parse_vcs_dirty_json(text: &str) -> Option<bool> {
+    let key = "\"dirty\"";
+    let key_at = text.find(key)?;
+    let after_key = &text[key_at + key.len()..];
+    let colon_at = after_key.find(':')?;
+    let value = after_key[colon_at + 1..].trim_start();
+    if value.starts_with("true") {
+        Some(true)
+    } else if value.starts_with("false") {
+        Some(false)
+    } else {
+        None
+    }
 }
 
 /// Shared chain normalizer: a sha is usable when it is 7..=40 ASCII
@@ -353,6 +417,36 @@ mod tests {
         // Uppercase hex exercises the shared lowercasing too.
         let doc = r#"{"path_in_vcs":"","git":{"dirty":false,"sha1":"A1ADB97B91FBB32BD5F22BD85B8DBF2870EA53C1"}}"#;
         assert_eq!(parse_vcs_sha_json(doc).as_deref(), Some("a1adb97"));
+    }
+
+    #[test]
+    fn vcs_dirty_json_parses_both_polarities() {
+        // Byte-for-byte the two shapes cargo writes: a dirty pack and a
+        // clean publish, with the key order flipped between them.
+        let dirty = r#"{"git":{"sha1":"a1adb97b91fbb32bd5f22bd85b8dbf2870ea53c1","dirty":true},"path_in_vcs":""}"#;
+        assert_eq!(parse_vcs_dirty_json(dirty), Some(true));
+        let clean = r#"{"path_in_vcs":"","git":{"dirty":false,"sha1":"a1adb97b91fbb32bd5f22bd85b8dbf2870ea53c1"}}"#;
+        assert_eq!(parse_vcs_dirty_json(clean), Some(false));
+    }
+
+    #[test]
+    fn vcs_dirty_json_falls_through_on_absent_or_garbled_flag() {
+        // No `dirty` key at all, a null flag, and a garbled value all
+        // answer None — the caller treats them as "not dirty" via the
+        // `unwrap_or(false)` law, and a hex-only document can never
+        // collide with the `"dirty"` key anchor.
+        for doc in [
+            "",
+            "{}",
+            r#"{"git":{"sha1":"a1adb97b91fbb32bd5f22bd85b8dbf2870ea53c1"}}"#,
+            r#"{"git":{"dirty":null,"sha1":"a1adb97b91fbb32bd5f22bd85b8dbf2870ea53c1"}}"#,
+            r#"{"git":{"dirty":"true","sha1":"a1adb97b91fbb32bd5f22bd85b8dbf2870ea53c1"}}"#,
+        ] {
+            assert!(
+                parse_vcs_dirty_json(doc).is_none(),
+                "expected absence for: {doc}"
+            );
+        }
     }
 
     #[test]

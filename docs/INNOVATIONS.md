@@ -56,12 +56,18 @@ beep dressed as a keypress — `docs/ZACTRIX_AUDIT.md` measured the old
 model's presets carrying 99+ percent of onset energy in the first
 5 ms. The fix bakes physics-shaped cutoff and resonance *curves* into
 each voice at trigger time, then recomputes the filter coefficients
-every sample: stage A (click) starts broadband (2.5x the click band,
-clamped below 0.45 Nyquist) and collapses into the click band with a
-1 ms time constant; stage B (spring) travels from the click band to
-the spring band over roughly 5 ms while resonance wakes; stage C
-(housing) holds constants. Files of truth:
-`src/profiles/mechanical/init.rs` (the shape constants, e.g.
+every sample while a curve is still moving: stage A (click) starts
+broadband (2.5x the click band, clamped below 0.45 Nyquist) and
+collapses into the click band with a 1 ms time constant; stage B
+(spring) travels from the click band to the spring band over roughly
+5 ms while resonance wakes; stage C (housing) holds constants.
+night-depth-hardening-1 adds the frozen-coefficient lanes: once a
+curve's remaining travel falls under a quarter rounding bucket, both
+stages' coefficients are provably final and the per-sample tan()
+leaves the loop — the voice tail runs pure IEEE-754 mul/add, byte-
+identical to the unfrozen render (the rates audit proves it) and
+free of libm variance across distros and glibc versions. Files of
+truth: `src/profiles/mechanical/init.rs` (the shape constants, e.g.
 `TAU_CLICK_S = 0.001`) and `src/profiles/mechanical/render.rs`
 (the per-sample coefficient path, cutoff clamped to `[20, 0.45*sr]`
 Hz and Q to `[0.1, 30.0]`).
