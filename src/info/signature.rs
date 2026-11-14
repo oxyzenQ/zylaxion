@@ -156,10 +156,20 @@ const MASKED_MANIFEST_WORDS: [u64; 9] = [
 ///
 /// Scope note (night-pro-1 audit): the digest runs over the CLEAR
 /// manifest bytes only, so it pins the identity CLAIM, not the
-/// artifact. Two family tools whose manifests are byte-identical
+/// artifact. The exact byte stream hashed is the full Signature-line
+/// manifest, "Pure eBPF builtin — Official Build by rezky_nightky
+/// (oxyzenQ) 2026" (68 UTF-8 bytes), digest a60dfb6a39745f34.
+/// Two family tools whose manifests are byte-identical
 /// (zylaxion and zelynic) legitimately report the same `fp=` value by
-/// design; artifact identity stays the D3 anchor's job (and the
-/// `sig` report's binary self-hash pins the bytes on disk).
+/// design; zejtron's manifest is the identity clause only (46 bytes —
+/// the family voice is a separate claim const there) and cosmostrix's
+/// carries the "Cosmic Dragon" voice (64 bytes), so their digests
+/// differ (9174e0ce08feccba, fe0d7239f86e7c1b) — differently framed
+/// claims, not a derivation bug. The authors layer is byte-identical
+/// estate-wide (57 bytes), so the `sig` report's authors fingerprint
+/// (c97b13f816035d55) is one shared value. Artifact identity stays
+/// the D3 anchor's job (and the `sig` report's binary self-hash pins
+/// the bytes on disk).
 const MANIFEST_FINGERPRINT: u64 =
     layer_fingerprint(&MASKED_MANIFEST_WORDS, MANIFEST_SEED, MANIFEST_BYTE_LEN);
 

@@ -82,6 +82,22 @@ fingerprints, the identity binding, and the blake3 anchor all
 recompute — `status=tampered` (or a nonzero `sig` exit) is the honest
 signal that the artifact was patched.
 
+### What the fp= token hashes (night-pro-1)
+
+`fp=` on the Depth-matrix line is the FNV-1a 64-bit digest of the
+CLEAR manifest bytes only — the identity claim text, never the
+artifact bytes (artifact identity is the D3 anchor's seat). The exact
+byte stream hashed is the full Signature-line manifest, `Pure eBPF
+builtin — Official Build by rezky_nightky (oxyzenQ) 2026` (68 UTF-8
+bytes), digest `a60dfb6a39745f34` — byte-identical to zelynic's, so
+both legitimately share one `fp=`. zejtron's manifest is the identity
+clause only (46 bytes, `9174e0ce08feccba` — the family voice is a
+separate claim const there) and cosmostrix's carries the "Cosmic
+Dragon" voice (64 bytes, `fe0d7239f86e7c1b`) — differently framed
+claims hash differently by design. The authors layer is
+byte-identical estate-wide (57 bytes), so the `sig` report's authors
+fingerprint (`c97b13f816035d55`) is one shared value.
+
 ## Verifying an older release (pre-BLAKE3 archives)
 
 Releases before the blake3 checksum upgrade ship `*.b2sum` files
