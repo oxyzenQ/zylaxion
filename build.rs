@@ -95,10 +95,32 @@ fn main() {
 
     // The UTC build timestamp (Hinnant civil-from-days, std clock only —
     // no time crate). Consumed by build_info::build_time().
+    //
+    // night-frontier-2B, the reproducible-build epoch law: the stamp
+    // honors SOURCE_DATE_EPOCH (the reproducible-builds standard) when
+    // the environment carries a valid value, and the wall clock answers
+    // otherwise. The source is stamped alongside so the doctor names
+    // which clock produced the bytes on the tin.
+    let (epoch_secs, epoch_source) = build_epoch_secs();
     println!(
         "cargo:rustc-env=ZYLAXION_BUILD_TIME={}",
-        format_build_time_utc()
+        format_unix_secs_as_build_time(epoch_secs)
     );
+    println!("cargo:rustc-env=ZYLAXION_EPOCH_SOURCE={epoch_source}");
+    // A build that pins the epoch but never declared it would silently
+    // keep the stale stamp — the env is a watched input, like the rest
+    // of the chain.
+    println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
+
+    // night-frontier-2B, the lockfile attestation: FNV-1a 64 over the
+    // workspace Cargo.lock bytes — the dependency-set fingerprint
+    // riding the binary. Two builds of one commit stamp the same
+    // hash; a manifest or registry drift shows up in the doctor's
+    // BUILD block before any run.
+    println!("cargo:rerun-if-changed=Cargo.lock");
+    if let Some(hash) = lockfile_hash() {
+        println!("cargo:rustc-env=ZYLAXION_LOCK_HASH={hash}");
+    }
 
     // The doctor's BUILD facts (zelynic night-improve-66 lineage): the
     // rustc cargo itself drove, the profile mode, and the real
@@ -285,18 +307,63 @@ fn rustc_stamp() -> String {
         .unwrap_or_else(|_| "unknown".to_string())
 }
 
-/// Read the system clock and render the build time as
-/// `YYYY-MM-DD HH:MMZ` (ISO 8601, UTC; night-pro-1, the estate-wide
-/// format). "unknown" only when the host clock sits
-/// before the UNIX epoch (unreachable in practice).
-fn format_build_time_utc() -> String {
+/// The reproducible-build epoch law (night-frontier-2B): the build
+/// timestamp honors `SOURCE_DATE_EPOCH` — the reproducible-builds
+/// standard's own variable — when the environment carries a valid
+/// value, and falls back to the wall clock otherwise. Returns the
+/// seconds AND the clock that answered, so the stamp can name its
+/// own source; a machine that pins the epoch renders the same stamp
+/// bytes as any other machine pinning it.
+fn build_epoch_secs() -> (i64, &'static str) {
+    if let Some(epoch) = source_date_epoch() {
+        return (epoch, "SOURCE_DATE_EPOCH");
+    }
     use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|d| i64::try_from(d.as_secs()).ok())
+        .unwrap_or(0);
+    (secs, "wall-clock")
+}
 
-    let Ok(secs) = SystemTime::now().duration_since(UNIX_EPOCH) else {
-        return "unknown".to_string();
-    };
-    let total_secs: i64 = i64::try_from(secs.as_secs()).unwrap_or(0);
-    format_unix_secs_as_build_time(total_secs)
+/// The `SOURCE_DATE_EPOCH` parse (the reproducible-builds contract,
+/// the strict reading): decimal digits only — no sign, no spaces, no
+/// empty value. An absent or malformed value answers `None` and the
+/// wall clock takes over, exactly as the standard prescribes: a
+/// malformed pin must never silently shift the date, it must be
+/// visibly ignored.
+fn source_date_epoch() -> Option<i64> {
+    let raw = std::env::var_os("SOURCE_DATE_EPOCH")?;
+    let text = raw.to_str()?;
+    if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<i64>().ok()
+}
+
+/// The lockfile attestation (night-frontier-2B): reads the workspace
+/// `Cargo.lock` and fingerprints it — FNV-1a 64, the same primitive
+/// the audit estate already rides — returning the 16-hex stamp.
+/// `None` only when the file is absent (a hand-pruned tree), which
+/// the consumer reports as "unknown" instead of inventing a value.
+fn lockfile_hash() -> Option<String> {
+    let bytes = std::fs::read("Cargo.lock").ok()?;
+    Some(fnv1a64(&bytes))
+}
+
+/// FNV-1a 64 over raw bytes — the byte-stream twin of the audit
+/// harness's `fnv1a_f32` (same offset/prime constants, std only, no
+/// crate in the build script).
+fn fnv1a64(bytes: &[u8]) -> String {
+    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const PRIME: u64 = 0x0000_0100_0000_01b3;
+    let mut hash = OFFSET;
+    for &byte in bytes {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(PRIME);
+    }
+    format!("{hash:016x}")
 }
 
 /// Pure formatting function — takes unix-epoch seconds and returns
@@ -498,5 +565,59 @@ mod tests {
                 "expected rejection for: {candidate}"
             );
         }
+    }
+
+    // ── night-frontier-2B: the reproducible-build epoch law ─────────
+
+    #[test]
+    fn source_date_epoch_parses_decimal_digits_only() {
+        // The vector rides the build through env-var injection, and
+        // this suite runs with a neutral environment, so the parse
+        // helper is exercised through a temporary override.
+        // SAFETY: single-threaded test binary, no other reader of the
+        // variable in this process.
+        unsafe { std::env::set_var("SOURCE_DATE_EPOCH", "1_785_857_400") };
+        assert_eq!(source_date_epoch(), None);
+        unsafe { std::env::set_var("SOURCE_DATE_EPOCH", "1785857400") };
+        assert_eq!(source_date_epoch(), Some(1_785_857_400));
+        // The strict reading: a sign, a space, an empty value — the
+        // standard's malformed-input law is "ignore, never shift the
+        // date".
+        for hostile in ["-1", " 1785857400", "1785857400 ", "", "+5"] {
+            unsafe { std::env::set_var("SOURCE_DATE_EPOCH", hostile) };
+            assert_eq!(source_date_epoch(), None, "hostile value: {hostile}");
+        }
+        // A value past i64 is malformed by the same law.
+        unsafe { std::env::set_var("SOURCE_DATE_EPOCH", "9".repeat(30)) };
+        assert_eq!(source_date_epoch(), None);
+        unsafe { std::env::remove_var("SOURCE_DATE_EPOCH") };
+        assert_eq!(source_date_epoch(), None);
+    }
+
+    #[test]
+    fn fnv1a64_matches_the_reference_vectors() {
+        // FNV-1a 64 test vectors computed with the reference algorithm
+        // (offset 0xcbf29ce484222325, prime 0x100000001b3) — the
+        // empty-bytes identity and three short literals.
+        assert_eq!(fnv1a64(b""), "cbf29ce484222325");
+        assert_eq!(fnv1a64(b"a"), "af63dc4c8601ec8c");
+        assert_eq!(fnv1a64(b"Cargo"), "6f6097a17b8e18c7");
+        assert_eq!(fnv1a64(b"lock"), "ce14f5ad70f6ece2");
+    }
+
+    #[test]
+    fn lockfile_hash_answers_the_workspace_lock() {
+        // The real tree's Cargo.lock sits beside this build script —
+        // the stamp must resolve against it (16 lowercase hex) and be
+        // stable across two reads of the same bytes.
+        let first = lockfile_hash().expect("the workspace carries Cargo.lock");
+        let second = lockfile_hash().expect("the file did not move mid-test");
+        assert_eq!(first, second, "one file, one fingerprint");
+        assert_eq!(first.len(), 16, "FNV-1a 64 renders as 16 hex chars");
+        assert!(
+            first
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        );
     }
 }

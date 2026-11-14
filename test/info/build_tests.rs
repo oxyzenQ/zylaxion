@@ -131,9 +131,22 @@ fn build_info_is_complete_with_raw_semver() {
         &info.build_time,
         &info.rustc_version,
         &info.profile,
+        &info.lock_hash,
+        &info.epoch_source,
     ] {
         assert!(!field.is_empty(), "no BUILD field may be empty: {info:?}");
     }
+    // night-frontier-2B: the lockfile attestation and the epoch law's
+    // source stamp ride the binary — in the real build tree both carry
+    // their stamped values, never the degraded "unknown".
+    assert!(
+        info.lock_hash != "unknown",
+        "the workspace lock must stamp a fingerprint: {info:?}"
+    );
+    assert!(
+        info.epoch_source == "SOURCE_DATE_EPOCH" || info.epoch_source == "wall-clock",
+        "the epoch source must name its clock: {info:?}"
+    );
     assert!(
         !info.version.starts_with('v'),
         "raw semver, no brand prefix: {info:?}"
