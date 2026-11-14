@@ -21,6 +21,10 @@
 # and the correctly-rounded pure-Rust transcendental lane is the
 # future work that closes it.
 #
+# Stamp mode: when the given baseline file does not exist yet, the
+# script prints the full row table and fails with the instruction —
+# a baseline can only be born from a logged run, never from thin air.
+#
 # Usage:
 #   scripts/audit/zactrix-rates-parity.sh [baseline-file]
 #
@@ -38,6 +42,13 @@ cargo run --release -q --manifest-path scripts/audit/harness/Cargo.toml -- --rat
     | tee "$OUT/rates-parity-run.txt"
 
 grep '^| `' "$OUT/rates-parity-run.txt" > "$OUT/rates-parity-rows.txt"
+
+if [ ! -f "$BASELINE" ]; then
+    echo "STAMP MODE: $BASELINE does not exist - the full row table above is"
+    echo "the baseline to commit; the lane gates on it from the next run"
+    exit 1
+fi
+
 grep '^| `' "$BASELINE" > "$OUT/rates-parity-baseline-rows.txt"
 
 echo "PARITY gate: this arch's rows vs $BASELINE"
