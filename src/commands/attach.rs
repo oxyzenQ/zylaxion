@@ -82,10 +82,15 @@ pub fn cmd_detach() {
     init_logger();
 
     // The pre-flight gate (night-total-lts-2, the mutation-before-
-    // validation lesson): a detach that cannot complete refuses
-    // BEFORE anything is touched — the enabled gate stays set, the
-    // running player stays alive, the pins stay planted, the
-    // telemetry keeps accumulating. Same gate shape as `attach`'s
+    // validation lesson; night-total-lts-4 extends it to the rmdir
+    // half): a detach that cannot complete refuses BEFORE anything is
+    // touched — the enabled gate stays set, the running player stays
+    // alive, the pins stay planted, the telemetry keeps accumulating.
+    // Both removal halves flow in as read: unlink permission on the
+    // pin directory and rmdir permission on its parent (the root-owned
+    // bpffs mount root) — a non-root teardown that could unlink but
+    // not rmdir would kill the player and strand an empty stub, so it
+    // refuses like the other. Same gate shape as `attach`'s
     // requirement above: the facts flow in as read, the requirement
     // function owns every negation. Pins absent = the idempotent
     // no-op success below, whatever the euid.
@@ -93,6 +98,7 @@ pub fn cmd_detach() {
         && let Some(refusal) = crate::session::privilege::detach_requirement(
             crate::session::privilege::euid_is_root(),
             crate::ebpf::pin::pins_removable_by_current_user(),
+            crate::ebpf::pin::pin_dir_removable_by_current_user(),
         )
     {
         crate::output::error(refusal);

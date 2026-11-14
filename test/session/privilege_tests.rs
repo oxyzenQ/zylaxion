@@ -109,12 +109,15 @@ fn attach_requirement_allows_root() {
     );
 }
 
-/// night-total-lts-2: the detach requirement — the four-way polarity
-/// matrix (the night-badas-1 discipline: the facts flow in as read,
-/// the requirement owns every negation, and the tests pin BOTH ways).
+/// night-total-lts-2: the detach requirement — night-total-lts-4
+/// widens it to both removal halves, and the polarity matrix (the
+/// night-badas-1 discipline: the facts flow in as read, the
+/// requirement owns every negation, and the tests pin BOTH ways)
+/// pins the three-fact space: root passes regardless, a non-root
+/// caller passes only when unlink AND rmdir are both possible.
 #[test]
 fn detach_requirement_refuses_non_root_without_unlink() {
-    let msg = detach_requirement(false, false).expect("no root + no unlink = refused");
+    let msg = detach_requirement(false, false, true).expect("no root + no unlink = refused");
     assert!(
         msg.contains("detach refused"),
         "refusal must name the verb, got: {msg}"
@@ -155,26 +158,67 @@ fn detach_requirement_refuses_non_root_without_unlink() {
     );
 }
 
+/// night-total-lts-4: the second refusal arm — unlink possible, the
+/// final rmdir not. This is the stock-mount shape that slipped past
+/// the unlink-only gate: the hand-over owns the pin directory, the
+/// parent (/sys/fs/bpf) never leaves root, so the old gate let the
+/// teardown kill the player and strand an empty stub.
 #[test]
-fn detach_requirement_passes_root_regardless_of_unlink() {
+fn detach_requirement_refuses_non_root_without_dir_removal() {
+    let msg = detach_requirement(false, true, false).expect("no root + no rmdir = refused");
     assert!(
-        detach_requirement(true, false).is_none(),
+        msg.contains("detach refused"),
+        "refusal must name the verb, got: {msg}"
+    );
+    assert!(
+        msg.contains("rmdir permission lives on its parent"),
+        "refusal must teach the rmdir permission law, got: {msg}"
+    );
+    assert!(
+        msg.contains("tip: sudo zylaxion detach"),
+        "refusal must carry the runnable fix, got: {msg}"
+    );
+    assert!(
+        msg.contains("nothing was touched"),
+        "refusal must promise the pre-flight no-mutation shape, got: {msg}"
+    );
+    assert!(
+        msg.contains("stays alive"),
+        "refusal must promise the player survives, got: {msg}"
+    );
+    // The same render law on the new sentence: one logical line 0,
+    // the terminal wraps it, never the source.
+    let line0 = msg.lines().next().expect("refusal carries a line 0");
+    assert!(
+        !line0.contains("  "),
+        "line 0 must be a single logical line (terminal wraps, not the source), got: {line0:?}"
+    );
+    assert!(
+        line0.contains("rmdirs the pin directory"),
+        "the reflowed line 0 must read as one sentence, got: {line0:?}"
+    );
+}
+
+#[test]
+fn detach_requirement_passes_root_regardless_of_removal() {
+    assert!(
+        detach_requirement(true, false, false).is_none(),
         "root bypasses DAC — the gate must not refuse root"
     );
 }
 
 #[test]
-fn detach_requirement_passes_removable_user() {
+fn detach_requirement_passes_only_when_both_halves_are_possible() {
     assert!(
-        detach_requirement(false, true).is_none(),
-        "a user with unlink permission (the hand-over lane) must pass"
+        detach_requirement(false, true, true).is_none(),
+        "a user with unlink AND rmdir permission (a non-stock hand-over) must pass"
     );
 }
 
 #[test]
 fn detach_requirement_passes_root_and_removable() {
     assert!(
-        detach_requirement(true, true).is_none(),
+        detach_requirement(true, true, true).is_none(),
         "the trivially-passing corner must stay None"
     );
 }

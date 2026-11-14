@@ -124,22 +124,40 @@ pub fn attach_requirement(euid_is_root: bool) -> Option<&'static str> {
 /// signal) and best-effort-unpinned FIRST, and only then discovered
 /// the unlink refusals — exiting dirty ("the attach failed", while
 /// the user ran `detach`) with the player dead and the pins intact.
-/// The contract now: a detach that cannot complete refuses UP FRONT
-/// and touches nothing — the player stays alive, the tap keeps
-/// ringing, the telemetry keeps accumulating.
+/// night-total-lts-4, the owner's clarified contract: completing a
+/// detach ALSO rmdirs the pin directory, and rmdir permission lives
+/// on its parent (the root-owned bpffs mount root) — unlinking the
+/// pins alone is not a completed detach, so a gate that checked only
+/// unlink let a non-root teardown kill the player and strand an empty
+/// stub. The refusal now fires when EITHER removal half is
+/// impossible: the player stays alive, the tap keeps ringing, the
+/// telemetry keeps accumulating, and only `sudo zylaxion detach`
+/// completes the teardown (root bypasses DAC).
 ///
 /// The facts flow in as read (positive polarity, the night-badas-1
-/// discipline): the root euid fact and the kernel's own
-/// unlink-permission answer for the pin directory. The refusal fires
-/// exactly when neither fact grants removal; the caller gates on
+/// discipline): the root euid fact, the kernel's own unlink-permission
+/// answer for the pin directory, and the kernel's own
+/// rmdir-permission answer for its parent. The caller gates on
 /// pins-present, so a pins-absent system stays the idempotent no-op
 /// success whatever the euid.
-pub fn detach_requirement(euid_is_root: bool, pins_removable: bool) -> Option<&'static str> {
+pub fn detach_requirement(
+    euid_is_root: bool,
+    pins_removable: bool,
+    dir_removable: bool,
+) -> Option<&'static str> {
     if !euid_is_root && !pins_removable {
         Some(
             "detach refused — the pinned control plane belongs to another user and this \
              user cannot unlink the pins (unlink permission lives on the pin directory, \
              not the pin files)\n  \
+             tip: sudo zylaxion detach — nothing was touched: any running player stays \
+             alive and the tap keeps ringing",
+        )
+    } else if !euid_is_root && !dir_removable {
+        Some(
+            "detach refused — completing the teardown also rmdirs the pin directory, and \
+             rmdir permission lives on its parent (the root-owned bpffs mount root), \
+             which this user does not hold\n  \
              tip: sudo zylaxion detach — nothing was touched: any running player stays \
              alive and the tap keeps ringing",
         )
