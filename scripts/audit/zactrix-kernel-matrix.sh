@@ -116,11 +116,19 @@ for pin in "${PINS[@]}"; do
             continue
         }
     fi
-    if cargo run --release -q --manifest-path scripts/audit/harness/Cargo.toml -- \
-        --btf-matrix "$btf" --btf-label "$label" 2>&1 | tee "$OUT/matrix-$label.log" | grep -q "KERNEL-MATRIX PASS"; then
+    # No grep -q in the pipeline: an early-exiting consumer SIGPIPEs the
+    # tee and swallows the per-snapshot verdict lines before the battery
+    # leg can read them — the full stream passes through, the verdict
+    # comes from the harness's own rc plus its log file.
+    set +e
+    cargo run --release -q --manifest-path scripts/audit/harness/Cargo.toml -- \
+        --btf-matrix "$btf" --btf-label "$label" 2>&1 | tee "$OUT/matrix-$label.log"
+    harness_rc=$?
+    set -e
+    if [ "$harness_rc" -eq 0 ] && grep -q "KERNEL-MATRIX PASS \[" "$OUT/matrix-$label.log"; then
         PASS=$((PASS + 1))
     else
-        echo "KERNEL-MATRIX FAIL [$label]: see $OUT/matrix-$label.log"
+        echo "KERNEL-MATRIX FAIL [$label]: harness rc=$harness_rc - see $OUT/matrix-$label.log"
         FAIL=$((FAIL + 1))
     fi
 done
