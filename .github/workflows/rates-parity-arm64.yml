@@ -102,6 +102,10 @@ jobs:
             echo "apt: landed on $landed"
           fi
 
-      - name: Cross-arch render parity (arm64 vs the committed baseline)
+      - name: Cross-arch diagnostic + render parity (arm64 vs the committed baseline)
         run: |
+          # The delta instrument runs first (the pin readback, the
+          # law's own delta, the attack fingerprints — the columns the
+          # parity investigation reads), then the fatal parity gate.
+          cargo run --release -q --manifest-path scripts/audit/harness/Cargo.toml -- --denormal-delta
           ./scripts/audit/zactrix-rates-parity.sh
