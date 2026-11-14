@@ -142,8 +142,11 @@ grep -c 'name = "serde' Cargo.lock        # 2 (serde_core, serde_derive)
 
 ### Requirements
 
-- Linux kernel **5.15+** with BPF available — the full floor story and
-  the per-distro layouts: [docs/KERNEL_COMPATIBILITY.md](docs/KERNEL_COMPATIBILITY.md).
+- Linux kernel **5.15+** with BPF available — measured on every push
+  against real BTF snapshots of the 5.15 / 6.1 / 6.6 LTS lines (the
+  kernel matrix, `scripts/audit/zactrix-kernel-matrix.sh`); the full
+  floor story and the per-distro layouts:
+  [docs/KERNEL_COMPATIBILITY.md](docs/KERNEL_COMPATIBILITY.md).
   Unsure about your kernel? `zylaxion doctor` says yes or no with the
   exact reason and names the eBPF lane the binary was built with.
 - Audio through PipeWire / PulseAudio / ALSA (whatever the desktop

@@ -40,6 +40,15 @@ arc-swap = "1.7"
 # (night-dragon-maintenance-3).
 cpal = "0.18"
 ringbuf = "0.5"
+
+# night-frontier-2B (the kernel matrix proof): the standalone CO-RE
+# verification surface. aya-obj is the crate the main package's
+# loader already rides (aya 0.16 pairs aya-obj 0.6) — the matrix mode
+# runs the loader's own object parse + relocation path against a
+# target kernel's BTF snapshot, without a kernel. The main package's
+# dependency set gains nothing; the harness carries the version pair
+# the workspace lock already pins.
+aya-obj = "0.6"
 crossbeam-channel = "0.5"
 
 [profile.release]
