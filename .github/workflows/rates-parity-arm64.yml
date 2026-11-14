@@ -115,15 +115,9 @@ jobs:
           # boundary investigation reads).
           cargo run --release -q --manifest-path scripts/audit/harness/Cargo.toml -- --denormal-delta
           # Fatal gate 2 — same-arch parity: this runner's rows
-          # against the committed arm64 baseline. On the first run
-          # after a re-baseline removal the lane stamps instead: it
-          # prints the full row table and fails with the one-command
-          # instruction, so the baseline can only be born from a
-          # logged run.
-          if [ -f scripts/audit/rates-parity-baseline-arm64.txt ]; then
-            ./scripts/audit/zactrix-rates-parity.sh scripts/audit/rates-parity-baseline-arm64.txt
-          else
-            grep '^| `' scripts/audit/out/rates-parity-run.txt
-            echo "::error::scripts/audit/rates-parity-baseline-arm64.txt is missing - stamp it from the row table above (night-depth-mariana-2), commit, and the lane turns green on the next run"
-            exit 1
-          fi
+          # against the committed arm64 baseline. Without the file
+          # the script stamps instead: it prints the full row table
+          # and fails with the instruction, so a baseline can only
+          # be born from a logged run.
+          ./scripts/audit/zactrix-rates-parity.sh \
+            scripts/audit/rates-parity-baseline-arm64.txt
