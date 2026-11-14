@@ -8,7 +8,6 @@
 //! between. The Zactrix physics shape constants live here - they are
 //! the curve anchors init_state bakes into the voice state.
 
-use std::f32::consts::FRAC_PI_2;
 use std::sync::atomic::Ordering;
 
 use crate::profiles::{KeyProfile, SynthState};
@@ -23,15 +22,42 @@ use super::{
 // each preset's own numbers (frequencies, resonances) are the curve
 // anchors. Verifier-first: docs/ZACTRIX_AUDIT.md holds the measurement
 // these curves answer, and scripts/audit/zactrix-verify.sh judges them.
+//
+// night-frontier-3C: the shape constants are f64 — the curve anchors
+// are computed in f64 and quantized once to f32 through [`anchor`]
+// (see that fn for the law).
 /// Impact collapse time constant: 3 tau is the ~3 ms broadband-to-band
 /// collapse of the switch-leaf contact.
-const TAU_CLICK_S: f32 = 0.001;
+const TAU_CLICK_S: f64 = 0.001;
 /// Spring wake time constant: 3 tau is the ~5 ms click-band-to-spring-
 /// band travel.
-const TAU_SPRING_S: f32 = 0.005 / 3.0;
+const TAU_SPRING_S: f64 = 0.005 / 3.0;
 /// Broadband start of the click cutoff, as a multiple of the click
 /// band: first contact spreads energy across the audible range.
-const CLICK_BREADTH: f32 = 2.5;
+const CLICK_BREADTH: f64 = 2.5;
+
+/// night-frontier-3C, the f64 curve-anchor law: every curve constant
+/// init_state bakes (the envelope steps, the curve deltas, the TPT
+/// coefficient trio, the pan pair, the high-pass coefficient, the
+/// decay/release/ambient powers) is computed in f64 and quantized
+/// ONCE, here, to f32 — IEEE round-to-nearest, the single rounding
+/// the value ever takes. init_state runs once per keypress, OFF the
+/// audio callback, so the wider precision costs nothing at runtime;
+/// what it buys is the end of init-time rounding wobble: the old f32
+/// chains rounded every intermediate (the tau division inside the
+/// exp argument, the tan's frequency ratio, the powf's rate ratio)
+/// and let each of those roundings drift the anchor a few ULPs from
+/// the value the same mathematics computes exactly. The anchor is now
+/// the correctly-rounded f32 of the f64 computation, and the
+/// dominance suite (test/profiles/mechanical_tests.rs,
+/// `night-frontier-3C` tests) proves per anchor that the new value
+/// sits at or closer to the f64 truth than the old f32 chain over the
+/// whole shipped-preset domain. Cross-libm byte-identity remains a
+/// separate frontier (the f64 libm answers still vary by platform);
+/// this lane removes the self-inflicted half of the wobble.
+fn anchor(x: f64) -> f32 {
+    x as f32
+}
 
 /// The trait init_state's body, as a free function: the trait impl
 /// lives once, in render.rs (Rust allows one impl block per trait and
@@ -152,7 +178,9 @@ pub(super) fn init_state(
     // Harder press → slightly lower Q (brighter, more energy
     // passes through the bandpass). Light tap → higher Q (narrower,
     // more muted). Scale: ±20% of the profile resonance.
-    let velocity_resonance_scale = 1.0 + (1.0 - vel) * 0.2;
+    // night-frontier-3C: f64 — the resonance curve's k anchors divide
+    // by this scale, and the scale now rides the f64 anchor path.
+    let velocity_resonance_scale = 1.0 + (1.0 - f64::from(vel)) * 0.2;
 
     // ── Zactrix stage A (click): the impact-collapse curve ─────
     // Physics shape, locked: first contact is broadband — the
@@ -164,12 +192,21 @@ pub(super) fn init_state(
     // settles to it. The drifted click frequency rides as the
     // anchor, so micro-randomization moves the whole curve exactly
     // as it moved the frozen coefficient before.
+    //
+    // night-frontier-3C: every constant below is computed in f64 and
+    // quantized once through `anchor` — the drifted f32 frequency
+    // converts exactly, so the only rounding the curve takes is its
+    // final one.
     state.click_fc_end = click_freq;
-    let f_broad = (click_freq * CLICK_BREADTH).min(0.45 * sr);
-    state.click_fc_delta = f_broad - click_freq;
-    state.click_k = 1.0 / (profile.click.resonance * velocity_resonance_scale);
-    state.click_k_delta = 3.0 * state.click_k;
-    state.click_step = (-1.0 / (sr * TAU_CLICK_S)).exp();
+    let f_broad = (f64::from(click_freq) * CLICK_BREADTH).min(0.45 * f64::from(sr));
+    state.click_fc_delta = anchor(f_broad - f64::from(click_freq));
+    // The k curve's start (e=1) is 4x its end — one f64 source feeds
+    // BOTH anchors, so the quarter-resonance law holds before and
+    // after the single quantization each value takes.
+    let click_k = 1.0 / (f64::from(profile.click.resonance) * velocity_resonance_scale);
+    state.click_k = anchor(click_k);
+    state.click_k_delta = anchor(3.0 * click_k);
+    state.click_step = anchor(f64::exp(-1.0 / (f64::from(sr) * TAU_CLICK_S)));
     state.click_e = 1.0;
 
     // ── Zactrix stage B (spring): the wake curve ───────────────
@@ -180,11 +217,15 @@ pub(super) fn init_state(
     // it starts to ring. Down in Hz for every shipped preset
     // (spring below click); the shape is the travel, the direction
     // is the preset's numbers.
+    // night-frontier-3C: the wake curve's constants ride the same f64
+    // anchor law — the travel delta, the k pair from one f64 source,
+    // and the wake step, each quantized once.
     state.spring_fc_end = spring_freq;
-    state.spring_fc_delta = click_freq - spring_freq;
-    state.spring_k = 1.0 / profile.spring.resonance;
-    state.spring_k_delta = 3.0 * state.spring_k;
-    state.spring_step = (-1.0 / (sr * TAU_SPRING_S)).exp();
+    state.spring_fc_delta = anchor(f64::from(click_freq) - f64::from(spring_freq));
+    let spring_k = 1.0 / f64::from(profile.spring.resonance);
+    state.spring_k = anchor(spring_k);
+    state.spring_k_delta = anchor(3.0 * spring_k);
+    state.spring_step = anchor(f64::exp(-1.0 / (f64::from(sr) * TAU_SPRING_S)));
     state.spring_e = 1.0;
 
     // Pre-compute housing filter TPT coefficients (v4.2.0+, using
@@ -196,21 +237,34 @@ pub(super) fn init_state(
     // below. Zactrix stage C: the curve is the constant itself —
     // cutoff stays low, Q stays high, and the long ring stays the
     // existing envelope's job.
-    state.housing_g = (std::f32::consts::PI * housing_freq / sr).tan();
-    state.housing_k = 1.0 / profile.housing.resonance;
+    // night-frontier-3C: g and k are computed in f64 (the tan's
+    // frequency ratio no longer rounds in f32 before the
+    // transcendental) and every derived constant below quantizes once.
+    let housing_g = (std::f64::consts::PI * f64::from(housing_freq) / f64::from(sr)).tan();
+    let housing_k = 1.0 / f64::from(profile.housing.resonance);
+    state.housing_g = anchor(housing_g);
+    state.housing_k = anchor(housing_k);
     state.housing_mix = profile.housing.mix;
 
     // night-depth-hardening-1: the housing curve is the constant
     // itself (Zactrix stage C), so its full TPT coefficient trio and
     // the bandpass level normalizer are derived HERE, once, instead of
     // being recomputed from the same g and k on every sample. Same
-    // expressions, same order, same f32 values the per-sample block
-    // produced — a pure hoist, bit-identical output.
-    state.housing_a1 = 1.0 / (1.0 + state.housing_g * (state.housing_g + state.housing_k));
-    state.housing_a2 = state.housing_g * state.housing_a1;
-    state.housing_a3 = state.housing_g * state.housing_g * state.housing_a1;
-    state.housing_gain = if state.housing_k > 0.0 {
-        1.0 / state.housing_k
+    // expressions, same order as the per-sample block they replaced.
+    // night-frontier-3C: the derivation now runs in f64 from the same
+    // g/k source above, each value quantized once through `anchor` —
+    // the coefficients the render path reads are the correctly-rounded
+    // f32 of the exact TPT algebra, not the third rounding of a f32
+    // chain.
+    // a2/a3 derive from the f64 a1 — the SAME source the stored a1
+    // quantizes from — so the trio shares one rounding-free lineage
+    // instead of compounding the quantized a1 back into the chain.
+    let housing_a1 = 1.0 / (1.0 + housing_g * (housing_g + housing_k));
+    state.housing_a1 = anchor(housing_a1);
+    state.housing_a2 = anchor(housing_g * housing_a1);
+    state.housing_a3 = anchor(housing_g * housing_g * housing_a1);
+    state.housing_gain = if housing_k > 0.0 {
+        anchor(1.0 / housing_k)
     } else {
         1.0
     };
@@ -259,8 +313,11 @@ pub(super) fn init_state(
     // powf(1.0) = 1.0 — every preset is bit-identical to before.
     // The release ramp (N2) already followed this law; the main
     // and ambient envelopes now do too.
-    let decay_rate_norm = crate::profiles::SAMPLE_RATE / sr.max(1.0);
-    state.decay_coeff = profile.decay.coefficient.powf(decay_rate_norm);
+    // night-frontier-3C: the c^(R/S) ratio and the pow run in f64,
+    // quantized once — at the 44.1 kHz reference the ratio is still
+    // exactly 1.0 and the factor exactly 1.0.
+    let decay_rate_norm = f64::from(crate::profiles::SAMPLE_RATE) / f64::from(sr.max(1.0));
+    state.decay_coeff = anchor(f64::from(profile.decay.coefficient).powf(decay_rate_norm));
     state.voice_off_threshold = profile.decay.voice_off_threshold;
 
     // v10.2.0 (dragonzen audit N7): two-stage decay. Pre-compute
@@ -272,8 +329,10 @@ pub(super) fn init_state(
     // fields behave identically to pre-v10.2.0.
     // night-master-4: the fast-stage coefficient is normalized by
     // the same c^(R/S) law as the slow stage (0.0 powf stays 0.0,
-    // so the disabled lane is untouched).
-    state.decay_coeff_fast = profile.decay.coefficient_fast.powf(decay_rate_norm);
+    // so the disabled lane is untouched). night-frontier-3C: f64
+    // anchor, one quantization.
+    state.decay_coeff_fast =
+        anchor(f64::from(profile.decay.coefficient_fast).powf(decay_rate_norm));
     state.fast_samples_count =
         if profile.decay.coefficient_fast > 0.0 && profile.decay.fast_samples_ms > 0.0 {
             (profile.decay.fast_samples_ms * 0.001 * sr) as u32
@@ -285,9 +344,13 @@ pub(super) fn init_state(
     state.spring_mix = profile.spring.mix;
 
     // Equal-power pan law: theta maps stereo_position from [-1,1] to [0, pi/2]
-    let theta = (stereo_position.clamp(-1.0, 1.0) + 1.0) * 0.5 * FRAC_PI_2;
-    state.pan_left = theta.cos();
-    state.pan_right = theta.sin();
+    // night-frontier-3C: the pan pair is a curve constant too — the
+    // cos/sin run in f64 from the exactly-converted theta, quantized
+    // once each.
+    let theta =
+        (f64::from(stereo_position.clamp(-1.0, 1.0)) + 1.0) * 0.5 * std::f64::consts::FRAC_PI_2;
+    state.pan_left = anchor(theta.cos());
+    state.pan_right = anchor(theta.sin());
 
     // v10.2.0 (dragonzen audit N6): per-keypress pan jitter.
     // Real keyboards have ±2–3° of finger-placement variation that
@@ -359,7 +422,8 @@ pub(super) fn init_state(
     // c^(R/S) sample-rate law as the main decay — the rattle is a
     // ~1 ms burst at the reference rate and must stay one at every
     // device rate, not four times longer at 96 kHz.
-    state.ambient_decay = profile.ambient.noise_decay.powf(decay_rate_norm);
+    // night-frontier-3C: f64 anchor, one quantization.
+    state.ambient_decay = anchor(f64::from(profile.ambient.noise_decay).powf(decay_rate_norm));
     // Start the ambient envelope at full level — it decays from
     // here via ambient_decay each sample.
     state.ambient_envelope = profile.ambient.noise_level;
@@ -376,10 +440,12 @@ pub(super) fn init_state(
     // One-pole high-pass filter coefficient for a ~2 kHz cutoff.
     // Derived from: hp_coeff = (1 - cos(2*pi*fc/fs)) / (1 + cos(2*pi*fc/fs))
     // Pre-computed at init to avoid transcendentals in the render path.
-    let fc = 2000.0_f32;
-    let omega = 2.0 * std::f32::consts::PI * fc / sr;
+    // night-frontier-3C: the omega/cos/quotient chain runs in f64 and
+    // quantizes once — the f32 cos of a f32-rounded omega was the
+    // wobble source here.
+    let omega = 2.0 * std::f64::consts::PI * f64::from(2000.0_f32) / f64::from(sr);
     let cos_omega = omega.cos();
-    state.ambient_hp_coeff = (1.0 - cos_omega) / (1.0 + cos_omega);
+    state.ambient_hp_coeff = anchor((1.0 - cos_omega) / (1.0 + cos_omega));
 
     // Pre-compute the release-ramp coefficient (v10.2.0+ — dragonzen
     // audit N2). Target: bring the envelope from its current value to
@@ -388,8 +454,11 @@ pub(super) fn init_state(
     // `coeff = 0.01^(1/N)`. At 44.1 kHz: N ≈ 88, coeff ≈ 0.9499.
     // At 48 kHz: N ≈ 96, coeff ≈ 0.9535. At 96 kHz: N ≈ 192,
     // coeff ≈ 0.9765. Clamped to (0, 0.9999) for safety.
-    let release_samples = (0.002 * sr).max(1.0);
-    state.release_coeff = 0.04_f32.powf(1.0 / release_samples).clamp(0.0, 0.9999);
+    // night-frontier-3C: the 1/N ratio and the pow run in f64, the
+    // clamp happens before the single quantization.
+    let release_samples = (0.002 * f64::from(sr)).max(1.0);
+    let release_coeff = 0.04_f64.powf(1.0 / release_samples).clamp(0.0, 0.9999);
+    state.release_coeff = anchor(release_coeff);
 
     // Activate voice
     state.active = true;

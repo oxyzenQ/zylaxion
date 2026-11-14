@@ -585,6 +585,32 @@ every run log, never silently gated, so any movement of the
 libm surface (glibc version, ifunc dispatch, a new runner CPU) is
 named in the log the day it happens.
 
+## The f64 curve-anchor law, measured (night-frontier-3C)
+
+The boundary section above names init-time libm variance as the
+cross-arch divergence source. Half of that surface was
+self-inflicted: the curve anchors were computed through f32
+intermediates (a f32-rounded tau inside the exp argument, a
+f32-rounded frequency ratio inside the tan, a f32 rate ratio inside
+the pow), each intermediate rounding drifting the anchor. The f64
+curve-anchor law removes that half: every curve constant init_state
+bakes is computed in f64 and quantized once to f32 (one rounding,
+IEEE round-to-nearest), init_state stays off the audio callback, so
+the runtime cost is zero. Measured over the shipped domain: the
+anchor sits within half an f32 spacing of the f64 truth on every
+family; the pre-law chains lost up to ~47 spacings on the high-pass
+coefficient at 96 kHz (~72 at 192 kHz) and thousands on the pan pair
+at the stereo extremes (6413 at p = 1 - 1/8192). The exp-step and
+pure-pow families measured at or below one spacing pre-law — the law
+gives them one consistent rule, not accuracy, and the tests pin that
+limit so a future formula change cannot silently degrade them. The
+fit is untouched: `zactrix-verify.sh` A/B against the pre-law build
+reports identical metric rows and grades on every preset. The
+cross-libm half of the boundary (per-target f64 libm answers) is
+unchanged by this law and stays the pure-Rust transcendental lane's
+endgame. Pinned by the `night_frontier_3c_*` tests in
+`test/profiles/mechanical_tests.rs`.
+
 <!-- ZYLAXION-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
