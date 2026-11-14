@@ -12,11 +12,16 @@
 //!   (night-improve-27): the enabled gate clears in the map the player
 //!   is watching, and the 0 → SIGTERM → SIGKILL escalation drives until
 //!   the pid is gone — the player must never outlive the map it reads.
-//!   After a successful detach NOTHING of zylaxion exists in the
-//!   kernel: every pin unlinked, the failure marker gone, and the pin
-//!   directory itself rmdir'd through the classified night-improve-26
-//!   cleanup (foreign entries are left and named, unexpected errors
-//!   surface).
+//!   After a successful detach nothing of zylaxion's control plane
+//!   remains in the kernel: every pin unlinked, the failure marker
+//!   gone, and the pin directory itself rmdir'd through the classified
+//!   night-improve-26 cleanup (foreign entries are left and named,
+//!   unexpected errors surface). night-total-lts-3: the one structural
+//!   exception is named, not fatal — a non-root teardown on a stock
+//!   systemd mount cannot rmdir the pin directory (write on the
+//!   root-owned /sys/fs/bpf parent decides), so the permission wall
+//!   reads as the benign stub outcome and the summary says the next
+//!   sudo attach or sudo detach sweeps it.
 //! - [`last_attach_error`] — the doctor's read side of the marker lane:
 //!   the classified verdict a failed attach planted on bpffs.
 
@@ -120,8 +125,12 @@ fn reap_player_from_map() -> Vec<String> {
 }
 
 /// Detach the tap: unpin everything (idempotent, best-effort). Returns
-/// a human-readable summary. After a successful detach NOTHING of
-/// zylaxion exists in the kernel.
+/// a human-readable summary. After a successful detach the control
+/// plane is gone — every pin unlinked, the marker gone, the tap
+/// detached; the empty pin directory may stay when its rmdir needs
+/// write on the root-owned bpffs parent (night-total-lts-3): the stub
+/// is named in the summary and swept by the next sudo attach or sudo
+/// detach.
 pub fn detach() -> Result<String, AttachError> {
     if !pin::any_pin_present() {
         return Ok("tap is not attached — nothing to detach".to_string());
@@ -136,8 +145,8 @@ pub fn detach() -> Result<String, AttachError> {
         .chain(std::iter::once(&pin::PIN_MAP_ERROR))
         .filter(|p| Path::new(p).exists())
         .collect();
-    // The pre-flight gate (cmd_detach) already refused every non-
-    // completable detach, so reaching this point means a RACE (pins
+    // The pre-flight gate (cmd_detach) refuses every detach whose PINS
+    // cannot be unlinked, so a missing pin here means a RACE (pins
     // removed or chmod'd mid-teardown) or a read-only bpffs remount —
     // the classified fallback still names the evidence honestly.
     if !missing.is_empty() {
@@ -176,6 +185,38 @@ pub fn detach() -> Result<String, AttachError> {
                 format!("; {}", reap_notes.join(", "))
             }
         )),
+        // night-total-lts-3, the field-report reappearance: on a stock
+        // systemd bpffs mount (/sys/fs/bpf — root-owned 0700) a non-root
+        // teardown unlinks every pin (the hand-over owns the directory)
+        // but the final rmdir needs write on that PARENT and dies
+        // EACCES. The detach is complete in substance — the tap is
+        // detached, the kernel objects freed, the telemetry gone — and
+        // the leftover EMPTY stub is the same handled-not-fatal class
+        // as LeftForeignEntries: named in the summary, swept by the
+        // next sudo attach or sudo detach (which the field log shows
+        // happening: "removed a stale pin directory left by a prior
+        // failed attach"). The classifier owns the errno, the consumer
+        // owns the policy — a permission wall is the ONLY Unexpected
+        // kind that reads benign here; everything else (EIO, a
+        // read-only remount) stays a surfaced failure.
+        pin::PinDirRemoval::Unexpected(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            let parent = Path::new(pin::PIN_DIR)
+                .parent()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "its parent".to_string());
+            Ok(format!(
+                "tap detached: {} pin(s) removed{} — the empty pin directory stays: \
+                 removing it needs write on {} (root-owned); the next sudo attach or \
+                 sudo detach sweeps it",
+                removed.len(),
+                if reap_notes.is_empty() {
+                    String::new()
+                } else {
+                    format!("; {}", reap_notes.join(", "))
+                },
+                parent
+            ))
+        }
         pin::PinDirRemoval::Unexpected(e) => Err(AttachError::Unknown {
             detail: format!(
                 "tap detached: {} pin(s) removed, but the pin directory could not be \
