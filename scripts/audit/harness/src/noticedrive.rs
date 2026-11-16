@@ -221,13 +221,19 @@ fn test_run_once(prog_fd: i32) -> io::Result<(u32, u32)> {
 /// Write the two request slots on the pinned control map
 /// (BPF_MAP_UPDATE_ELEM on an array: key = slot index, value = the
 /// u32). The slots are the relay's argument channel, never state.
+/// The attr field law is the map_elem head — `{ map_fd@0, key@8,
+/// value@16, flags@24 }` — the same shape the PROOF 7 lane's
+/// map_update rides; the Z2 CI guest named the one-slot-late
+/// version (the key pointer slot carrying the integer 4, the flags
+/// slot carrying a pointer — the kernel answers the huge flags with
+/// EINVAL before any byte moves).
 fn write_request_slots(map_fd: i32, kind: u32, value: u32) -> io::Result<()> {
     for (slot, val) in [(6u32, kind), (7u32, value)] {
         let mut attr = Attr::new();
-        attr.put32(0, map_fd as u32);
-        attr.put32(8, 4);
-        attr.put64(16, &slot as *const u32 as u64);
-        attr.put64(24, &val as *const u32 as u64);
+        attr.put64(0, map_fd as u64);
+        attr.put64(8, &slot as *const u32 as u64);
+        attr.put64(16, &val as *const u32 as u64);
+        attr.put32(24, 0);
         bpf(BPF_MAP_UPDATE_ELEM, &attr).map_err(|e| io::Error::from_raw_os_error(e))?;
     }
     Ok(())
