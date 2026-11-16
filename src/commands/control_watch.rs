@@ -206,8 +206,7 @@ pub(crate) fn spawn(
                             notices_drained += 1;
                             let wake_ns = now_ns().saturating_sub(raw.ns);
                             log::info!(
-                                "control notice seq {} kind {} value {} — wake {} ns",
-                                raw.seq,
+                                "control notice kind {} value {} — wake {} ns",
                                 raw.kind,
                                 raw.value,
                                 wake_ns

@@ -35,7 +35,6 @@ use std::os::fd::{AsRawFd as _, FromRawFd as _, OwnedFd};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 
-use crate::notice::encode_frame;
 use crate::progrun::{bpf, Attr, BPF_PROG_TEST_RUN};
 
 const BPF_OBJ_GET: u64 = 7;
@@ -45,11 +44,12 @@ const BPF_OBJ_GET_INFO_BY_FD: u64 = 15;
 const PIN_PROG_RELAY: &str = "/sys/fs/bpf/zylaxion/relay";
 const PIN_MAP_NOTICES: &str = "/sys/fs/bpf/zylaxion/notices";
 
-/// The notice frame's writer-side schema — mirrored from
-/// src/ebpf/notice.rs (the harness crate compiles the crate's OWN
-/// copy through the #[path] tree, so the schema is single-sourced
-/// for real; only the pin strings above are mirrors).
-use crate::notice::{ControlNotice, KIND_VOLUME, NOTICE_FRAME_SIZE, NOTICE_RECORD_SIZE};
+/// The notice record's schema — the harness crate compiles the
+/// crate's OWN copy through the #[path] tree, so the schema is
+/// single-sourced for real; only the pin strings above are mirrors.
+use crate::notice::{ControlNotice, KIND_VOLUME, NOTICE_RECORD_SIZE};
+
+const BPF_MAP_UPDATE_ELEM: u64 = 2;
 
 /// The e2e guest's boot sequence chowns the pins; the watcher and
 /// this lane open them as the desktop user. Local runs (no attach)
@@ -84,12 +84,13 @@ pub fn run_notice_drive() {
         "PROOF 8: the notice ring is open (data size {data_size} bytes, kernel-queried)"
     );
 
-    // 1. Drive the relay: one TEST_RUN, the frame rides data_in.
-    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
-    let frame = encode_frame(KIND_VOLUME, 61, seq);
-    assert_eq!(frame.len(), NOTICE_FRAME_SIZE);
+    // 1. Publish: write the request slots, then drive the relay once
+    //    with an empty payload (the slot transport — the relay reads
+    //    the control map's request channel, not the packet).
+    write_request_slots(ring.as_raw_fd(), KIND_VOLUME, 61)
+        .unwrap_or_else(|e| fail(format!("the request slots did not write: {e}")));
     let started = Instant::now();
-    let (retval, duration) = match test_run_once(relay.as_raw_fd(), &frame) {
+    let (retval, duration) = match test_run_once(relay.as_raw_fd()) {
         Ok(pair) => pair,
         Err(e) => fail(format!("the relay's test run refused: {e}")),
     };
@@ -119,23 +120,24 @@ pub fn run_notice_drive() {
     );
 
     // 3. The bytes: mmap the ring, drain as the consumer, and verify
-    //    the record echoes the frame.
+    //    the record echoes the request. The guest leg is a
+    //    single consumer, so the first record is this publish's.
     let record = match drain_ring(ring.as_raw_fd(), data_size) {
-        Ok(recs) => recs.into_iter().find(|r| r.seq == seq),
+        Ok(recs) => recs.into_iter().next(),
         Err(e) => fail(format!("the ring did not drain: {e}")),
     };
     let Some(record) = record else {
-        fail(format!("no record carried seq {seq} — the relay ran but the ring never heard it"));
+        fail("the ring holds no record — the relay ran but the ring never heard it".to_string());
     };
     if record.kind != KIND_VOLUME || record.value != 61 {
         fail(format!(
-            "the record does not echo the frame (kind {} value {} — expected kind {} value 61)",
+            "the record does not echo the request (kind {} value {} — expected kind {} value 61)",
             record.kind, record.value, KIND_VOLUME
         ));
     }
     println!(
-        "PROOF 8: the record echoes the frame — kind {} value {} seq {}, kernel-stamped ns {}",
-        record.kind, record.value, record.seq, record.ns
+        "PROOF 8: the record echoes the request — kind {} value {}, kernel-stamped ns {}",
+        record.kind, record.value, record.ns
     );
     println!(
         "MASS-RESULT: PROOF 8 notice-drive lane (the kernel produced the wake, or the lane is honestly classified) — PASS"
@@ -196,13 +198,26 @@ fn ringbuf_data_size(map_fd: i32) -> io::Result<usize> {
 /// One TEST_RUN with the frame on data_in (the skb shape: data_size_in
 /// at attr[8], data_in at attr[16], repeat 0 = exactly once). The
 /// kernel writes retval and duration back through the attr.
-fn test_run_once(prog_fd: i32, data_in: &[u8]) -> io::Result<(u32, u32)> {
+fn test_run_once(prog_fd: i32) -> io::Result<(u32, u32)> {
     let mut attr = Attr::new();
     attr.put32(0, prog_fd as u32);
-    attr.put32(8, data_in.len() as u32);
-    attr.put64(16, data_in.as_ptr() as u64);
     bpf(BPF_PROG_TEST_RUN, &attr).map_err(|e| io::Error::from_raw_os_error(e))?;
     Ok((attr.get32(4), attr.get32(36)))
+}
+
+/// Write the two request slots on the pinned control map
+/// (BPF_MAP_UPDATE_ELEM on an array: key = slot index, value = the
+/// u32). The slots are the relay's argument channel, never state.
+fn write_request_slots(map_fd: i32, kind: u32, value: u32) -> io::Result<()> {
+    for (slot, val) in [(6u32, kind), (7u32, value)] {
+        let mut attr = Attr::new();
+        attr.put32(0, map_fd as u32);
+        attr.put32(8, 4);
+        attr.put64(16, &slot as *const u32 as u64);
+        attr.put64(24, &val as *const u32 as u64);
+        bpf(BPF_MAP_UPDATE_ELEM, &attr).map_err(|e| io::Error::from_raw_os_error(e))?;
+    }
+    Ok(())
 }
 
 /// poll(2) on the ring fd — the evented wake the watcher rides.
@@ -302,8 +317,7 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
             let ns = u64::from_le_bytes(body[0..8].try_into().expect("fixed"));
             let kind = u32::from_le_bytes(body[8..12].try_into().expect("fixed"));
             let value = u32::from_le_bytes(body[12..16].try_into().expect("fixed"));
-            let seq = u32::from_le_bytes(body[16..20].try_into().expect("fixed"));
-            records.push(ControlNotice { ns, kind, value, seq, _pad: 0 });
+            records.push(ControlNotice { ns, kind, value });
         }
         pos = pos.wrapping_add((8 + len).max(8).next_multiple_of(8) as u32);
     }

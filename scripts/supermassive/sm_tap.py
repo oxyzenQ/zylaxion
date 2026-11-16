@@ -68,7 +68,7 @@ def battery(ledger: Ledger, binary: str, handover_user: str) -> None:
         else:
             ledger.fail_row(
                 "attach plants the tap",
-                f"rc={rc}: {out[:160]}",
+                f"rc={rc}: {out[:160]} ... TAIL: {out[-1600:]}",
             )
             # Nothing after this can pass honestly — the whole stage
             # family is downstream of a planted tap. Report the state

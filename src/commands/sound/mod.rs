@@ -27,6 +27,7 @@
 //! verbs (preset/volume), the status report — with the shared control
 //! plane (slots, the map opener, the policy gates) here.
 
+use std::os::fd::{AsRawFd as _, FromRawFd as _};
 use std::process;
 use std::time::Duration;
 
@@ -192,6 +193,13 @@ pub(crate) fn wake_player(control: &Array<MapData, u32>) {
 /// the wake row the player logs (the audit reads both ends back).
 static NOTICE_SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
+// The notice relay's argument slots (night-frontier-Z2 B1) — the
+// userspace mirror of control_slots::REQUEST_KIND/REQUEST_VALUE in
+// ebpf/src/main.rs. The relay's argument channel, never state: the
+// truth remains the slots the verbs own.
+const REQUEST_KIND_SLOT: u32 = 6;
+const REQUEST_VALUE_SLOT: u32 = 7;
+
 /// The evented control notice (night-frontier-Z2 B1): after a verb
 /// writes the control map, drive the pinned notice relay once — the
 /// kernel stamps bpf_ktime_get_ns and produces the record into the
@@ -207,14 +215,34 @@ static NOTICE_SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::
 /// the player share the identity boundary), and the 10 s heartbeat
 /// remains the floor either way. A lost notice degrades the latency,
 /// never the correctness: the control map is the only authority.
-pub(crate) fn notify_player(control: &Array<MapData, u32>, kind: u32, value: u32) {
-    let seq = NOTICE_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    if let Err(e) = crate::ebpf::bpf_syscall::publish_notice(kind, value, seq) {
+pub(crate) fn notify_player(control: &mut Array<MapData, u32>, kind: u32, value: u32) {
+    let _seq = NOTICE_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let wrote = control
+        .set(REQUEST_KIND_SLOT, &kind, 0)
+        .and_then(|_| control.set(REQUEST_VALUE_SLOT, &value, 0))
+        .map_err(|e| e.to_string());
+    if let Err(e) = wrote.and_then(|_| publish_via_relay()) {
         log::warn!(
             "the control notice did not publish (the signal wire and the heartbeat remain): {e}"
         );
     }
     wake_player(control);
+}
+
+/// One relay drive (night-frontier-Z2 B1): open the pinned relay
+/// program, run it once with an empty data payload — the relay reads
+/// the request slots, not the packet — and close the fd. The slot
+/// transport is the honest shape: the packet-reading shape was
+/// refused by the floor-leg verifier with its reason beyond the
+/// captured log tail, while the slot shape rides only the base
+/// helper set (map lookup, ktime, ringbuf) the tap itself proves.
+fn publish_via_relay() -> Result<(), String> {
+    let prog_fd = crate::ebpf::bpf_syscall::open_pinned_object(crate::ebpf::pin::PIN_PROG_RELAY)
+        .map_err(|e| format!("the pinned relay did not open: {e}"))?;
+    let owned = unsafe { std::os::fd::OwnedFd::from_raw_fd(prog_fd) };
+    crate::ebpf::bpf_syscall::test_run_skb(owned.as_raw_fd(), &[])
+        .map(|_| ())
+        .map_err(|e| format!("the relay's test run refused: {e}"))
 }
 
 /// Open the pinned control map for read-write. Every verb here needs

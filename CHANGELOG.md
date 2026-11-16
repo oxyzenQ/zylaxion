@@ -40,10 +40,14 @@ v80.0.0-alpha.1
 
 - **night-frontier-Z2, B1: the evented control plane — the notice
   relay and the pinned ring** — the last polling hole closed on the
-  5.15 floor: every CLI verb, after writing the control map, drives
-  one `BPF_PROG_TEST_RUN` on the pinned UNATTACHED relay (a
-  socket-filter program aya loads natively); the kernel validates the
-  frame magic, stamps `bpf_ktime_get_ns`, and publishes the 24-byte
+  5.15 floor: every CLI verb, after writing the control map, writes
+  kind and value into the map's two request slots and drives one
+  `BPF_PROG_TEST_RUN` on the pinned UNATTACHED relay (a
+  socket-filter program aya loads natively); the kernel sanity-gates
+  the kind, stamps `bpf_ktime_get_ns`, and publishes the 16-byte
+  record into the newly pinned `notices` ringbuf (the slot transport
+  — the packet-reading shape was refused by the floor-leg verifier,
+  its reason beyond the captured log tail).
   record into the newly pinned `notices` ringbuf. The player's
   watcher polls the notice ring AND the wake pipe in one `poll(2)`
   (the SIGUSR1 wire stays as the fallback), re-reads the control map

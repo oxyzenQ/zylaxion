@@ -134,6 +134,14 @@ pub mod control_slots {
     /// attach; the kernel never reads it (userspace-only slot, the
     /// same posture as PRESET_ID and VOLUME_PCT).
     pub const TAP_KIND: u32 = 5;
+    /// The notice relay's argument channel (night-frontier-Z2 B1):
+    /// the writer writes kind then value here, then drives the relay
+    /// once. These two slots are the RELAY's arguments, not state —
+    /// the truth remains slots 0..=5; a foreign or stale pair
+    /// produces a notice whose kind the relay's sanity gate refuses.
+    pub const REQUEST_KIND: u32 = 6;
+    /// The relay's second argument (see REQUEST_KIND).
+    pub const REQUEST_VALUE: u32 = 7;
 }
 
 /// The stats slot that counts every press (per-keycode counters ride
@@ -217,36 +225,50 @@ fn kprobe_input_event(ctx: ProbeContext) -> i32 {
 }
 
 /// The notice relay (night-frontier-Z2 B1): the control plane's
-/// kernel-side producer. A CLI verb drives it with ONE
-/// BPF_PROG_TEST_RUN carrying the 16-byte notice frame; this program
-/// validates the magic, stamps bpf_ktime_get_ns, and publishes the
-/// 24-byte record into the pinned notices ring — the wake the
-/// watcher polls for. It is a socket filter for one honest reason:
-/// aya loads the `socket` section natively and every floor kernel
-/// (5.15+) answers TEST_RUN for the type — no unattached SYSCALL
-/// bytecode gymnastics needed. The tap body is untouched; this
-/// program never runs on the input path (it only ever runs when a
-/// verb explicitly drives it), publishes ONLY sound-setting fields,
-/// and returns 0 (the filter verdict nobody consumes — the retval is
-/// the record, not the code).
+/// kernel-side producer. A CLI verb writes kind and value into the
+/// control map's two request slots, then drives this program with
+/// ONE BPF_PROG_TEST_RUN; it reads the slots, sanity-gates the kind,
+/// stamps bpf_ktime_get_ns, and publishes the 16-byte record into
+/// the pinned notices ring — the wake the watcher polls for.
+///
+/// The transport is the MAP, not the packet, and the reason is
+/// evidence-first: the first CI leg rejected the packet-reading
+/// shape at the verifier with the reason beyond the captured log
+/// tail, while the helpers this shape uses are the BASE set (map
+/// lookup, ktime, ringbuf — every one read back from the 5.15
+/// source, `bpf_base_func_proto`) the tap itself already proves.
+/// The program never touches the skb context at all, so the
+/// verifier's whole job here is the three helpers plus one stack
+/// write. It is a socket filter for the same honest reason as
+/// before: aya loads the `socket` section natively and every floor
+/// kernel (5.15+) answers TEST_RUN for the type.
+///
+/// The tap body is untouched; this program never runs on the input
+/// path (it only ever runs when a verb explicitly drives it),
+/// publishes ONLY sound-setting fields, and returns 0 (the filter
+/// verdict nobody consumes — the record is the result, not the
+/// code).
 #[socket_filter]
 fn notice_relay(ctx: SkBuffContext) -> i64 {
     // The one unsafe block, the same contract as `tap`: aya-ebpf's
     // helper calls are unsafe fns; every operation is bounds-checked
-    // (load_bytes returns a Result, the reservation returns an
+    // (the lookups return Options, the reservation returns an
     // Option) and the verifier re-proves the body at load time.
     unsafe {
-        let mut frame = [0u8; notice::NOTICE_FRAME_SIZE];
-        // A frame shorter than the schema (an under-sized packet) is
-        // not a notice — drop it, never fault.
-        if ctx.load_bytes(0, &mut frame).is_err() {
-            return 0;
-        }
-        // The magic rejects foreign frames before anything is
-        // published; a None here never reaches the ring.
-        let Some((kind, value, seq)) = notice::decode_frame(&frame) else {
+        let Some(kind_ref) = control.get(control_slots::REQUEST_KIND) else {
             return 0;
         };
+        let kind = *kind_ref;
+        let Some(value_ref) = control.get(control_slots::REQUEST_VALUE) else {
+            return 0;
+        };
+        let value = *value_ref;
+        // The sanity gate: only the three sound-setting kinds ring.
+        // A foreign or stale pair dies here — the ring never carries
+        // a kind the watcher's contract does not name.
+        if kind == 0 || kind > notice::KIND_VOLUME {
+            return 0;
+        }
         // A failed reservation (the watcher stalled longer than 4 KiB
         // of control changes) drops the notice silently: the next
         // heartbeat re-reads the map anyway, so a lost wake degrades
@@ -256,8 +278,6 @@ fn notice_relay(ctx: SkBuffContext) -> i64 {
                 ns: bpf_ktime_get_ns(),
                 kind,
                 value,
-                seq,
-                _pad: 0,
             });
             entry.submit(0);
         }
