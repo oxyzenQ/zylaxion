@@ -204,7 +204,11 @@ pub(super) fn run_delta() {
         println!(
             "| `{name}` | {pre_hash:016x} | {law_hash:016x} | {pre_attack:016x} | {law_attack:016x} | {first} ({} ms) | {db:.1} | {tail:.2} | {} |",
             first as f64 / DELTA_RATE as f64 * 1000.0,
-            if ok { "PASS" } else { "FAIL — divergence above the measurand floor" }
+            if ok {
+                "PASS"
+            } else {
+                "FAIL — divergence above the measurand floor"
+            }
         );
     }
     println!(
@@ -215,12 +219,17 @@ pub(super) fn run_delta() {
         println!("DELTA FAIL: the law's byte re-baseline must stay below the measurand floor");
         std::process::exit(1);
     }
-    println!("DELTA PASS: the law's byte delta is confined to the dust region the measurands never read");
+    println!(
+        "DELTA PASS: the law's byte delta is confined to the dust region the measurands never read"
+    );
 }
 
 #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
 pub(super) fn run_delta() {
     // The instrument holds two control words in one process; on other
     // architectures the law itself is a documented no-op.
-    println!("DELTA: unsupported on this architecture ({})", std::env::consts::ARCH);
+    println!(
+        "DELTA: unsupported on this architecture ({})",
+        std::env::consts::ARCH
+    );
 }

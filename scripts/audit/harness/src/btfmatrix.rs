@@ -36,8 +36,8 @@
 
 use std::collections::HashSet;
 
-use aya_obj::btf::{Btf, BtfKind};
 use aya_obj::Object;
+use aya_obj::btf::{Btf, BtfKind};
 
 /// The staged tap object, relative to the harness crate — the same
 /// bytes the binary embeds (the prebuilt lane's blake3-pinned
