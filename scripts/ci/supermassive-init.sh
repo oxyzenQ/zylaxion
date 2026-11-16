@@ -434,7 +434,11 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 	done
 	if [ "$ready" = yes ]; then
 		p8_started=yes
-		sudo -u zed /usr/bin/zylaxion volume 61 >/dev/null 2>&1
+		# The verb's own words go where the battery can read them
+		# back: a swallowed verb turns every downstream FAIL into a
+		# guess (the Z2 CI guest named this — the wake rows failed
+		# with the verb's error invisible).
+		sudo -u zed /usr/bin/zylaxion volume 61 >"$PLOG.verb1" 2>&1 || true
 		saw_notice=no
 		saw_apply=no
 		for i in $(seq 1 40); do
@@ -448,6 +452,8 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 		else
 			note "PROOF 8: the player's evented wake (latency ${wake_ns:-none} ns)" FAIL
 			grep -a "control notice\|volume retuned" "$PLOG" | head -4 || true
+			echo "── the verb's own words (the wake row's witness) ──"
+			cat "$PLOG.verb1" 2>/dev/null | head -6 || true
 		fi
 		if [ "$saw_apply" = yes ]; then
 			note "PROOF 8: the retune applied through the evented lane" PASS
@@ -458,7 +464,7 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 		# truth does not move, so the wake must apply nothing and say
 		# so. A notice that changed the sound here would be the
 		# gimmick this proof exists to refuse.
-		sudo -u zed /usr/bin/zylaxion volume 61 >/dev/null 2>&1
+		sudo -u zed /usr/bin/zylaxion volume 61 >"$PLOG.verb2" 2>&1 || true
 		auth=no
 		for i in $(seq 1 20); do
 			grep -aq "authority held" "$PLOG" && { auth=yes; break; }

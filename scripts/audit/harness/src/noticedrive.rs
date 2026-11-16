@@ -300,11 +300,17 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
         unsafe { libc::munmap(prod, page_size) };
         return Err(io::Error::last_os_error());
     }
+    // The kernel's ringbuf mmap law (ringbuf_map_mmap): a WRITABLE
+    // mapping is granted for the CONSUMER page only; every other page
+    // (producer, data) refuses VM_WRITE with EPERM. The data area
+    // rides PROT_READ — the records are read, never written (libbpf's
+    // own consumer maps the data read-only; the Z2 CI guest named the
+    // writable attempt: 'the ring did not drain: os error 1').
     let data = unsafe {
         libc::mmap(
             std::ptr::null_mut(),
             data_pages * page_size,
-            libc::PROT_READ | libc::PROT_WRITE,
+            libc::PROT_READ,
             libc::MAP_SHARED,
             map_fd,
             2 * page_size as libc::off_t,

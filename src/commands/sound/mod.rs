@@ -240,7 +240,7 @@ fn publish_via_relay() -> Result<(), String> {
     let prog_fd = crate::ebpf::bpf_syscall::open_pinned_object(crate::ebpf::pin::PIN_PROG_RELAY)
         .map_err(|e| format!("the pinned relay did not open: {e}"))?;
     let owned = unsafe { std::os::fd::OwnedFd::from_raw_fd(prog_fd) };
-    crate::ebpf::bpf_syscall::test_run_skb(owned.as_raw_fd(), &[])
+    crate::ebpf::relay_drive::test_run_skb(owned.as_raw_fd(), &[])
         .map(|_| ())
         .map_err(|e| format!("the relay's test run refused: {e}"))
 }
