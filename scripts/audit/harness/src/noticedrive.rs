@@ -396,13 +396,19 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
                 .try_into()
                 .expect("off is 8-aligned inside the ring"),
         );
-        // Busy (bit 14) means the producer is mid-reserve — nothing to
-        // read yet; discard (bit 15) records are skipped.
-        const BUSY: u64 = 1 << 14;
-        const DISCARD: u64 = 1 << 15;
-        let len = (hdr & !(BUSY | DISCARD)) as usize;
-        let committed = hdr & BUSY == 0;
-        if committed && len >= NOTICE_RECORD_SIZE {
+        // The header is the uapi's struct bpf_ringbuf_hdr — TWO u32
+        // fields: len, then pg_off (the record's own page offset). The
+        // Z2 CI guest named the whole-u64 read: the slice end carried
+        // pg_off 3 into the length (range end 12884902008 on a 8192
+        // slice) and the lane panicked where a verdict belonged. The
+        // length rides the LOW word only; busy (bit 14) means the
+        // producer is mid-reserve — nothing to read yet; discard
+        // (bit 15) records are skipped.
+        const BUSY: u32 = 1 << 14;
+        const DISCARD: u32 = 1 << 15;
+        let len = ((hdr as u32) & !(BUSY | DISCARD)) as usize;
+        let committed = (hdr as u32) & BUSY == 0;
+        if committed && len >= NOTICE_RECORD_SIZE && off + 8 + len <= data_bytes.len() {
             let body = &data_bytes[off + 8..off + 8 + len];
             let ns = u64::from_le_bytes(body[0..8].try_into().expect("fixed"));
             let kind = u32::from_le_bytes(body[8..12].try_into().expect("fixed"));
