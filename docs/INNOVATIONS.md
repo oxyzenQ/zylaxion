@@ -561,9 +561,61 @@ floor, never counted. Files of truth:
 recorded in `docs/KERNEL_COMPATIBILITY.md` and
 `docs/CO_RE_PORTABILITY.md`.
 
+**40. The golden render corpus — the freeze as a byte gate.** The
+freeze (entry 31) names the admission law in prose; the corpus makes
+it mechanical: the committed per-preset x per-rate render baseline
+(the rates-parity corpus — 24 presets x 5 rates plus the per-preset
+summary rows, one corpus, no duplicate baseline) is re-rendered
+through the REAL VoicePool path and compared row by row, keyed on
+(preset, rate), with a machine-readable verdict naming every delta
+(`GOLDEN VERDICT: baseline=144 live=144 unchanged=144 changed=0`,
+every CHANGED/MISSING/ADDED cell named with its was/now pair). The
+gate's honesty is two-tier, because the measured boundary is real:
+the hash rows are machine fingerprints (the init-time transcendental
+math — per-target libm and CPU dispatch — the same boundary the
+rates-parity lane documents), so byte identity is gated STRICTLY only
+where the fleet is one CPU family — the arm64 native lane (its
+committed baseline holds byte-identically, proven by the parity lane
+in the same workflow) and the owner's A/B machine — while the
+heterogeneous x86 claims lane runs the structural gate (missing or
+added rows fail; the measurand's shape is machine-independent) with
+every byte delta named and recorded. A clean strict verdict is the
+sentence "the sound IS the bytes" holding as a gate: any drift — a
+coefficient, a clamp, a table — moves named rows and demands the
+documented-cause re-baseline law, from any hand, including a
+post-acquisition engineer's. The gate never stamps the baseline
+itself; stamping stays the rates-parity lane's logged-run contract.
+File of truth: `scripts/audit/zactrix-golden.sh`; the corpus:
+`scripts/audit/rates-parity-baseline.txt` (x86-64, the A/B machine) +
+`scripts/audit/rates-parity-baseline-arm64.txt` (the strict lane).
+
+**41. PROOF 7 — the tap's in-kernel cost, measured by the kernel
+itself.** The README's "~1-2 µs per keystroke" and "the whole cost is
+one branch" claims stop being marketing: `BPF_PROG_TEST_RUN`
+(`bpftool prog run`) drives the PRODUCTION tap object (the
+ebpf-prebuilt bytes the binary embeds, blake3-pinned) loaded
+unattached with synthetic input_event arguments in a real x86_64
+pt_regs, and the kernel reports the duration per class — mapped
+press, release, autorepeat (the value-2 early exit), unmapped BTN_*
+(the keymap death), and the disabled gate. The gate is the RELATIVE
+law the architecture claims (gate-off, unmapped and autorepeat all
+measure below the full press path); the absolute ns/call numbers are
+recorded as measurements with the raw kernel answers as provenance,
+never gated to a fabricated bound (the runner's CPU is not the
+buyer's). A stats witness closes the gimmick door: with the gate on,
+the measured presses increment the tap's own in-kernel counter
+(STATS_TOTAL) — the measured path is the real render path, not an
+early exit. The kernel contract is stated honestly: kprobe TEST_RUN
+needs 5.16+ (`bpf_prog_test_run_kprobe`), so the documented 5.15
+floor answers ENOTSUPP and the lane records a skip instead of faking
+a number; the lane runs in the e2e micro-VM lanes (root, a real
+kernel, bpftool healed onto PATH by the same counter-witness prep).
+File of truth: `scripts/audit/zactrix-prog-run.sh`; the guest
+wiring: `scripts/ci/supermassive-init.sh`.
+
 ## The test tree that pins the ledger
 
-The ledger is not honored by prose alone: 28 test files carrying 234
+The ledger is not honored by prose alone: 35 test files carrying 279
 test functions pin the entries above, wired into the crate through
 `#[path]` modules. The family map, so an auditor can walk it in one
 pass:
