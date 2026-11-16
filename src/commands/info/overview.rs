@@ -209,5 +209,8 @@ pub fn cmd_overview() {
             crate::output::tip_line(comment)
         );
     }
-    println!();
+    // The report ends ON its last content line (night-sig-tail-2, the
+    // tail law): the final println!() here closed the overview with a
+    // blank line no sibling report carries — blank lines separate
+    // sections (the println!() above), they never close a report.
 }
