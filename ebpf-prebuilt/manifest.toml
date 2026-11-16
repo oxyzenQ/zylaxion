@@ -19,16 +19,16 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-16T16:14:53Z"
+generated = "2026-11-16T16:47:42Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "a013b867d618d8910ec46a1d1bbf97d09a7989b365b11a62cedbe7bd788a60fa"
+ebpf_tree_blake3 = "fcea849721c5cb792e88635feb7901323791b852faf633cdf0b5094181af8fc8"
 built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zylaxion-tap"
-blake3 = "b7ea36a471458bdb63c9efa666038d9d6236bffef38d535fa3c6d359bafd7d88"
-size = 3536
+blake3 = "b946430dfe0829e4fe9a924a822dd068e3c81e0bb46c62f36cb517170a6686da"
+size = 3528
 
 [contract]
 # The attach chain the loader plants (src/ebpf/loader/chain.rs and

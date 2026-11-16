@@ -450,13 +450,19 @@ kernel-produced evidence: the loader pins TWO more objects (the
 `notices` ringbuf and the UNATTACHED `relay` socket-filter program)
 beside the rest of the inventory — same cleanup classification, same
 hand-over — while the tap body and the engine stay frozen. After a
-verb writes the control map it drives the relay with one 16-byte
-frame; the kernel validates the magic, stamps `bpf_ktime_get_ns`,
-and publishes the 24-byte record the watcher's `poll(2)` wakes on.
-The record schema is structural zero-leakage — (timestamp, kind,
-value, seq); there is NO keycode field, so a control notice cannot
-carry key data, and the events ring keeps its own record shape and
-its own pin. The mechanism is floor-legal by construction: the relay
+verb writes the control map it writes kind and value into the
+control map's two request slots (the RELAY's argument channel,
+never state) and drives the relay with one TEST_RUN; the kernel
+sanity-gates the kind, stamps `bpf_ktime_get_ns`, and publishes the
+16-byte record the watcher's `poll(2)` wakes on. The transport rides
+the map because the first CI leg's verifier refused the
+packet-reading shape with its reason beyond the captured log tail,
+while the slot shape uses only the base helper set (map lookup,
+ktime, ringbuf — each read back from the 5.15 source) the tap
+itself proves. The record schema is structural zero-leakage —
+(timestamp, kind, value); there is NO keycode field, so a control
+notice cannot carry key data, and the events ring keeps its own
+record shape and its own pin. The mechanism is floor-legal by construction: the relay
 is a socket filter because aya loads the `socket` section natively
 and the 5.15 floor's test-run answers it (a SYSCALL program needs
 the sleepable flag and no aya section maps to it; a KPROBE answers

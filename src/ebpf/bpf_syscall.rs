@@ -42,7 +42,7 @@
 //! detaches (or forgets the marker).
 
 use std::io;
-use std::os::fd::{AsRawFd as _, FromRawFd as _, RawFd};
+use std::os::fd::RawFd;
 
 use super::attach_error::AttachError;
 
@@ -572,19 +572,6 @@ impl TestRunAttr {
             _pad: [0u8; 24],
         }
     }
-}
-
-/// Publish ONE control notice (night-frontier-Z2 B1): open the
-/// pinned relay, drive it once with the encoded frame, close the fd.
-/// The kernel produces the record — the writer never touches the
-/// ring's producer pages (read-only to userspace on every kernel),
-/// so this relay drive is the ONLY 5.15-legal publish, and it is
-/// also the auditable one (the record carries the kernel timestamp).
-pub fn publish_notice(kind: u32, value: u32, seq: u32) -> Result<(), io::Error> {
-    let prog_fd = open_pinned_object(crate::ebpf::pin::PIN_PROG_RELAY)?;
-    let owned = unsafe { std::os::fd::OwnedFd::from_raw_fd(prog_fd) };
-    let frame = crate::ebpf::notice::encode_frame(kind, value, seq);
-    test_run_skb(owned.as_raw_fd(), &frame).map(|_| ())
 }
 
 #[cfg(test)]

@@ -195,7 +195,7 @@ pub fn cmd_on(cli_preset: Option<String>) {
         // and the live preset swap lands now — the notice rides the
         // pinned ring (the kernel produces the record), the signal
         // wire stays the fallback.
-        super::notify_player(&control, crate::ebpf::notice::KIND_ENABLED, 1);
+        super::notify_player(&mut control, crate::ebpf::notice::KIND_ENABLED, 1);
         // night-improve-27 wording: the map writes above already applied,
         // so this surface is an UPDATE, not a spawn — say so, and keep
         // the contrast with the fresh-spawn line below ("new player").
@@ -432,7 +432,7 @@ pub fn cmd_off() {
     // ring (the helper's RUNNING gate rides on top of the identity
     // gate above; a skipped wake costs nothing — the 10 s heartbeat
     // still stops the player).
-    super::notify_player(&control, crate::ebpf::notice::KIND_ENABLED, 0);
+    super::notify_player(&mut control, crate::ebpf::notice::KIND_ENABLED, 0);
     // The identity check is re-read every poll step: if the player dies
     // mid-wait and the kernel recycles the pid, the loop must follow the
     // REGISTRATION (now stale), not the recycled process.
