@@ -431,7 +431,7 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 		saw_notice=no
 		saw_apply=no
 		for i in $(seq 1 40); do
-			grep -aq "control notice seq" "$PLOG" && saw_notice=yes
+			grep -aq "control notice kind" "$PLOG" && saw_notice=yes
 			grep -aq "volume retuned to 61%" "$PLOG" && { saw_apply=yes; break; }
 			sleep 0.1
 		done
