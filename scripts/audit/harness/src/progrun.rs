@@ -255,8 +255,21 @@ fn prog_load(
 fn prog_test_run(prog_fd: i32, ctx: &[u8]) -> Result<u32, String> {
     let mut attr = Attr::new();
     attr.put32(0, prog_fd as u32);
-    attr.put64(40, ctx.as_ptr() as u64);
-    attr.put32(56, ctx.len() as u32);
+    // The uapi field law (include/uapi/linux/bpf.h, the test struct —
+    // offsets verified against the installed headers): prog_fd@0,
+    // retval@4, data_size_in@8, data_in@16, repeat@32, duration@36,
+    // ctx_size_in@40, ctx_size_out@44, ctx_in@48, ctx_out@56. The Z2
+    // CI guest named the mislaid pair: the context POINTER written at
+    // 40 landed in ctx_size_in (its low word rides above the kernel's
+    // U16_MAX ctx ceiling) and the context LENGTH written at 56 turned
+    // ctx_out nonzero — two separate EINVAL gates, 0 measured rows,
+    // on every kernel the lane reached. The length rides 40, the
+    // pointer rides 48, and everything else stays zero; the kernel
+    // additionally refuses ctx_size_in < prog->aux->max_ctx_offset,
+    // which the 4096-byte synthetic pt_regs clears (the pt_regs
+    // comment above).
+    attr.put32(40, ctx.len() as u32);
+    attr.put64(48, ctx.as_ptr() as u64);
     bpf(BPF_PROG_TEST_RUN, &attr)
         .map(|_| attr.get32(4))
         .map_err(|e| format!("test run refused: errno {e}"))
