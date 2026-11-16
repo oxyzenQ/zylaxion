@@ -39,6 +39,16 @@
 //! by [`journal::init`] (the one builder for every verb, the per-verb
 //! loudness a call-site filter).
 //!
+//! # The tail law (night-sig-tail-1, night-sig-tail-2)
+//!
+//! Every report and every stream closes with exactly ONE newline, on
+//! the last content line: the emitters own the terminator, caller
+//! texts never carry a trailing `\n` of their own (a caller that does
+//! double-spaces the tail — the sig bug class). Blank lines separate
+//! sections inside a report (the `{}\n` section-header idiom); they
+//! never CLOSE a report. The byte-level referee is the dynamic audit:
+//! every verb, both streams, tail = one `\n`, no `\n\n\n` runs.
+//!
 //! # Capability gate
 //!
 //! One gate, no depth ladder (the contract `crate::cli::styles` documents for
