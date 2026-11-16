@@ -66,9 +66,17 @@ def battery(ledger: Ledger, binary: str, handover_user: str) -> None:
             kind = out.splitlines()[0].replace("attach: ", "")[:60]
             ledger.pass_row("attach plants the tap", kind)
         else:
+            # The verifier log's BODY (between the full-log banner and
+            # the summary) carries the actual rejection; the head and
+            # tail alone kept cutting it.
+            mid = ""
+            lo = out.find("full log:")
+            hi = out.find("verification time")
+            if lo >= 0 and hi > lo:
+                mid = out[lo:hi][-3600:]
             ledger.fail_row(
                 "attach plants the tap",
-                f"rc={rc}: {out[:160]} ... TAIL: {out[-1600:]}",
+                f"rc={rc}: {out[:160]} ... MID: {mid} ... TAIL: {out[-900:]}",
             )
             # Nothing after this can pass honestly — the whole stage
             # family is downstream of a planted tap. Report the state
