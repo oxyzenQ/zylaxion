@@ -27,18 +27,19 @@ scripts/audit/zactrix-prog-run.sh      # PROOF 7 (BPF_PROG_TEST_RUN — the e2e 
 ```
 
 PROOF 7 is the one proof that does NOT run on the bare sandbox: it
-needs root, a real kernel whose BPF_PROG_TEST_RUN covers kprobe
-programs (5.16+), and CAP_BPF/CAP_PERFMON for the load — the e2e
-micro-VM lanes are its stage (scripts/ci/supermassive-init.sh, the
-payload's harness binary). The lane rides the loader's own aya-obj
-parser and raw bpf() syscalls — the first CI attempt named the wall:
-the aya-ebpf object carries legacy map definitions that libbpf v1.0
-(every modern bpftool) refuses to open before any measurement.
-Kernels without the support (the documented 5.15 floor answers
-ENOTSUPP) are recorded as skips, never faked rows; the absolute
-ns/call numbers are measurements with the repeat count in the row,
-and the gate is the relative law (gate-off, unmapped, autorepeat all
-below the full press path).
+needs root, a real kernel, and CAP_BPF/CAP_PERFMON for the load — the
+e2e micro-VM lanes are its stage (scripts/ci/supermassive-init.sh,
+the payload's harness binary). The lane rides the loader's own
+aya-obj parser and raw bpf() syscalls — the first CI attempt named
+the wall: the aya-ebpf object carries legacy map definitions that
+libbpf v1.0 (every modern bpftool) refuses to open before any
+measurement — and the round-6 run named the second: a KPROBE program
+answers ENOTSUPP to BPF_PROG_TEST_RUN on every mainline kernel, so
+the mode loads the same bytes as BPF_PROG_TYPE_SYSCALL, the one type
+whose test-run the kernel supports since the documented 5.15 floor.
+Nothing is skipped; the absolute ns/call numbers are measurements
+with the repeat count in the row, and the gate is the relative law
+(gate-off, unmapped, autorepeat all below the full press path).
 
 Hardware for every run below: an Intel(R) Xeon(R) virtual sandbox, 2
 vCPUs, no audio device, no eBPF attachment — the proofs are headless
