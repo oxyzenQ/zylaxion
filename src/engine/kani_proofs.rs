@@ -52,12 +52,12 @@ mod proofs {
         let a: u32 = kani::any();
         let b: u32 = kani::any();
         kani::assume(a <= b);
-        let ga = gain_from_percent(a);
-        let gb = gain_from_percent(b);
-        assert!(ga.is_finite(), "the gain path produced a non-finite value");
-        assert!(gb.is_finite(), "the gain path produced a non-finite value");
-        assert!(ga >= 0.0, "the gain path went negative");
-        assert!(ga <= gb, "louder percent rendered quieter");
+        let gain_a = gain_from_percent(a);
+        let gain_b = gain_from_percent(b);
+        assert!(gain_a.is_finite(), "the gain path produced a non-finite value");
+        assert!(gain_b.is_finite(), "the gain path produced a non-finite value");
+        assert!(gain_a >= 0.0, "the gain path went negative");
+        assert!(gain_a <= gain_b, "louder percent rendered quieter");
     }
 
     /// The noise mapping's law: every u32 bit pattern the PRNG can
