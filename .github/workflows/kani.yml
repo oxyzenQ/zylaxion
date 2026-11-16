@@ -45,8 +45,10 @@ jobs:
             sudo cat /etc/resolv.conf
           } | sudo tee /etc/resolv.conf > /dev/null
 
+      # v1.1, night-depth-hardening-2 SHA pin (the line-length law keeps
+      # the pin comment above the use).
       - name: Install the Kani verifier
-        uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f  # v1.1, night-depth-hardening-2 SHA pin
+        uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f
 
       - name: Prove the pure laws over their whole input spaces
         run: |
