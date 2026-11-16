@@ -194,7 +194,12 @@ pub fn run_fold_proof() {
             println!("FOLD-PROOF: FAIL — the registry carries no '{name}' preset");
             std::process::exit(1);
         };
-        run_preset(preset.name, preset.profile, crate::profiles::SAMPLE_RATE as u32, SPACING_MS);
+        run_preset(
+            preset.name,
+            preset.profile,
+            crate::profiles::SAMPLE_RATE as u32,
+            SPACING_MS,
+        );
     }
     // The forced-ceiling shape: the stability battery's own posture,
     // copied law-for-law (every stage's resonance at the legal
@@ -207,10 +212,20 @@ pub fn run_fold_proof() {
     forced.click.resonance = crate::profiles::ranges::RESONANCE_MAX;
     forced.spring.resonance = crate::profiles::ranges::RESONANCE_MAX;
     forced.housing.resonance = crate::profiles::ranges::RESONANCE_MAX;
-    run_preset("forced-ceiling", forced, crate::profiles::SAMPLE_RATE as u32, SPACING_MS);
+    run_preset(
+        "forced-ceiling",
+        forced,
+        crate::profiles::SAMPLE_RATE as u32,
+        SPACING_MS,
+    );
     // The extreme-regime leg: the ceiling shape at 2 ms spacing (a
     // 500 Hz repeat no keyboard, autorepeat or macro produces) — the
     // OLDEST voice the boundary could ever meet, the fold's whole
     // potential market. The rows name what is even there.
-    run_preset("forced-ceiling", forced, crate::profiles::SAMPLE_RATE as u32, 2.0);
+    run_preset(
+        "forced-ceiling",
+        forced,
+        crate::profiles::SAMPLE_RATE as u32,
+        2.0,
+    );
 }
