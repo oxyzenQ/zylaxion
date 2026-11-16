@@ -268,8 +268,16 @@ when `enabled != 1` the whole cost is one branch; unmapped keycodes
 die in the kernel; autorepeat never sounds. Events ride a 64 KiB
 `RingBuf` that silently drops when full ("a missed click sound is
 always preferable to blocking the input path"), and stats counters
-use 64-bit atomic fetch-adds. Files of truth: `ebpf/src/main.rs`
-(maps: control, keymap, events, stats) and the ABI tests in
+use 64-bit atomic fetch-adds. The ring record also carries a
+four-byte sound-class `slot`, copied from the same keymap lookup
+that gates unmapped keys — zero added per-event cost, and a
+deliberately reserved lane: the engine ignores it today (every key
+in a preset sounds the same class), and wiring it (per-class
+parameters from keycap mass and travel physics) is an owner
+decision, because it would re-baseline every preset's rendered rows
+through the audit harness. Files of truth: `ebpf/src/main.rs`
+(maps: control, keymap, events, stats), the userspace mirror's
+field record (`src/ebpf/loader/mod.rs`), and the ABI tests in
 `test/ebpf/args_tests.rs`.
 
 **17. The attach chain (fentry, then kprobe, then kprobe-alt) with

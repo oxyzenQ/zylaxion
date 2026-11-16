@@ -153,7 +153,16 @@ pub struct KeyRingEvent {
     pub keycode: u32,
     /// 1 = press, 0 = release (autorepeat is filtered in-kernel).
     pub value: u32,
-    /// The keymap sound class.
+    /// The keymap sound class (night-hardening-2, the honest lane
+    /// record): the tap copies this from the SAME keymap lookup that
+    /// gates unmapped keys, so the four bytes ride at zero added
+    /// per-event cost. The lane is deliberately UNWIRED — the engine
+    /// ignores it today (every key in a preset sounds the same class),
+    /// and wiring it (per-class parameters from keycap mass and travel
+    /// physics) is an owner decision: it would re-baseline every
+    /// preset's rendered rows through the audit harness. Carried, not
+    /// dropped, so the ring record shape stays stable for the day the
+    /// owner decides.
     pub slot: u32,
 }
 
