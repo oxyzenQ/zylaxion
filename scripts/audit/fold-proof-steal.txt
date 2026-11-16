@@ -1,0 +1,20 @@
+FOLD-PROOF preset=technical rate=44100 presses=20 spacing_ms=10 pool=16
+FOLD-PROOF pre-boundary hash=da0b78d1ff06191e samples=7056 (presses 1..=16, the natural regime — identical under any policy that only acts on saturation)
+FOLD-PROOF natural median step=0.985715 (presses 2..=16, the ordinary onset band)
+FOLD-PROOF carried energy=0.000000 rel_onset=-403.5 dB (voice units, unity gain — the boundary voice's own remaining tail; the dB relation names the audibility of cutting it)
+FOLD-PROOF post-boundary mix energy=59.378492 samples=10143 (listener units, shipped gain — the policy-dependent row: the cut loses the carried energy here, the fold retains it)
+FOLD-PROOF preset=glass_tactile rate=44100 presses=20 spacing_ms=10 pool=16
+FOLD-PROOF pre-boundary hash=2fe94ba11bd9f832 samples=7056 (presses 1..=16, the natural regime — identical under any policy that only acts on saturation)
+FOLD-PROOF natural median step=0.848040 (presses 2..=16, the ordinary onset band)
+FOLD-PROOF carried energy=0.000000 rel_onset=-719.3 dB (voice units, unity gain — the boundary voice's own remaining tail; the dB relation names the audibility of cutting it)
+FOLD-PROOF post-boundary mix energy=25.190807 samples=10143 (listener units, shipped gain — the policy-dependent row: the cut loses the carried energy here, the fold retains it)
+FOLD-PROOF preset=forced-ceiling rate=44100 presses=20 spacing_ms=10 pool=16
+FOLD-PROOF pre-boundary hash=4902a83468e11063 samples=7056 (presses 1..=16, the natural regime — identical under any policy that only acts on saturation)
+FOLD-PROOF natural median step=0.662467 (presses 2..=16, the ordinary onset band)
+FOLD-PROOF carried energy=0.000000 rel_onset=-108.7 dB (voice units, unity gain — the boundary voice's own remaining tail; the dB relation names the audibility of cutting it)
+FOLD-PROOF post-boundary mix energy=341.173830 samples=10143 (listener units, shipped gain — the policy-dependent row: the cut loses the carried energy here, the fold retains it)
+FOLD-PROOF preset=forced-ceiling rate=44100 presses=20 spacing_ms=2 pool=16
+FOLD-PROOF pre-boundary hash=8f13c550ff9d1f42 samples=1408 (presses 1..=16, the natural regime — identical under any policy that only acts on saturation)
+FOLD-PROOF natural median step=0.272228 (presses 2..=16, the ordinary onset band)
+FOLD-PROOF carried energy=0.108541 rel_onset=-18.6 dB (voice units, unity gain — the boundary voice's own remaining tail; the dB relation names the audibility of cutting it)
+FOLD-PROOF post-boundary mix energy=518.025001 samples=9084 (listener units, shipped gain — the policy-dependent row: the cut loses the carried energy here, the fold retains it)

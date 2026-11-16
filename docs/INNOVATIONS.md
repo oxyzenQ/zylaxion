@@ -216,6 +216,39 @@ nothing. Files of truth: `src/engine/pool/mod.rs` and
 `src/engine/voice/mod.rs`; stealing and smooth release are pinned by
 tests in `test/engine/pool_tests.rs`.
 
+**43. The mode-state fold, measured and refused (night-frontier-Z3
+C1).** The proposal: when the pool saturates, fold the new excitation
+into the oldest sounding resonator (the TPT integrator state keeps
+accumulating drive, phase continuity preserved) instead of stealing
+it — polyphony's ceiling becoming "16 mode-states with drive
+accumulation" instead of 16 discrete voices, the mid-ring tail never
+cut. The freeze bar's own price named the referee first: a measurable
+improvement proven by the audit harness, or the honest skip. The
+harness grew the saturation-boundary instrument (`--fold-proof`): a
+fixed 20-press burst at 10 ms spacing — a 100 Hz repeat, already
+faster than any keyboard, autorepeat, or macro — through the REAL
+pool, reporting the boundary voice's own remaining tail energy
+against its own onset. The measurement refused the premise: at the
+boundary the oldest voice carries −403.5 dB (technical) and
+−719.3 dB (glass_tactile) of its onset energy — the click and spring
+rings die inside the first tens of milliseconds and the housing band
+goes with them; the forced-ceiling shape (every stage's resonance at
+the legal maximum, the slowest ring the parameter space allows, the
+stability battery's own posture) still carries only −108.7 dB, some
+48 dB under the −60 dB measurand floor the delta instrument already
+gates at. The one regime where a cut carries audible energy — 2 ms
+spacing (a 500 Hz repeat) at ceiling resonance, −18.6 dB there — is
+a regime no keyboard reaches: the pool fills in 15×spacing, hardware
+repeat tops out near 30 Hz, and the fill alone pushes the oldest
+voice far past every preset's own −60 dB tail endpoint. The decision
+the owner's law produces: the steal stays, the fold never lands, and
+the refusal is checkable forever — one command re-runs the rows, so
+any future preset whose ring survives into the reachable regimes
+faces the same numbers again. Files of truth:
+`scripts/audit/harness/src/foldproof.rs` (the mode) and
+`scripts/audit/fold-proof-steal.txt` (the committed run the
+entry quotes).
+
 **12. The hard clamp and the NaN silence net.** The invariants: a
 channel never leaves the engine outside `[-1.0, 1.0]`, and a
 non-finite sample becomes silence, never a crash — "the worst the
@@ -716,7 +749,9 @@ truth, and every entry above names its file. The fast paths:
 `cargo test` runs the in-tree unit test tree that pins the bounds,
 laws, and round-trips named above; `scripts/audit/zactrix-audit.sh`
 and `zactrix-verify.sh` re-run the physical metrics on the real
-render path; `zylaxion doctor` prints the kernel report the attach
+render path; the saturation-boundary rows of entry 43 re-run with
+`cargo run --release --manifest-path scripts/audit/harness/Cargo.toml
+-- --fold-proof`; `zylaxion doctor` prints the kernel report the attach
 gate consumes; `zylaxion status` reads the TAP_KIND slot the loader
 wrote. Where a number in any other doc disagrees with the code, the
 code wins — and the doc gets the PR.

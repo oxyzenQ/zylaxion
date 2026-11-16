@@ -51,6 +51,7 @@ mod notice;
 
 mod btfmatrix;
 mod delta;
+mod foldproof;
 mod noticedrive;
 mod fft;
 mod footprint;
@@ -178,6 +179,16 @@ fn main() {
     // a pin-less host reads the honest skip.
     if args.iter().any(|a| a == "--notice-drive") {
         noticedrive::run_notice_drive();
+        return;
+    }
+
+    // night-frontier-Z3 C1: the saturation-boundary instrument — the
+    // measurand the freeze bar names for the mode-state fold. Renders
+    // a fixed 20-press saturation sequence through the real pool and
+    // measures the output step at every trigger instant; the
+    // committed steal-shape and fold-shape runs carry the proof.
+    if args.iter().any(|a| a == "--fold-proof") {
+        foldproof::run_fold_proof();
         return;
     }
 
