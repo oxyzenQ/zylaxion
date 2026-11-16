@@ -418,7 +418,7 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 	PLOG=/tmp/zylaxion-player-p8.log
 	rm -f "$PLOG"
 	p8_started=no
-	sudo -u zed env RUST_LOG=info /usr/bin/zylaxion play >"$PLOG" 2>&1 &
+	sudo -u zed env RUST_LOG=info /usr/bin/zylaxion _play >"$PLOG" 2>&1 &
 	PLAY8=$!
 	ready=no
 	for i in $(seq 1 30); do
