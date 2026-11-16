@@ -38,6 +38,15 @@ v80.0.0-alpha.1
 
 ### Added
 
+- **night-frontier-Z1, A3: the golden render corpus gate** — the
+  committed render corpus re-rendered and compared row by row with a
+  machine-readable verdict naming every delta
+  (`scripts/audit/zactrix-golden.sh`); strict byte identity on the
+  fleet-homogeneous lanes (the arm64 native lane, the owner's A/B
+  machine), the structural gate plus named-delta recording on the
+  heterogeneous x86 claims lane (the init-time transcendental
+  boundary is real and stays visible, named, every run); the engine
+  freeze becomes a byte gate ("the sound IS the bytes").
 - **night-frontier-Z1, A2 remainder: the SPSC ring's interleaving
   pins** — the ring's laws (FIFO integrity under any interleaving,
   produced == accepted + refused, every accepted frame delivered, the

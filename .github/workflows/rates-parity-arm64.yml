@@ -121,3 +121,14 @@ jobs:
           # be born from a logged run.
           ./scripts/audit/zactrix-rates-parity.sh \
             scripts/audit/rates-parity-baseline-arm64.txt
+
+      # night-frontier-Z1: the golden render corpus gate (A3), strict —
+      # this lane's runner fleet is one CPU family (the same fleet the
+      # parity step above proves byte-stable), so THIS is the honest
+      # seat for the freeze-as-a-byte-gate contract: every committed
+      # row re-renders byte-identical, or the delta is named with its
+      # was/now pair and the lane fails into the documented-cause law.
+      - name: The golden render corpus gate (strict byte identity)
+        run: |
+          ./scripts/audit/zactrix-golden.sh --strict \
+            scripts/audit/rates-parity-baseline-arm64.txt

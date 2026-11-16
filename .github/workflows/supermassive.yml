@@ -948,6 +948,16 @@ jobs:
             --binary target/x86_64-unknown-linux-gnu/release/zylaxion \
             2>&1 | tee /tmp/claims.log
 
+      # night-frontier-Z1: the golden render corpus gate (A3) — the
+      # committed corpus re-rendered on THIS runner, every row keyed
+      # and named; a clean verdict is the byte-level freeze proof
+      # ("the sound IS the bytes"). Headless, rootless, no audio
+      # device: the same standalone harness the audit suite rides.
+      - name: The golden render corpus gate
+        run: |
+          set -o pipefail
+          ./scripts/audit/zactrix-golden.sh 2>&1 | tee /tmp/golden.log
+
       - name: Claims inventory (the step summary)
         if: always()
         run: |
@@ -956,6 +966,10 @@ jobs:
             echo
             echo '```'
             grep -E '^MASS-(RESULT|VERDICT)' /tmp/claims.log || true
+            echo '```'
+            echo
+            echo '```'
+            grep -E '^GOLDEN' /tmp/golden.log || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
