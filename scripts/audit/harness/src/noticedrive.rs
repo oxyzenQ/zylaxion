@@ -206,14 +206,22 @@ fn ringbuf_data_size(map_fd: i32) -> io::Result<usize> {
     Ok(max_entries as usize)
 }
 
-/// One TEST_RUN with an EMPTY payload (the slot transport: the
-/// arguments ride the control map's request slots the caller wrote,
-/// never the packet; prog_fd at attr[0], every data/ctx field zero,
-/// repeat 0 = exactly once). The kernel writes retval and duration
-/// back through the attr.
+/// One TEST_RUN on the pinned relay with the frame floor the skb
+/// test run itself enforces: `bpf_prog_test_run_skb` refuses
+/// data_size_in < ETH_HLEN (14) with EINVAL, and the slot transport
+/// carries the arguments in the control map's request slots, so the
+/// 14 zero bytes are transport overhead the relay never reads (the
+/// userspace crate's own bpf_syscall::TEST_RUN_SKB_MIN_FRAME names
+/// the same law; the harness cannot import it — a separate crate —
+/// so the constant is mirrored here, and a drift shows up as this
+/// exact EINVAL, named loudly).
 fn test_run_once(prog_fd: i32) -> io::Result<(u32, u32)> {
+    const MIN_FRAME: usize = 14;
+    let frame = [0u8; MIN_FRAME];
     let mut attr = Attr::new();
     attr.put32(0, prog_fd as u32);
+    attr.put32(8, frame.len() as u32);
+    attr.put64(16, frame.as_ptr() as u64);
     bpf(BPF_PROG_TEST_RUN, &attr).map_err(|e| io::Error::from_raw_os_error(e))?;
     Ok((attr.get32(4), attr.get32(36)))
 }

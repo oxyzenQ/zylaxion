@@ -414,6 +414,13 @@ fi
 groupadd -f audio 2>/dev/null || true
 useradd -m -s /bin/bash zed 2>/dev/null || true
 usermod -aG audio zed 2>/dev/null || true
+# The player's control-plane ops (BPF_OBJ_GET on the pins, the map
+# lookups the authority law rides) cross the kernel's unprivileged
+# bpf gate; the distro default shuts it (unprivileged_bpf_disabled=2)
+# and the engine's own error names the boot-scoped remedy. Root opens
+# the gate for this boot — the below-floor leg refuses at attach
+# anyway, and the verb probes above run as root, past the gate.
+sysctl -w kernel.unprivileged_bpf_disabled=0 >/dev/null 2>&1 || true
 if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null 2>&1; then
 	PLOG=/tmp/zylaxion-player-p8.log
 	rm -f "$PLOG"

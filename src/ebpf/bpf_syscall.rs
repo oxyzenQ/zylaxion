@@ -528,13 +528,23 @@ pub fn open_pinned_object(path: &str) -> Result<RawFd, io::Error> {
     Ok(fd as RawFd)
 }
 
+/// The skb test run's own frame floor: `bpf_prog_test_run_skb` refuses
+/// `data_size_in < ETH_HLEN` (14) with EINVAL — the kernel's own gate
+/// in net/bpf/test_run.c. The slot transport carries the relay's
+/// arguments in the control map's request slots, so the frame bytes
+/// are transport overhead the relay never reads; the floor is met
+/// with zero padding, enforced HERE (the single source) so no caller
+/// can rediscover the EINVAL with an empty payload (the redesign's
+/// first CI guest named exactly that refusal).
+pub const TEST_RUN_SKB_MIN_FRAME: usize = 14;
+
 /// Drive the pinned notice relay once (BPF_PROG_TEST_RUN, skb
 /// shape): the caller writes the relay's argument channel into the
 /// control map's request slots first (kind, then value — the slot
-/// transport, night-frontier-Z2 B1), then drives the relay with an
-/// EMPTY payload — the kernel fabricates the skb the socket filter's
-/// signature expects, the relay reads its arguments from the map and
-/// publishes the record into the pinned notices ring. Returns the
+/// transport, night-frontier-Z2 B1), then drives the relay — the
+/// kernel fabricates the skb the socket filter's signature expects,
+/// the relay reads its arguments from the map and publishes the
+/// record into the pinned notices ring. Returns the
 /// program's verdict (0 — the filter verdict nobody consumes; the
 /// record is the result).
 ///
@@ -542,13 +552,24 @@ pub fn open_pinned_object(path: &str) -> Result<RawFd, io::Error> {
 /// call, and the caller publishes exactly one notice per control
 /// change — no amplification, no batching, one record per verb.
 pub fn test_run_skb(prog_fd: RawFd, data_in: &[u8]) -> Result<u32, io::Error> {
+    // The frame floor (see TEST_RUN_SKB_MIN_FRAME): a shorter payload
+    // rides the zero-padded minimum — the relay never reads the
+    // packet, so the padding carries nothing but the kernel's own
+    // legality.
+    let padded;
+    let frame: &[u8] = if data_in.len() < TEST_RUN_SKB_MIN_FRAME {
+        padded = [0u8; TEST_RUN_SKB_MIN_FRAME];
+        &padded
+    } else {
+        data_in
+    };
     // No `mut`: the kernel writes retval/duration back through the
     // raw pointer (invisible to the borrow checker), and the struct
     // is only read after the call.
     let attr = TestRunAttr {
         prog_fd: prog_fd as u32,
-        data_size_in: data_in.len() as u32,
-        data_in: data_in.as_ptr() as u64,
+        data_size_in: frame.len() as u32,
+        data_in: frame.as_ptr() as u64,
         ..TestRunAttr::zeroed()
     };
     let rc = unsafe {
