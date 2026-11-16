@@ -35,7 +35,7 @@ use std::os::fd::{AsRawFd as _, FromRawFd as _, OwnedFd};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Instant;
 
-use crate::progrun::{bpf, Attr, BPF_PROG_TEST_RUN};
+use crate::progrun::{Attr, BPF_PROG_TEST_RUN, bpf};
 
 const BPF_OBJ_GET: u64 = 7;
 const BPF_OBJ_GET_INFO_BY_FD: u64 = 15;
@@ -67,11 +67,15 @@ pub fn run_notice_drive() {
     // The relay pin: open or skip.
     let relay = match open_pinned(PIN_PROG_RELAY) {
         Ok(fd) => fd,
-        Err(e) => skip(format!("the pinned relay is not openable ({e}) — attach first; recorded, not faked")),
+        Err(e) => skip(format!(
+            "the pinned relay is not openable ({e}) — attach first; recorded, not faked"
+        )),
     };
     let ring = match open_pinned(PIN_MAP_NOTICES) {
         Ok(fd) => fd,
-        Err(e) => skip(format!("the pinned notice ring is not openable ({e}) — attach first; recorded, not faked")),
+        Err(e) => skip(format!(
+            "the pinned notice ring is not openable ({e}) — attach first; recorded, not faked"
+        )),
     };
     // The control map: the relay's argument channel. The request slots
     // ride THIS map (slots 6/7 — the slot transport), never the ring:
@@ -80,7 +84,9 @@ pub fn run_notice_drive() {
     // ring's fd went where the control map's belonged).
     let control = match open_pinned(PIN_MAP_CONTROL) {
         Ok(fd) => fd,
-        Err(e) => skip(format!("the pinned control map is not openable ({e}) — attach first; recorded, not faked")),
+        Err(e) => skip(format!(
+            "the pinned control map is not openable ({e}) — attach first; recorded, not faked"
+        )),
     };
 
     // The ring's data size comes from the KERNEL (the map info), not
@@ -90,9 +96,7 @@ pub fn run_notice_drive() {
         Ok(n) => n,
         Err(e) => skip(format!("the notice ring's size did not read back ({e})")),
     };
-    println!(
-        "PROOF 8: the notice ring is open (data size {data_size} bytes, kernel-queried)"
-    );
+    println!("PROOF 8: the notice ring is open (data size {data_size} bytes, kernel-queried)");
 
     // 1. Publish: write the request slots on the pinned control map,
     //    then drive the relay once with an empty payload (the slot
@@ -131,21 +135,34 @@ pub fn run_notice_drive() {
     );
 
     // 3. The bytes: mmap the ring, drain as the consumer, and verify
-    //    the record echoes the request. The guest leg is a
-    //    single consumer, so the first record is this publish's.
-    let record = match drain_ring(ring.as_raw_fd(), data_size) {
-        Ok(recs) => recs.into_iter().next(),
+    //    the record echoes the request. The guest leg has had TWO
+    //    consumers racing one ring (the player's watcher drained the
+    //    player-half records, and this lane drains its own), so the
+    //    echo is searched across every record this drain holds — the
+    //    first-consumer assumption was a named lie the guest caught.
+    let records = match drain_ring(ring.as_raw_fd(), data_size) {
+        Ok(recs) => recs,
         Err(e) => fail(format!("the ring did not drain: {e}")),
     };
+    println!("PROOF 8: the drain holds {} record(s)", records.len());
+    let record = records
+        .iter()
+        .find(|r| r.kind == KIND_VOLUME && r.value == 61);
     let Some(record) = record else {
-        fail("the ring holds no record — the relay ran but the ring never heard it".to_string());
-    };
-    if record.kind != KIND_VOLUME || record.value != 61 {
+        let shapes: Vec<String> = records
+            .iter()
+            .map(|r| format!("kind {} value {}", r.kind, r.value))
+            .collect();
         fail(format!(
-            "the record does not echo the request (kind {} value {} — expected kind {} value 61)",
-            record.kind, record.value, KIND_VOLUME
+            "the ring holds no echo of this publish ({} record(s): {})",
+            records.len(),
+            if shapes.is_empty() {
+                "none".to_string()
+            } else {
+                shapes.join(", ")
+            }
         ));
-    }
+    };
     println!(
         "PROOF 8: the record echoes the request — kind {} value {}, kernel-stamped ns {}",
         record.kind, record.value, record.ns
@@ -158,9 +175,7 @@ pub fn run_notice_drive() {
 
 fn skip(why: String) -> ! {
     println!("PROOF 8: SKIP — {why}");
-    println!(
-        "MASS-RESULT: PROOF 8 notice-drive lane — SKIP (recorded, not faked)"
-    );
+    println!("MASS-RESULT: PROOF 8 notice-drive lane — SKIP (recorded, not faked)");
     std::process::exit(0);
 }
 
@@ -194,8 +209,7 @@ fn ringbuf_data_size(map_fd: i32) -> io::Result<usize> {
     attr.put32(0, map_fd as u32);
     attr.put32(4, info.len() as u32);
     attr.put64(8, info.as_mut_ptr() as u64);
-    bpf(BPF_OBJ_GET_INFO_BY_FD, &attr)
-        .map_err(|e| io::Error::from_raw_os_error(e))?;
+    bpf(BPF_OBJ_GET_INFO_BY_FD, &attr).map_err(|e| io::Error::from_raw_os_error(e))?;
     let max_entries = u32::from_le_bytes(
         info[16..20]
             .try_into()
@@ -369,7 +383,8 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
     // SAFETY: from_raw_parts builds a read-only view over the data
     // mapping this function owns; the length is the mapped length
     // exactly, and nothing writes through it.
-    let data_bytes = unsafe { std::slice::from_raw_parts(data as *const u8, data_pages * page_size) };
+    let data_bytes =
+        unsafe { std::slice::from_raw_parts(data as *const u8, data_pages * page_size) };
 
     let mut records = Vec::new();
     let start = prod_pos.load(Ordering::Acquire);
