@@ -330,11 +330,12 @@ pub(super) fn run_prog_run(object_path: &str) {
         Err((why, log)) => {
             println!("PROOF 7: FAIL — {why}");
             if let Some(log) = log {
-                let end = log
+                let bytes = log.as_bytes();
+                let end = bytes
                     .iter()
                     .position(|b| *b == 0)
-                    .unwrap_or(log.len());
-                let text = String::from_utf8_lossy(&log[..end]);
+                    .unwrap_or(bytes.len());
+                let text = String::from_utf8_lossy(&bytes[..end]);
                 println!("PROOF 7 verifier log (the failing tail):");
                 for line in text.lines().rev().take(14) {
                     println!("  {line}");
