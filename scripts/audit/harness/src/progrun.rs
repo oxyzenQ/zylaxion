@@ -90,7 +90,10 @@ const EOPNOTSUPP: i32 = 95;
 /// type@104 rsi, dev@112 rdi — dev is a marker pointer the tap never
 /// dereferences).
 fn pt_regs(type_: u32, code: u32, value: u32) -> Vec<u8> {
-    let mut buf = vec![0u8; 168];
+    // 4096: the test-run contract is ctx_size_in >= prog->aux->max_ctx_offset;
+    // the round-10 refusal named the only remaining window, so the buffer
+    // rides above any offset the verifier accepted at load.
+    let mut buf = vec![0u8; 4096];
     buf[88..92].copy_from_slice(&value.to_ne_bytes());
     buf[96..100].copy_from_slice(&code.to_ne_bytes());
     buf[104..108].copy_from_slice(&type_.to_ne_bytes());
