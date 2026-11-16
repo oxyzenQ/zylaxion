@@ -36,6 +36,22 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
+### Added
+
+- **night-hardening-2, gap 3: the decision laws pinned exhaustively**
+  — a std-only verification battery (no new dependency) over the
+  full input domains the example pins only sampled: the attach-error
+  classifiers swept across every errno (-2..=133) on all three
+  syscall lanes plus the marker wire format's whole code space; the
+  privilege verdict matrix over its entire fact space (including all
+  eight detach cells); the orphan ladder total over the whole stage
+  domain (1024 cells); the volume gate enumerated over its whole
+  percent domain in both override states; the preset resolver's whole
+  presence space (36 cells); the percent lane's gain law monotone
+  over 0..=10000 in one sweep; and the live control-plane lanes
+  (volume cell, ArcSwap model) hammered under concurrent render with
+  the render net's finite-and-clamped invariant pinned per sample.
+
 ### Changed
 
 - **night-hardening-2, gap 2: the control plane is evented** — the
