@@ -84,6 +84,10 @@ const WINDOW_S: u64 = 60;
 /// control reads.
 const WATCHER_HEARTBEAT_MS: u64 = 10_000;
 
+/// The bridge stand-ins' cap — the player's own BRIDGE_POLL_MS (the
+/// render-side bounded wait, untouched by B1).
+const BRIDGE_POLL_MS: u64 = 100;
+
 /// Keystroke cadence for STATE B: 5 keys/s (the prompt's number).
 const KEY_INTERVAL_MS: u64 = 200;
 
@@ -408,7 +412,7 @@ pub fn run_state(with_keys: bool) {
                 if !with_keys {
                     // STATE C: the bridge's poll stands in as a sleep.
                     while !stop_flag.load(Ordering::Relaxed) {
-                        std::thread::sleep(Duration::from_millis(CONTROL_POLL_MS));
+                        std::thread::sleep(Duration::from_millis(BRIDGE_POLL_MS));
                     }
                     return;
                 }
@@ -462,7 +466,7 @@ pub fn run_state(with_keys: bool) {
                     if window_end < deadline {
                         deadline = window_end;
                     }
-                    let cap = Duration::from_millis(CONTROL_POLL_MS);
+                    let cap = Duration::from_millis(BRIDGE_POLL_MS);
                     std::thread::sleep(deadline.saturating_duration_since(now).min(cap));
                 }
             })

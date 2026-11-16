@@ -26,6 +26,7 @@ pub mod sig;
 pub mod sound;
 pub mod stats;
 
+pub(crate) mod control_watch;
 pub(crate) mod help;
 pub mod info;
 pub(crate) mod player;
