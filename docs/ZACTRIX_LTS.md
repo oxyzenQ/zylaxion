@@ -22,7 +22,19 @@ scripts/audit/zactrix-rt.sh            # PROOF 3 (jitter measurement)
 scripts/audit/zactrix-reload.sh        # PROOF 5 (hot-reload session)
 scripts/audit/zactrix-soak.sh          # PROOF 1 (two one-million-keystroke runs)
 scripts/audit/zactrix-footprint.sh     # PROOF 6 (resource footprint: states A/B/C + cold-start)
+scripts/audit/zactrix-golden.sh        # the golden render corpus gate (night-frontier-Z1: the freeze as a byte gate)
+scripts/audit/zactrix-prog-run.sh      # PROOF 7 (BPF_PROG_TEST_RUN — the e2e micro-VM lane: root, a real kernel, bpftool)
 ```
+
+PROOF 7 is the one proof that does NOT run on the bare sandbox: it
+needs root, a real kernel whose BPF_PROG_TEST_RUN covers kprobe
+programs (5.16+), and a pinned control map — the e2e micro-VM lanes
+are its stage (scripts/ci/supermassive-init.sh). Kernels without the
+support (the documented 5.15 floor answers ENOTSUPP) are recorded as
+skips, never faked rows; the absolute ns/call numbers are
+measurements with the raw kernel answers as provenance, and the gate
+is the relative law (gate-off, unmapped, autorepeat all below the
+full press path).
 
 Hardware for every run below: an Intel(R) Xeon(R) virtual sandbox, 2
 vCPUs, no audio device, no eBPF attachment — the proofs are headless
