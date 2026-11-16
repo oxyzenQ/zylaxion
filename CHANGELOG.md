@@ -38,6 +38,11 @@ v80.0.0-alpha.1
 
 ### Added
 
+- **night-frontier-Z1, A2 remainder: the SPSC ring's interleaving
+  pins** — the ring's laws (FIFO integrity under any interleaving,
+  produced == accepted + refused, every accepted frame delivered, the
+  drop contract at the full boundary, the vacancy-after-drain
+  contract) pinned with real threads and boundary cells, std-only.
 - **night-hardening-2, gap 3: the decision laws pinned exhaustively**
   — a std-only verification battery (no new dependency) over the
   full input domains the example pins only sampled: the attach-error
