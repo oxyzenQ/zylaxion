@@ -348,23 +348,30 @@ else
 fi
 
 # ── PROOF 7: the tap's in-kernel cost, measured by the kernel itself ──
-# (night-frontier-Z1, the BPF_PROG_TEST_RUN lane) — the one kernel-side
-# runtime measurement the local gates cannot reach: the production tap
-# object (the ebpf-prebuilt bytes the binary embeds) is loaded
-# unattached and driven with synthetic input_event args in a real
-# pt_regs; the kernel reports the durations and the lane gates the
-# RELATIVE law (gate-off, unmapped, autorepeat all below the full
-# press path). Kernels without kprobe TEST_RUN support (the documented
-# 5.15 floor answers ENOTSUPP — the support landed 5.16) are classified
-# honestly as a recorded skip, never a fake row. The attach/detach pair
-# here is the same idempotent self-healing lane the engine chaos below
-# exercises — the measurement never leaves state behind.
+# (night-frontier-Z1, the harness-native BPF_PROG_TEST_RUN lane) — the
+# one kernel-side runtime measurement the local gates cannot reach:
+# the payload's harness binary drives the production tap object (the
+# ebpf-prebuilt bytes the binary embeds) through the loader's own
+# aya-obj parser, raw bpf() syscalls and BPF_PROG_TEST_RUN with
+# synthetic input_event args in a real pt_regs; the kernel reports the
+# durations and the lane gates the RELATIVE law (gate-off, unmapped,
+# autorepeat all below the full press path). Kernels without kprobe
+# TEST_RUN support (the documented 5.15 floor answers ENOTSUPP — the
+# support landed 5.16) are classified honestly as a recorded skip,
+# never a fake row. The attach/detach pair here is the same idempotent
+# self-healing lane the engine chaos below exercises — the measurement
+# never leaves state behind (the harness's maps are fresh instances,
+# not the pinned ones).
 if [ -x /usr/bin/zylaxion ] && [ -r "$Z/ebpf-prebuilt/zylaxion-tap.o" ]; then
 	if /usr/bin/zylaxion attach >/dev/null 2>&1; then
-		if "$Z/scripts/audit/zactrix-prog-run.sh"; then
-			note "PROOF 7 prog-run lane (the kernel measured the tap, or the kernel is honestly classified)" PASS
+		if [ -x "$Z/zactrix-audit" ]; then
+			if "$Z/zactrix-audit" --prog-run "$Z/ebpf-prebuilt/zylaxion-tap.o"; then
+				note "PROOF 7 prog-run lane (the kernel measured the tap, or the kernel is honestly classified)" PASS
+			else
+				note "PROOF 7 prog-run lane" FAIL
+			fi
 		else
-			note "PROOF 7 prog-run lane" FAIL
+			echo "MASS-RESULT: PROOF 7 prog-run lane — SKIP (the harness binary is not in the payload)"
 		fi
 		/usr/bin/zylaxion detach >/dev/null 2>&1 || true
 	else

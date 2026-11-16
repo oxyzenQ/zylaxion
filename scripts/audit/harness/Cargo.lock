@@ -922,6 +922,7 @@ dependencies = [
  "aya-obj",
  "cpal",
  "crossbeam-channel",
+ "libc",
  "log",
  "ringbuf",
 ]

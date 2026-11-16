@@ -193,6 +193,24 @@ jobs:
       - name: Build the release v3 shape payload (the from-source law)
         run: cargo pro-linux-amd64-v3-gnu --locked
 
+      # night-frontier-Z1, PROOF 7: the audit harness rides the payload
+      # too — its --prog-run mode measures the tap's in-kernel cost
+      # inside the guest (the production object through the loader's
+      # own aya-obj parser, raw bpf() syscalls, BPF_PROG_TEST_RUN).
+      # A guest cannot host a Rust toolchain; the harness crosses to
+      # the legs as a finished binary, the same shape the payload
+      # itself rides.
+      - name: Build the audit harness (the prog-run instrument)
+        run: cargo build --release --locked --manifest-path scripts/audit/harness/Cargo.toml
+
+      - name: Upload the harness artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7, night-ci-split-1 SHA pin
+        with:
+          name: zactrix-audit-host
+          path: scripts/audit/harness/target/release/zactrix-audit
+          retention-days: 1
+          if-no-files-found: error
+
       # night-dinner-4 + night-dinner-5: the same parity pin the other
       # release-shape lanes carry — the payload's build must leave the
       # prebuilt lane in step with the ebpf/ tree it shipped from.
@@ -326,6 +344,12 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, night-ci-split-1 SHA pin
         with:
           name: zylaxion-pro-v3
+          path: payload
+
+      - name: Download the harness artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, night-ci-split-1 SHA pin
+        with:
+          name: zactrix-audit-host
           path: payload
 
       # ── the guest kernel, per leg ─────────────────────────────────
@@ -604,12 +628,17 @@ jobs:
           mkdir -p rootfs/opt/zylaxion/modules
           git -C "$GITHUB_WORKSPACE" archive HEAD | tar -x -C rootfs/opt/zylaxion
           cp "$GITHUB_WORKSPACE/payload/zylaxion" rootfs/opt/zylaxion/zylaxion
+          # night-frontier-Z1, PROOF 7: the audit harness rides the
+          # guest too — its --prog-run mode measures the tap's
+          # in-kernel cost from inside the VM.
+          cp "$GITHUB_WORKSPACE/payload/zactrix-audit" rootfs/opt/zylaxion/zactrix-audit
           # night-ci-split-2: the artifact round-trip does not carry
           # the executable bit (the upload zip stores the plain 0644),
           # and test -x below fails silently — the mode is restored
           # explicitly, the from-source law's bytes keep the bytes
           # honest and this lane keeps the mode honest.
           chmod 755 rootfs/opt/zylaxion/zylaxion
+          chmod 755 rootfs/opt/zylaxion/zactrix-audit
           test -x rootfs/opt/zylaxion/zylaxion
           # The below-floor leg stages no modules (the empty mods dir
           # is the honest shape there) — the glob guard keeps the cp
