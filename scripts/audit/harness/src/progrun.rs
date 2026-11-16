@@ -153,10 +153,25 @@ fn map_lookup(fd: i32, key: &[u8], value: &mut [u8]) -> Result<(), String> {
         .map_err(|e| format!("map lookup refused: errno {e}"))
 }
 
+fn hex16(insns: &[bpf_insn]) -> String {
+    let bytes: &[u8] = unsafe {
+        std::slice::from_raw_parts(
+            insns.as_ptr().cast(),
+            insns.len().min(2) * std::mem::size_of::<bpf_insn>(),
+        )
+    };
+    bytes
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<Vec<_>>()
+        .join("")
+}
+
 fn prog_load(
     prog_type: u32,
     insns: &[bpf_insn],
     license: &CString,
+    attr_dump: &mut [u8; 44],
 ) -> Result<i32, (String, Option<String>)> {
     let insns_bytes: &[u8] = unsafe {
         std::slice::from_raw_parts(
@@ -179,6 +194,16 @@ fn prog_load(
         }
         bpf(BPF_PROG_LOAD, &attr).map_err(|e| (e, log_buf))
     };
+    attr_dump.copy_from_slice(&{
+        let mut head = [0u8; 44];
+        // Re-pack the head fields exactly as the load did, so the
+        // forensic row shows the bytes the kernel received.
+        let mut a = Attr::new();
+        a.put32(0, prog_type);
+        a.put32(4, insns.len() as u32);
+        head.copy_from_slice(&a.0[..44]);
+        head
+    });
     match load(None) {
         Ok(fd) => Ok(fd),
         Err((e, _)) => {
@@ -246,6 +271,8 @@ pub(super) fn run_prog_run(object_path: &str) {
         println!("PROOF 7: FAIL — the object does not carry {KPROBE_PROGRAM}");
         std::process::exit(1);
     });
+    let function_key = program.function_key();
+    let license = program.license.clone();
     if !matches!(program.section, ProgramSection::KProbe) {
         println!(
             "PROOF 7: FAIL — {KPROBE_PROGRAM} is not a kprobe section: {:?}",
@@ -260,8 +287,6 @@ pub(super) fn run_prog_run(object_path: &str) {
             println!("PROOF 7: FAIL — the kprobe body's instructions are missing");
             std::process::exit(1);
         });
-    let insns: Vec<bpf_insn> = function.instructions.clone();
-    let license = program.license.clone();
 
     // Real maps from the parsed definitions — fresh instances, never
     // the pinned ones; the process exits, the kernel reaps them.
@@ -309,6 +334,15 @@ pub(super) fn run_prog_run(object_path: &str) {
         println!("PROOF 7: FAIL — the call relocation refused: {e}");
         std::process::exit(1);
     }
+    // The loader's order completes BEFORE the snapshot: the load must
+    // carry the RELOCATED bytes (patched map fds, resolved helper
+    // calls), never a stale pre-relocation clone.
+    let insns: Vec<bpf_insn> = object
+        .functions
+        .get(&function_key)
+        .expect("the kprobe body survived the relocations")
+        .instructions
+        .clone();
 
     // Control plane: enabled=0 (the gate-off class first), then 1.
     let control_fd = &fds["control"];
@@ -325,16 +359,25 @@ pub(super) fn run_prog_run(object_path: &str) {
     });
     let stats_fd = fds["stats"];
 
-    let prog_fd = match prog_load(BPF_PROG_TYPE_KPROBE, &insns, &license) {
+    let mut attr_dump = [0u8; 44];
+    let prog_fd = match prog_load(BPF_PROG_TYPE_KPROBE, &insns, &license, &mut attr_dump) {
         Ok(fd) => fd,
         Err((why, log)) => {
             println!("PROOF 7: FAIL — {why}");
+            println!(
+                "PROOF 7 FORENSIC: insn_cnt={} buffer={}B head={} tail={} attr[0..44]={:02x?}",
+                insns.len(),
+                insns.len() * 8,
+                hex16(&insns),
+                {
+                    let skip = insns.len().saturating_sub(2);
+                    hex16(&insns[skip..])
+                },
+                &attr_dump
+            );
             if let Some(log) = log {
                 let bytes = log.as_bytes();
-                let end = bytes
-                    .iter()
-                    .position(|b| *b == 0)
-                    .unwrap_or(bytes.len());
+                let end = bytes.iter().position(|b| *b == 0).unwrap_or(bytes.len());
                 let text = String::from_utf8_lossy(&bytes[..end]);
                 println!("PROOF 7 verifier log (the failing tail):");
                 for line in text.lines().rev().take(14) {
