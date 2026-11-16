@@ -38,6 +38,26 @@ v80.0.0-alpha.1
 
 ### Added
 
+- **night-frontier-Z3, C1: the mode-state fold, measured and
+  refused** — the freeze bar's referee ran before any engine change:
+  the harness grew the saturation-boundary instrument
+  (`--fold-proof`, `scripts/audit/harness/src/foldproof.rs`) — a
+  fixed 20-press burst through the REAL pool at 10 ms spacing (a
+  100 Hz repeat, already faster than any keyboard, autorepeat, or
+  macro) reporting the boundary voice's own remaining tail energy
+  against its own onset. The measurement refused the proposal: the
+  oldest voice at the boundary carries −403.5 dB (technical) and
+  −719.3 dB (glass_tactile) of its onset energy; the forced-ceiling
+  shape (every stage's resonance at the legal maximum, the slowest
+  ring the parameter space allows) carries −108.7 dB — some 48 dB
+  under the −60 dB measurand floor; the one regime where a cut
+  carries audible energy (2 ms spacing at ceiling resonance, −18.6
+  dB) is a 500 Hz repeat no keyboard produces. The fold never lands:
+  the steal stays, the engine stays frozen, and the committed run
+  (`scripts/audit/fold-proof-steal.txt`) keeps the refusal
+  checkable with one command. The ledger carries the refusal as
+  entry 43.
+
 - **night-frontier-Z2, B1: the evented control plane — the notice
   relay and the pinned ring** — the last polling hole closed on the
   5.15 floor: every CLI verb, after writing the control map, writes
@@ -47,8 +67,7 @@ v80.0.0-alpha.1
   the kind, stamps `bpf_ktime_get_ns`, and publishes the 16-byte
   record into the newly pinned `notices` ringbuf (the slot transport
   — the packet-reading shape was refused by the floor-leg verifier,
-  its reason beyond the captured log tail).
-  record into the newly pinned `notices` ringbuf. The player's
+  its reason beyond the captured log tail). The player's
   watcher polls the notice ring AND the wake pipe in one `poll(2)`
   (the SIGUSR1 wire stays as the fallback), re-reads the control map
   as the only authority, and says "authority held" when a wake
