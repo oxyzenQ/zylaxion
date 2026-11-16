@@ -76,6 +76,11 @@ const BPF_F_SLEEPABLE: u32 = 0x10;
 /// `ENOTSUPP` — the kernel-internal refusal the test-run dispatch
 /// answers for program types it cannot drive (the 5.15 floor shape).
 const ENOTSUPP: i32 = 524;
+/// Runs per measured class: one bpf() syscall executes the program
+/// ONCE (the syscall test run has no repeat), so the lane times
+/// RUNS_PER_CLASS round trips per class — enough for a stable
+/// ns/call row at microsecond scale, small enough to stay fast.
+const RUNS_PER_CLASS: u64 = 20_000;
 /// `EOPNOTSUPP` — the libc-visible spelling some paths surface.
 const EOPNOTSUPP: i32 = 95;
 
@@ -239,23 +244,18 @@ fn prog_load(
     }
 }
 
-/// One test run: the kernel executes the program `repeat` times with
-/// the same synthetic context and answers the cumulative duration.
-fn prog_test_run(prog_fd: i32, ctx: &[u8], repeat: u32) -> Result<(u32, u32), String> {
-    let mut out = vec![0u8; ctx.len()];
+/// One test run: ONE program execution — the syscall test run
+/// supports neither repeat, duration, nor ctx_out (the kernel's own
+/// words: "doesn't support data_in/out, ctx_out, duration, or repeat
+/// or flags"), so the timing loop below pays one bpf() round trip per
+/// run and the CLASSES' deltas carry the tap's own cost.
+fn prog_test_run(prog_fd: i32, ctx: &[u8]) -> Result<u32, String> {
     let mut attr = Attr::new();
     attr.put32(0, prog_fd as u32);
-    // The syscall test run rides the CTX fields alone: a data_in
-    // pointer with a zero data_size_in is the inconsistency the
-    // round-8 refusal named (EINVAL before any execution).
     attr.put64(40, ctx.as_ptr() as u64);
-    attr.put64(48, out.as_ptr() as u64);
     attr.put32(56, ctx.len() as u32);
-    attr.put32(60, ctx.len() as u32);
-    attr.put32(32, repeat);
-    let _ = &out;
     bpf(BPF_PROG_TEST_RUN, &attr)
-        .map(|_| (attr.get32(4), attr.get32(36)))
+        .map(|_| attr.get32(4))
         .map_err(|e| format!("test run refused: errno {e}"))
 }
 
@@ -408,7 +408,7 @@ pub(super) fn run_prog_run(object_path: &str) {
         insns.len()
     );
 
-    let repeat: u32 = 100_000;
+    let repeat: u64 = RUNS_PER_CLASS as u64;
     let classes: [(&str, Vec<u8>); 5] = [
         ("press", pt_regs(1, 30, 1)),
         ("release", pt_regs(1, 30, 0)),
@@ -422,19 +422,34 @@ pub(super) fn run_prog_run(object_path: &str) {
         let enabled: u32 = if *name == "gate_off" { 0 } else { 1 };
         set_gate(enabled);
         let before = stats_total(stats_fd).unwrap_or(0);
-        match prog_test_run(prog_fd, ctx, repeat) {
-            Ok((retval, duration)) => {
-                // The retval is evidence, not a gate: the body's return
-                // values are path-shaped (a dropped key and a voiced key
-                // return different verdicts), recorded in the row.
+        match prog_test_run(prog_fd, ctx) {
+            Ok(_first_retval) => {
+                // The timing loop: N bpf() round trips, one execution
+                // each. The absolute ns/call names the syscall round
+                // trip included; the classes' relative deltas carry the
+                // tap's own per-path cost, which is what the gate reads.
+                let started = std::time::Instant::now();
+                let mut retval = _first_retval;
+                for _ in 1..RUNS_PER_CLASS {
+                    retval = match prog_test_run(prog_fd, ctx) {
+                        Ok(r) => r,
+                        Err(why) => {
+                            println!("PROOF 7: FAIL — {name}: {why}");
+                            std::process::exit(1);
+                        }
+                    };
+                }
+                let total_ns = started.elapsed().as_nanos() as u64;
+                let per_call = total_ns / RUNS_PER_CLASS as u64;
                 let after = stats_total(stats_fd).unwrap_or(0);
                 println!(
-                    "PROOF 7 RAW [{name}]: repeat={repeat} duration={duration}ns ({} ns/call), \
-                     retval={retval}, stats delta={}",
-                    duration as f64 / repeat as f64,
+                    "PROOF 7 RAW [{name}]: runs={RUNS_PER_CLASS} (one bpf() syscall each) \
+                     total={total_ns}ns ({} ns/call round trip), \
+                     last retval={retval}, stats delta={}",
+                    per_call,
                     after - before
                 );
-                measured.push((name, duration as u64));
+                measured.push((name, per_call));
             }
             Err(why) => {
                 if why.contains("524") || why.contains("95") {
