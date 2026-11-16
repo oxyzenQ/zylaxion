@@ -36,6 +36,18 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
+### Changed
+
+- **night-hardening-2, gap 4: the stale volume-setter lane retired** —
+  the orchestrator pair (`Orchestrator::set_master_volume` /
+  `Orchestrator::master_volume`) and the pool's convenience pair
+  (`VoicePool::set_master_volume` / `VoicePool::master_volume`) sat
+  unwired: the volume hot-reload lane shipped through the watcher's
+  direct `volume_factor` cell store (always via the `volume_bits`
+  clamp law), because the render loop owns the pool mutably and pool
+  methods are unreachable there. Four dead entry points into one
+  atomic cell deleted; the cell remains the single volume law.
+
 ### License
 
 - **Three-tier expansion + OEM repricing.** Professional ($999/year)

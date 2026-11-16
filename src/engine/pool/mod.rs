@@ -125,14 +125,14 @@ impl VoicePool {
         }
     }
 
-    /// Returns the current master volume (linear gain multiplier).
-    // night-improve-23: wired — the player's control-plane watcher reads
-    // the volume percent out of the pinned control map and stores the
-    // retuned gain through [`Self::set_master_volume`].
-    #[inline]
-    pub fn master_volume(&self) -> f32 {
-        f32::from_bits(self.master_volume.load(Ordering::Relaxed))
-    }
+    // night-hardening-2: the convenience setter/read pair
+    // (set_master_volume / master_volume) is retired. The live-retune
+    // lane rides the [`Self::volume_factor`] cell handle directly
+    // (always through the [`Self::volume_bits`] clamp law — the render
+    // loop owns the pool mutably, so the watcher cannot call pool
+    // methods), and the constructor takes the initial gain. An unwired
+    // second retune path was maintenance weight pretending to be
+    // flexibility; the atomic cell remains the single volume law.
 
     /// The shared volume factor handle (night-improve-23): a clone of
     /// the pool's volume cell, so a thread that is NOT the render loop
@@ -158,17 +158,6 @@ impl VoicePool {
             Self::DEFAULT_MASTER_VOLUME
         };
         clamped.to_bits()
-    }
-
-    /// Update the master volume at runtime. The value is clamped to a
-    /// sane range — see [`Self::with_volume`]. Takes `&self` (the
-    /// atomic cell makes the retune thread-safe) so the player's
-    /// watcher thread can call it while the render loop owns the pool
-    /// mutably.
-    #[inline]
-    pub fn set_master_volume(&self, volume: f32) {
-        self.master_volume
-            .store(Self::volume_bits(volume), Ordering::Relaxed);
     }
 
     /// Trigger a new voice for a key press event.
