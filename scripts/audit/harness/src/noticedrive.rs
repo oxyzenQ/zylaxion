@@ -43,6 +43,7 @@ const BPF_OBJ_GET_INFO_BY_FD: u64 = 15;
 /// The pinned notice plane (mirrors src/ebpf/pin.rs).
 const PIN_PROG_RELAY: &str = "/sys/fs/bpf/zylaxion/relay";
 const PIN_MAP_NOTICES: &str = "/sys/fs/bpf/zylaxion/notices";
+const PIN_MAP_CONTROL: &str = "/sys/fs/bpf/zylaxion/control";
 
 /// The notice record's schema — the harness crate compiles the
 /// crate's OWN copy through the #[path] tree, so the schema is
@@ -72,6 +73,15 @@ pub fn run_notice_drive() {
         Ok(fd) => fd,
         Err(e) => skip(format!("the pinned notice ring is not openable ({e}) — attach first; recorded, not faked")),
     };
+    // The control map: the relay's argument channel. The request slots
+    // ride THIS map (slots 6/7 — the slot transport), never the ring:
+    // a ringbuf has no update op and the kernel answers a map update
+    // on it with EINVAL (the Z2 CI guest named the mislaid fd — the
+    // ring's fd went where the control map's belonged).
+    let control = match open_pinned(PIN_MAP_CONTROL) {
+        Ok(fd) => fd,
+        Err(e) => skip(format!("the pinned control map is not openable ({e}) — attach first; recorded, not faked")),
+    };
 
     // The ring's data size comes from the KERNEL (the map info), not
     // from a local constant: the mmap layout must match the object
@@ -84,10 +94,11 @@ pub fn run_notice_drive() {
         "PROOF 8: the notice ring is open (data size {data_size} bytes, kernel-queried)"
     );
 
-    // 1. Publish: write the request slots, then drive the relay once
-    //    with an empty payload (the slot transport — the relay reads
-    //    the control map's request channel, not the packet).
-    write_request_slots(ring.as_raw_fd(), KIND_VOLUME, 61)
+    // 1. Publish: write the request slots on the pinned control map,
+    //    then drive the relay once with an empty payload (the slot
+    //    transport — the relay reads the control map's request
+    //    channel, not the packet, and never the ring).
+    write_request_slots(control.as_raw_fd(), KIND_VOLUME, 61)
         .unwrap_or_else(|e| fail(format!("the request slots did not write: {e}")));
     let started = Instant::now();
     let (retval, duration) = match test_run_once(relay.as_raw_fd()) {
