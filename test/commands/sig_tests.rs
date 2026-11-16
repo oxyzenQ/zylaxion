@@ -83,6 +83,14 @@ fn report_shape_is_stable() {
     );
     assert!(text.contains("verdict: SIGNATURE: "));
     assert!(text.contains("note: the self-hash is a fingerprint"));
+    // The tail law (night-sig-tail-1): the text ends AT the digest
+    // sentence — no trailing newline of its own, the terminator is
+    // print_stdout_line's to add (the -V parity: one '\n' total, not
+    // two).
+    assert!(
+        text.ends_with("it cannot embed its own digest."),
+        "the report tail must not carry a bare trailing newline:\n{text:?}"
+    );
     assert!(matches!(
         verdict,
         SigVerdict::Authentic | SigVerdict::Tampered
