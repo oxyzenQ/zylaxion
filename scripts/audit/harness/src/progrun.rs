@@ -245,14 +245,14 @@ fn prog_test_run(prog_fd: i32, ctx: &[u8], repeat: u32) -> Result<(u32, u32), St
     let mut out = vec![0u8; ctx.len()];
     let mut attr = Attr::new();
     attr.put32(0, prog_fd as u32);
-    attr.put32(8, ctx.len() as u32);
-    attr.put64(16, ctx.as_ptr() as u64);
-    attr.put64(24, out.as_ptr() as u64);
-    attr.put32(32, repeat);
+    // The syscall test run rides the CTX fields alone: a data_in
+    // pointer with a zero data_size_in is the inconsistency the
+    // round-8 refusal named (EINVAL before any execution).
     attr.put64(40, ctx.as_ptr() as u64);
     attr.put64(48, out.as_ptr() as u64);
     attr.put32(56, ctx.len() as u32);
     attr.put32(60, ctx.len() as u32);
+    attr.put32(32, repeat);
     let _ = &out;
     bpf(BPF_PROG_TEST_RUN, &attr)
         .map(|_| (attr.get32(4), attr.get32(36)))
