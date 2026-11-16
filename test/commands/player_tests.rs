@@ -25,7 +25,7 @@
 //! battery, which is the only lane where the rlimit ABI has real
 //! kernel meaning anyway.
 
-use super::force_no_coredump;
+use super::{force_no_coredump, gain_from_percent};
 
 /// Read the current RLIMIT_CORE, failing loudly if the probe itself
 /// fails — an honest measurement or no measurement.
@@ -78,4 +78,38 @@ fn coredump_force_is_idempotent() {
         second.rlim_max, first.rlim_max,
         "second call must not move the hard limit"
     );
+}
+
+// ── night-hardening-2: the percent lane's gain law ────────────────────
+
+/// The percent lane over its WHOLE force domain (0..=10000, every
+/// value the control map can carry after the gate), one sweep: the
+/// mapping is exact at the named anchors and monotone non-decreasing
+/// everywhere — a louder percent can never render quieter. The
+/// anchors: 0 is silence, 100 is the compiled default, 200 (the
+/// safety cap) is exactly double it.
+#[test]
+fn the_percent_lane_maps_monotonically_over_its_whole_domain() {
+    // The named anchors.
+    assert_eq!(gain_from_percent(0), 0.0, "0 percent is silence");
+    assert_eq!(
+        gain_from_percent(100),
+        crate::engine::VoicePool::DEFAULT_MASTER_VOLUME,
+        "100 percent is the compiled default"
+    );
+    assert_eq!(
+        gain_from_percent(200),
+        crate::engine::VoicePool::DEFAULT_MASTER_VOLUME * 2.0,
+        "200 percent is exactly double the compiled default"
+    );
+    // Monotone non-decreasing across the whole domain, in one sweep.
+    let mut previous = gain_from_percent(0);
+    for percent in 1..=crate::session::preset::MAX_FORCE_VOLUME_PERCENT {
+        let current = gain_from_percent(percent);
+        assert!(
+            current >= previous,
+            "the gain dipped at {percent} percent ({previous} -> {current})"
+        );
+        previous = current;
+    }
 }

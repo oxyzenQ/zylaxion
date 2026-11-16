@@ -222,3 +222,64 @@ fn detach_requirement_passes_root_and_removable() {
         "the trivially-passing corner must stay None"
     );
 }
+
+// ── night-hardening-2: the exhaustive verdict matrix ──────────────────
+
+/// The whole privilege decision matrix, walked exhaustively (the
+/// pins above name the wordings; this sweep pins the POLARITY over
+/// the full fact space): the two refusals fire only under root, the
+/// attach requirement fires only without root, and the detach
+/// requirement's three-fact space (2 x 2 x 2) answers exactly per
+/// the documented law — root passes regardless, a non-root caller
+/// passes only when BOTH removal halves are possible, and each
+/// missing half names its own refusal arm. No cell unspecified.
+#[test]
+fn the_privilege_matrix_is_total_over_the_fact_space() {
+    // The single-fact surfaces: polarity over both euid facts.
+    for root in [false, true] {
+        assert_eq!(
+            network_refusal(root).is_none(),
+            !root,
+            "network refusal polarity drifted at root={root}"
+        );
+        assert_eq!(
+            session_refusal(root).is_none(),
+            !root,
+            "session refusal polarity drifted at root={root}"
+        );
+        assert_eq!(
+            attach_requirement(root).is_none(),
+            root,
+            "attach requirement polarity drifted at root={root}"
+        );
+    }
+    // The detach three-fact space, all eight cells.
+    for root in [false, true] {
+        for pins in [false, true] {
+            for dir in [false, true] {
+                let verdict = detach_requirement(root, pins, dir);
+                let expected_none = root || (pins && dir);
+                assert_eq!(
+                    verdict.is_none(),
+                    expected_none,
+                    "detach({root}, {pins}, {dir}) must {}",
+                    if expected_none { "pass" } else { "refuse" }
+                );
+                if !expected_none {
+                    let msg = verdict.expect("a refusal carries its wording");
+                    if !pins {
+                        assert!(
+                            msg.contains("cannot unlink the pins"),
+                            "the missing-unlink cell must name the unlink arm: {msg}"
+                        );
+                    } else {
+                        assert!(
+                            msg.contains("rmdir permission lives on its parent"),
+                            "the missing-rmdir cell must name the rmdir arm: {msg}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}

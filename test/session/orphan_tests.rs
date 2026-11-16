@@ -134,6 +134,42 @@ fn the_escalation_ladder_is_the_decision_table() {
     }
 }
 
+// ── night-hardening-2: the exhaustive ladder table ────────────────────
+
+/// The ladder over its WHOLE stage domain. The runtime only produces
+/// stages 0..=2, but the table's contract for any later stage is
+/// pinned too — a dead pid is always ConcludeGone, an alive pid
+/// inside the budget is always Observe, and an alive pid past the
+/// budget escalates exactly once per stage and then concludes
+/// survived. Totality plus monotonicity over all 1024 cells: no
+/// input the reaper can ever construct is left unspecified.
+#[test]
+fn the_ladder_is_total_over_the_whole_stage_domain() {
+    use LadderStep::*;
+    for stage in 0..=255u8 {
+        for alive in [false, true] {
+            for budget in [false, true] {
+                let expected = if !alive {
+                    ConcludeGone
+                } else if !budget {
+                    Observe
+                } else if stage == 0 {
+                    SendTerm
+                } else if stage == 1 {
+                    SendKill
+                } else {
+                    ConcludeSurvived
+                };
+                assert_eq!(
+                    ladder_next(stage, alive, budget),
+                    expected,
+                    "ladder({stage}, {alive}, {budget}) drifted"
+                );
+            }
+        }
+    }
+}
+
 /// The live reap leg: a stub process whose cmdline is exactly this
 /// binary + `_play` (grep blocking on stdin, with argv[0] rewritten to
 /// the test binary's path) is found by the scan and terminated by the
