@@ -54,8 +54,14 @@ mod proofs {
         kani::assume(a <= b);
         let gain_a = gain_from_percent(a);
         let gain_b = gain_from_percent(b);
-        assert!(gain_a.is_finite(), "the gain path produced a non-finite value");
-        assert!(gain_b.is_finite(), "the gain path produced a non-finite value");
+        assert!(
+            gain_a.is_finite(),
+            "the gain path produced a non-finite value"
+        );
+        assert!(
+            gain_b.is_finite(),
+            "the gain path produced a non-finite value"
+        );
         assert!(gain_a >= 0.0, "the gain path went negative");
         assert!(gain_a <= gain_b, "louder percent rendered quieter");
     }
