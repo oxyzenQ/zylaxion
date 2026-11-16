@@ -260,7 +260,11 @@ impl AttachError {
             ProgramError::Btf(err) => AttachError::FentryUnavailable {
                 reason: format!("vmlinux BTF lookup failed: {err}"),
             },
-            ProgramError::LoadError { verifier_log, .. } => {
+            ProgramError::LoadError {
+                verifier_log,
+                io_error,
+                ..
+            } => {
                 // night-depth-hardening-1: the verifier log's wording,
                 // line count, and state-dump depth differ per kernel
                 // version (5.15 vs 6.x print different context for the
@@ -271,9 +275,21 @@ impl AttachError {
                 // stable across kernels while the classification (the
                 // code-4 marker) stays untouched.
                 let full = verifier_log.to_string();
-                log::info!("BPF verifier rejected the tap program, full log:\n{full}");
+                // The raw errno rides the journal: a PRE-WALK rejection
+                // (the summary says zero instructions processed) never
+                // prints a reason line — the errno is the only signal
+                // the kernel gives (night-frontier-Z2, the notice-relay
+                // load named it).
+                log::info!(
+                    "BPF verifier rejected the tap program (errno {}), full log:\n{full}",
+                    io_error.raw_os_error().unwrap_or(0)
+                );
                 AttachError::VerifierRejected {
-                    detail: verifier_tail(&full, 3),
+                    detail: format!(
+                        "errno {} — {}",
+                        io_error.raw_os_error().unwrap_or(0),
+                        verifier_tail(&full, 3)
+                    ),
                 }
             }
             ProgramError::SyscallError(sc) if is_permission(&sc.io_error) => {
