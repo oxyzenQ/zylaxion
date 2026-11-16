@@ -200,6 +200,12 @@ pub(crate) fn spawn(
                             debug_assert!((item.as_ptr() as usize).is_multiple_of(
                                 std::mem::align_of::<crate::ebpf::notice::ControlNotice>()
                             ));
+                            // SAFETY: the record is read through a
+                            // reference built from the ringbuf item's
+                            // own bytes: the length was bounds-checked
+                            // above (NOTICE_RECORD_SIZE), the alignment is
+                            // the ringbuf contract the debug_assert names,
+                            // and the item outlives the read.
                             let raw = unsafe {
                                 &*(item.as_ptr() as *const crate::ebpf::notice::ControlNotice)
                             };

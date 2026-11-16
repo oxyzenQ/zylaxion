@@ -51,6 +51,10 @@ fn the_wake_lane_round_trips_and_times_out() {
     // it. Coalescing is the drain's business, so a second byte
     // round-trips too.
     for _ in 0..2 {
+        // SAFETY: raise targets this test's own process with the signal
+        // the wake pipe's handler registered; the handler is the
+        // production one the tests above installed and the call is the
+        // documented self-wake.
         let rc = unsafe { libc::raise(CONTROL_WAKE_SIGNAL) };
         assert_eq!(rc, 0, "raise(SIGUSR1) must succeed");
         let started = std::time::Instant::now();

@@ -78,7 +78,7 @@ extern "C" fn control_wake_handler(_sig: libc::c_int) {
     let fd = WAKE_WRITE_FD_RAW.load(Ordering::Relaxed);
     if fd >= 0 {
         let byte = 1u8;
-        // Safety: write(2) takes a plain const pointer used for the
+        // SAFETY: write(2) takes a plain const pointer used for the
         // call's duration; `byte` is a local of exactly the type
         // pointed to and nothing else sees it.
         let _ = unsafe { libc::write(fd, (&byte as *const u8).cast(), 1) };
@@ -102,11 +102,14 @@ pub fn install() -> Result<ControlWake, String> {
     }
     let raw = WAKE_WRITE_FD.get().expect("just set").0.as_raw_fd();
     WAKE_WRITE_FD_RAW.store(raw, Ordering::Relaxed);
-    // Safety: sigaction takes a plain struct and two pointers;
+    // SAFETY: sigaction takes a plain struct and two pointers;
     // `action` is a zeroed local of the ABI's own type, the handler is
     // an `extern "C" fn` of the exact expected signature (no
     // SA_SIGINFO, so the (c_int) shape is right), and neither pointer
     // outlives the call.
+    // SAFETY: the sigaction call is given a zeroed local of the ABI's
+    // own struct type and a handler of the exact expected signature;
+    // the summary above carries the per-field argument.
     unsafe {
         let mut action: libc::sigaction = std::mem::zeroed();
         action.sa_sigaction = control_wake_handler as *const () as usize;
@@ -162,7 +165,7 @@ impl ControlWake {
     pub fn drain(&self) {
         let mut buf = [0u8; 4096];
         let fd = self.read_end.as_raw_fd();
-        // Safety: read(2) takes a plain out-pointer; `buf` is a local
+        // SAFETY: read(2) takes a plain out-pointer; `buf` is a local
         // buffer that outlives the call and nothing else aliases it.
         let n = unsafe { libc::read(fd, buf.as_mut_ptr().cast(), buf.len()) };
         if n < 0 {

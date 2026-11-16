@@ -180,6 +180,9 @@ fn open_pinned(path: &str) -> io::Result<OwnedFd> {
     // The fd rides the attr's first word on success (the kernel writes
     // it back through the caller's attr copy).
     let fd = rc;
+    // SAFETY: fd is a fresh fd the kernel returned from a successful
+    // BPF_OBJ_GET (the rc<0 path errored above), so this constructor
+    // takes sole ownership exactly once.
     Ok(unsafe { OwnedFd::from_raw_fd(fd) })
 }
 
@@ -249,12 +252,17 @@ fn write_request_slots(map_fd: i32, kind: u32, value: u32) -> io::Result<()> {
 
 /// poll(2) on the ring fd — the evented wake the watcher rides.
 fn poll_ring(map_fd: i32) -> io::Result<bool> {
+    // SAFETY: borrow_raw wraps an fd the caller owns for the whole
+    // call; the BorrowedFd never outlives the poll below.
     let fd = unsafe { std::os::fd::BorrowedFd::borrow_raw(map_fd) };
     let mut fds = [libc::pollfd {
         fd: fd.as_raw_fd(),
         events: libc::POLLIN,
         revents: 0,
     }];
+    // SAFETY: poll takes the array's own pointer and length — the
+    // array outlives the call and the kernel only writes the revents
+    // field.
     let rc = unsafe { libc::poll(fds.as_mut_ptr(), 1, WAKE_POLL_TIMEOUT_MS) };
     if rc < 0 {
         return Err(io::Error::last_os_error());
@@ -269,6 +277,8 @@ fn poll_ring(map_fd: i32) -> io::Result<bool> {
 fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
     use std::sync::atomic::AtomicU32;
     const PAGE: usize = 4096;
+    // SAFETY: sysconf is a plain libc query with no pointer
+    // arguments and no side effects.
     let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
     // The kernel maps pages, not byte counts: the data area spans
     // ceil(data_size / page) pages plus the wrap page.
@@ -280,6 +290,9 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
     // first attempt), vm_pgoff 1 the producer page, vm_pgoff 2.. the
     // data pages, all read-only — libbpf's own consumer rides the
     // identical layout.
+    // SAFETY: the consumer-page mapping rides the kernel's ringbuf
+    // mmap law (writable only at pgoff 0, named in the comment
+    // above); the length is the one page the law grants.
     let cons = unsafe {
         libc::mmap(
             std::ptr::null_mut(),
@@ -293,6 +306,9 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
     if cons == libc::MAP_FAILED {
         return Err(io::Error::last_os_error());
     }
+    // SAFETY: the producer-page mapping is PROT_READ at pgoff 1 —
+    // read-only mappings are legal at any offset of the ring's own
+    // mapping.
     let prod = unsafe {
         libc::mmap(
             std::ptr::null_mut(),
@@ -304,6 +320,8 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
         )
     };
     if prod == libc::MAP_FAILED {
+        // SAFETY: the producer mapping failed, so cons has no other
+        // owner — the failure path unmaps it exactly once.
         unsafe { libc::munmap(cons, page_size) };
         return Err(io::Error::last_os_error());
     }
@@ -313,6 +331,9 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
     // rides PROT_READ — the records are read, never written (libbpf's
     // own consumer maps the data read-only; the Z2 CI guest named the
     // writable attempt: 'the ring did not drain: os error 1').
+    // SAFETY: the data-area mapping is PROT_READ at pgoff 2.. — the
+    // ringbuf mmap law refuses VM_WRITE here and grants read-only at
+    // any offset.
     let data = unsafe {
         libc::mmap(
             std::ptr::null_mut(),
@@ -324,7 +345,11 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
         )
     };
     if data == libc::MAP_FAILED {
+        // SAFETY: the data mapping failed; cons has no other owner —
+        // the failure path unmaps it exactly once.
         unsafe { libc::munmap(cons, page_size) };
+        // SAFETY: prod has no other owner (data failed before any
+        // consumer was built) — unmapped exactly once on this path.
         unsafe { libc::munmap(prod, page_size) };
         return Err(io::Error::last_os_error());
     }
@@ -332,8 +357,18 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
     // Positions ride the atomic acquire/release discipline libbpf's
     // consumer uses (the kernel publishes prod with a release store;
     // the consumer publishes its drain with a release store back).
+    // SAFETY: the pages are MAP_SHARED mappings this function owns,
+    // the two position words are 4-byte aligned kernel-stored counters
+    // (the ringbuf contract), and the atomics only read them.
     let prod_pos = unsafe { &*(prod as *const AtomicU32) };
+    // SAFETY: the consumer page is the writable mapping this function
+    // owns; the position word is the kernel's aligned u64 counter read
+    // through its low 32 bits (the consumer publishes its drain). The
+    // atomic writes follow libbpf's own release discipline.
     let cons_pos = unsafe { &*(cons as *const AtomicU32) };
+    // SAFETY: from_raw_parts builds a read-only view over the data
+    // mapping this function owns; the length is the mapped length
+    // exactly, and nothing writes through it.
     let data_bytes = unsafe { std::slice::from_raw_parts(data as *const u8, data_pages * page_size) };
 
     let mut records = Vec::new();
@@ -364,8 +399,15 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
     // The drain: publish the advanced consumer position.
     cons_pos.store(pos, Ordering::Release);
 
+    // SAFETY: each mapping is unmapped exactly once on the success
+    // path this code closes — data, then cons, then prod, all owned
+    // by this function.
     unsafe { libc::munmap(data, data_pages * page_size) };
+    // SAFETY: cons was mapped by this function and unmapped exactly
+    // once here (the data unmap above does not touch it).
     unsafe { libc::munmap(cons, page_size) };
+    // SAFETY: prod was mapped by this function and unmapped exactly
+    // once here — the last teardown on this path.
     unsafe { libc::munmap(prod, page_size) };
     Ok(records)
 }

@@ -161,10 +161,17 @@ fn env_shell_resolves_the_real_environment() {
     // env-mutating test in the crate (pathguard contract).
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved = std::env::var(PRESET_ENV_VAR).ok();
+    // SAFETY: set_var mutates process state the test owns — the env
+    // lock above serializes every test that touches this variable and
+    // the saved value is restored below.
     unsafe { std::env::set_var(PRESET_ENV_VAR, "topre") };
     let (_profile, name, _volume) = resolve(None).expect("env shell must resolve");
     match saved {
+        // SAFETY: same ownership law as the set above — the lock holds,
+        // and this restores the saved value inside the same test body.
         Some(v) => unsafe { std::env::set_var(PRESET_ENV_VAR, v) },
+        // SAFETY: same ownership law as the sets above — the lock holds,
+        // and this removes the variable the test itself introduced.
         None => unsafe { std::env::remove_var(PRESET_ENV_VAR) },
     }
     assert_eq!(name, "topre");

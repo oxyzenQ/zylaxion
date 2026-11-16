@@ -41,6 +41,11 @@ impl QuietAlsa {
         //    affect an empty function that never loads a parameter.
         //    No callee-side prologue (va_start register saving) is
         //    assumed, because our body has none.
+        // SAFETY: the symbol is loaded through libloading with the
+        // exact prototype spelled in the closure above (an empty
+        // extern "C" fn that ignores every argument), so no ABI
+        // assumption is left to chance; the handler pointer stays valid
+        // for the QuietAlsa lifetime and the Drop resets it.
         unsafe {
             alsa_sys::snd_lib_error_set_handler(std::mem::transmute::<
                 unsafe extern "C" fn(
@@ -69,6 +74,9 @@ impl QuietAlsa {
 #[cfg(target_os = "linux")]
 impl Drop for QuietAlsa {
     fn drop(&mut self) {
+        // SAFETY: snd_lib_error_set_handler takes an optional handler
+        // pointer; None is the documented reset value and the symbol
+        // was proven loadable by the construction this Drop balances.
         unsafe { alsa_sys::snd_lib_error_set_handler(None) };
     }
 }

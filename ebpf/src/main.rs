@@ -1,5 +1,10 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
+
+// night-depth-hardening-3 (the zelynic lineage): every unsafe block
+// names its own safety argument — the audit's score law, wired as a
+// gate so the discipline cannot rot back.
+#![deny(clippy::undocumented_unsafe_blocks)]
 //
 // zylaxion eBPF tap, the pure-Rust BPF source (night-improve-23;
 // night-improve-25 restores the approved plan: a passive kernel-side
@@ -254,6 +259,10 @@ fn notice_relay(ctx: SkBuffContext) -> i64 {
     // helper calls are unsafe fns; every operation is bounds-checked
     // (the lookups return Options, the reservation returns an
     // Option) and the verifier re-proves the body at load time.
+    // SAFETY: every aya-ebpf helper call inside is the API's own
+    // unsafe surface, driven only on Option-checked values (map
+    // lookups, the ringbuf reservation); the verifier re-proves the
+    // whole body at load time before it can ever run.
     unsafe {
         let Some(kind_ref) = control.get(control_slots::REQUEST_KIND) else {
             return 0;
@@ -313,6 +322,9 @@ fn kprobe_args(ctx: &ProbeContext) -> Option<InputEventArgs> {
 /// every operation is bounds-checked (map lookups return Option) and
 /// the verifier re-proves the whole thing at load time anyway.
 fn tap(a: InputEventArgs) -> i32 {
+    // SAFETY: the tap body's helper calls are aya-ebpf's own unsafe
+    // surface, driven only on bounds-checked reads (the args shim
+    // returns Options); the verifier re-proves the body at load time.
     unsafe {
         // EV_KEY (0x01) is the only event type that sounds; the
         // shim already narrowed the register values to the C

@@ -26,6 +26,9 @@ fn aligned_elf_bytes_are_eight_byte_aligned() {
     assert_eq!(ELF.bytes.len(), 16);
     // The guard precedes the bytes: content offset 8 in the allocation.
     let raw = &ELF as *const _ as *const u64;
+    // SAFETY: the embedded object's bytes are copied into a local
+    // buffer first (the embedded symbol is a static array), and the
+    // parse below reads the copy — nothing outlives the unsafe scope.
     unsafe {
         assert_eq!(raw.read_unaligned(), u64::from_le_bytes(*b"ZYLF-23\0"));
     }

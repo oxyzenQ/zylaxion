@@ -239,6 +239,9 @@ pub(crate) fn notify_player(control: &mut Array<MapData, u32>, kind: u32, value:
 fn publish_via_relay() -> Result<(), String> {
     let prog_fd = crate::ebpf::bpf_syscall::open_pinned_object(crate::ebpf::pin::PIN_PROG_RELAY)
         .map_err(|e| format!("the pinned relay did not open: {e}"))?;
+    // SAFETY: prog_fd is a freshly created fd from a successful
+    // BPF_OBJ_GET (open_pinned_object errors before this line on any
+    // failure), so this constructor takes sole ownership exactly once.
     let owned = unsafe { std::os::fd::OwnedFd::from_raw_fd(prog_fd) };
     crate::ebpf::relay_drive::test_run_skb(owned.as_raw_fd(), &[])
         .map(|_| ())

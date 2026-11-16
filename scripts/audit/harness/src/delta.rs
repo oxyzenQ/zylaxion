@@ -70,6 +70,9 @@ const LAW_FLUSH_BITS: u64 = 1 << 24;
 #[cfg(target_arch = "x86_64")]
 fn read_control_word() -> u64 {
     let mut mxcsr: u32 = 0;
+    // SAFETY: the asm only stores the FP control register into a
+    // register-held pointer to this local — no memory write, no stack
+    // use.
     unsafe {
         core::arch::asm!(
             "stmxcsr [{mxcsr_ptr}]",
@@ -83,6 +86,8 @@ fn read_control_word() -> u64 {
 #[cfg(target_arch = "aarch64")]
 fn read_control_word() -> u64 {
     let fpcr: u64;
+    // SAFETY: the asm only reads the FPCR into a register output —
+    // no memory access, no state change.
     unsafe {
         core::arch::asm!("mrs {0}, fpcr", out(reg) fpcr);
     }
@@ -93,6 +98,9 @@ fn read_control_word() -> u64 {
 #[cfg(target_arch = "x86_64")]
 fn write_control_word(bits: u64) {
     let bits32 = bits as u32;
+    // SAFETY: the asm only loads the FP control register from a
+    // register-held pointer to this local — no memory write, no stack
+    // use, no flags clobber.
     unsafe {
         core::arch::asm!(
             "ldmxcsr [{mxcsr_ptr}]",
@@ -104,6 +112,9 @@ fn write_control_word(bits: u64) {
 
 #[cfg(target_arch = "aarch64")]
 fn write_control_word(bits: u64) {
+    // SAFETY: the asm reads and writes the FPCR control register
+    // only — no memory access; the read-modify-write preserves every
+    // other field.
     unsafe {
         core::arch::asm!("msr fpcr, {0}", in(reg) bits);
     }
