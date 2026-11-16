@@ -383,9 +383,7 @@ pub fn run_state(with_keys: bool) {
             .spawn(move || {
                 let started = Instant::now();
                 loop {
-                    std::thread::sleep(Duration::from_millis(
-                        WATCHER_HEARTBEAT_MS,
-                    ));
+                    std::thread::sleep(Duration::from_millis(WATCHER_HEARTBEAT_MS));
                     if control_enabled.load(Ordering::Relaxed) != 1
                         || started.elapsed() >= Duration::from_secs(WINDOW_S)
                     {

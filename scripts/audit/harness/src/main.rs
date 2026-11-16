@@ -56,11 +56,11 @@ mod notice;
 
 mod btfmatrix;
 mod delta;
-mod foldproof;
-mod noticedrive;
 mod fft;
+mod foldproof;
 mod footprint;
 mod metrics;
+mod noticedrive;
 mod progrun;
 mod proof;
 mod rates;
