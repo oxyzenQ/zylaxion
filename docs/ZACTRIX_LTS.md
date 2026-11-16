@@ -302,7 +302,9 @@ NaN/Inf count exactly zero."
 `--footprint-state-b`, `--footprint-state-c`, `--footprint-cold`).
 The driver reproduces the player's exact process topology — the
 `Orchestrator::run` loop (main), the event source (the bridge
-stand-in), the control watcher on its 100 ms cadence, and the device
+stand-in), the control watcher on its liveness heartbeat (the evented
+wake — the notice ring's poll — is the named residue: its cost is a
+poll return, below what the stand-in spends), and the device
 clock thread — with the production types (`Orchestrator`,
 `VoicePool`, `MechanicalClick`, the 16384-frame stereo ring) at the
 player's default posture (preset 0, volume 100% → gain 5.5). RSS and
@@ -316,7 +318,9 @@ driver's T0 anchor, stamped as the first statement of the process.
 **Substitutions, named once.** The sandbox has no root, no
 `CAP_BPF`, no writable `/sys/fs/bpf`, no `bpftool`, and no sound
 card. (1) The pinned control map is an `AtomicU32` cell read on the
-watcher's 100 ms cadence; the measurement window's timer performs the
+watcher's 10 s liveness heartbeat (night-frontier-Z2 B1: the real
+watcher's evented wake is cheaper — the stand-in keeps only the
+floor); the measurement window's timer performs the
 `enabled=0` write the CLI's `off` would. (2) The events ring is a
 wall-clock-paced source thread; its 100 ms blocking sleep stands in
 for the bridge's blocking `poll`. (3) There is no audio device: see

@@ -16,11 +16,14 @@
 //!
 //! - The pinned control map cannot exist here (no privileges to
 //!   attach the tap). The watcher reads an `AtomicU32` control cell
-//!   on the player's 100 ms cadence; the `enabled=0` stop write that
-//!   the CLI's `off` performs is performed by the measurement window
-//!   timer. The `bpf()` syscalls themselves (10-20 per second,
-//!   microseconds each) are the named residue this instrument
-//!   cannot measure.
+//!   on the player's liveness heartbeat (night-frontier-Z2 B1: the
+//!   real watcher waits on a poll over the notice ring and the wake
+//!   pipe — the evented wake is microseconds — and this 10 s
+//!   heartbeat is only its floor, the conservative bound); the
+//!   `enabled=0` stop write that the CLI's `off` performs is
+//!   performed by the measurement window timer. The `bpf()` syscalls
+//!   themselves (the notice relay's TEST_RUN per verb, microseconds
+//!   each) are the named residue this instrument cannot measure.
 //! - The events ring buffer cannot exist here either. The event
 //!   source paces keystrokes on the wall clock (STATE B) or sends
 //!   nothing (STATE C); its 100 ms cadence mirrors the bridge's
@@ -71,10 +74,15 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 /// states).
 const WINDOW_S: u64 = 60;
 
-/// The watcher's cadence — the player's own CONTROL_POLL_MS
+/// The watcher's cadence — the player's own liveness heartbeat
+/// (night-frontier-Z2 B1 demoted CONTROL_POLL_MS: the real watcher
+/// waits on a poll over the notice ring and the wake pipe, and THIS
+/// heartbeat is only its floor — the stand-in keeps the floor alone,
+/// which is the conservative bound: the evented wake makes the real
+/// watcher CHEAPER than this instrument measures).
 /// (src/commands/player.rs): worst-case stop latency, ~10 Hz of tiny
 /// control reads.
-const CONTROL_POLL_MS: u64 = 100;
+const WATCHER_HEARTBEAT_MS: u64 = 10_000;
 
 /// Keystroke cadence for STATE B: 5 keys/s (the prompt's number).
 const KEY_INTERVAL_MS: u64 = 200;
@@ -359,8 +367,10 @@ pub fn run_state(with_keys: bool) {
     let control_enabled = Arc::new(AtomicU32::new(1));
     let stop_flag = Arc::new(AtomicBool::new(false));
 
-    // The control watcher: the player's exact cadence and exit rule
-    // (enabled ≠ 1 → stop), plus the window force-clear.
+    // The control watcher: the player's exact heartbeat floor and
+    // exit rule (enabled ≠ 1 → stop), plus the window force-clear.
+    // The evented wake (the notice ring's poll) is the named residue:
+    // its cost is a poll return, below what this stand-in spends.
     let watcher = {
         let control_enabled = Arc::clone(&control_enabled);
         let stop_flag = Arc::clone(&stop_flag);
@@ -369,7 +379,9 @@ pub fn run_state(with_keys: bool) {
             .spawn(move || {
                 let started = Instant::now();
                 loop {
-                    std::thread::sleep(Duration::from_millis(CONTROL_POLL_MS));
+                    std::thread::sleep(Duration::from_millis(
+                        WATCHER_HEARTBEAT_MS,
+                    ));
                     if control_enabled.load(Ordering::Relaxed) != 1
                         || started.elapsed() >= Duration::from_secs(WINDOW_S)
                     {

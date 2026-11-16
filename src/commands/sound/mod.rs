@@ -188,6 +188,35 @@ pub(crate) fn wake_player(control: &Array<MapData, u32>) {
     let _ = kill(Pid::from_raw(pid as i32), Signal::SIGUSR1);
 }
 
+/// The per-boot publish counter — correlates a CLI invocation with
+/// the wake row the player logs (the audit reads both ends back).
+static NOTICE_SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// The evented control notice (night-frontier-Z2 B1): after a verb
+/// writes the control map, drive the pinned notice relay once — the
+/// kernel stamps bpf_ktime_get_ns and produces the record into the
+/// pinned notices ring, and the player's watcher wakes in
+/// microseconds. The kernel-produces rule is not a style choice: a
+/// ringbuf's producer pages are read-only to userspace on every
+/// kernel, so the relay drive is the ONLY publish, and it is also
+/// the one that crosses the privilege boundary (no signal permission,
+/// no pid targeting) and leaves an auditable trail.
+///
+/// Degradation, in order: a failed publish logs a warning and falls
+/// to [`wake_player`] (the signal wire — instant when the writer and
+/// the player share the identity boundary), and the 10 s heartbeat
+/// remains the floor either way. A lost notice degrades the latency,
+/// never the correctness: the control map is the only authority.
+pub(crate) fn notify_player(control: &Array<MapData, u32>, kind: u32, value: u32) {
+    let seq = NOTICE_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    if let Err(e) = crate::ebpf::bpf_syscall::publish_notice(kind, value, seq) {
+        log::warn!(
+            "the control notice did not publish (the signal wire and the heartbeat remain): {e}"
+        );
+    }
+    wake_player(control);
+}
+
 /// Open the pinned control map for read-write. Every verb here needs
 /// exactly this; the error names the world it found (night-dinner-3:
 /// the old single message read a walk-blocked bpffs mount as "not

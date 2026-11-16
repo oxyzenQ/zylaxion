@@ -68,7 +68,7 @@ const BPF_MAP_CREATE: u64 = 0;
 const BPF_MAP_LOOKUP_ELEM: u64 = 1;
 const BPF_MAP_UPDATE_ELEM: u64 = 2;
 const BPF_PROG_LOAD: u64 = 5;
-const BPF_PROG_TEST_RUN: u64 = 10;
+pub(crate) const BPF_PROG_TEST_RUN: u64 = 10;
 /// `BPF_F_SLEEPABLE` from the kernel's uapi bpf.h (0x10): the
 /// verifier refuses a SYSCALL program without it ("Syscall programs
 /// can only be sleepable" — the round-7 verifier tail named the law).
@@ -103,19 +103,19 @@ fn pt_regs(type_: u32, code: u32, value: u32) -> Vec<u8> {
 
 /// One 128-byte bpf_attr, field-addressed like the kernel's own
 /// unions (every pointer field is a u64, every counter a u32).
-struct Attr([u8; 128]);
+pub(crate) struct Attr([u8; 128]);
 
 impl Attr {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self([0u8; 128])
     }
-    fn put32(&mut self, off: usize, v: u32) {
+    pub(crate) fn put32(&mut self, off: usize, v: u32) {
         self.0[off..off + 4].copy_from_slice(&v.to_ne_bytes());
     }
-    fn put64(&mut self, off: usize, v: u64) {
+    pub(crate) fn put64(&mut self, off: usize, v: u64) {
         self.0[off..off + 8].copy_from_slice(&v.to_ne_bytes());
     }
-    fn get32(&self, off: usize) -> u32 {
+    pub(crate) fn get32(&self, off: usize) -> u32 {
         let mut b = [0u8; 4];
         b.copy_from_slice(&self.0[off..off + 4]);
         u32::from_ne_bytes(b)
@@ -123,7 +123,7 @@ impl Attr {
 }
 
 /// One raw bpf() syscall: negative errno surfaces as Err(code).
-fn bpf(cmd: u64, attr: &Attr) -> Result<i32, i32> {
+pub(crate) fn bpf(cmd: u64, attr: &Attr) -> Result<i32, i32> {
     let rc = unsafe {
         libc::syscall(
             libc::SYS_bpf,

@@ -90,9 +90,9 @@ use core::sync::atomic::{AtomicU64, Ordering};
 
 use aya_ebpf::{
     helpers::bpf_ktime_get_ns,
-    macros::{fentry, kprobe, map},
+    macros::{fentry, kprobe, map, socket_filter},
     maps::{Array, HashMap, RingBuf},
-    programs::{FEntryContext, ProbeContext},
+    programs::{FEntryContext, ProbeContext, SkBuffContext},
 };
 
 // The argument shim, single-sourced: the userspace crate owns the
@@ -103,6 +103,12 @@ use aya_ebpf::{
 mod args;
 
 use args::InputEventArgs;
+
+// The notice schema, single-sourced the same way: the userspace crate
+// owns the file and this crate compiles the same bytes. See
+// src/ebpf/notice.rs for the contract and the kernel-produces law.
+#[path = "../../src/ebpf/notice.rs"]
+mod notice;
 
 /// EV_KEY from linux/input-event-codes.h — the only event type that
 /// sounds.
@@ -175,6 +181,14 @@ static events: RingBuf = RingBuf::with_byte_size(65536, 0);
 #[map]
 static stats: Array<AtomicU64> = Array::with_max_entries(257, 0);
 
+/// The notice ring (night-frontier-Z2 B1): the control plane's
+/// second ringbuf, pinned at attach beside the others. The producer
+/// is the notice relay (the ONLY producer a ringbuf has — the
+/// producer pages are read-only to userspace on every kernel); the
+/// watcher polls the fd and re-reads the control map as authority.
+#[map]
+static notices: RingBuf = RingBuf::with_byte_size(4096, 0);
+
 /// The fentry program (the chain's primary step): the BTF trampoline
 /// calls this at input_event()'s entry with the arguments exposed as
 /// register-width slots. Section `fentry/input_event` — the loader
@@ -199,6 +213,55 @@ fn kprobe_input_event(ctx: ProbeContext) -> i32 {
     match kprobe_args(&ctx) {
         Some(a) => tap(a),
         None => 0,
+    }
+}
+
+/// The notice relay (night-frontier-Z2 B1): the control plane's
+/// kernel-side producer. A CLI verb drives it with ONE
+/// BPF_PROG_TEST_RUN carrying the 16-byte notice frame; this program
+/// validates the magic, stamps bpf_ktime_get_ns, and publishes the
+/// 24-byte record into the pinned notices ring — the wake the
+/// watcher polls for. It is a socket filter for one honest reason:
+/// aya loads the `socket` section natively and every floor kernel
+/// (5.15+) answers TEST_RUN for the type — no unattached SYSCALL
+/// bytecode gymnastics needed. The tap body is untouched; this
+/// program never runs on the input path (it only ever runs when a
+/// verb explicitly drives it), publishes ONLY sound-setting fields,
+/// and returns 0 (the filter verdict nobody consumes — the retval is
+/// the record, not the code).
+#[socket_filter]
+fn notice_relay(ctx: SkBuffContext) -> i64 {
+    // The one unsafe block, the same contract as `tap`: aya-ebpf's
+    // helper calls are unsafe fns; every operation is bounds-checked
+    // (load_bytes returns a Result, the reservation returns an
+    // Option) and the verifier re-proves the body at load time.
+    unsafe {
+        let mut frame = [0u8; notice::NOTICE_FRAME_SIZE];
+        // A frame shorter than the schema (an under-sized packet) is
+        // not a notice — drop it, never fault.
+        if ctx.load_bytes(0, &mut frame).is_err() {
+            return 0;
+        }
+        // The magic rejects foreign frames before anything is
+        // published; a None here never reaches the ring.
+        let Some((kind, value, seq)) = notice::decode_frame(&frame) else {
+            return 0;
+        };
+        // A failed reservation (the watcher stalled longer than 4 KiB
+        // of control changes) drops the notice silently: the next
+        // heartbeat re-reads the map anyway, so a lost wake degrades
+        // the latency, never the correctness.
+        if let Some(mut entry) = notices.reserve::<notice::ControlNotice>(0) {
+            entry.write(notice::ControlNotice {
+                ns: bpf_ktime_get_ns(),
+                kind,
+                value,
+                seq,
+                _pad: 0,
+            });
+            entry.submit(0);
+        }
+        0
     }
 }
 

@@ -66,6 +66,9 @@ static TAP_ELF: &[u8] =
 /// ebpf/src/main.rs: two attach programs over one body).
 const FENTRY_PROGRAM: &str = "fentry_input_event";
 const KPROBE_PROGRAM: &str = "kprobe_input_event";
+/// The notice relay (night-frontier-Z2 B1): the socket-filter program
+/// the verbs drive through TEST_RUN — never attached, always pinned.
+const RELAY_PROGRAM: &str = "notice_relay";
 
 /// The keyboard keycode domain the keymap covers (night-hunter-3):
 /// keycodes 1..=255 — the keyboard keys. Mouse buttons and vendor keys

@@ -37,10 +37,12 @@ pub fn cmd_preset(name: &str) {
         crate::output::error(format!("cannot write the preset slot: {e}"));
         process::exit(1);
     }
-    // night-hardening-2: wake the player's watcher so the swap lands
-    // now, not at the next heartbeat. The helper gates on RUNNING and
-    // liveness; with no player it is the plain no-op it should be.
-    super::wake_player(&control);
+    // night-hardening-2 → night-frontier-Z2 B1: wake the player's
+    // watcher so the swap lands now — the notice rides the pinned
+    // ring (the kernel produces the record), the signal wire stays
+    // the fallback. The helper gates on RUNNING and liveness; with
+    // no player it is the plain no-op it should be.
+    super::notify_player(&control, crate::ebpf::notice::KIND_PRESET, preset_index);
     let playing = control.get(&PLAYER_PID_SLOT, 0).unwrap_or(0).ne(&0)
         && pid_alive(control.get(&PLAYER_PID_SLOT, 0).unwrap_or(0) as i32);
     if playing {
@@ -87,9 +89,10 @@ pub fn cmd_volume(percent: u32, force_this: bool) {
         crate::output::error(format!("cannot write the volume slot: {e}"));
         process::exit(1);
     }
-    // night-hardening-2: wake the player's watcher so the retune lands
-    // now, not at the next heartbeat (see the helper's gate law).
-    super::wake_player(&control);
+    // night-hardening-2 → night-frontier-Z2 B1: wake the player's
+    // watcher so the retune lands now — the notice rides the pinned
+    // ring (see the preset site's note).
+    super::notify_player(&control, crate::ebpf::notice::KIND_VOLUME, percent);
     // night-hunter-1: the note names the lane that actually carried the
     // write — the old print said "cap 200%" even when --force-this had
     // just written 201..=10000, contradicting the value on the same line.
