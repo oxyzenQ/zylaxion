@@ -218,25 +218,15 @@ impl<S: AudioSink> Orchestrator<S> {
         }
     }
 
-    /// Update the master volume at runtime. The value is clamped to a
-    /// sane range — see [`VoicePool::set_master_volume`].
-    // night-improve-21: unwired in the unified tree (the hot-reload
-    // lane applies params, not volume, today); expect() self-retires
-    // when the volume hot-reload lands.
-    #[expect(dead_code)]
-    #[inline]
-    pub fn set_master_volume(&mut self, volume: f32) {
-        self.pool.set_master_volume(volume);
-    }
-
-    /// Return the current master volume (linear gain multiplier).
-    // night-improve-21: unwired in the unified tree; expect() fires the
-    // moment a reader appears.
-    #[expect(dead_code)]
-    #[inline]
-    pub fn master_volume(&self) -> f32 {
-        self.pool.master_volume()
-    }
+    // night-hardening-2: the orchestrator-level volume setter pair
+    // (set_master_volume / master_volume) is retired. Both sat under
+    // #[expect(dead_code)] on the premise that they were waiting for
+    // the volume hot-reload lane to land — but that lane shipped
+    // through a different door: the player's watcher stores the pool's
+    // atomic volume cell directly, via the volume_factor handle and
+    // the volume_bits clamp law. An unwired second retune path was
+    // maintenance weight pretending to be flexibility; the pool's own
+    // cell remains the single volume law.
 
     /// Return the actual sample rate of the audio device (Hz).
     ///
