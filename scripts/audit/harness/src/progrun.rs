@@ -296,6 +296,19 @@ pub(super) fn run_prog_run(object_path: &str) {
         println!("PROOF 7: FAIL — the loader's map-fd relocation refused: {e}");
         std::process::exit(1);
     }
+    // The helper calls ride EXTERNAL symbols (bpf_ktime_get_ns,
+    // bpf_ringbuf_reserve/submit, bpf_map_lookup_elem): without this
+    // pass the call immediates stay raw symbol offsets and the
+    // verifier refuses the program — the round-4 CI run named the
+    // refusal. The call pass follows (the loader's own order).
+    if let Err(e) = object.relocate_externs() {
+        println!("PROOF 7: FAIL — the extern (helper) relocation refused: {e}");
+        std::process::exit(1);
+    }
+    if let Err(e) = object.relocate_calls(&text_sections) {
+        println!("PROOF 7: FAIL — the call relocation refused: {e}");
+        std::process::exit(1);
+    }
 
     // Control plane: enabled=0 (the gate-off class first), then 1.
     let control_fd = &fds["control"];
@@ -317,8 +330,13 @@ pub(super) fn run_prog_run(object_path: &str) {
         Err((why, log)) => {
             println!("PROOF 7: FAIL — {why}");
             if let Some(log) = log {
-                println!("PROOF 7 verifier log (trimmed):");
-                for line in log.lines().rev().take(12) {
+                let end = log
+                    .iter()
+                    .position(|b| *b == 0)
+                    .unwrap_or(log.len());
+                let text = String::from_utf8_lossy(&log[..end]);
+                println!("PROOF 7 verifier log (the failing tail):");
+                for line in text.lines().rev().take(14) {
                     println!("  {line}");
                 }
             }
