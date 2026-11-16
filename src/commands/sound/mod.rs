@@ -31,6 +31,8 @@ use std::process;
 use std::time::Duration;
 
 use aya::maps::{Array, MapData};
+use nix::sys::signal::{Signal, kill};
+use nix::unistd::Pid;
 
 use crate::ebpf::pin;
 
@@ -150,6 +152,40 @@ pub(crate) fn stored_volume_or_fallback(read: Option<u32>, fallback: u32) -> u32
         Some(stored) => stored,
         None => fallback,
     }
+}
+
+/// The zero-payload control wakeup (night-hardening-2): after a verb
+/// writes the control map, wake the player's watcher immediately
+/// instead of waiting out the 100 ms heartbeat. The signal carries NO
+/// data — the pinned map remains the only authority, re-read the
+/// instant the watcher wakes — so there is no protocol to parse,
+/// version, or defend; the signal is a wake hint, the same role the
+/// events ring buffer's epoll wake plays for keystrokes.
+///
+/// The gates before the kill, in order:
+/// - a zero or unreadable registration sends nothing (the heartbeat
+///   covers every leg this skips);
+/// - the RUNNING state gate is load-bearing: the player installs its
+///   SIGUSR1 handler before registering its pid, and the signal's
+///   default action is terminate — signaling a STARTING player could
+///   kill it mid-startup;
+/// - the orphan module's zombie-aware liveness probe answers before
+///   any signal flies (the night-total-lts-1 discipline: the map pid
+///   is untrusted input to a kill).
+///
+/// Errors are ignored on purpose: a lost wake degrades to the
+/// heartbeat, never to a failed verb.
+pub(crate) fn wake_player(control: &Array<MapData, u32>) {
+    let Ok(pid) = control.get(&PLAYER_PID_SLOT, 0) else {
+        return;
+    };
+    if pid == 0
+        || control.get(&STATE_SLOT, 0).unwrap_or(0) != STATE_RUNNING
+        || !crate::session::orphan::pid_alive(pid as i32)
+    {
+        return;
+    }
+    let _ = kill(Pid::from_raw(pid as i32), Signal::SIGUSR1);
 }
 
 /// Open the pinned control map for read-write. Every verb here needs

@@ -16,10 +16,14 @@
 //!   adaptive wait). No busy-wait anywhere; `ps` reads 0.0 percent
 //!   idle CPU.
 //! - The control plane is watched by one thread that re-reads the
-//!   control map every 100 ms: enabled=0 stops the player (the CLI's
-//!   `off`/`exit` writes exactly that), preset and volume changes apply
-//!   live through the ArcSwap model swap and the pool's atomic volume
-//!   cell.
+//!   control map every 100 ms (the liveness heartbeat): enabled=0
+//!   stops the player (the CLI's `off`/`exit` writes exactly that),
+//!   preset and volume changes apply live through the ArcSwap model
+//!   swap and the pool's atomic volume cell. night-hardening-2 adds
+//!   the fast path: the verbs raise a zero-payload SIGUSR1 after the
+//!   map write, the watcher's poll wakes instantly, and the map —
+//!   still the only authority — is re-read at once instead of at the
+//!   next heartbeat.
 //!
 //! Crash posture: cattle, not pet. A dead player loses nothing — the
 //! next `zylaxion on` sees the stale pid in the control map, replants
@@ -177,6 +181,19 @@ pub fn cmd_play() {
         }
     }
 
+    // ── The control wakeup (night-hardening-2): the pipe and the
+    //    SIGUSR1 handler go live BEFORE the pid registration, so a
+    //    verb racing this startup window hits the handler, never
+    //    SIGUSR1's default terminate. Best-effort: a failure degrades
+    //    to the heartbeat alone, which is fully correct on its own.
+    let control_wake = match crate::session::wake::install() {
+        Ok(w) => Some(w),
+        Err(e) => {
+            log::warn!("control wakeup lane unavailable ({e}) — the 100 ms heartbeat remains");
+            None
+        }
+    };
+
     // ── Register self: starting.
     let my_pid = nix::unistd::getpid().as_raw();
     if let Err(e) = control.set(PLAYER_PID_SLOT, &(my_pid as u32), 0) {
@@ -320,7 +337,19 @@ pub fn cmd_play() {
                 // a dead fd.
                 let mut read_failures: u32 = 0;
                 loop {
-                    std::thread::sleep(Duration::from_millis(CONTROL_POLL_MS.into()));
+                    // The wait: the wake pipe when the fast path is
+                    // installed, the plain heartbeat sleep otherwise —
+                    // the same 100 ms cadence either way (the
+                    // read-failure budget below is cadence-coupled and
+                    // stays untouched). A wake byte or an interrupted
+                    // poll returns instantly; the map re-read that
+                    // follows is the only authority.
+                    match &control_wake {
+                        Some(wake) => wake.wait(CONTROL_POLL_MS),
+                        None => std::thread::sleep(Duration::from_millis(
+                            CONTROL_POLL_MS.into(),
+                        )),
+                    }
                     if stop_flag.load(Ordering::Relaxed) {
                         return;
                     }

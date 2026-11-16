@@ -17,6 +17,9 @@
 //!   night-improve-16 root-usage audit, extended with the night-improve-23
 //!   attach REQUIRE row).
 //! - [`signals`] — how the session ends (graceful shutdown handlers).
+//! - [`wake`] — how the session reacts (night-hardening-2: the
+//!   zero-payload SIGUSR1 control wakeup the CLI verbs raise after a
+//!   map write; the pinned map stays the only authority).
 //!
 //! night-improve-23: the flock (`instance_lock`) died with the daemon —
 //! the single-instance marker is the pinned control map's player pid
@@ -28,3 +31,4 @@ pub mod orphan;
 pub mod preset;
 pub mod privilege;
 pub mod signals;
+pub mod wake;

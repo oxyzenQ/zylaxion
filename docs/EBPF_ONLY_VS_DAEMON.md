@@ -44,7 +44,10 @@ plays is not a daemon: it has no PID file, no IPC socket, no
 supervision, and no state of its own, and it blocks rather than
 polls (the bridge waits in `poll(2)` on the ring-buffer fd; the
 render loop waits on its channel, 1 ms while voices render and
-100 ms while silent). `off` removes it completely. The resident part
+100 ms while silent — and the control watcher wakes instantly on a
+zero-payload SIGUSR1 after any verb's map write (night-hardening-2),
+the pinned map staying the only authority). `off` removes it
+completely. The resident part
 of this architecture is the kernel-side tap and its pinned maps
 alone.
 
