@@ -355,10 +355,13 @@ fi
 # aya-obj parser, raw bpf() syscalls and BPF_PROG_TEST_RUN with
 # synthetic input_event args in a real pt_regs; the kernel reports the
 # durations and the lane gates the RELATIVE law (gate-off, unmapped,
-# autorepeat all below the full press path). Kernels without kprobe
-# TEST_RUN support (the documented 5.15 floor answers ENOTSUPP — the
-# support landed 5.16) are classified honestly as a recorded skip,
-# never a fake row. The attach/detach pair here is the same idempotent
+# autorepeat all below the full press path). The body rides
+# BPF_PROG_TYPE_SYSCALL (a KPROBE program answers ENOTSUPP to TEST_RUN
+# on every mainline kernel — no bpf_prog_test_run_kprobe exists), the
+# one program type whose test run the 5.15 floor already answers, so
+# the floor MEASURES; a kernel that refuses the test run outright is
+# classified honestly as a recorded skip, never a fake row. The
+# attach/detach pair here is the same idempotent
 # self-healing lane the engine chaos below exercises — the measurement
 # never leaves state behind (the harness's maps are fresh instances,
 # not the pinned ones).
