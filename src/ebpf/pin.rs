@@ -35,6 +35,18 @@ pub const PIN_MAP_KEYMAP: &str = "/sys/fs/bpf/zylaxion/keymap";
 pub const PIN_MAP_EVENTS: &str = "/sys/fs/bpf/zylaxion/events";
 pub const PIN_MAP_STATS: &str = "/sys/fs/bpf/zylaxion/stats";
 
+/// The notice ring (night-frontier-Z2 B1): the control plane's
+/// second ringbuf. The relay produces into it; the watcher polls it
+/// and re-reads the control map as authority. Same inventory, same
+/// cleanup classification, same bpftool introspection surface.
+pub const PIN_MAP_NOTICES: &str = "/sys/fs/bpf/zylaxion/notices";
+
+/// The notice relay program (night-frontier-Z2 B1): pinned
+/// UNATTACHED — it never rides the input path; verbs drive it through
+/// BPF_PROG_TEST_RUN, the kernel produces the notice record, and the
+/// player's poll(2) wakes.
+pub const PIN_PROG_RELAY: &str = "/sys/fs/bpf/zylaxion/relay";
+
 /// The attach-failure marker pin (night-improve-25): a one-entry
 /// array map holding the [`crate::ebpf::attach_error::AttachError`]
 /// code of the LAST failed attach, planted ONLY on failure so the
@@ -47,13 +59,15 @@ pub const PIN_MAP_ERROR: &str = "/sys/fs/bpf/zylaxion/attach_error";
 
 /// Every pin the attach lane plants, in removal order (link first —
 /// unlinking the link detaches the tap; maps and program last).
-pub const ALL_PINS: [&str; 6] = [
+pub const ALL_PINS: [&str; 8] = [
     PIN_LINK,
     PIN_PROG,
     PIN_MAP_CONTROL,
     PIN_MAP_KEYMAP,
     PIN_MAP_EVENTS,
     PIN_MAP_STATS,
+    PIN_MAP_NOTICES,
+    PIN_PROG_RELAY,
 ];
 
 /// True when every pin of a complete attach exists. A partial pin set

@@ -38,6 +38,7 @@ pub mod attach_error;
 pub mod bpf_syscall;
 pub mod embedded;
 pub mod loader;
+pub mod notice;
 pub mod pin;
 pub mod teardown;
 

@@ -46,8 +46,12 @@ mod audio;
 #[path = "../../../../src/core/mod.rs"]
 mod core;
 
+#[path = "../../../../src/ebpf/notice.rs"]
+mod notice;
+
 mod btfmatrix;
 mod delta;
+mod noticedrive;
 mod fft;
 mod footprint;
 mod metrics;
@@ -164,6 +168,16 @@ fn main() {
             .get(pos + 1)
             .unwrap_or_else(|| panic!("--prog-run needs the tap object path"));
         progrun::run_prog_run(object);
+        return;
+    }
+
+    // night-frontier-Z2 B1, PROOF 8: the notice-drive lane — the
+    // kernel half of the evented control plane. The pinned relay
+    // runs one TEST_RUN, the pinned notice ring WAKES a poller, and
+    // the mmap drain echoes the frame back. Rides the attach's pins;
+    // a pin-less host reads the honest skip.
+    if args.iter().any(|a| a == "--notice-drive") {
+        noticedrive::run_notice_drive();
         return;
     }
 

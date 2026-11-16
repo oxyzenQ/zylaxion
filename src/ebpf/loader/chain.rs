@@ -6,7 +6,7 @@
 //! and the streaming maps.
 
 use aya::maps::{Array, HashMap};
-use aya::programs::{FEntry, KProbe};
+use aya::programs::{FEntry, KProbe, SocketFilter};
 use aya::{Btf, Ebpf};
 
 use crate::ebpf::attach_error::AttachError;
@@ -157,6 +157,48 @@ pub(super) fn plant(bpf: &mut Ebpf) -> Result<TapKind, AttachError> {
         .pin(pin::PIN_MAP_STATS)
         .map_err(|e| AttachError::PinFailed {
             path: format!("{} ({e})", pin::PIN_MAP_STATS),
+        })?;
+
+    // ── The notice plane (night-frontier-Z2 B1) ────────────────────
+    //
+    // The evented control wake: the relay loads UNATTACHED (a socket
+    // filter nobody attaches — verbs drive it through TEST_RUN), then
+    // the notices ringbuf pins beside the other maps. The load rides
+    // the same map-relocation discipline as the tap chain: the program
+    // loads BEFORE its map is taken out of the object. A relay load
+    // failure is an honest classified attach error — the evented plane
+    // is floor-legal (socket filter + ringbuf + TEST_RUN are all 5.15)
+    // and load-bearing; the watcher's heartbeat remains its
+    // degradation posture at RUN time, never a load-time excuse.
+    {
+        let prog: &mut SocketFilter = bpf
+            .program_mut(crate::ebpf::loader::RELAY_PROGRAM)
+            .ok_or_else(|| AttachError::Unknown {
+                detail: format!(
+                    "the tap object carries no '{}' program",
+                    crate::ebpf::loader::RELAY_PROGRAM
+                ),
+            })?
+            .try_into()
+            .map_err(|e| AttachError::Unknown {
+                detail: format!(
+                    "'{}' is not a socket-filter program: {e}",
+                    crate::ebpf::loader::RELAY_PROGRAM
+                ),
+            })?;
+        prog.load().map_err(AttachError::from_program_load)?;
+        prog.pin(pin::PIN_PROG_RELAY)
+            .map_err(|e| AttachError::PinFailed {
+                path: format!("{} ({e})", pin::PIN_PROG_RELAY),
+            })?;
+    }
+    bpf.take_map("notices")
+        .ok_or_else(|| AttachError::Unknown {
+            detail: "the tap object carries no 'notices' map".to_string(),
+        })?
+        .pin(pin::PIN_MAP_NOTICES)
+        .map_err(|e| AttachError::PinFailed {
+            path: format!("{} ({e})", pin::PIN_MAP_NOTICES),
         })?;
 
     Ok(kind)

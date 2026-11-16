@@ -124,11 +124,26 @@ pub fn install() -> Result<ControlWake, String> {
 }
 
 impl ControlWake {
+    /// The read end's raw fd (night-frontier-Z2 B1): the watcher
+    /// polls the notice ring and this pipe in ONE poll(2) set, so the
+    /// session fast path and the evented control wake share a wait
+    /// and a heartbeat instead of owning separate sleeps.
+    pub fn read_fd(&self) -> std::os::fd::RawFd {
+        self.read_end.as_raw_fd()
+    }
+
     /// Wait up to `timeout_ms` for a wake byte, then drain whatever
-    /// landed. All three outcomes (byte, timeout, interrupted) lead to
+    /// landed.
+    ///
+    /// night-frontier-Z2 B1: the BINARY no longer calls this — its
+    /// watcher polls the notice ring and this pipe in one poll(2) set
+    /// and drains via [`ControlWake::drain`]. The test tree still
+    /// drives the single-fd wait, so it stays (cfg-allowed, not
+    /// deleted). All three outcomes (byte, timeout, interrupted) lead to
     /// the same next step — re-read the control map — so the call
     /// returns no verdict; the drain only runs when the pipe reported
     /// readable (a read on a quiet blocking pipe would hang).
+    #[allow(dead_code)]
     pub fn wait(&self, timeout_ms: u16) {
         let fd = self.read_end.as_fd();
         let mut fds = [PollFd::new(fd, PollFlags::POLLIN)];
@@ -144,7 +159,7 @@ impl ControlWake {
     /// covers every realistic flood (one byte per wake, 4 KiB of
     /// headroom); a remainder, if one ever existed, only makes the
     /// next poll return immediately.
-    fn drain(&self) {
+    pub fn drain(&self) {
         let mut buf = [0u8; 4096];
         let fd = self.read_end.as_raw_fd();
         // Safety: read(2) takes a plain out-pointer; `buf` is a local

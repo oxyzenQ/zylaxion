@@ -381,6 +381,12 @@ always polling for config or input. What you see in `ps` is the
   ring-buffer fd, and the render loop blocks on its channel (1 ms
   while voices render, 100 ms while silent). It wakes when the kernel
   tap rings, plays the DSP math, and goes back to sleep.
+- The control plane is evented too (night-frontier-Z2 B1): a verb
+  writes the control map, then drives a pinned kernel relay that
+  produces one notice into a second ringbuf — the watcher's
+  `poll(2)` wakes in microseconds (kernel-timestamped, auditable
+  with `bpftool map dump`) and re-reads the control map, which stays
+  the only authority.
 - Its measured idle cost is 0.035% of one core over a 10 s silent
   window (`cargo run --release --example idle_cpu_sanity`), which
   reads 0.0% in `ps`.
@@ -433,6 +439,7 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 
 # Introspect the entire control plane with stock kernel tooling:
 bpftool map dump pinned /sys/fs/bpf/zylaxion/control
+bpftool map dump pinned /sys/fs/bpf/zylaxion/notices   # the evented control wake's audit trail
 # The kernel IS the config, the config IS introspectable.
 ```
 

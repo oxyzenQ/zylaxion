@@ -190,10 +190,12 @@ pub fn cmd_on(cli_preset: Option<String>) {
             crate::output::error(format!("cannot write the enabled slot: {e}"));
             process::exit(1);
         }
-        // night-hardening-2: the player is RUNNING (the gate above
-        // verified it), so the wakeup is safe and the live preset swap
-        // lands now, not at the next heartbeat.
-        super::wake_player(&control);
+        // night-hardening-2 → night-frontier-Z2 B1: the player is
+        // RUNNING (the gate above verified it), so the wakeup is safe
+        // and the live preset swap lands now — the notice rides the
+        // pinned ring (the kernel produces the record), the signal
+        // wire stays the fallback.
+        super::notify_player(&control, crate::ebpf::notice::KIND_ENABLED, 1);
         // night-improve-27 wording: the map writes above already applied,
         // so this surface is an UPDATE, not a spawn — say so, and keep
         // the contrast with the fresh-spawn line below ("new player").
@@ -425,11 +427,12 @@ pub fn cmd_off() {
         crate::output::error(format!("cannot clear the enabled flag: {e}"));
         process::exit(1);
     }
-    // night-hardening-2: wake the player's watcher so the stop lands
-    // now, not at the next heartbeat (the helper's RUNNING gate rides
-    // on top of the identity gate above; a skipped wake costs nothing
-    // — the heartbeat still stops the player).
-    super::wake_player(&control);
+    // night-hardening-2 → night-frontier-Z2 B1: wake the player's
+    // watcher so the stop lands now — the notice rides the pinned
+    // ring (the helper's RUNNING gate rides on top of the identity
+    // gate above; a skipped wake costs nothing — the 10 s heartbeat
+    // still stops the player).
+    super::notify_player(&control, crate::ebpf::notice::KIND_ENABLED, 0);
     // The identity check is re-read every poll step: if the player dies
     // mid-wait and the kernel recycles the pid, the loop must follow the
     // REGISTRATION (now stale), not the recycled process.

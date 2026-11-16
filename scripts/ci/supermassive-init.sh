@@ -381,6 +381,102 @@ else
 	echo "MASS-RESULT: PROOF 7 prog-run lane — SKIP (no payload or no tap object staged)"
 fi
 
+# ── PROOF 8: the evented control plane (night-frontier-Z2 B1) ──
+# The whole loop a control change rides, on a real kernel with a real
+# player: verb → control map write → ONE TEST_RUN on the pinned relay
+# → the KERNEL produces the record into the pinned notices ring → the
+# watcher's poll(2) wakes → the control map re-read (the ONLY
+# authority). Four rows carry the proof:
+#   - the player's wake row: a real `volume` verb lands in the player
+#     log with the kernel-timestamped latency, gated far under the
+#     10 s heartbeat (the old 100 ms poll is retired to the bridge);
+#   - the apply row: the retune lands through the evented lane;
+#   - the authority row: a SECOND verb that writes the SAME value
+#     wakes the player, re-reads the map, changes NOTHING, and SAYS
+#     so ("authority held") — a notice is a hint, the map is the law;
+#     this is the gimmick door, welded shut;
+#   - the kernel rows: the harness's notice-drive lane proves the
+#     relay RUNS (TEST_RUN accepted), the ring WAKES a poller, and
+#     the mmap drain echoes the frame byte-for-byte — run AFTER the
+#     player stops, so the two consumers never race one ring.
+if [ -x /usr/bin/zylaxion ] && /usr/bin/zylaxion attach >/dev/null 2>&1; then
+	PLOG=/tmp/zylaxion-player-p8.log
+	rm -f "$PLOG"
+	p8_started=no
+	sudo -u zed env RUST_LOG=info /usr/bin/zylaxion play >"$PLOG" 2>&1 &
+	PLAY8=$!
+	ready=no
+	for i in $(seq 1 30); do
+		grep -aq "ready" "$PLOG" 2>/dev/null && { ready=yes; break; }
+		sleep 0.5
+	done
+	if [ "$ready" = yes ]; then
+		p8_started=yes
+		sudo -u zed /usr/bin/zylaxion volume 61 >/dev/null 2>&1
+		saw_notice=no
+		saw_apply=no
+		for i in $(seq 1 40); do
+			grep -aq "control notice seq" "$PLOG" && saw_notice=yes
+			grep -aq "volume retuned to 61%" "$PLOG" && { saw_apply=yes; break; }
+			sleep 0.1
+		done
+		wake_ns=$(grep -ao 'wake [0-9]* ns' "$PLOG" | head -1 | grep -o '[0-9]*')
+		if [ "$saw_notice" = yes ] && [ -n "$wake_ns" ] && [ "$wake_ns" -lt 50000000 ]; then
+			note "PROOF 8: the player woke on the notice in ${wake_ns} ns (the 100 ms control poll is retired)" PASS
+		else
+			note "PROOF 8: the player's evented wake (latency ${wake_ns:-none} ns)" FAIL
+			grep -a "control notice\|volume retuned" "$PLOG" | head -4 || true
+		fi
+		if [ "$saw_apply" = yes ]; then
+			note "PROOF 8: the retune applied through the evented lane" PASS
+		else
+			note "PROOF 8: the retune apply" FAIL
+		fi
+		# The authority row: the same verb, the SAME value — the map
+		# truth does not move, so the wake must apply nothing and say
+		# so. A notice that changed the sound here would be the
+		# gimmick this proof exists to refuse.
+		sudo -u zed /usr/bin/zylaxion volume 61 >/dev/null 2>&1
+		auth=no
+		for i in $(seq 1 20); do
+			grep -aq "authority held" "$PLOG" && { auth=yes; break; }
+			sleep 0.1
+		done
+		if [ "$auth" = yes ]; then
+			note "PROOF 8: a wake with no pending change applied NOTHING — authority held" PASS
+		else
+			note "PROOF 8: the authority row (notice-as-hint)" FAIL
+		fi
+	else
+		note "PROOF 8: the player never reached ready (the guest audio/input posture)" FAIL
+		tail -5 "$PLOG" 2>/dev/null || true
+	fi
+	# The player stops through the same evented lane (off = one map
+	# write + one notice), then the kernel-side lane runs ALONE.
+	if [ "$p8_started" = yes ]; then
+		sudo -u zed /usr/bin/zylaxion off >/dev/null 2>&1 || true
+		for i in $(seq 1 20); do
+			kill -0 "$PLAY8" 2>/dev/null || break
+			sleep 0.25
+		done
+		kill -0 "$PLAY8" 2>/dev/null && pkill -f "/usr/bin/zylaxion play" 2>/dev/null || true
+	fi
+	if [ -x "$Z/zactrix-audit" ]; then
+		"$Z/zactrix-audit" --notice-drive >/tmp/p8-harness.out 2>&1
+		if grep -aq "MASS-RESULT: PROOF 8 notice-drive lane (the kernel produced the wake, or the lane is honestly classified) — PASS" /tmp/p8-harness.out; then
+			note "PROOF 8: the kernel notice-drive lane (relay runs, ring wakes, bytes echo the frame)" PASS
+		else
+			note "PROOF 8: the kernel notice-drive lane" FAIL
+			grep -a "PROOF 8" /tmp/p8-harness.out | head -6 || true
+		fi
+	else
+		echo "MASS-RESULT: PROOF 8 notice-drive — SKIP (the harness binary is not in the payload)"
+	fi
+	/usr/bin/zylaxion detach >/dev/null 2>&1 || true
+else
+	echo "MASS-RESULT: PROOF 8 notice plane — SKIP (no payload or attach refused on this leg)"
+fi
+
 # ── the engine: the whole chaos ────────────────────────────────────────
 # The engine prints its own MASS rows (same contract); its exit code
 # folds into this init's verdict line — the ONLY line the workflow's

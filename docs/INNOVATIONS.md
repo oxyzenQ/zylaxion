@@ -361,16 +361,24 @@ stateless `zylaxion _play` whose pid and lifecycle state live in the
 pinned control map — "the pidfile lives in the kernel now". The
 player polls the pinned ring buffer and re-reads the control map
 every 100 ms (preset swap via ArcSwap, volume via the atomic cell),
-survives a 10 s read-failure budget before declaring the tap lost,
+survives a 10 s read-failure patience before declaring the tap lost,
 refuses to coredump, and dies on `off` leaving nothing resident.
-night-hardening-2 evented the control plane: every verb raises a
-zero-payload SIGUSR1 after its map write, the watcher wakes in
-poll(2) on a pipe byte and re-reads the map at once (the map stays
-the only authority), and the 100 ms re-read remains as the liveness
-heartbeat — `off`, `preset --switch`, and `volume` now land in
-microseconds instead of up to a watcher cadence. Files of truth:
-`src/commands/player.rs` (the watcher) and `src/session/wake.rs`
-(the lane).
+night-hardening-2 evented the control plane (a zero-payload SIGUSR1
+after every map write), and night-frontier-Z2 B1 completed it: every
+verb drives the pinned notice relay with ONE `BPF_PROG_TEST_RUN`
+after its map write — the KERNEL produces the record into the pinned
+notices ring (the only publish a ringbuf admits: producer pages are
+read-only to userspace on every kernel), the watcher's `poll(2)`
+spans the notice ring and the wake pipe (the signal stays as the
+fallback the relay's wake crosses the identity boundary with), and
+the map re-read that follows is the only authority. The 100 ms poll
+demoted to a 10 s liveness heartbeat — the night-dragon-lts read-
+failure patience survived, honestly re-derived from a read count to
+a clock — and `off`, `preset`, and `volume` land in microseconds on
+every kernel from the 5.15 floor up. Files of truth:
+`src/commands/player.rs` (the two-fd watcher), `src/session/wake.rs`
+(the signal lane), `src/ebpf/notice.rs` (the schema), and
+`src/ebpf/bpf_syscall.rs` (the publish lane).
 
 **25. The orphan lifecycle: identity gate and escalation ladder.**
 The double-sound problem: a player that outlives the map it watched
@@ -432,6 +440,39 @@ frozen at a named commit — changes require a documented why that
 passes the maintenance bar — and the freeze itself is enforced by
 doc-pinning tests so a doc edit cannot silently unpin it. Files of
 truth: `src/engine/mod.rs` and `test/engine/freeze_tests.rs`.
+
+**42. The evented control plane, completed — the notice relay and
+the pinned ring (night-frontier-Z2 B1).** The gap B1 closed: the
+night-hardening-2 wake was a SIGNAL — it needed the player's pid,
+process-targeting permission across the identity boundary, and left
+no trace an audit could read back. B1 makes the primary wake
+kernel-produced evidence: the loader pins TWO more objects (the
+`notices` ringbuf and the UNATTACHED `relay` socket-filter program)
+beside the rest of the inventory — same cleanup classification, same
+hand-over — while the tap body and the engine stay frozen. After a
+verb writes the control map it drives the relay with one 16-byte
+frame; the kernel validates the magic, stamps `bpf_ktime_get_ns`,
+and publishes the 24-byte record the watcher's `poll(2)` wakes on.
+The record schema is structural zero-leakage — (timestamp, kind,
+value, seq); there is NO keycode field, so a control notice cannot
+carry key data, and the events ring keeps its own record shape and
+its own pin. The mechanism is floor-legal by construction: the relay
+is a socket filter because aya loads the `socket` section natively
+and the 5.15 floor's test-run answers it (a SYSCALL program needs
+the sleepable flag and no aya section maps to it; a KPROBE answers
+ENOTSUPP — both recorded in the PROOF 7 chain), and a queue/stack
+map was refused because 5.15 has no `map_poll` for them — polling
+one answers EPOLLERR, a busy loop wearing a wake's clothes. The
+wake that changes nothing says "authority held" out loud: a notice
+is a hint, the map is the law. Proven in the e2e guest (PROOF 8):
+a real `volume` verb lands with a kernel-timestamped wake row, the
+same-value verb produces the authority row, and the harness's
+notice-drive lane (relay runs, ring wakes, mmap drain echoes the
+frame) introspects the bytes. Files of truth: `src/ebpf/notice.rs`
+(the schema, compiled by both crates), `ebpf/src/main.rs` (the
+relay), `src/ebpf/bpf_syscall.rs` (the publish),
+`src/commands/player.rs` (the two-fd watcher), and
+`scripts/audit/harness/src/noticedrive.rs` (the kernel-side lane).
 
 ## The workshop: build, audit, and CLI tooling
 
@@ -627,7 +668,7 @@ wiring in `scripts/ci/supermassive-init.sh`.
 
 ## The test tree that pins the ledger
 
-The ledger is not honored by prose alone: 35 test files carrying 279
+The ledger is not honored by prose alone: 36 test files carrying 284
 test functions pin the entries above, wired into the crate through
 `#[path]` modules. The family map, so an auditor can walk it in one
 pass:

@@ -38,6 +38,36 @@ v80.0.0-alpha.1
 
 ### Added
 
+- **night-frontier-Z2, B1: the evented control plane — the notice
+  relay and the pinned ring** — the last polling hole closed on the
+  5.15 floor: every CLI verb, after writing the control map, drives
+  one `BPF_PROG_TEST_RUN` on the pinned UNATTACHED relay (a
+  socket-filter program aya loads natively); the kernel validates the
+  frame magic, stamps `bpf_ktime_get_ns`, and publishes the 24-byte
+  record into the newly pinned `notices` ringbuf. The player's
+  watcher polls the notice ring AND the wake pipe in one `poll(2)`
+  (the SIGUSR1 wire stays as the fallback), re-reads the control map
+  as the only authority, and says "authority held" when a wake
+  carried no change. The 100 ms control poll demoted to a 10 s
+  liveness heartbeat (the night-dragon-lts 10 s read-failure patience
+  re-derived from a count to a clock); the bridge keeps its 100 ms
+  cap; the tap body and the engine stay frozen; the record schema is
+  structurally zero-leakage (timestamp, kind, value, seq — no keycode
+  field). A queue/stack notice map was refused (5.15 has no
+  `map_poll` for them — EPOLLERR, a busy loop) and the relay is a
+  socket filter (the 5.15 floor answers its TEST_RUN; a SYSCALL
+  program needs the sleepable flag and no aya section maps to it) —
+  both refusals recorded. Proven in the e2e guest as PROOF 8 (the
+  real verb's kernel-timestamped wake row, the same-value authority
+  row, and the harness `--notice-drive` kernel lane: relay runs, ring
+  wakes, mmap drain echoes the frame). Files of truth:
+  `src/ebpf/notice.rs`, `ebpf/src/main.rs`, `src/ebpf/pin.rs`,
+  `src/ebpf/loader/chain.rs`, `src/ebpf/bpf_syscall.rs`,
+  `src/commands/sound/mod.rs`, `src/session/wake.rs`,
+  `src/commands/player.rs`,
+  `scripts/audit/harness/src/noticedrive.rs`, and the PROOF 8 block
+  in `scripts/ci/supermassive-init.sh`.
+
 - **night-frontier-Z1, A1: PROOF 7 — the tap's in-kernel cost measured
   by the kernel itself** — a harness-native `BPF_PROG_TEST_RUN` lane
   (`scripts/audit/harness/src/progrun.rs`, wired into the e2e

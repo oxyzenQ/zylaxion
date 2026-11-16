@@ -29,13 +29,17 @@ fn the_link_pin_comes_first_in_removal_order() {
 
 #[test]
 fn pin_set_covers_program_link_and_four_maps() {
-    assert_eq!(ALL_PINS.len(), 6);
+    assert_eq!(ALL_PINS.len(), 8);
     assert!(ALL_PINS.contains(&PIN_PROG));
     assert!(ALL_PINS.contains(&PIN_LINK));
     assert!(ALL_PINS.contains(&PIN_MAP_CONTROL));
     assert!(ALL_PINS.contains(&PIN_MAP_KEYMAP));
     assert!(ALL_PINS.contains(&PIN_MAP_EVENTS));
     assert!(ALL_PINS.contains(&PIN_MAP_STATS));
+    // night-frontier-Z2 B1: the notice ring and the relay join the
+    // one inventory — same cleanup classification, same hand-over.
+    assert!(ALL_PINS.contains(&PIN_MAP_NOTICES));
+    assert!(ALL_PINS.contains(&PIN_PROG_RELAY));
 }
 
 #[test]

@@ -42,7 +42,7 @@
 //! detaches (or forgets the marker).
 
 use std::io;
-use std::os::fd::RawFd;
+use std::os::fd::{AsRawFd as _, FromRawFd as _, RawFd};
 
 use super::attach_error::AttachError;
 
@@ -50,6 +50,16 @@ use super::attach_error::AttachError;
 
 /// BPF syscall command: create a map (the marker lane).
 const BPF_MAP_CREATE: i32 = 0;
+/// BPF syscall command: open a pinned object by path (the relay
+/// drive lane — verbs hold no fds, they re-open the pin per call).
+const BPF_OBJ_GET: i32 = 7;
+/// BPF syscall command: execute a program once (the relay drive
+/// lane — `bpf_prog_test_run_skb`, present since before the 5.15
+/// floor; the notice frame rides `data_in`). Command 10 — after
+/// PROG_ATTACH (8), PROG_DETACH (9); the audit harness carries the
+/// same number and its lane reached real kernels, so the constant is
+/// proven against the uapi, not against memory.
+const BPF_PROG_TEST_RUN: i32 = 10;
 /// BPF syscall command: write one map entry (the marker lane).
 const BPF_MAP_UPDATE_ELEM: i32 = 2;
 /// BPF syscall command: pin a bpf object to bpffs.
@@ -185,6 +195,38 @@ struct MapCreateAttr {
     map_flags: u32,
     inner_map_fd: u32,
     numa_node: u32,
+}
+
+/// Attribute struct for `BPF_OBJ_GET`: `{ pathname, bpf_fd,
+/// file_flags }` — the exact shape [`ObjPinAttr`] uses.
+#[repr(C)]
+#[derive(Default)]
+struct ObjGetAttr {
+    pathname: u64,
+    bpf_fd: u32,
+    file_flags: u32,
+}
+
+/// Attribute struct for `BPF_PROG_TEST_RUN` (the relay drive lane):
+/// the head of the `test` member — `{ prog_fd, retval,
+/// data_size_in, data_size_out, data_in, data_out, repeat,
+/// duration }`. The kernel writes `retval` and `duration` back
+/// through the caller's pointer, so the struct is read AFTER the
+/// syscall for the verdict. repeat stays 0 (the kernel runs the
+/// program exactly once — one notice frame, one record) and every
+/// ctx field stays 0 (the relay reads the frame from data_in, not
+/// the context; the skb test run fabricates its own skb).
+#[repr(C)]
+struct TestRunAttr {
+    prog_fd: u32,
+    retval: u32,
+    data_size_in: u32,
+    data_size_out: u32,
+    data_in: u64,
+    data_out: u64,
+    repeat: u32,
+    duration: u32,
+    _pad: [u8; 24],
 }
 
 /// Attribute struct for `BPF_MAP_UPDATE_ELEM` (the marker lane):
@@ -450,6 +492,99 @@ fn pin_failure(pin_path: &str, e: &io::Error) -> AttachError {
     AttachError::PinFailed {
         path: format!("{pin_path} ({e})"),
     }
+}
+
+// ━━ The notice-drive lane (night-frontier-Z2 B1) ━━━━━━━━━━━━━━━━━━
+
+/// Open a pinned bpf object by path (BPF_OBJ_GET). The caller owns
+/// the fd — wrap it in an `OwnedFd` or close it explicitly.
+///
+/// The bpffs open rides the file's own permissions (the attach
+/// hand-over chowns the pins), NOT a capability gate: an
+/// unprivileged verb re-opens the relay pin exactly like it opens
+/// the control map. On failure the errno is surfaced raw — the
+/// caller's degradation law (signal wire, then heartbeat) owns it.
+pub fn open_pinned_object(path: &str) -> Result<RawFd, io::Error> {
+    let c_path = std::ffi::CString::new(path)
+        .map_err(|e| io::Error::other(format!("pin path {path:?} is not a C string: {e}")))?;
+    let attr = ObjGetAttr {
+        pathname: c_path.as_ptr() as u64,
+        ..ObjGetAttr::default()
+    };
+    let fd = unsafe {
+        libc::syscall(
+            libc::SYS_bpf,
+            BPF_OBJ_GET,
+            &attr as *const ObjGetAttr,
+            std::mem::size_of::<ObjGetAttr>(),
+        )
+    };
+    if fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(fd as RawFd)
+}
+
+/// Drive the pinned notice relay once (BPF_PROG_TEST_RUN, skb
+/// shape): the 16-byte notice frame rides `data_in`, the kernel
+/// fabricates an skb around it, and the relay publishes the record
+/// into the pinned notices ring. Returns the program's verdict (0 —
+/// the filter verdict nobody consumes; the record is the result).
+///
+/// repeat stays 0: the kernel runs the program exactly once per
+/// call, and the caller publishes exactly one notice per control
+/// change — no amplification, no batching, one record per verb.
+pub fn test_run_skb(prog_fd: RawFd, data_in: &[u8]) -> Result<u32, io::Error> {
+    // No `mut`: the kernel writes retval/duration back through the
+    // raw pointer (invisible to the borrow checker), and the struct
+    // is only read after the call.
+    let attr = TestRunAttr {
+        prog_fd: prog_fd as u32,
+        data_size_in: data_in.len() as u32,
+        data_in: data_in.as_ptr() as u64,
+        ..TestRunAttr::zeroed()
+    };
+    let rc = unsafe {
+        libc::syscall(
+            libc::SYS_bpf,
+            BPF_PROG_TEST_RUN,
+            &attr as *const TestRunAttr,
+            std::mem::size_of::<TestRunAttr>(),
+        )
+    };
+    if rc < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(attr.retval)
+}
+
+impl TestRunAttr {
+    const fn zeroed() -> Self {
+        Self {
+            prog_fd: 0,
+            retval: 0,
+            data_size_in: 0,
+            data_size_out: 0,
+            data_in: 0,
+            data_out: 0,
+            repeat: 0,
+            duration: 0,
+            _pad: [0u8; 24],
+        }
+    }
+}
+
+/// Publish ONE control notice (night-frontier-Z2 B1): open the
+/// pinned relay, drive it once with the encoded frame, close the fd.
+/// The kernel produces the record — the writer never touches the
+/// ring's producer pages (read-only to userspace on every kernel),
+/// so this relay drive is the ONLY 5.15-legal publish, and it is
+/// also the auditable one (the record carries the kernel timestamp).
+pub fn publish_notice(kind: u32, value: u32, seq: u32) -> Result<(), io::Error> {
+    let prog_fd = open_pinned_object(crate::ebpf::pin::PIN_PROG_RELAY)?;
+    let owned = unsafe { std::os::fd::OwnedFd::from_raw_fd(prog_fd) };
+    let frame = crate::ebpf::notice::encode_frame(kind, value, seq);
+    test_run_skb(owned.as_raw_fd(), &frame).map(|_| ())
 }
 
 #[cfg(test)]
