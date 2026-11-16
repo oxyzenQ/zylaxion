@@ -705,6 +705,46 @@ of truth:
 `scripts/audit/zactrix-prog-run.sh` (the host wrapper), the guest
 wiring in `scripts/ci/supermassive-init.sh`.
 
+**44. The proven datapath — bounded model checking over the pure
+laws (night-depth-hardening-2).** Unit tests sample; this lane
+quantifies. Three pure law functions prove over their WHOLE
+reachable input spaces under Kani (bounded model checking — the
+verifier lane `Dragon Guard - Kani`, the estate's 10:00 WIB clock,
+Monday plus manual dispatch): the volume clamp cell, where every f32
+the domain can name either clamps into [-100, 100] exactly with a
+lossless bit round-trip or, non-finite, falls back to the compiled
+default; the gain law, where the untrusted control-map percent — the
+whole u32 space, the map is not input — cannot produce NaN,
+negatives, overflow, or a quieter render at a louder percent; and
+the noise mapping, where every u32 bit pattern the PRNG produces
+lands inside [-1, 1], finite. The harnesses compile under cfg(kani)
+alone — invisible to every build, test, and lint lane; the cfg is
+declared in Cargo.toml so the rustcfg check stays silent. Loom is
+honestly refused at this frontier: the SPSC ring is the third-party
+ringbuf crate (nothing of ours for a model to walk) and the one
+first-party lock-free surface is the single-atomic volume cell this
+lane already proves — a loom model over one atomic word would prove
+what the hardware contract already grants; a loom lane rides a
+first-party lock-free structure if one ever lands. Files of truth:
+`src/engine/kani_proofs.rs` (the harnesses), `.github/workflows/
+kani.yml` (the lane, the action SHA-pinned), `Cargo.toml` (the cfg
+declaration).
+
+**45. The unsafe audit's score law (night-depth-hardening-3).**
+Every unsafe block names its own safety argument, and the discipline
+cannot rot back: `clippy::undocumented_unsafe_blocks` rides the
+three crate roots at deny, and all 64 unsafe blocks across the
+estate carry honest per-site `// SAFETY:` comments — the syscall
+attr laws and fd ownership in the bpf syscall layer, the FP
+control-register asm in the denormal policy, the ringbuf record
+casts, the pipe and sigaction wires, the test tree's env and
+self-wake blocks. Comments only, zero logic moved — the audit's
+score is 100% because every block justifies itself, not because any
+was deleted. Files of truth: `src/main.rs`, `ebpf/src/main.rs`,
+`scripts/audit/harness/src/main.rs` (the three deny laws), and every
+`// SAFETY:` line under `src/`, `test/`, `ebpf/src/`, and
+`scripts/audit/harness/src/`.
+
 ## The test tree that pins the ledger
 
 The ledger is not honored by prose alone: 36 test files carrying 284
@@ -753,7 +793,10 @@ render path; the saturation-boundary rows of entry 43 re-run with
 `cargo run --release --manifest-path scripts/audit/harness/Cargo.toml
 -- --fold-proof`; `zylaxion doctor` prints the kernel report the attach
 gate consumes; `zylaxion status` reads the TAP_KIND slot the loader
-wrote. Where a number in any other doc disagrees with the code, the
+wrote; the proven-datapath harnesses of entry 44 verify under the
+Kani lane (`cargo kani` — the Monday 10:00 WIB schedule or a manual
+dispatch from the Actions tab); the unsafe audit's score law of
+entry 45 is `cargo clippy --all-targets -- -D warnings` itself. Where a number in any other doc disagrees with the code, the
 code wins — and the doc gets the PR.
 
 <!-- ZYLAXION-DISCLAIMER -->

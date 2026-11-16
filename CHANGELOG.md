@@ -137,6 +137,34 @@ v80.0.0-alpha.1
   (volume cell, ArcSwap model) hammered under concurrent render with
   the render net's finite-and-clamped invariant pinned per sample.
 
+- **The proven datapath, landed (night-depth-hardening-2)** — the
+  Kani bounded-model-checking lane (`Dragon Guard - Kani`, the
+  estate's 10:00 WIB clock) proves three pure laws over their WHOLE
+  reachable input spaces: the volume clamp cell (every f32 — finite
+  inputs clamp inside [-100, 100] with a lossless bit round-trip,
+  non-finite falls back to the compiled default), the gain law (the
+  untrusted control-map percent across the whole u32 domain —
+  finite, non-negative, monotone), and the noise mapping (every u32
+  bit pattern stays inside [-1, 1]). The harnesses compile under
+  cfg(kani) alone, declared in Cargo.toml so the rustcfg check stays
+  silent. Loom is honestly refused: the SPSC ring is the third-party
+  ringbuf crate and the one first-party lock-free surface is the
+  single-atomic volume cell the lane already proves.
+
+- **The unsafe audit's score law (night-depth-hardening-3)** —
+  `clippy::undocumented_unsafe_blocks` rides the three crate roots
+  at deny, and all 64 unsafe blocks across the estate carry honest
+  per-site `// SAFETY:` comments (the syscall attr laws, the fd
+  ownership edges, the FP control-register asm, the ringbuf record
+  casts, the pipe and sigaction wires, the test tree's env and
+  self-wake blocks). Comments only, zero logic moved.
+
+- **The PROOF 1 soak's runtime determinism evidence committed**
+  (`scripts/audit/soak-evidence.txt`): two independent full runs of
+  the one-million-keystroke soak, the final-1000-sample FNV-1a hash
+  byte-identical (`b1a485622e6e5eca` both runs), RSS growth 0 KiB
+  (target < 1024), all 16 pool slots returned.
+
 ### Changed
 
 - **night-hardening-2, gap 2: the control plane is evented** — the
@@ -159,6 +187,30 @@ v80.0.0-alpha.1
   methods are unreachable there. Four dead entry points into one
   atomic cell deleted; the cell remains the single volume law.
 
+- **The estate clock (night-consistent-1)** — all four scheduled
+  workflows ride 10:00 WIB: audit.yml and maintenance.yml move to
+  Monday 03:00 UTC (from 07:00), fuzz.yml to Monday 03:00 UTC (from
+  00:30), miri.yml to Sunday 03:00 UTC (from 00:00). The days stay;
+  the clock becomes one spelling.
+
+- **The e2e battery's notice-drive drain rides the uapi ringbuf
+  header law** — struct bpf_ringbuf_hdr is len u32 + pg_off u32, and
+  the drain read it as one u64, so every record length carried its
+  pg_off high word (slice end 12884902008 on an 8192-byte mapping;
+  the Z2 CI guest named the panic). The length now rides the low
+  word only, and a record whose body would cross the mapped window
+  is skipped. The echo search also rides the two-consumer fact (the
+  player's watcher and the drain race one ring): the echo is
+  searched across every record the drain holds, and a miss names
+  every record shape it saw. The guest leg turned fully green: the
+  wake rows 12-27 us, the retune applied through the evented lane,
+  the authority row held, the notice-drive echo passed.
+
+- **The PROOF 7 relative-law gate rides a 3% jitter band** — one
+  floor leg measured unmapped 0.7% above press (timer noise at
+  microsecond scale on a shared runner) against a law whose every
+  observed round sat at 93-97%; a true break still fails loudly.
+
 ### Documentation
 
 - **night-hardening-2, gap 1: the reserved sound-class lane recorded
@@ -169,6 +221,11 @@ v80.0.0-alpha.1
   owner decision (per-class parameters would re-baseline every preset
   row through the audit harness), and that the record shape stays
   stable until that decision.
+
+- **The innovations ledger carries entry 44** (the proven datapath —
+  bounded model checking over the pure laws, with the Loom
+  refusal's facts) **and entry 45** (the unsafe audit's score law),
+  and the verify section names the Kani lane and the clippy gate.
 
 ### License
 
