@@ -1,0 +1,64 @@
+warning: unused imports: `Preset` and `names_sorted as registry_names`
+  --> src/../../../../src/profiles/mod.rs:31:21
+   |
+31 |     DEFAULT_PRESET, Preset, all as registry_all, lookup as registry_lookup,
+   |                     ^^^^^^
+32 |     names_sorted as registry_names,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `function`
+   --> src/progrun.rs:327:9
+    |
+327 |     let function = object
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_function`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+PROOF 1 (night-private-research-2xblade-3): long-run soak, 1000000 keystrokes, round-robin over 24 presets, 48 kHz, interval 48 samples (1000 keystrokes/s, pool saturated - the documented max-pressure schedule)
+hardware: Intel(R) Xeon(R) Processor
+rendered 48059051 frames (1001.2 audio-seconds) in 30.8 s wall; peak active voices 16, mean active 16.00
+(b) memory: RSS at keystroke 1000 = 1748 KiB, at keystroke 1000000 = 1748 KiB, growth 0 KiB (target < 1024 KiB)
+(c) CPU drift: per-1000-keystroke block first 29.8 ms, last 30.6 ms, drift +2.78% (target within +/-5%); block min 29.7 / max 57.4 ms over 1000 blocks
+(d) NaN/Inf: raw spot checks 19 x <= 1000000-sample full lifetimes -> NaN 0, Inf 0 (target 0); pool output stream: net-zero steps 0 , max |sample| 1.0000 (post-clamp <= 1.0)
+pool end state: active voices 0 after drain (target 0 - every slot returned)
+(a) final-1000-sample hash (fnv1a64): b1a485622e6e5eca  <- the wrapper runs this mode twice; the hashes must be byte-identical
+PROOF 1 PASS: numerics clean end to end, pool returned, RSS flat, CPU steady (hash equality is the wrapper's second run)
+
+
+warning: unused imports: `Preset` and `names_sorted as registry_names`
+  --> src/../../../../src/profiles/mod.rs:31:21
+   |
+31 |     DEFAULT_PRESET, Preset, all as registry_all, lookup as registry_lookup,
+   |                     ^^^^^^
+32 |     names_sorted as registry_names,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `function`
+   --> src/progrun.rs:327:9
+    |
+327 |     let function = object
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_function`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+PROOF 1 (night-private-research-2xblade-3): long-run soak, 1000000 keystrokes, round-robin over 24 presets, 48 kHz, interval 48 samples (1000 keystrokes/s, pool saturated - the documented max-pressure schedule)
+hardware: Intel(R) Xeon(R) Processor
+rendered 48059051 frames (1001.2 audio-seconds) in 32.0 s wall; peak active voices 16, mean active 16.00
+(b) memory: RSS at keystroke 1000 = 1668 KiB, at keystroke 1000000 = 1668 KiB, growth 0 KiB (target < 1024 KiB)
+(c) CPU drift: per-1000-keystroke block first 31.5 ms, last 31.4 ms, drift -0.55% (target within +/-5%); block min 30.5 / max 90.9 ms over 1000 blocks
+(d) NaN/Inf: raw spot checks 19 x <= 1000000-sample full lifetimes -> NaN 0, Inf 0 (target 0); pool output stream: net-zero steps 0 , max |sample| 1.0000 (post-clamp <= 1.0)
+pool end state: active voices 0 after drain (target 0 - every slot returned)
+(a) final-1000-sample hash (fnv1a64): b1a485622e6e5eca  <- the wrapper runs this mode twice; the hashes must be byte-identical
+PROOF 1 PASS: numerics clean end to end, pool returned, RSS flat, CPU steady (hash equality is the wrapper's second run)
+
+# night-depth-hardening-2: two independent full runs of the PROOF 1
+# soak (1M keystrokes, 24 presets, max-pressure schedule) on one
+# machine, one binary. The final-1000-sample FNV-1a hashes match
+# byte for byte (b1a485622e6e5eca) — the same input schedule renders
+# the same bytes, twice. RSS growth 0 KiB across a million
+# keystrokes (target < 1024); every pool slot returned after the
+# drain. The runs rode commit 87b46cf.
