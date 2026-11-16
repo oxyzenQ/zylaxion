@@ -273,19 +273,13 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
     // The kernel maps pages, not byte counts: the data area spans
     // ceil(data_size / page) pages plus the wrap page.
     let data_pages = data_size.div_ceil(page_size) + 1;
-    let prod = unsafe {
-        libc::mmap(
-            std::ptr::null_mut(),
-            page_size,
-            libc::PROT_READ,
-            libc::MAP_SHARED,
-            map_fd,
-            0,
-        )
-    };
-    if prod == libc::MAP_FAILED {
-        return Err(io::Error::last_os_error());
-    }
+    // The kernel's ringbuf mmap layout (ringbuf_map_mmap_kern +
+    // remap_vmalloc_range(vm_pgoff + RINGBUF_PGOFF)): vm_pgoff 0 is
+    // the CONSUMER page (the ONE writable mapping — a writable
+    // mapping anywhere else answers EPERM, the Z2 CI guest named the
+    // first attempt), vm_pgoff 1 the producer page, vm_pgoff 2.. the
+    // data pages, all read-only — libbpf's own consumer rides the
+    // identical layout.
     let cons = unsafe {
         libc::mmap(
             std::ptr::null_mut(),
@@ -293,11 +287,24 @@ fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
             libc::PROT_READ | libc::PROT_WRITE,
             libc::MAP_SHARED,
             map_fd,
-            page_size as libc::off_t,
+            0,
         )
     };
     if cons == libc::MAP_FAILED {
-        unsafe { libc::munmap(prod, page_size) };
+        return Err(io::Error::last_os_error());
+    }
+    let prod = unsafe {
+        libc::mmap(
+            std::ptr::null_mut(),
+            page_size,
+            libc::PROT_READ,
+            libc::MAP_SHARED,
+            map_fd,
+            page_size as libc::off_t,
+        )
+    };
+    if prod == libc::MAP_FAILED {
+        unsafe { libc::munmap(cons, page_size) };
         return Err(io::Error::last_os_error());
     }
     // The kernel's ringbuf mmap law (ringbuf_map_mmap): a WRITABLE

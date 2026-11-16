@@ -438,7 +438,7 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 		# back: a swallowed verb turns every downstream FAIL into a
 		# guess (the Z2 CI guest named this — the wake rows failed
 		# with the verb's error invisible).
-		sudo -u zed /usr/bin/zylaxion volume 61 >"$PLOG.verb1" 2>&1 || true
+		sudo -u zed /usr/bin/zylaxion volume --percent 61 >"$PLOG.verb1" 2>&1 || true
 		saw_notice=no
 		saw_apply=no
 		for i in $(seq 1 40); do
@@ -464,7 +464,7 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 		# truth does not move, so the wake must apply nothing and say
 		# so. A notice that changed the sound here would be the
 		# gimmick this proof exists to refuse.
-		sudo -u zed /usr/bin/zylaxion volume 61 >"$PLOG.verb2" 2>&1 || true
+		sudo -u zed /usr/bin/zylaxion volume --percent 61 >"$PLOG.verb2" 2>&1 || true
 		auth=no
 		for i in $(seq 1 20); do
 			grep -aq "authority held" "$PLOG" && { auth=yes; break; }
