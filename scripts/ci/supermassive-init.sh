@@ -434,6 +434,15 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 	done
 	if [ "$ready" = yes ]; then
 		p8_started=yes
+		# The player's own startup law zeroes the enabled gate (the
+		# control defaults put the tap in a defined idle posture), so
+		# without `on` the wake's authority re-read sees the cleared
+		# flag and the player stops before any retune can apply (the
+		# guest witness named it: the notice row printed, then
+		# 'control map cleared the enabled flag — stopping'). The
+		# sound goes ON first; the retune and the authority rows ride
+		# a live gate.
+		sudo -u zed /usr/bin/zylaxion on >"$PLOG.on" 2>&1 || true
 		# The verb's own words go where the battery can read them
 		# back: a swallowed verb turns every downstream FAIL into a
 		# guess (the Z2 CI guest named this — the wake rows failed
