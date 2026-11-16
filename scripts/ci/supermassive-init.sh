@@ -512,6 +512,10 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 		else
 			note "PROOF 8: the kernel notice-drive lane" FAIL
 			grep -a "PROOF 8" /tmp/p8-harness.out | head -14 || true
+			# The harness's own last words, unfiltered: a panic line does
+			# not start with the lane prefix, and a hidden panic turns a
+			# verdict into a guess.
+			tail -6 /tmp/p8-harness.out 2>/dev/null || true
 		fi
 	else
 		echo "MASS-RESULT: PROOF 8 notice-drive — SKIP (the harness binary is not in the payload)"
