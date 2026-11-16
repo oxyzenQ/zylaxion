@@ -128,7 +128,9 @@ fn xorshift32(x: &mut u32) {
 /// domain's own max: 2²⁴ − 1, exactly representable in f32, endpoint
 /// +1.0 exact.)
 #[inline]
-fn u32_to_signed_f32(x: u32) -> f32 {
+// pub(crate) so the Kani proof harness (src/kani_proofs.rs) can pin the
+// mapping's law over the whole u32 domain — visibility only, no behavior.
+pub(crate) fn u32_to_signed_f32(x: u32) -> f32 {
     ((x >> 8) as f32 / 16_777_215.0) * 2.0 - 1.0
 }
 
