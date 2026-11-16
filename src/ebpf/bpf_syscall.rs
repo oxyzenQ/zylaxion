@@ -213,9 +213,12 @@ struct ObjGetAttr {
 /// duration }`. The kernel writes `retval` and `duration` back
 /// through the caller's pointer, so the struct is read AFTER the
 /// syscall for the verdict. repeat stays 0 (the kernel runs the
-/// program exactly once — one notice frame, one record) and every
-/// ctx field stays 0 (the relay reads the frame from data_in, not
-/// the context; the skb test run fabricates its own skb).
+/// program exactly once — one control change, one record) and every
+/// ctx field stays 0 (the relay reads its arguments from the control
+/// map's request slots, not the context — the slot transport,
+/// night-frontier-Z2 B1). The kernel zero-fills the attr tail it
+/// never copies, so the short 64-byte shape presents clean ctx,
+/// flags, cpu and batch_size fields.
 #[repr(C)]
 struct TestRunAttr {
     prog_fd: u32,
@@ -526,10 +529,14 @@ pub fn open_pinned_object(path: &str) -> Result<RawFd, io::Error> {
 }
 
 /// Drive the pinned notice relay once (BPF_PROG_TEST_RUN, skb
-/// shape): the 16-byte notice frame rides `data_in`, the kernel
-/// fabricates an skb around it, and the relay publishes the record
-/// into the pinned notices ring. Returns the program's verdict (0 —
-/// the filter verdict nobody consumes; the record is the result).
+/// shape): the caller writes the relay's argument channel into the
+/// control map's request slots first (kind, then value — the slot
+/// transport, night-frontier-Z2 B1), then drives the relay with an
+/// EMPTY payload — the kernel fabricates the skb the socket filter's
+/// signature expects, the relay reads its arguments from the map and
+/// publishes the record into the pinned notices ring. Returns the
+/// program's verdict (0 — the filter verdict nobody consumes; the
+/// record is the result).
 ///
 /// repeat stays 0: the kernel runs the program exactly once per
 /// call, and the caller publishes exactly one notice per control
