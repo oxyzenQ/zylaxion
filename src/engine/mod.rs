@@ -23,6 +23,13 @@ mod pool;
 mod voice;
 
 pub use pool::VoicePool;
+
+// night-depth-hardening-2, the proven datapath: the Kani bounded-model
+// harnesses compile under the verifier lane only (cfg(kani)) — invisible
+// to every build, test, and lint lane. The laws they prove live in this
+// module (the volume cell) and across the crate's pure surfaces.
+#[cfg(kani)]
+mod kani_proofs;
 pub use voice::Voice;
 
 #[cfg(test)]
