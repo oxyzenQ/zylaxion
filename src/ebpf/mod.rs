@@ -40,6 +40,7 @@ pub mod embedded;
 pub mod loader;
 pub mod notice;
 pub mod pin;
+pub mod relay_drive;
 pub mod teardown;
 
 /// The verb surface: the same call signatures the commands layer has
