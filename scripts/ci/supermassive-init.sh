@@ -452,7 +452,8 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 		else
 			note "PROOF 8: the player's evented wake (latency ${wake_ns:-none} ns)" FAIL
 			grep -a "control notice\|volume retuned" "$PLOG" | head -4 || true
-			echo "── the verb's own words (the wake row's witness) ──"
+			echo "── the verbs' own words (the wake row's witness) ──"
+			cat "$PLOG.on" 2>/dev/null | head -3 || true
 			cat "$PLOG.verb1" 2>/dev/null | head -6 || true
 		fi
 		if [ "$saw_apply" = yes ]; then
