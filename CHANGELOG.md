@@ -38,6 +38,16 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-hardening-2, gap 2: the control plane is evented** — the
+  verbs raise a zero-payload SIGUSR1 after the map write (gated on
+  the RUNNING state and the zombie-aware liveness probe; the player
+  installs its handler before registering its pid), the watcher wakes
+  in poll(2) on a pipe byte instead of sleeping through the
+  heartbeat, and `off` / `preset --switch` / `volume` now apply in
+  microseconds instead of up to 100 ms. The pinned map remains the
+  only authority; the 100 ms re-read stays as the liveness heartbeat
+  and the 10 s read-failure budget is untouched. A failed wake lane
+  degrades to the heartbeat alone.
 - **night-hardening-2, gap 4: the stale volume-setter lane retired** —
   the orchestrator pair (`Orchestrator::set_master_volume` /
   `Orchestrator::master_volume`) and the pool's convenience pair

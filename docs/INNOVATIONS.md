@@ -363,7 +363,14 @@ player polls the pinned ring buffer and re-reads the control map
 every 100 ms (preset swap via ArcSwap, volume via the atomic cell),
 survives a 10 s read-failure budget before declaring the tap lost,
 refuses to coredump, and dies on `off` leaving nothing resident.
-File of truth: `src/commands/player.rs`.
+night-hardening-2 evented the control plane: every verb raises a
+zero-payload SIGUSR1 after its map write, the watcher wakes in
+poll(2) on a pipe byte and re-reads the map at once (the map stays
+the only authority), and the 100 ms re-read remains as the liveness
+heartbeat — `off`, `preset --switch`, and `volume` now land in
+microseconds instead of up to a watcher cadence. Files of truth:
+`src/commands/player.rs` (the watcher) and `src/session/wake.rs`
+(the lane).
 
 **25. The orphan lifecycle: identity gate and escalation ladder.**
 The double-sound problem: a player that outlives the map it watched
