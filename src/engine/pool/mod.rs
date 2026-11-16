@@ -387,3 +387,10 @@ mod tests;
 #[cfg(test)]
 #[path = "../../../test/engine/render_tests.rs"]
 mod render_tests;
+
+// night-hardening-2: the live control-plane lanes (the volume cell
+// and the ArcSwap model under concurrent render) — their own file,
+// the same Pattern C split.
+#[cfg(test)]
+#[path = "../../../test/engine/live_lanes_tests.rs"]
+mod live_lanes_tests;

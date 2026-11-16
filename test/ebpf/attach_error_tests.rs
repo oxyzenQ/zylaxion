@@ -240,3 +240,92 @@ fn verifier_tail_caps_line_length_and_handles_short_logs() {
     assert_eq!(verifier_tail("only one line", 3), "only one line");
     assert_eq!(verifier_tail("", 3), "");
 }
+
+// ── night-hardening-2: the full-domain sweeps ─────────────────────────
+
+/// The kernel's errno space, swept end to end across all three raw
+/// syscall lanes (plus 0 and the negatives a mis-wired caller could
+/// pass). The law: EPERM and EACCES are ALWAYS the privilege verdict;
+/// ENOENT is ALWAYS the missing-symbol verdict on the kprobe and
+/// fentry lanes and honest-Unknown on the link-create lane; EINVAL is
+/// the kernel's own per-lane refusal; EVERY other value lands in
+/// Unknown with the errno number in its detail — never folded into a
+/// classified cause. The example pins above name the wordings; this
+/// sweep pins the POLARITY over the whole input domain.
+#[test]
+fn every_errno_classifies_by_the_shared_law() {
+    for errno in -2i32..=133 {
+        let kprobe = AttachError::from_kprobe_open("input_event", errno);
+        let fentry = AttachError::from_fentry_link(errno);
+        let link = AttachError::from_link_create(errno);
+        match errno {
+            libc::EPERM | libc::EACCES => {
+                assert_eq!(kprobe, AttachError::PermissionDenied);
+                assert_eq!(fentry, AttachError::PermissionDenied);
+                assert_eq!(link, AttachError::PermissionDenied);
+            }
+            libc::ENOENT => {
+                assert_eq!(kprobe, AttachError::SymbolMissing);
+                assert_eq!(fentry, AttachError::SymbolMissing);
+                assert!(
+                    matches!(link, AttachError::Unknown { .. }),
+                    "link create errno {errno} must stay Unknown"
+                );
+            }
+            libc::EINVAL => {
+                assert_eq!(kprobe, AttachError::KprobeBlacklisted);
+                assert!(
+                    matches!(fentry, AttachError::FentryUnavailable { .. }),
+                    "fentry errno {errno} must be the BTF-tracing refusal"
+                );
+                assert!(
+                    matches!(link, AttachError::Unknown { .. }),
+                    "link create errno {errno} must stay Unknown"
+                );
+            }
+            other => {
+                for (lane, e) in [("kprobe", &kprobe), ("fentry", &fentry), ("link", &link)] {
+                    assert!(
+                        matches!(e, AttachError::Unknown { .. }),
+                        "{lane}: errno {other} must stay Unknown, got {e:?}"
+                    );
+                    if let AttachError::Unknown { detail } = e {
+                        assert!(
+                            detail.contains(&other.to_string()),
+                            "{lane}: errno {other} must appear in the detail: {detail}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The marker wire format over its domain edges: codes 1..=9
+/// reconstruct (pinned per-variant above); EVERY other value — 0, the
+/// 10..=1000 band, the powers-of-two neighborhood, and both u32
+/// extremes — answers None. A renumbered or widened code space would
+/// make an old marker read as a different failure; this sweep holds
+/// the door.
+#[test]
+fn the_marker_code_domain_answers_none_outside_one_to_nine() {
+    assert_eq!(AttachError::from_code(0), None);
+    for code in 10u32..=1000 {
+        assert!(
+            AttachError::from_code(code).is_none(),
+            "code {code} must not reconstruct"
+        );
+    }
+    for code in [
+        1u32 << 16,
+        1u32 << 31,
+        (1 << 31) + 1,
+        u32::MAX - 1,
+        u32::MAX,
+    ] {
+        assert!(
+            AttachError::from_code(code).is_none(),
+            "code {code} must not reconstruct"
+        );
+    }
+}

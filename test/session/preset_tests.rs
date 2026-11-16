@@ -268,3 +268,96 @@ fn the_env_gain_cap_maps_inside_the_percent_cap() {
     let err = volume_percent_from_gain(-1.0).expect_err("below silence refuses");
     assert!(err.contains("below silence"), "{err}");
 }
+
+// ── night-hardening-2: the exhaustive sweeps ──────────────────────────
+
+/// The volume gate over its WHOLE percent domain, both override
+/// states, every value enumerated: 0..=200 always pass, 201..=10000
+/// pass only with the override, everything past the force cap fails
+/// both ways — and every verdict carries the exact percent it judged.
+/// The boundary pins above name the wordings; this sweep pins the
+/// LAW over the full u32 range the verbs can construct.
+#[test]
+fn the_volume_gate_is_exact_over_the_whole_percent_domain() {
+    for percent in 0..=MAX_FORCE_VOLUME_PERCENT + 2 {
+        match volume_gate(percent, false) {
+            Ok(passed) => {
+                assert!(
+                    percent <= MAX_VOLUME_PERCENT && passed == percent,
+                    "{percent}% must pass unchanged without the override"
+                );
+            }
+            Err(err) => {
+                assert!(percent > MAX_VOLUME_PERCENT, "{percent}% must pass: {err}");
+                assert!(
+                    err.contains(&percent.to_string()),
+                    "the refusal names the value: {err}"
+                );
+                if percent <= MAX_FORCE_VOLUME_PERCENT {
+                    // The safety-cap refusal carries the escape hatch.
+                    assert!(err.contains("Use --force-this to override"), "{err}");
+                } else {
+                    // Past the force ceiling the safety arm never runs:
+                    // the refusal is the force cap, and it names the
+                    // nothing-passes law instead of an escape.
+                    assert!(err.contains("force cap"), "{err}");
+                    assert!(
+                        err.contains("nothing above the force ceiling passes"),
+                        "{err}"
+                    );
+                }
+            }
+        }
+        match volume_gate(percent, true) {
+            Ok(passed) => assert!(passed == percent, "{percent}% must pass unchanged"),
+            Err(err) => {
+                assert!(percent > MAX_FORCE_VOLUME_PERCENT);
+                assert!(err.contains("force cap"), "{err}");
+            }
+        }
+    }
+    // The extremes past the loop's ceiling.
+    for percent in [MAX_FORCE_VOLUME_PERCENT + 3, u32::MAX / 2, u32::MAX] {
+        assert!(volume_gate(percent, false).is_err());
+        assert!(volume_gate(percent, true).is_err());
+    }
+}
+
+/// The resolver's whole presence space: every CLI x env-preset x
+/// env-volume combination resolves or fails exactly per the priority
+/// law — the flag outranks the env, the env outranks the compiled
+/// default, a malformed env name fails only when no flag outranks it,
+/// and a bad volume fails the WHOLE resolution whatever the preset
+/// lane chose. 36 cells, no survivor left to drift.
+#[test]
+fn the_resolver_is_total_over_the_presence_space() {
+    for cli in [None, Some("topre"), Some("not_a_preset")] {
+        for preset_env in [None, Some("classic"), Some("junk_name"), Some("  ")] {
+            for volume_env in [None, Some("1.5"), Some("loud")] {
+                let verdict = resolve_from(cli, preset_env, volume_env);
+                let preset_lane_bad = matches!(cli, Some("not_a_preset"))
+                    || (cli.is_none() && matches!(preset_env, Some("junk_name")));
+                let volume_lane_bad = volume_env == Some("loud");
+                if preset_lane_bad || volume_lane_bad {
+                    let err = verdict.expect_err("a bad lane must fail hard");
+                    assert!(!err.is_empty(), "the refusal carries wording");
+                } else {
+                    let (_profile, name, volume) = verdict.expect("a clean lane must resolve");
+                    let expected_name = match cli {
+                        Some(n) => n,
+                        None => match preset_env.map(str::trim).filter(|v| !v.is_empty()) {
+                            Some("classic") => "classic",
+                            _ => DEFAULT_PRESET,
+                        },
+                    };
+                    assert_eq!(name, expected_name, "cli={cli:?} env={preset_env:?}");
+                    assert_eq!(
+                        volume,
+                        if volume_env == Some("1.5") { 1.5 } else { 5.5 },
+                        "the volume lane must follow env-or-default"
+                    );
+                }
+            }
+        }
+    }
+}
