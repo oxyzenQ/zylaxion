@@ -712,9 +712,14 @@ jobs:
           # probes FAILED (the first init-probe failure ever — PROOF
           # 7's load refusal on a broken bpftool invocation — passed
           # the lane on the engine's line alone). ALL verdict lines
-          # must agree now: a PASS line present, a FAIL line absent.
+          # must agree now: a PASS line present, a FAIL line absent
+          # (the if-shape keeps shellcheck's SC2251 quiet — a bare `!`
+          # grep under errexit skips the exit).
           grep -q '^MASS-VERDICT: PASS' vm.log
-          ! grep -q '^MASS-VERDICT: FAIL' vm.log
+          if grep -q '^MASS-VERDICT: FAIL' vm.log; then
+            echo "FAIL: a MASS-VERDICT line disagrees — the init probes gate the lane"
+            exit 1
+          fi
           echo "OK: the zero-to-hero chain proven on ${{ matrix.leg.title }}"
 
       - name: Battery inventory (the step summary)
