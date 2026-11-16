@@ -195,9 +195,11 @@ fn ringbuf_data_size(map_fd: i32) -> io::Result<usize> {
     Ok(max_entries as usize)
 }
 
-/// One TEST_RUN with the frame on data_in (the skb shape: data_size_in
-/// at attr[8], data_in at attr[16], repeat 0 = exactly once). The
-/// kernel writes retval and duration back through the attr.
+/// One TEST_RUN with an EMPTY payload (the slot transport: the
+/// arguments ride the control map's request slots the caller wrote,
+/// never the packet; prog_fd at attr[0], every data/ctx field zero,
+/// repeat 0 = exactly once). The kernel writes retval and duration
+/// back through the attr.
 fn test_run_once(prog_fd: i32) -> io::Result<(u32, u32)> {
     let mut attr = Attr::new();
     attr.put32(0, prog_fd as u32);
