@@ -197,8 +197,13 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
         },
         rows.len()
     ));
+    // The tail carries NO trailing newline (night-sig-tail-1): the
+    // terminator is print_stdout_line's to own, the same convention
+    // the -V report rides — sig_report's text ending in '\n' made the
+    // printer add a second one, and the report closed with two blank
+    // lines where -V closes with none.
     text.push_str("note: the self-hash is a fingerprint to compare against a\n");
-    text.push_str("published release hash; it cannot embed its own digest.\n");
+    text.push_str("published release hash; it cannot embed its own digest.");
 
     (text, verdict)
 }
