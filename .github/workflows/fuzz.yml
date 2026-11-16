@@ -68,8 +68,9 @@ name: Dragon Guard - Fuzz
   push:
   pull_request:
   schedule:
-    # The weekly deep session: Monday 00:30 UTC = 07:30 WIB.
-    - cron: "30 0 * * 1"
+    # The weekly deep session: Monday 03:00 UTC = 10:00 WIB
+    # (night-consistent-1 — one schedule clock across the estate).
+    - cron: "0 3 * * 1"
   # Manual trigger from the Actions tab.
   workflow_dispatch:
 
