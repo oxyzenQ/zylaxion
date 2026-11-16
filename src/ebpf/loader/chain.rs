@@ -68,6 +68,47 @@ pub(super) fn plant(bpf: &mut Ebpf) -> Result<TapKind, AttachError> {
 
     let kind = chosen.ok_or_else(|| last_step_error.unwrap_or(AttachError::SymbolMissing))?;
 
+    // ── The relay (night-frontier-Z2 B1, the load discipline completed) ──
+    //
+    // EVERY program load completes HERE, before any map leaves the
+    // object. `Bpf::load` relocates every program against every map's
+    // real fd at parse time (aya's own `relocate_maps` runs inside the
+    // load, not inside `Program::load`), so each program's
+    // instructions already carry the fd of every map it touches — and
+    // a map taken out of the object and dropped CLOSES that fd (aya's
+    // own take_map contract: "the returned map will be closed on
+    // Drop"). A program loaded afterwards presents the kernel a dead
+    // fd at its first map reference and the verifier answers EBADF
+    // before executing a single instruction ("fd 4 is not pointing to
+    // valid bpf_map", 0 insns processed — the Z2 CI guest named the
+    // law on both the 5.15 floor and the archive head). The tap chain
+    // above obeys the discipline already; the relay rides it too,
+    // `control` included — the redesigned relay reads its argument
+    // channel there (slots 6/7, night-frontier-Z2 B1), so the relay's
+    // load needs that fd alive as much as the tap chain needs its own.
+    {
+        let prog: &mut SocketFilter = bpf
+            .program_mut(crate::ebpf::loader::RELAY_PROGRAM)
+            .ok_or_else(|| AttachError::Unknown {
+                detail: format!(
+                    "the tap object carries no '{}' program",
+                    crate::ebpf::loader::RELAY_PROGRAM
+                ),
+            })?
+            .try_into()
+            .map_err(|e| AttachError::Unknown {
+                detail: format!(
+                    "'{}' is not a socket-filter program: {e}",
+                    crate::ebpf::loader::RELAY_PROGRAM
+                ),
+            })?;
+        prog.load().map_err(AttachError::from_program_load)?;
+        prog.pin(pin::PIN_PROG_RELAY)
+            .map_err(|e| AttachError::PinFailed {
+                path: format!("{} ({e})", pin::PIN_PROG_RELAY),
+            })?;
+    }
+
     // ── The control plane (unchanged discipline, one new slot) ─────
     //
     // Initialize and pin. The control defaults put the tap in a
@@ -161,37 +202,10 @@ pub(super) fn plant(bpf: &mut Ebpf) -> Result<TapKind, AttachError> {
 
     // ── The notice plane (night-frontier-Z2 B1) ────────────────────
     //
-    // The evented control wake: the relay loads UNATTACHED (a socket
-    // filter nobody attaches — verbs drive it through TEST_RUN), then
-    // the notices ringbuf pins beside the other maps. The load rides
-    // the same map-relocation discipline as the tap chain: the program
-    // loads BEFORE its map is taken out of the object. A relay load
-    // failure is an honest classified attach error — the evented plane
-    // is floor-legal (socket filter + ringbuf + TEST_RUN are all 5.15)
-    // and load-bearing; the watcher's heartbeat remains its
-    // degradation posture at RUN time, never a load-time excuse.
-    {
-        let prog: &mut SocketFilter = bpf
-            .program_mut(crate::ebpf::loader::RELAY_PROGRAM)
-            .ok_or_else(|| AttachError::Unknown {
-                detail: format!(
-                    "the tap object carries no '{}' program",
-                    crate::ebpf::loader::RELAY_PROGRAM
-                ),
-            })?
-            .try_into()
-            .map_err(|e| AttachError::Unknown {
-                detail: format!(
-                    "'{}' is not a socket-filter program: {e}",
-                    crate::ebpf::loader::RELAY_PROGRAM
-                ),
-            })?;
-        prog.load().map_err(AttachError::from_program_load)?;
-        prog.pin(pin::PIN_PROG_RELAY)
-            .map_err(|e| AttachError::PinFailed {
-                path: format!("{} ({e})", pin::PIN_PROG_RELAY),
-            })?;
-    }
+    // The relay LOADED above (every program before any map — the load
+    // discipline this file's order enforces); the notices ringbuf pins
+    // here beside the streaming maps. The pin holds the map in the
+    // kernel, so the object fd may close with the block that drops it.
     bpf.take_map("notices")
         .ok_or_else(|| AttachError::Unknown {
             detail: "the tap object carries no 'notices' map".to_string(),
