@@ -48,6 +48,17 @@ v80.0.0-alpha.1
   methods are unreachable there. Four dead entry points into one
   atomic cell deleted; the cell remains the single volume law.
 
+### Documentation
+
+- **night-hardening-2, gap 1: the reserved sound-class lane recorded
+  honestly** — the ring record's four-byte `slot` rides the same
+  keymap lookup that gates unmapped keys (zero added per-event cost);
+  the userspace mirror's field record and the innovations ledger now
+  state that the lane is deliberately unwired, that wiring it is an
+  owner decision (per-class parameters would re-baseline every preset
+  row through the audit harness), and that the record shape stays
+  stable until that decision.
+
 ### License
 
 - **Three-tier expansion + OEM repricing.** Professional ($999/year)
