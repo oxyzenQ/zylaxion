@@ -706,7 +706,15 @@ jobs:
           cd /tmp/kfloor
           echo "── supermassive verdicts (${{ matrix.leg.pocket }} pocket) ──"
           grep -E '^MASS-(RESULT|VERDICT)' vm.log || true
+          # night-frontier-Z1, the coupling fix the PROOF 7 run named:
+          # the engine prints its own internal MASS-VERDICT count line,
+          # so a bare PASS grep was satisfiable even when the init's
+          # probes FAILED (the first init-probe failure ever — PROOF
+          # 7's load refusal on a broken bpftool invocation — passed
+          # the lane on the engine's line alone). ALL verdict lines
+          # must agree now: a PASS line present, a FAIL line absent.
           grep -q '^MASS-VERDICT: PASS' vm.log
+          ! grep -q '^MASS-VERDICT: FAIL' vm.log
           echo "OK: the zero-to-hero chain proven on ${{ matrix.leg.title }}"
 
       - name: Battery inventory (the step summary)

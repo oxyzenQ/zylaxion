@@ -56,7 +56,6 @@ cd "$(dirname "$0")/../.."
 BPFTOOL="${BPFTOOL_BIN:-bpftool}"
 TAP_OBJECT="${TAP_OBJECT:-ebpf-prebuilt/zylaxion-tap.o}"
 KPROBE_PROGRAM="kprobe_input_event"
-PROG7_PIN="/sys/fs/bpf/zylaxion/prog7"
 CONTROL_MAP="/sys/fs/bpf/zylaxion/control"
 STATS_MAP="/sys/fs/bpf/zylaxion/stats"
 REPEAT="${PROG7_REPEAT:-100000}"
@@ -68,7 +67,7 @@ STATUS=1
 
 cleanup() {
         rm -rf "$WORK"
-        rm -f "$PROG7_PIN" 2>/dev/null || true
+        rm -rf "/sys/fs/bpf/zylaxion/prog7" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -120,11 +119,25 @@ print(f"PROOF 7: synthetic pt_regs staged ({PT_REGS_SIZE} bytes x 5 classes)")
 PYEOF
 
 # Load the production kprobe body UNATTACHED — the verifier runs, no
-# live probe is planted, the pin is the only reference and the trap
-# removes it.
-if ! $BPFTOOL prog load "$TAP_OBJECT" "$KPROBE_PROGRAM" "$PROG7_PIN" 2>"$WORK/load.err"; then
+# live probe is planted, the pin directory is the only reference and
+# the trap removes it. The object carries TWO programs (the fentry
+# wrapper and the kprobe body), and bpftool refuses a multi-program
+# load without a selector (the first CI run named the refusal); the
+# `type kprobe` filter narrows the load to the one kprobe body. The
+# pin directory rides bpffs (pins require the BPF filesystem), under
+# the tap's own pin namespace, and never collides with the attach
+# chain's pins.
+PROG7_DIR="/sys/fs/bpf/zylaxion/prog7"
+if ! $BPFTOOL prog loadall "$TAP_OBJECT" "$PROG7_DIR" type kprobe 2>"$WORK/load.err"; then
         echo "PROOF 7: FAIL — the production object refused to load:"
         cat "$WORK/load.err"
+        exit 1
+fi
+PROG7_PIN="$PROG7_DIR/$KPROBE_PROGRAM"
+if [ ! -e "$PROG7_PIN" ]; then
+        echo "PROOF 7: FAIL — the kprobe body did not land at $PROG7_PIN:"
+        ls "$PROG7_DIR" 2>/dev/null || true
+        cat "$WORK/load.err" 2>/dev/null || true
         exit 1
 fi
 echo "PROOF 7: the production kprobe body is loaded unattached ($KPROBE_PROGRAM)"
