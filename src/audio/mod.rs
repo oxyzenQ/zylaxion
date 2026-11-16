@@ -449,3 +449,10 @@ impl AudioSink for CpalSink {
         self.sample_rate
     }
 }
+
+// night-frontier-Z1: the SPSC ring's interleaving pins (the A2
+// remainder — FIFO integrity, the accounting law, the drop contract
+// under real threads) — their own file, the Pattern C split.
+#[cfg(test)]
+#[path = "../../test/audio/ring_lanes_tests.rs"]
+mod ring_lanes_tests;
