@@ -36,6 +36,9 @@ fn core_limit() -> libc::rlimit {
     };
     // Safety: getrlimit takes a plain out-pointer; `lim` is a local of
     // exactly the ABI's struct type and nothing else sees it.
+    // SAFETY: getrlimit takes an out-pointer to a local of the ABI's
+    // own struct type; the kernel fills it during the call and the
+    // local is read after.
     let rc = unsafe { libc::getrlimit(libc::RLIMIT_CORE, &mut lim) };
     assert_eq!(rc, 0, "getrlimit(RLIMIT_CORE) failed");
     lim

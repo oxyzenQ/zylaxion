@@ -277,6 +277,11 @@ pub fn cmd_play() {
                             (item.as_ptr() as usize)
                                 .is_multiple_of(std::mem::align_of::<KeyRingEvent>())
                         );
+                        // SAFETY: the record is read through a reference
+                        // built from the ringbuf item's own bytes: the
+                        // length was bounds-checked above, the alignment is
+                        // the ringbuf contract the debug_assert names, and
+                        // the item outlives the read.
                         let raw = unsafe { &*(item.as_ptr() as *const KeyRingEvent) };
                         let event = crate::core::KeyEvent {
                             scancode: raw.keycode,
@@ -424,7 +429,7 @@ fn force_no_coredump() {
         rlim_cur: 0,
         rlim_max: 0,
     };
-    // Safety: setrlimit takes a plain const pointer to the ABI's own
+    // SAFETY: setrlimit takes a plain const pointer to the ABI's own
     // struct type; `zero` is a local of exactly that type and the call
     // neither stores the pointer nor aliases anything.
     let rc = unsafe { libc::setrlimit(libc::RLIMIT_CORE, &zero) };

@@ -237,6 +237,10 @@ pub fn create_and_pin_fentry_link(prog_fd: RawFd, pin_path: &str) -> Result<(), 
         prog_fd: prog_fd as u32,
         _pad: 0,
     };
+    // SAFETY: the attr is a repr(C) RawTracepointOpenAttr whose layout
+    // is the uapi attr head (pathname@0, prog_fd@8 — verified against
+    // the installed headers), the size passed is the struct's own size,
+    // and nothing the kernel keeps points into this stack frame.
     let link_fd = unsafe {
         libc::syscall(
             libc::SYS_bpf,
@@ -256,6 +260,9 @@ pub fn create_and_pin_fentry_link(prog_fd: RawFd, pin_path: &str) -> Result<(), 
     let pinned = pin_object_fd(link_fd, pin_path);
     // The raw fd is owned nowhere: on pin success the bpffs file owns
     // the link; on failure it closes. Either way nothing leaks.
+    // SAFETY: link_fd is a live bpf_link fd this function owns at this
+    // point — the pin above either holds it in bpffs or failed and the
+    // failure path returns; no other owner exists.
     unsafe { libc::close(link_fd) };
     pinned.map_err(|e| pin_failure(pin_path, &e))
 }
@@ -295,6 +302,11 @@ fn perf_event_open_kprobe(pmu_type: u32, symbol: &str) -> Result<RawFd, io::Erro
         config1: c_symbol.as_ptr() as u64,
         ..PerfEventAttr::default()
     };
+    // SAFETY: PerfEventAttr is repr(C) with the uapi perf_event_attr
+    // field law (the size field names the struct's own size), the
+    // pid/cpu pair (-1, 0) is the kernel's any-thread any-cpu idiom for
+    // the dynamic kprobe PMU, and the returned fd is validated before
+    // any use.
     let fd = unsafe {
         libc::syscall(
             libc::SYS_perf_event_open,
@@ -347,6 +359,10 @@ pub fn create_and_pin_kprobe_link(
         flags: 0,
         ..Default::default()
     };
+    // SAFETY: the attr is a repr(C) LinkCreateAttr head matching the
+    // uapi (perf_event fd, target fd and its pad), the size is the
+    // struct's own, and nothing outlives the call but the fd the
+    // kernel returns.
     let link_fd = unsafe {
         libc::syscall(
             libc::SYS_bpf,
@@ -358,6 +374,9 @@ pub fn create_and_pin_kprobe_link(
     if link_fd < 0 {
         let err =
             AttachError::from_link_create(io::Error::last_os_error().raw_os_error().unwrap_or(0));
+        // SAFETY: perf_fd is the kprobe PMU fd this function owns; the
+        // link creation refused, so the fd has no consumer and must not
+        // leak.
         unsafe { libc::close(perf_fd) };
         return Err(err);
     }
@@ -369,7 +388,11 @@ pub fn create_and_pin_kprobe_link(
     let pinned = pin_object_fd(link_fd, pin_path);
     // The raw fds are owned nowhere: on pin success the bpffs file
     // owns the link; on failure both close. Either way nothing leaks.
+    // SAFETY: the pinned link owns the bpf_link now; this raw fd has
+    // no other owner and closing it cannot race the kernel reference.
     unsafe { libc::close(link_fd) };
+    // SAFETY: the pinned link holds the kprobe PMU's attachment; this
+    // perf_event fd has no other owner once the link exists.
     unsafe { libc::close(perf_fd) };
     pinned.map_err(|e| pin_failure(pin_path, &e))
 }
@@ -392,6 +415,10 @@ pub fn plant_error_marker(code: u32, pin_path: &str) -> Result<(), io::Error> {
         inner_map_fd: 0,
         numa_node: 0,
     };
+    // SAFETY: the attr is a repr(C) MapCreateAttr with the uapi field
+    // law (type, key/value sizes, max_entries, the marker map's
+    // flags), the size is the struct's own, and the kernel returns a
+    // fresh fd the caller validates.
     let map_fd = unsafe {
         libc::syscall(
             libc::SYS_bpf,
@@ -414,6 +441,9 @@ pub fn plant_error_marker(code: u32, pin_path: &str) -> Result<(), io::Error> {
         value: &raw const code as u64,
         flags: 0,
     };
+    // SAFETY: MapUpdateAttr is repr(C) with the uapi head (map_fd@0,
+    // key@8, value@16, flags@24); key and value point at stack locals
+    // that outlive the call, and the kernel copies them during it.
     let updated = unsafe {
         libc::syscall(
             libc::SYS_bpf,
@@ -424,6 +454,8 @@ pub fn plant_error_marker(code: u32, pin_path: &str) -> Result<(), io::Error> {
     };
     if updated < 0 {
         let e = io::Error::last_os_error();
+        // SAFETY: the map update refused, so map_fd has no consumer —
+        // the failure path owns it and must not leak.
         unsafe { libc::close(map_fd) };
         return Err(e);
     }
@@ -432,6 +464,8 @@ pub fn plant_error_marker(code: u32, pin_path: &str) -> Result<(), io::Error> {
     //    is removed first — the self-heal discipline).
     let pinned = pin_object_fd(map_fd, pin_path);
     // The pin owns the map afterwards; failure closes it here.
+    // SAFETY: the pin holds the marker map in bpffs; this raw fd has
+    // no other owner once the pin succeeded.
     unsafe { libc::close(map_fd) };
     pinned
 }
@@ -450,6 +484,9 @@ fn pin_object_fd(fd: RawFd, pin_path: &str) -> Result<(), io::Error> {
         bpf_fd: fd as u32,
         file_flags: 0,
     };
+    // SAFETY: ObjPinAttr is repr(C) with the uapi head (pathname@0,
+    // bpf_fd@8, file_flags@12); the c_path pointer outlives the call
+    // and the kernel only reads it.
     let pinned = unsafe {
         libc::syscall(
             libc::SYS_bpf,
@@ -489,6 +526,9 @@ pub fn open_pinned_object(path: &str) -> Result<RawFd, io::Error> {
         pathname: c_path.as_ptr() as u64,
         ..ObjGetAttr::default()
     };
+    // SAFETY: ObjGetAttr is repr(C) with the uapi head (pathname@0,
+    // bpf_fd@8, file_flags@12); the c_path pointer outlives the call
+    // and the kernel returns a fresh fd the caller validates.
     let fd = unsafe {
         libc::syscall(
             libc::SYS_bpf,

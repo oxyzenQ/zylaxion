@@ -95,6 +95,10 @@
 #[inline]
 fn read_mxcsr() -> u32 {
     let mut mxcsr: u32 = 0;
+    // SAFETY: the asm only stores the FP control register into a
+    // register-held pointer to this local — no memory write, no stack
+    // use (options(nostack)), and the flags it reads are not the
+    // caller's flags (preserves_flags).
     unsafe {
         core::arch::asm!(
             "stmxcsr [{mxcsr_ptr}]",
@@ -110,6 +114,10 @@ fn read_mxcsr() -> u32 {
 #[cfg(all(target_arch = "x86_64", not(miri)))]
 #[inline]
 fn write_mxcsr(bits: u32) {
+    // SAFETY: the asm only loads the FP control register from a
+    // register-held pointer to this local — no memory write, no stack
+    // use, no flags clobber; the register round-trips the caller's
+    // bits unchanged.
     unsafe {
         core::arch::asm!(
             "ldmxcsr [{mxcsr_ptr}]",
@@ -151,6 +159,9 @@ pub(crate) fn pin_render_lane() {
         // every other field (rounding mode, exception trap enables —
         // all owner defaults).
         let mut fpcr: u64;
+        // SAFETY: the asm reads and writes the AArch64 FPCR control
+        // register only — no memory access; the read-modify-write keeps
+        // every other field's owner default intact.
         unsafe {
             core::arch::asm!("mrs {0}, fpcr", out(reg) fpcr);
             fpcr |= 1 << 24;
@@ -183,6 +194,8 @@ pub(crate) fn render_lane_policy_active() -> bool {
     #[cfg(all(target_arch = "aarch64", not(miri)))]
     {
         let fpcr: u64;
+        // SAFETY: the asm only reads the FPCR into a register output —
+        // no memory access, no state change.
         unsafe {
             core::arch::asm!("mrs {0}, fpcr", out(reg) fpcr);
         }

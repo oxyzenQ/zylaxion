@@ -61,6 +61,9 @@ fn ring_record_layout_is_padding_free_at_the_front() {
         slot: 0,
     };
     let bytes: &[u8] =
+        // SAFETY: from_raw_parts builds a read-only byte view over the
+        // local `sample` (a repr(C) record of exactly 24 bytes) — the
+        // view never outlives the local and nothing writes it.
         unsafe { std::slice::from_raw_parts(std::ptr::addr_of!(sample) as *const u8, 24) };
     assert_eq!(
         &bytes[0..8],

@@ -57,6 +57,11 @@ pub fn test_run_skb(prog_fd: RawFd, data_in: &[u8]) -> Result<u32, io::Error> {
         data_in: frame.as_ptr() as u64,
         ..TestRunAttr::zeroed()
     };
+    // SAFETY: the attr is a repr(C) TestRunAttr with the uapi head
+    // the struct doc spells (prog_fd@0, data_size_in@8, data_in@16);
+    // the frame pointer outlives the call, the kernel writes
+    // retval/duration back through the caller's attr, and the syscall
+    // is the only unsafe surface here.
     let rc = unsafe {
         libc::syscall(
             libc::SYS_bpf,

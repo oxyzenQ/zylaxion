@@ -52,6 +52,9 @@ fn pin_corrects_a_full_ieee_host() {
     // Clear the FTZ bit — the hostile posture (ldmxcsr takes a memory
     // operand; the test holds its own copy of the asm contract).
     let mut current: u32 = 0;
+    // SAFETY: the FP control register round-trip below is the same
+    // asm the engine pins — register-local, no memory access, and the
+    // test restores the caller's bits before returning.
     unsafe {
         core::arch::asm!(
             "stmxcsr [{mxcsr_ptr}]",
@@ -60,6 +63,9 @@ fn pin_corrects_a_full_ieee_host() {
         );
     }
     let hostile: u32 = current & !0x8000;
+    // SAFETY: same control-register round-trip as above — the test
+    // owns the thread's FP policy for the assert's duration and
+    // restores it before returning.
     unsafe {
         core::arch::asm!(
             "ldmxcsr [{mxcsr_ptr}]",

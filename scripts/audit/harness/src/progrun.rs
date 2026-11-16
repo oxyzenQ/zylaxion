@@ -124,6 +124,10 @@ impl Attr {
 
 /// One raw bpf() syscall: negative errno surfaces as Err(code).
 pub(crate) fn bpf(cmd: u64, attr: &Attr) -> Result<i32, i32> {
+    // SAFETY: the attr is a caller-built 128-byte zeroed buffer whose
+    // field offsets follow the uapi law the constants document; the
+    // syscall returns a plain i32 and the kernel writes its verdicts
+    // back through the caller's buffer, read only after the call.
     let rc = unsafe {
         libc::syscall(
             libc::SYS_bpf,
@@ -177,6 +181,9 @@ fn map_lookup(fd: i32, key: &[u8], value: &mut [u8]) -> Result<(), String> {
 }
 
 fn hex16(insns: &[bpf_insn]) -> String {
+    // SAFETY: from_raw_parts builds a byte view over the insn slice's
+    // own allocation — bpf_insn is a repr(C) POD array, the pointer
+    // stays valid for the slice's lifetime, and nothing writes it.
     let bytes: &[u8] = unsafe {
         std::slice::from_raw_parts(
             insns.as_ptr().cast(),
@@ -196,6 +203,9 @@ fn prog_load(
     license: &CString,
     attr_dump: &mut [u8; 44],
 ) -> Result<i32, (String, Option<String>)> {
+    // SAFETY: from_raw_parts builds a byte view over the instruction
+    // buffer the loader owns; the pointer is valid for the load call's
+    // lifetime and the kernel only reads it.
     let insns_bytes: &[u8] = unsafe {
         std::slice::from_raw_parts(
             insns.as_ptr().cast(),
@@ -283,6 +293,8 @@ fn stats_total(stats_fd: i32) -> Option<u64> {
 
 /// The PROOF 7 mode: parse, create, relocate, load, measure, verdict.
 pub(super) fn run_prog_run(object_path: &str) {
+    // SAFETY: geteuid is a plain libc query with no side effects and
+    // no pointer arguments.
     if unsafe { libc::geteuid() } != 0 {
         println!(
             "PROOF 7: SKIP — the lane needs root (CAP_BPF/CAP_PERFMON for the load); \

@@ -1,6 +1,11 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// night-depth-hardening-3 (the zelynic lineage): every unsafe block
+// names its own safety argument — the audit's score law, wired as a
+// gate so the discipline cannot rot back.
+#![deny(clippy::undocumented_unsafe_blocks)]
+
 //! **zylaxion** — real-time mechanical keyboard acoustic synthesizer for Linux.
 //!
 //! Transforms every keystroke into a spatially-accurate click sound
