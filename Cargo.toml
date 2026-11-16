@@ -117,6 +117,12 @@ include = [
     "docs/*.md",
 ]
 
+# night-depth-hardening-2: `cfg(kani)` names the verifier lane
+# (.github/workflows/kani.yml) — declared here so the rustcfg check
+# stays silent and the gate law holds.
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] }
+
 [dependencies]
 # The unified dependency table — the exact union of the six former
 # crate manifests, versions untouched (the owner owns version bumps),

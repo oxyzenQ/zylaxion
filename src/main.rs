@@ -56,6 +56,12 @@ mod core;
 mod ebpf;
 mod engine;
 mod profiles;
+
+// night-depth-hardening-2, the proven datapath: the Kani bounded-model
+// harnesses compile under the verifier lane only (cfg(kani)) — invisible
+// to every build, test, and lint lane.
+#[cfg(kani)]
+mod kani_proofs;
 // the shell
 mod cli;
 mod commands;

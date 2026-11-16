@@ -1,0 +1,53 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: AGPL-3.0-only
+# OS: Linux only — zylaxion is a Linux keyboard-sound tool; no other OS is supported.
+#
+# Dragon Guard - Kani (night-depth-hardening-2): the proven datapath lane.
+# The bounded-model-checking verifier compiles the pure law harnesses in
+# src/kani_proofs.rs and proves each invariant over the WHOLE reachable
+# input space — the volume clamp cell, the gain monotonicity, and the
+# noise mapping — not a sampled slice of it. Unit tests sample; this lane
+# quantifies. The solver time is bounded by the harnesses' own input
+# domains (u32 / f32 single values, no loops, no heap), so the lane stays
+# inside a CI-sized budget.
+
+name: Dragon Guard - Kani
+
+on:
+  # Weekly schedule: Monday 03:00 UTC = 10:00 WIB (night-consistent-1) —
+  # one schedule clock across the estate.
+  schedule:
+    - cron: "0 3 * * 1"
+  # Manual trigger from the Actions tab.
+  workflow_dispatch:
+
+# Least privilege: the job only reads the repo.
+permissions:
+  contents: read
+
+jobs:
+  kani:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+
+      - name: Harden the runner DNS
+        run: |
+          # The zejtron night recipe, adopted for the same fleet (the
+          # 43048319555 outage evidence): the public resolvers go IN
+          # FRONT of /etc/resolv.conf — appending would fall past
+          # glibc's three-slot MAXNS window. This lane needs it for
+          # the kani toolchain download.
+          {
+            printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n'
+            sudo cat /etc/resolv.conf
+          } | sudo tee /etc/resolv.conf > /dev/null
+
+      - name: Install the Kani verifier
+        uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f  # v1.1, night-depth-hardening-2 SHA pin
+
+      - name: Prove the pure laws over their whole input spaces
+        run: |
+          cargo kani --output-format terse
