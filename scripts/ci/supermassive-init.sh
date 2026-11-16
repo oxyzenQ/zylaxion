@@ -459,6 +459,10 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 			note "PROOF 8: the retune applied through the evented lane" PASS
 		else
 			note "PROOF 8: the retune apply" FAIL
+			echo "── the player's last lines (the apply row's witness) ──"
+			tail -10 "$PLOG" 2>/dev/null || true
+			echo "── the verb's own words ──"
+			cat "$PLOG.verb1" 2>/dev/null | head -6 || true
 		fi
 		# The authority row: the same verb, the SAME value — the map
 		# truth does not move, so the wake must apply nothing and say
@@ -474,6 +478,8 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 			note "PROOF 8: a wake with no pending change applied NOTHING — authority held" PASS
 		else
 			note "PROOF 8: the authority row (notice-as-hint)" FAIL
+			tail -6 "$PLOG" 2>/dev/null || true
+			cat "$PLOG.verb2" 2>/dev/null | head -4 || true
 		fi
 	else
 		note "PROOF 8: the player never reached ready (the guest audio/input posture)" FAIL
@@ -495,7 +501,7 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 			note "PROOF 8: the kernel notice-drive lane (relay runs, ring wakes, bytes echo the frame)" PASS
 		else
 			note "PROOF 8: the kernel notice-drive lane" FAIL
-			grep -a "PROOF 8" /tmp/p8-harness.out | head -6 || true
+			grep -a "PROOF 8" /tmp/p8-harness.out | head -14 || true
 		fi
 	else
 		echo "MASS-RESULT: PROOF 8 notice-drive — SKIP (the harness binary is not in the payload)"
