@@ -21,6 +21,11 @@ publish = false
 
 [dependencies]
 log = { version = "0.4", default-features = false }
+
+# night-frontier-Z1, PROOF 7: the raw bpf() syscall lane (map create, program
+# load, BPF_PROG_TEST_RUN). libc is the exact crate the main package already
+# pins; the harness's dependency set gains nothing new.
+libc = "0.2"
 # PROOF 5 (night-private-research-2xblade-3): the hot-reload driver
 # applies the watcher's exact preset mutation, an ArcSwap store on the
 # model cell - the same crate and version the main package already

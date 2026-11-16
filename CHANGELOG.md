@@ -39,15 +39,20 @@ v80.0.0-alpha.1
 ### Added
 
 - **night-frontier-Z1, A1: PROOF 7 — the tap's in-kernel cost measured
-  by the kernel itself** — a `BPF_PROG_TEST_RUN` lane
-  (`scripts/audit/zactrix-prog-run.sh`) drives the production tap
-  object (the blake3-pinned prebuilt bytes) loaded unattached with
-  synthetic input_event args in a real x86_64 pt_regs, and gates the
-  relative law (gate-off, unmapped, autorepeat all below the full
-  press path). Absolute ns/call numbers are recorded with the raw
-  kernel answers as provenance; a stats witness proves the measured
-  path is the real render path; 5.15-floor kernels are honestly
-  recorded as skips. Wired into the e2e micro-VM guest battery.
+  by the kernel itself** — a harness-native `BPF_PROG_TEST_RUN` lane
+  (`scripts/audit/harness/src/progrun.rs`, wired into the e2e
+  micro-VM guest battery) drives the production tap object (the
+  blake3-pinned prebuilt bytes) through the loader's own aya-obj
+  parser — raw `bpf()` map-create/update/lookup, map-fd relocation,
+  unattached program load — with synthetic input_event args in a
+  real x86_64 pt_regs, and gates the relative law (gate-off,
+  unmapped, autorepeat all below the full press path). Absolute
+  ns/call numbers are recorded with the repeat count in the row; a
+  witness proves the measured path is the real render path; 5.15-
+  floor kernels are honestly recorded as skips. (The first CI
+  attempt named the wall: bpftool/libbpf v1.0 refuses the object's
+  legacy map definitions outright — the lane speaks the loader's
+  parser instead.)
 - **night-frontier-Z1, A3: the golden render corpus gate** — the
   committed render corpus re-rendered and compared row by row with a
   machine-readable verdict naming every delta

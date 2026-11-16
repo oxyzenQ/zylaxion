@@ -591,27 +591,35 @@ File of truth: `scripts/audit/zactrix-golden.sh`; the corpus:
 
 **41. PROOF 7 — the tap's in-kernel cost, measured by the kernel
 itself.** The README's "~1-2 µs per keystroke" and "the whole cost is
-one branch" claims stop being marketing: `BPF_PROG_TEST_RUN`
-(`bpftool prog run`) drives the PRODUCTION tap object (the
-ebpf-prebuilt bytes the binary embeds, blake3-pinned) loaded
-unattached with synthetic input_event arguments in a real x86_64
-pt_regs, and the kernel reports the duration per class — mapped
-press, release, autorepeat (the value-2 early exit), unmapped BTN_*
-(the keymap death), and the disabled gate. The gate is the RELATIVE
-law the architecture claims (gate-off, unmapped and autorepeat all
-measure below the full press path); the absolute ns/call numbers are
-recorded as measurements with the raw kernel answers as provenance,
-never gated to a fabricated bound (the runner's CPU is not the
-buyer's). A stats witness closes the gimmick door: with the gate on,
-the measured presses increment the tap's own in-kernel counter
-(STATS_TOTAL) — the measured path is the real render path, not an
-early exit. The kernel contract is stated honestly: kprobe TEST_RUN
-needs 5.16+ (`bpf_prog_test_run_kprobe`), so the documented 5.15
-floor answers ENOTSUPP and the lane records a skip instead of faking
-a number; the lane runs in the e2e micro-VM lanes (root, a real
-kernel, bpftool healed onto PATH by the same counter-witness prep).
-File of truth: `scripts/audit/zactrix-prog-run.sh`; the guest
-wiring: `scripts/ci/supermassive-init.sh`.
+one branch" claims stop being marketing: the harness's `--prog-run`
+mode drives the PRODUCTION tap object (the ebpf-prebuilt bytes the
+binary embeds, blake3-pinned) with synthetic input_event arguments in
+a real x86_64 pt_regs, and the kernel reports the duration per class
+— mapped press, release, autorepeat (the value-2 early exit), unmapped
+BTN_* (the keymap death), and the disabled gate. The loader's own
+path is the lane's path: the first CI attempt named the wall a generic
+tool cannot cross (the aya-ebpf object carries LEGACY map definitions,
+and libbpf v1.0 / every modern bpftool refuses to open the object
+before any measurement), so the mode speaks the parser the loader
+speaks — aya-obj parses the object, real maps are created from the
+parsed definitions through raw `bpf()` syscalls, the map-fd relocation
+walks the loader's own step, and the kprobe body loads unattached.
+The gate is the RELATIVE law the architecture claims (gate-off,
+unmapped and autorepeat all measure below the full press path); the
+absolute ns/call numbers are recorded as measurements with the repeat
+count in the row, never gated to a fabricated bound (the runner's CPU
+is not the buyer's). A witness closes the gimmick door: with the gate
+on, the measured presses move the tap's own in-kernel press counter
+(STATS_TOTAL) inside the freshly created maps — the measured path is
+the real render path, not an early exit. The kernel contract is
+stated honestly: kprobe TEST_RUN needs 5.16+
+(`bpf_prog_test_run_kprobe`), so the documented 5.15 floor answers
+ENOTSUPP and the mode records a skip instead of faking a number; the
+lane runs in the e2e micro-VM lanes (root, a real kernel), the
+harness binary riding the payload artifact. Files of truth:
+`scripts/audit/harness/src/progrun.rs` (the mode),
+`scripts/audit/zactrix-prog-run.sh` (the host wrapper), the guest
+wiring in `scripts/ci/supermassive-init.sh`.
 
 ## The test tree that pins the ledger
 

@@ -46,17 +46,18 @@ mod audio;
 #[path = "../../../../src/core/mod.rs"]
 mod core;
 
+mod btfmatrix;
 mod delta;
 mod fft;
 mod footprint;
 mod metrics;
+mod progrun;
 mod proof;
 mod rates;
 mod reload;
 mod rt;
 mod soak;
 mod stability;
-mod btfmatrix;
 
 use engine::VoicePool;
 use profiles::{KeyTrigger, MechanicalClick, registry_all};
@@ -149,6 +150,20 @@ fn main() {
     // preset, the decay law and the hashes across rates).
     if args.iter().any(|a| a == "--rates") {
         rates::run_rates();
+        return;
+    }
+
+    // night-frontier-Z1, PROOF 7: the tap's in-kernel cost, measured
+    // by the kernel itself — the production object through the
+    // loader's own aya-obj parser, raw bpf() map/program syscalls and
+    // BPF_PROG_TEST_RUN with synthetic input_event pt_regs. Root +
+    // a kernel whose test-run covers kprobe programs (5.16+); the
+    // 5.15 floor is classified as a recorded skip.
+    if let Some(pos) = args.iter().position(|a| a == "--prog-run") {
+        let object = args
+            .get(pos + 1)
+            .unwrap_or_else(|| panic!("--prog-run needs the tap object path"));
+        progrun::run_prog_run(object);
         return;
     }
 
