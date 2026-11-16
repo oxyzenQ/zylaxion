@@ -69,6 +69,10 @@ const BPF_MAP_LOOKUP_ELEM: u64 = 1;
 const BPF_MAP_UPDATE_ELEM: u64 = 2;
 const BPF_PROG_LOAD: u64 = 5;
 const BPF_PROG_TEST_RUN: u64 = 10;
+/// `BPF_F_SLEEPABLE` from the kernel's uapi bpf.h (0x10): the
+/// verifier refuses a SYSCALL program without it ("Syscall programs
+/// can only be sleepable" — the round-7 verifier tail named the law).
+const BPF_F_SLEEPABLE: u32 = 0x10;
 /// `ENOTSUPP` — the kernel-internal refusal the test-run dispatch
 /// answers for program types it cannot drive (the 5.15 floor shape).
 const ENOTSUPP: i32 = 524;
@@ -203,6 +207,7 @@ fn prog_load(
             attr.put32(28, log_buf.len() as u32);
             attr.put64(32, log_buf.as_ptr() as u64);
         }
+        attr.put32(44, BPF_F_SLEEPABLE);
         bpf(BPF_PROG_LOAD, &attr).map_err(|e| (e, log_buf))
     };
     attr_dump.copy_from_slice(&{
