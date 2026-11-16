@@ -402,7 +402,19 @@ fi
 #     relay RUNS (TEST_RUN accepted), the ring WAKES a poller, and
 #     the mmap drain echoes the frame byte-for-byte — run AFTER the
 #     player stops, so the two consumers never race one ring.
-if [ -x /usr/bin/zylaxion ] && /usr/bin/zylaxion attach >/dev/null 2>&1; then
+# The player half needs its recipient to exist and to RECEIVE the
+# pins: the zed user is created here (idempotent — the below-floor
+# branch and the chaos battery both may have made it already), and
+# the attach rides SUDO_USER=zed — the exact environment `sudo
+# zylaxion attach` produces, the same hand-over law the zero-to-hero
+# step rides. Without it the guest has no /run/user for the desktop
+# scan to find, the pins stay root-owned, and the player could not
+# open the control plane it is supposed to be woken by (the Z2 CI
+# guest named both: 'unknown user zed', then the root-owned pins).
+groupadd -f audio 2>/dev/null || true
+useradd -m -s /bin/bash zed 2>/dev/null || true
+usermod -aG audio zed 2>/dev/null || true
+if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null 2>&1; then
 	PLOG=/tmp/zylaxion-player-p8.log
 	rm -f "$PLOG"
 	p8_started=no
