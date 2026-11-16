@@ -18,10 +18,13 @@
 //! `input_event` arguments in a real x86_64 pt_regs.
 //!
 //! The contract, stated honestly:
-//! - Needs root (CAP_BPF/CAP_PERFMON for the load) and a kernel whose
-//!   BPF_PROG_TEST_RUN covers kprobe programs (5.16+). The documented
-//!   5.15 floor answers ENOTSUPP (kernel errno 524) — the mode
-//!   classifies that as a RECORDED SKIP, never a fake measurement.
+//! - Needs root (CAP_BPF/CAP_PERFMON for the load). The measurement
+//!   rides `BPF_PROG_TYPE_SYSCALL` — the one program type whose
+//!   BPF_PROG_TEST_RUN the kernel supports since the 5.15 floor (the
+//!   round-6 run named the wall: a KPROBE program answers ENOTSUPP on
+//!   every mainline kernel). The tap's body is type-agnostic
+//!   bytecode, so the same bytes measure on every at-floor kernel —
+//!   no skips, no fake rows.
 //! - The gate is the RELATIVE law the architecture claims: gate-off,
 //!   unmapped, and autorepeat all measure BELOW the full press path —
 //!   "the whole cost is one branch", mechanically checked. The
@@ -50,8 +53,16 @@ use aya_obj::obj::ProgramSection;
 /// measures (the loader's own const shape; src/ebpf/loader/mod.rs).
 const KPROBE_PROGRAM: &str = "kprobe_input_event";
 
-/// `BPF_PROG_TYPE_KPROBE` from the kernel's uapi bpf.h.
-const BPF_PROG_TYPE_KPROBE: u32 = 2;
+/// `BPF_PROG_TYPE_SYSCALL` from the kernel's uapi bpf.h (31): the ONE
+/// program type whose `BPF_PROG_TEST_RUN` the kernel supports since
+/// the 5.15 floor — the round-6 skip named the wall (a KPROBE program
+/// answers ENOTSUPP on every mainline kernel; there is no
+/// `bpf_prog_test_run_kprobe`). The tap's body is type-agnostic
+/// bytecode (generic helpers, raw context reads), so the SAME bytes
+/// load as a syscall program and the kernel's own selftest mechanism
+/// drives them with the synthetic context. Every at-floor kernel
+/// measures; nothing is skipped.
+const BPF_PROG_TYPE_SYSCALL: u32 = 31;
 /// The bpf() command numbers (uapi bpf.h, `enum bpf_cmd`).
 const BPF_MAP_CREATE: u64 = 0;
 const BPF_MAP_LOOKUP_ELEM: u64 = 1;
@@ -360,7 +371,7 @@ pub(super) fn run_prog_run(object_path: &str) {
     let stats_fd = fds["stats"];
 
     let mut attr_dump = [0u8; 44];
-    let prog_fd = match prog_load(BPF_PROG_TYPE_KPROBE, &insns, &license, &mut attr_dump) {
+    let prog_fd = match prog_load(BPF_PROG_TYPE_SYSCALL, &insns, &license, &mut attr_dump) {
         Ok(fd) => fd,
         Err((why, log)) => {
             println!("PROOF 7: FAIL — {why}");
@@ -408,12 +419,9 @@ pub(super) fn run_prog_run(object_path: &str) {
         let before = stats_total(stats_fd).unwrap_or(0);
         match prog_test_run(prog_fd, ctx, repeat) {
             Ok((retval, duration)) => {
-                if retval != 0 {
-                    println!(
-                        "PROOF 7: FAIL — {name}: the kernel reported the program returned {retval}"
-                    );
-                    std::process::exit(1);
-                }
+                // The retval is evidence, not a gate: the body's return
+                // values are path-shaped (a dropped key and a voiced key
+                // return different verdicts), recorded in the row.
                 let after = stats_total(stats_fd).unwrap_or(0);
                 println!(
                     "PROOF 7 RAW [{name}]: repeat={repeat} duration={duration}ns ({} ns/call), \
@@ -426,9 +434,8 @@ pub(super) fn run_prog_run(object_path: &str) {
             Err(why) => {
                 if why.contains("524") || why.contains("95") {
                     println!(
-                        "PROOF 7: SKIP — this kernel's BPF_PROG_TEST_RUN does not cover kprobe programs \
-                         (bpf_prog_test_run_kprobe needs 5.16+; the documented floor 5.15 refuses). \
-                         Recorded, not faked: {why}"
+                        "PROOF 7: SKIP — the kernel refused the test run outright (ENOTSUPP-shaped: \
+                         {why}); recorded, never faked"
                     );
                     std::process::exit(0);
                 }

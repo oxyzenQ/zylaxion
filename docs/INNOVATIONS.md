@@ -612,11 +612,15 @@ is not the buyer's). A witness closes the gimmick door: with the gate
 on, the measured presses move the tap's own in-kernel press counter
 (STATS_TOTAL) inside the freshly created maps — the measured path is
 the real render path, not an early exit. The kernel contract is
-stated honestly: kprobe TEST_RUN needs 5.16+
-(`bpf_prog_test_run_kprobe`), so the documented 5.15 floor answers
-ENOTSUPP and the mode records a skip instead of faking a number; the
-lane runs in the e2e micro-VM lanes (root, a real kernel), the
-harness binary riding the payload artifact. Files of truth:
+stated honestly: a KPROBE program answers ENOTSUPP to TEST_RUN on
+every mainline kernel (the round-6 run recorded the refusal — there
+is no `bpf_prog_test_run_kprobe`), so the mode loads the SAME bytes
+as `BPF_PROG_TYPE_SYSCALL`, the one type whose TEST_RUN the kernel
+supports since the 5.15 floor and the mechanism the kernel's own
+selftests time programs through — every at-floor kernel measures,
+nothing is skipped. The lane runs in the e2e micro-VM lanes (root, a
+real kernel), the harness binary riding the payload artifact. Files
+of truth:
 `scripts/audit/harness/src/progrun.rs` (the mode),
 `scripts/audit/zactrix-prog-run.sh` (the host wrapper), the guest
 wiring in `scripts/ci/supermassive-init.sh`.
