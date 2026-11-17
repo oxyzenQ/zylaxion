@@ -190,6 +190,19 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-zen-ci-1: the runner estate pinned against the Ubuntu 26
+  flip** — GitHub's x64 `ubuntu-latest` label migrates to Ubuntu
+  26.04 in a gradual rollout of October 19 through November 19, 2026
+  (actions/runner-images #14748), so every floating lane could change
+  its operating system mid-flight without an owner decision. The
+  fourteen remaining `ubuntu-latest` jobs (audit, the ci check and
+  eBPF build lanes, gate-keepers, kani, maintenance, supermassive,
+  supermassive-e2e) now run `ubuntu-24.04` — the image the release,
+  crates-io, fuzz, miri and arm lanes already pin — and the whole
+  estate sits on one image: the flip changes nothing here, and a
+  26.04 upgrade becomes a deliberate, benchmarked move instead of a
+  silent drift.
+
 - **night-zen-lts-5: the review loop's micro-gaps, closed** — the
   install script now names the build skew it used to leave silent:
   after [4/4], a player that is already running keeps the previous
