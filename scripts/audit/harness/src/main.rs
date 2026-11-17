@@ -5,6 +5,11 @@
 // names its own safety argument — the audit's score law, wired as a
 // gate so the discipline cannot rot back.
 #![deny(clippy::undocumented_unsafe_blocks)]
+// night-strict-warnings-1: the zero-warning CI law — when the strict
+// env is exported, build.rs emits the cfg below and every warning in
+// this crate (the #[path]-included zylaxion module trees included)
+// fails the build.
+#![cfg_attr(zylaxion_strict_warnings, deny(warnings))]
 
 //! The Zactrix Phase 0 acoustic audit harness
 //! (night-private-research-2xblade).

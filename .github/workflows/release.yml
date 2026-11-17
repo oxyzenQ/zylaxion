@@ -38,6 +38,11 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
+  # night-strict-warnings-1: strict compile lane — one warning fails
+  # the build (the full law lives in ci.yml's env block). The gate
+  # rides this env var, NOT RUSTFLAGS: the matrix's pinned per-platform
+  # rustflags and the parity check that guards them stay untouched.
+  ZYLAXION_STRICT_WARNINGS: "1"
   # Single source of truth for the Rust toolchain version. Keep in
   # sync with rust-toolchain.toml + Cargo.toml rust-version.
   RUST_VERSION: "1.98.1"

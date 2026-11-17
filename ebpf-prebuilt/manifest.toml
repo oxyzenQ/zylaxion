@@ -19,15 +19,15 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-16T19:22:52Z"
+generated = "2026-11-17T08:57:54Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "a988d1bdb45811386fd16f3e5b36a231829b0f1cf606a1097f2ecbd2972584eb"
+ebpf_tree_blake3 = "6a225ff99edae35c9276d5b8671b9f96080ef520fa96babb506cd90bafcc83c0"
 built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]
 name = "zylaxion-tap"
-blake3 = "b946430dfe0829e4fe9a924a822dd068e3c81e0bb46c62f36cb517170a6686da"
+blake3 = "c31bd5960f0309b3e58bd9d9f76d1eadd5c96b09b099cd6da47571a7d05b606b"
 size = 3528
 
 [contract]

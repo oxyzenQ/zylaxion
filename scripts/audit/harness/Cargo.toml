@@ -56,5 +56,12 @@ ringbuf = "0.5"
 aya-obj = "0.6"
 crossbeam-channel = "0.5"
 
+# night-strict-warnings-1: the harness compiles the root crate's module
+# trees via #[path], and engine/mod.rs carries the #[cfg(kani)] proof
+# gates — the same cfg the root crate's [lints.rust] table whitelists
+# (kani injects --cfg kani only when the verifier drives the crate).
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] }
+
 [profile.release]
 opt-level = 3

@@ -27,6 +27,13 @@ mod registry;
 // session preset resolver and the commands tree (night-dragon-lts:
 // every name verified live in the non-test compilation — the scoped
 // allow that hid future rot is gone).
+// night-strict-warnings-1: the audit harness #[path]-includes this
+// file WITHOUT those consumers (they sit outside the audit surface),
+// so under the strict gate the re-export answers unused there — the
+// same scoped-allow idiom the identity re-export below carries. Root
+// builds verify every name live; the marker names which includer
+// borrows the exemption.
+#[cfg_attr(zylaxion_strict_warnings, allow(unused_imports))]
 pub use registry::{
     DEFAULT_PRESET, Preset, all as registry_all, lookup as registry_lookup,
     names_sorted as registry_names,

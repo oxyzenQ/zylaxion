@@ -5,6 +5,10 @@
 // names its own safety argument — the audit's score law, wired as a
 // gate so the discipline cannot rot back.
 #![deny(clippy::undocumented_unsafe_blocks)]
+// night-strict-warnings-1: the zero-warning CI law — when the strict
+// env is exported, build.rs emits the cfg below and every warning in
+// this crate fails the build.
+#![cfg_attr(zylaxion_strict_warnings, deny(warnings))]
 
 //! **zylaxion** — real-time mechanical keyboard acoustic synthesizer for Linux.
 //!
