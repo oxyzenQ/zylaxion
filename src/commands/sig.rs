@@ -131,7 +131,14 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
         DepthRow {
             name: "runtime-identity",
             passed: d0_shape_ok,
-            detail: identity.clone(),
+            // night-depth-infra-1: a D0 failure renders a NAMED reason,
+            // never an empty detail — an empty one leaves the row line
+            // ending in a trailing space after the em-dash.
+            detail: if identity.is_empty() {
+                "the manifest identity did not materialize".to_string()
+            } else {
+                identity.clone()
+            },
         },
         DepthRow {
             name: "embedded-marker",
@@ -171,7 +178,15 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
         ));
     }
     text.push('\n');
-    text.push_str(&format!("identity    {identity}\n"));
+    // night-depth-infra-1: an identity that did not materialize renders
+    // as "unknown" (the commit field's fallback shape) — an empty value
+    // would leave four trailing spaces on the identity line.
+    let identity_display = if identity.is_empty() {
+        "unknown"
+    } else {
+        identity.as_str()
+    };
+    text.push_str(&format!("identity    {identity_display}\n"));
     text.push_str(&format!(
         "fingerprint fp={:016x} (fnv1a64, dual-layer)\n",
         super::super::info::signature::manifest_fingerprint()
