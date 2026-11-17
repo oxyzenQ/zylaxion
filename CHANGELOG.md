@@ -169,6 +169,27 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-zen-lts-5: the review loop's micro-gaps, closed** — the
+  install script now names the build skew it used to leave silent:
+  after [4/4], a player that is already running keeps the previous
+  build's engine in memory (the pins and the maps are shared, so live
+  retunes still land — only the code waits), and the script prints
+  the one honest remediation, `off && on` (a bare `on` answers
+  "already on" for a live registration; the orphan-sweep takeover
+  fires for dead pids only). The help's env lane now maps the two
+  scales into each other — "gain 5.5 = percent 100 (the compiled
+  default), the 10.0 cap ≈ percent 182; no force escape lives on the
+  env lane" (the law in preset.rs: DEFAULT_MASTER_VOLUME 5.5,
+  MAX_VOLUME_GAIN 10.0, volume_percent_from_gain) — and
+  ZYLAXION_PRESET stops saying "persistent" for what is an override
+  order (the env beats the stored slot, the CLI flag beats both).
+  The CLI battery at HEAD: the force ceiling refuses 10001 (rc 2),
+  the 200% cap refuses 201 without --force-this (rc 2), the
+  synopsis's <0-200> holds (0 passes the gate, 201 refuses), sig
+  recomputes D0-D2, list-presets marks the active row, the
+  no-subcommand quick status degrades honestly, and the residue
+  sweep is clean.
+
 - **night-zen-lts-4: the tagline says what the code proves** —
   "computed in the kernel" is retired estate-wide (the README hero
   and paragraph, the Cargo.toml description that both `-V` and
