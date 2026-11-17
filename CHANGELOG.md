@@ -168,6 +168,16 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-consistent-1: one schedule day across the estate** — the
+  four weekly lanes still carrying Monday crons (audit.yml, fuzz.yml,
+  kani.yml, maintenance.yml) move to Sunday 03:00 UTC = 10:00 WIB,
+  the day miri.yml already keeps: every scheduled lane in the estate
+  now fires once a week on the same day at the same hour — the
+  owner's Sunday-morning window — and the lane-header comments read
+  true (fuzz.yml's stale "Monday 07:30 WIB (00:30 UTC)" prose and
+  miri.yml's stale "(00:00 UTC / 07:00 WIB)" parenthetical are
+  corrected to the real clock).
+
 - **night-hardening-2, gap 2: the control plane is evented** — the
   verbs raise a zero-payload SIGUSR1 after the map write (gated on
   the RUNNING state and the zombie-aware liveness probe; the player

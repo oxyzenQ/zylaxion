@@ -51,7 +51,7 @@
 # law as the targets and the manifests.
 #
 # The weekly deep session: the same three targets run for 15 minutes
-# each every Monday 07:30 WIB (00:30 UTC) - the owner-lazy insurance
+# each every Sunday 10:00 WIB (03:00 UTC) - the owner-lazy insurance
 # the continuous 60s net cannot buy. The corpus cache restores the
 # accumulated corpus under the same restore-keys, so the deep session
 # and the push sessions grow one asset; a scheduled run and a push on
@@ -74,9 +74,9 @@ name: Dragon Guard - Fuzz
   push:
   pull_request:
   schedule:
-    # The weekly deep session: Monday 03:00 UTC = 10:00 WIB
+    # The weekly deep session: Sunday 03:00 UTC = 10:00 WIB
     # (night-consistent-1 — one schedule clock across the estate).
-    - cron: "0 3 * * 1"
+    - cron: "0 3 * * 0"
   # Manual trigger from the Actions tab.
   workflow_dispatch:
 
