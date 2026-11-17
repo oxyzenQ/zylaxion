@@ -1,6 +1,12 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// night-strict-warnings-1: the zero-warning CI law — when the strict
+// env is exported, build.rs emits the cfg below and every warning in
+// this target (the #[path]-included zylaxion module trees it
+// exercises included) fails the build.
+#![cfg_attr(zylaxion_strict_warnings, deny(warnings))]
+
 //! Fuzz target: the kernel-release parser (night-dragon-maintenance-5).
 //!
 //! `/proc/sys/kernel/osrelease` is host-controlled text: a corrupted

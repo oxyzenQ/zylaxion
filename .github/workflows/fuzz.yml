@@ -58,9 +58,15 @@
 # the same ref share the concurrency group, the newer run wins (the
 # estate shape).
 #
-# Deliberately NO RUSTFLAGS=-D warnings here: the fuzz build is not
-# the warning-gated lane (ci.yml owns that contract), and the
-# libfuzzer runtime's own warnings are not this crate's.
+# night-strict-warnings-1 (owner call, overriding the estate's old
+# "no strict here" scoping): the fuzz targets JOIN the zero-warning
+# law. The gate rides ZYLAXION_STRICT_WARNINGS (the env block below)
+# into fuzz/build.rs, which emits the deny cfg every target crate
+# root carries — the libfuzzer runtime's own warnings stay under
+# cargo's cap-lints hygiene, never this crate's. The gate rides the
+# env var, NOT RUSTFLAGS: cargo-fuzz builds its sanitizer flags
+# through RUSTFLAGS, so an env RUSTFLAGS would clobber the pro-*
+# alias CPU tiers if it ever rode a shared lane.
 
 name: Dragon Guard - Fuzz
 
@@ -86,6 +92,9 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # night-strict-warnings-1: strict compile lane — one warning fails
+  # the build (the full law lives in ci.yml's env block).
+  ZYLAXION_STRICT_WARNINGS: "1"
 
 jobs:
   fuzz:

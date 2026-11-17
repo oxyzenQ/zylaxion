@@ -32,11 +32,20 @@
 //! base helper set the tap itself already proves.
 
 /// The 16-byte kernel record: ns@0, kind@8, value@12.
+/// night-strict-warnings-1: this file is the ONE shared definition of
+/// the wire layout, #[path]-included verbatim by both sides — the tap
+/// build never reads the three contract facts below (it only ever
+/// publishes KIND_VOLUME); the loader and the watcher consume them on
+/// the userspace side. The allow is the honest shape: the tap carries
+/// the contract whole, the marker names which side answers.
+#[allow(dead_code)] // userspace contract: the watcher's record layout
 pub const NOTICE_RECORD_SIZE: usize = 16;
 
 /// The control plane changed the enabled gate (value: 0 or 1).
+#[allow(dead_code)] // userspace contract: consumed by the watcher
 pub const KIND_ENABLED: u32 = 1;
 /// The control plane changed the preset slot (value: registry index).
+#[allow(dead_code)] // userspace contract: consumed by the watcher
 pub const KIND_PRESET: u32 = 2;
 /// The control plane changed the volume slot (value: percent).
 pub const KIND_VOLUME: u32 = 3;

@@ -146,6 +146,27 @@ fn main() {
         println!("cargo:rustc-env=ZYLAXION_BUILD={label}");
     }
 
+    // night-strict-warnings-1: the zero-warning law. When the strict env
+    // is exported (every CI workflow now carries it), the crate roots
+    // deny `warnings` through the emitted cfg — one warning fails the
+    // build. The gate deliberately rides an env var, NOT RUSTFLAGS:
+    // cargo's rustflags precedence is single-source, so an env RUSTFLAGS
+    // would silently REPLACE the pro-* aliases' --config build.rustflags
+    // CPU tiers (-C target-cpu=native et al.) instead of adding to them,
+    // and the release matrix's pinned flags with them. Dependencies stay
+    // under cargo's --cap-lints hygiene — only this estate's own code
+    // answers to the law. The mirror gates live in
+    // scripts/audit/harness/build.rs, fuzz/build.rs and ebpf/build.rs;
+    // the crate roots carry the matching cfg_attr.
+    println!("cargo:rerun-if-env-changed=ZYLAXION_STRICT_WARNINGS");
+    // Declare the cfg for rustc's check-cfg machinery FIRST — an emitted
+    // rustc-cfg is not auto-expected, and under the deny gate the
+    // unexpected_cfgs warning would fail the build it polices.
+    println!("cargo::rustc-check-cfg=cfg(zylaxion_strict_warnings)");
+    if std::env::var("ZYLAXION_STRICT_WARNINGS").as_deref() == Ok("1") {
+        println!("cargo:rustc-cfg=zylaxion_strict_warnings");
+    }
+
     // night-improve-23: stage the eBPF object into OUT_DIR for the
     // loader's include_bytes! embedding (the machinery lives in
     // build/ebpf.rs — the zelynic build/ module precedent, the 600-LOC

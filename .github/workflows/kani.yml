@@ -58,6 +58,9 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
+  # night-strict-warnings-1: strict compile lane — one warning fails
+  # the build (the full law lives in ci.yml's env block).
+  ZYLAXION_STRICT_WARNINGS: "1"
 
 jobs:
   kani:

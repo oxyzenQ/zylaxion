@@ -5,6 +5,10 @@
 // names its own safety argument — the audit's score law, wired as a
 // gate so the discipline cannot rot back.
 #![deny(clippy::undocumented_unsafe_blocks)]
+// night-strict-warnings-1: the zero-warning CI law — when the strict
+// env is exported, build.rs emits the cfg below and every warning in
+// the kernel-side tap fails the build.
+#![cfg_attr(zylaxion_strict_warnings, deny(warnings))]
 //
 // zylaxion eBPF tap, the pure-Rust BPF source (night-improve-23;
 // night-improve-25 restores the approved plan: a passive kernel-side
@@ -198,8 +202,12 @@ static stats: Array<AtomicU64> = Array::with_max_entries(257, 0);
 /// is the notice relay (the ONLY producer a ringbuf has — the
 /// producer pages are read-only to userspace on every kernel); the
 /// watcher polls the fd and re-reads the control map as authority.
-#[map]
-static notices: RingBuf = RingBuf::with_byte_size(4096, 0);
+/// night-strict-warnings-1: the map name is EXPLICIT here — the
+/// loader takes the map by the literal "notices" (chain.rs's
+/// take_map), so the static's Rust name answers to the lint law
+/// while the ELF map name stays the pinned contract.
+#[map(name = "notices")]
+static NOTICES: RingBuf = RingBuf::with_byte_size(4096, 0);
 
 /// The fentry program (the chain's primary step): the BTF trampoline
 /// calls this at input_event()'s entry with the arguments exposed as
@@ -251,9 +259,12 @@ fn kprobe_input_event(ctx: ProbeContext) -> i32 {
 /// path (it only ever runs when a verb explicitly drives it),
 /// publishes ONLY sound-setting fields, and returns 0 (the filter
 /// verdict nobody consumes — the record is the result, not the
-/// code).
+/// code). The context binding stays in the signature (aya's
+/// socket_filter contract) and takes the `_` prefix honestly —
+/// night-strict-warnings-1: the zero-warning law flags the binding
+/// this program provably never touches.
 #[socket_filter]
-fn notice_relay(ctx: SkBuffContext) -> i64 {
+fn notice_relay(_ctx: SkBuffContext) -> i64 {
     // The one unsafe block, the same contract as `tap`: aya-ebpf's
     // helper calls are unsafe fns; every operation is bounds-checked
     // (the lookups return Options, the reservation returns an
@@ -281,7 +292,7 @@ fn notice_relay(ctx: SkBuffContext) -> i64 {
         // of control changes) drops the notice silently: the next
         // heartbeat re-reads the map anyway, so a lost wake degrades
         // the latency, never the correctness.
-        if let Some(mut entry) = notices.reserve::<notice::ControlNotice>(0) {
+        if let Some(mut entry) = NOTICES.reserve::<notice::ControlNotice>(0) {
             entry.write(notice::ControlNotice {
                 ns: bpf_ktime_get_ns(),
                 kind,

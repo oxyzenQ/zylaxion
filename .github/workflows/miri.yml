@@ -44,10 +44,13 @@
 # saved), the Sunday sweep (00:00 UTC / 07:00 WIB) keeps the weekly
 # full-net tick, and workflow_dispatch is the on-demand deep check.
 #
-# Deliberately NO RUSTFLAGS=-D warnings here: the miri build is not
-# the warning-gated lane (ci.yml owns that contract), and pinning
-# warnings on the interpreter build would couple two unrelated
-# policies.
+# night-strict-warnings-1 (owner call, overriding the old "two
+# unrelated policies" scoping): the miri build JOINs the zero-warning
+# law. The gate rides ZYLAXION_STRICT_WARNINGS (the env block below)
+# into the crate's build script — which Miri interprets like any
+# build script — and the crate root's deny cfg makes one warning
+# fail the lane. The gate rides the env var, NOT RUSTFLAGS, so the
+# interpreter build's flags stay untouched.
 
 name: Dragon Guard - Miri
 
@@ -76,6 +79,9 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # night-strict-warnings-1: strict compile lane — one warning fails
+  # the build (the full law lives in ci.yml's env block).
+  ZYLAXION_STRICT_WARNINGS: "1"
 
 jobs:
   miri:

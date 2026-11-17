@@ -324,13 +324,17 @@ pub(super) fn run_prog_run(object_path: &str) {
         );
         std::process::exit(1);
     }
-    let function = object
+    // night-strict-warnings-1: this is a presence check — the binding
+    // itself is never read, so the strict gate flags it; is_none()
+    // says exactly that without a discarded name.
+    if object
         .functions
         .get(&program.function_key())
-        .unwrap_or_else(|| {
-            println!("PROOF 7: FAIL — the kprobe body's instructions are missing");
-            std::process::exit(1);
-        });
+        .is_none()
+    {
+        println!("PROOF 7: FAIL — the kprobe body's instructions are missing");
+        std::process::exit(1);
+    }
 
     // Real maps from the parsed definitions — fresh instances, never
     // the pinned ones; the process exits, the kernel reaps them.
