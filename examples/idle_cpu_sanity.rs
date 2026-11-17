@@ -148,6 +148,9 @@ impl audio::AudioSink for PacedSink {
 
 /// Process CPU time (user + system) in seconds, via getrusage.
 fn cpu_seconds() -> f64 {
+    // Safety: `rusage` is a plain C aggregate with no pointers and no
+    // valid-bit requirements; an all-zero value is the ABI-legal
+    // starting state getrusage overwrites wholesale.
     let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
     // Safety: getrusage(RUSAGE_SELF) only fills `usage`, a valid,
     // fully initialized allocation of exactly the ABI's own type; the
