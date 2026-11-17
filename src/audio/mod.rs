@@ -337,6 +337,21 @@ impl CpalSink {
                                                 0.0
                                             };
                                         }
+                                        // night-zen-lts-1 (the B15
+                                        // follow-through): extra channels
+                                        // must be SILENT, not stale — the
+                                        // Some branch only writes L/R, and
+                                        // a reused ALSA/PipeWire period
+                                        // buffer can carry the previous
+                                        // period's bytes on channels 2..N.
+                                        // Zero the tail so the B15
+                                        // silence contract holds
+                                        // byte-for-byte.
+                                        if channels > 2 {
+                                            for s in frame[2..].iter_mut() {
+                                                *s = 0.0;
+                                            }
+                                        }
                                     }
                                     None => {
                                         for s in frame.iter_mut() {
@@ -392,6 +407,15 @@ impl CpalSink {
                                             } else {
                                                 0
                                             };
+                                        }
+                                        // night-zen-lts-1 (the B15
+                                        // follow-through): same silence
+                                        // law as the f32 path — channels
+                                        // 2..N are zeroed, never stale.
+                                        if channels > 2 {
+                                            for s in frame[2..].iter_mut() {
+                                                *s = 0;
+                                            }
                                         }
                                     }
                                     None => {

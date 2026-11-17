@@ -155,10 +155,6 @@ pub struct SynthState {
     pub housing_ic1eq: f32,
     /// Second integrator state for the housing filter.
     pub housing_ic2eq: f32,
-    /// Pre-computed `tan(pi * fc / fs)` for the housing filter.
-    pub housing_g: f32,
-    /// Pre-computed `1 / Q` for the housing filter.
-    pub housing_k: f32,
     /// Pre-computed housing mix level (from profile).
     pub housing_mix: f32,
     /// Pre-computed housing excitation length in samples.
@@ -169,10 +165,15 @@ pub struct SynthState {
     /// 250 Hz bandpass with a 2 ms noise burst produces almost no
     /// output — the filter has no time to ring up.
     ///
-    /// To fix this, the housing layer gets its own longer excitation
-    /// window, sized as `max(click_excitation, sample_rate / fc * 4)`
-    /// — i.e. four periods of the housing fundamental. For a 250 Hz
-    /// housing at 44100 Hz, this is `4 * 44100/250 = 706 samples ≈ 16 ms`,
+    /// To fix this, the housing layer gets its own excitation window,
+    /// sized by the housing Q (night-private-research-2xblade's stage
+    /// C drive law): a HIGH-Q housing (resonance > 3.0) is kicked by
+    /// the impact's own contact time and rings free — it takes the
+    /// click burst as-is; a LOW-Q housing still needs the four-period
+    /// driven window to ring up to audible level, so it takes
+    /// `max(click_excitation, sample_rate / fc * 4)`. For a 250 Hz
+    /// housing at 44100 Hz, that is
+    /// `4 * 44100/250 = 706 samples ≈ 16 ms`,
     /// long enough for the filter to ring up to its steady-state Q
     /// gain before the excitation fades.
     pub housing_excitation_samples: u32,
@@ -196,8 +197,9 @@ pub struct SynthState {
     pub housing_noise_state: u32,
 
     // --- Envelope ---
-    /// Current envelope amplitude value. Always `>= 0.0` — initialized from
-    /// `ClickParams::amplitude` (clamped to `[0.0, 1.0]`) and decayed
+    /// Current envelope amplitude value. Always `>= 0.0` — initialized
+    /// from the velocity-scaled, drift-jittered click amplitude (the
+    /// `(amplitude * vel)` product, clamped to `[0.0, 2.0]`) and decayed
     /// multiplicatively by `decay_coeff` (clamped to `[0.0, 0.9999]`).
     /// The non-negativity invariant is relied upon by the voice-off test
     /// (`envelope_value < voice_off_threshold` — no `.abs()` needed).
@@ -250,15 +252,16 @@ pub struct SynthState {
     /// `false`, the render path skips all ambient computation (zero
     /// cost).
     pub ambient_enabled: bool,
-    /// Pre-computed peak amplitude of the ambient noise burst (from
-    /// `KeyProfile::ambient::noise_level`).
-    pub ambient_level: f32,
     /// Pre-computed per-sample decay coefficient for the ambient
     /// envelope (from `KeyProfile::ambient::noise_decay`).
     pub ambient_decay: f32,
-    /// Current ambient envelope amplitude value. Decays per-sample via
-    /// `ambient_decay`. When it falls below `ambient_level * 1e-4`,
-    /// ambient generation stops for this voice.
+    /// Current ambient envelope amplitude value. Starts at
+    /// `KeyProfile::ambient::noise_level`, decays per-sample via
+    /// `ambient_decay`, and ambient generation stops for this voice
+    /// when it falls below the absolute 1e-6 floor (night-zen-lts-1:
+    /// the doc previously named a `ambient_level * 1e-4` threshold
+    /// that the render path never implemented, and the
+    /// now-retired `ambient_level` state field had no reader at all).
     pub ambient_envelope: f32,
     /// Separate xorshift32 state for the ambient noise generator so
     /// it doesn't correlate with the click excitation noise.
@@ -289,10 +292,10 @@ pub struct SynthState {
     /// discontinuity audible as a "click off" tell.
     ///
     /// The release ramp is initialized to a coefficient that brings
-    /// the envelope from its current value to ~1% over 2 ms (~88
-    /// samples at 44.1 kHz). At the end of the ramp the voice
-    /// deactivates naturally via the normal `voice_off_threshold`
-    /// check.
+    /// the envelope from its current value to ~4% (~-28 dB) over
+    /// 2 ms (~88 samples at 44.1 kHz). At the end of the ramp the
+    /// voice deactivates naturally via the normal
+    /// `voice_off_threshold` check.
     pub releasing: bool,
     /// Pre-computed per-sample release-ramp coefficient (v10.2.0+).
     /// Computed in `init_state` from the sample rate so the release
@@ -334,8 +337,6 @@ impl Default for SynthState {
             housing_gain: 1.0,
             housing_ic1eq: 0.0,
             housing_ic2eq: 0.0,
-            housing_g: 0.0,
-            housing_k: 0.0,
             housing_mix: 0.4,
             housing_excitation_samples: 0,
             noise_state: 1,
@@ -352,7 +353,6 @@ impl Default for SynthState {
             spring_mix: 0.6,
             pan_jitter: 0.0,
             ambient_enabled: false,
-            ambient_level: 0.0,
             ambient_decay: 0.99,
             ambient_envelope: 0.0,
             ambient_noise_state: 1,

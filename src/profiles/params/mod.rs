@@ -299,5 +299,7 @@ impl Default for HousingParams {
         }
     }
 }
-
-// ── Validation & clamping ───────────────────────────────────────────
+// night-zen-lts-1: the trailing "Validation & clamping" section header
+// is retired — the section's content moved to the registry and the
+// session preset resolver long ago, and a header that owns nothing is
+// a stale pointer, not a section.
