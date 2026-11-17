@@ -40,6 +40,26 @@ v80.0.0-alpha.1
 
 ### Added
 
+- **night-zen-lts-6: the owner-machine CLI UX battery** —
+  `scripts/audit/cli-e2e.sh` turns the review-loop test plan into one
+  runnable script: eight batches — discovery, the write surface,
+  volume boundaries, typo rescue, the env lane, telemetry + the
+  foreground player, privilege refusals, lifecycle idempotency —
+  with the four fixes the draft plan needed: the detach lane runs
+  LAST (detaching before the telemetry batch would starve it of
+  keystroke events), the 10000% force write is restored before any
+  later batch can spawn a player (the spawn writes VOLUME_PCT_SLOT,
+  lifecycle.rs:126), the foreground `_play` probe runs under
+  `timeout 5` (a live takeover would hold the terminal forever), and
+  every expectation is written from the code it tests — the registry
+  is exact-case so `--switch TOPRE` is an error with a tip, not a
+  silent success, and the env gain is visible in `status` (182% at
+  the 10.0 ceiling). The captured state (preset, volume, running)
+  is restored at the end; batches run singly
+  (`./scripts/audit/cli-e2e.sh b3`) or all. Smoke-proven in the
+  map-less sandbox: b1 and b4 green, `sig` 4/4 depths, the rescue
+  tips exact.
+
 - **night-frontier-Z3, C1: the mode-state fold, measured and
   refused** — the freeze bar's referee ran before any engine change:
   the harness grew the saturation-boundary instrument

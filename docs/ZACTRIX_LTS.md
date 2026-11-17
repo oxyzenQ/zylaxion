@@ -26,6 +26,15 @@ scripts/audit/zactrix-golden.sh        # the golden render corpus gate (night-fr
 scripts/audit/zactrix-prog-run.sh      # PROOF 7 (BPF_PROG_TEST_RUN — the e2e micro-VM lane: root, a real kernel, bpftool)
 ```
 
+The owner-machine CLI UX battery lives beside the proofs:
+`scripts/audit/cli-e2e.sh` (night-zen-lts-6) — eight batches over the
+whole CLI surface in a safe order: the detach lane runs last, the
+10000% force write is restored before anything can spawn, the
+foreground `_play` probe rides a timeout instead of risking an
+infinite hold, every expectation is written from the code it tests,
+and the captured session state is restored at the end. Run all:
+`./scripts/audit/cli-e2e.sh`; one batch: `./scripts/audit/cli-e2e.sh b3`.
+
 PROOF 7 is the one proof that does NOT run on the bare sandbox: it
 needs root, a real kernel, and CAP_BPF/CAP_PERFMON for the load — the
 e2e micro-VM lanes are its stage (scripts/ci/supermassive-init.sh,
