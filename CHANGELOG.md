@@ -169,6 +169,22 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-zen-lts-4: the tagline says what the code proves** —
+  "computed in the kernel" is retired estate-wide (the README hero
+  and paragraph, the Cargo.toml description that both `-V` and
+  crates.io inherit, the CLI banner and its pinning test): the
+  kernel does not compute the sound — `ebpf/src/main.rs`'s `tap()`
+  filters, gates, maps and publishes (~1-2 µs per keystroke,
+  PROOF 7), and the zero-sample procedural engine in `src/engine` +
+  `src/audio` does the synthesis. The sharpened claim — "decided in
+  the kernel, synthesized in pure math" — points each clause at its
+  checkable half: `tap()` for the deciding, the engine for the math.
+  "The tap voices every keystroke" became "the tap hears every
+  keystroke" — the engine voices what the kernel already heard, the
+  phrasing the architecture section always carried. The README lines
+  that were already true (the synthesis split, the branch table) are
+  untouched.
+
 - **night-consistent-1: one schedule day across the estate** — the
   four weekly lanes still carrying Monday crons (audit.yml, fuzz.yml,
   kani.yml, maintenance.yml) move to Sunday 03:00 UTC = 10:00 WIB,

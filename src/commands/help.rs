@@ -78,7 +78,7 @@ pub(crate) fn render_reference(color: bool) -> String {
     let ok = |t: &str| span(OK_OPEN, t, color);
 
     push(brand(
-        "━━━ zylaxion — keyboard sound, computed in the kernel ━━━",
+        "━━━ zylaxion — keyboard sound, decided in the kernel, synthesized in pure math ━━━",
     ));
     push(String::new());
     // night-hunter-2: the subtitle is the Cargo.toml description,

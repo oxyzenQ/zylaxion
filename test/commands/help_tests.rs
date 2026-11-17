@@ -216,7 +216,9 @@ fn the_banner_subtitle_is_the_crate_description_verbatim() {
 fn the_banner_carries_the_name_and_tagline() {
     let text = render_reference(false);
     assert!(
-        text.contains("━━━ zylaxion — keyboard sound, computed in the kernel ━━━"),
+        text.contains(
+            "━━━ zylaxion — keyboard sound, decided in the kernel, synthesized in pure math ━━━"
+        ),
         "the banner must open with the name and the role"
     );
 }
