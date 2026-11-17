@@ -36,7 +36,7 @@ license = "AGPL-3.0-only"
 # across the toolchain while the address itself stays un-spiderable.
 authors = ["rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>"]
 repository = "https://github.com/oxyzenQ/zylaxion"
-description = "Keyboard sound for Linux, computed in the kernel. A passive eBPF input tap voices every keystroke through pure procedural synthesis. Boring and stealth."
+description = "Keyboard sound for Linux, decided in the kernel, synthesized in pure math. A passive eBPF input tap hears every keystroke; the zero-sample procedural engine voices it. Boring and stealth."
 build = "build.rs"
 # night-improve-4: registry-grade manifest completeness, the zelynic
 # package-data pattern. The documentation field is the version-less

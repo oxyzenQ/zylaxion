@@ -13,11 +13,11 @@
 <h1 align="center">zylaxion</h1>
 
 <p align="center">
-  <strong>Keyboard sound, computed in the kernel. No samples. No daemon. Just math.</strong>
+  <strong>Keyboard sound, decided in the kernel, synthesized in pure math. No samples. No daemon.</strong>
 </p>
 
 <p align="center">
-  Keyboard sound for Linux, computed in the kernel. A passive eBPF input tap voices every keystroke through pure procedural synthesis. Boring and stealth.
+  Keyboard sound for Linux, decided in the kernel, synthesized in pure math. A passive eBPF input tap hears every keystroke; the zero-sample procedural engine voices it. Boring and stealth.
 </p>
 
 <div align="center">
