@@ -46,19 +46,23 @@ export PATH
 # Every tracked manifest is its own lock surface (the root workspace,
 # fuzz/, ebpf/, scripts/audit/harness/). git ls-files is the source of
 # truth: only manifests the repo actually tracks get refreshed, and
-# build outputs never leak into the list.
-MANIFESTS=$(git ls-files -z -- '*Cargo.toml' | LC_ALL=C sort -z | tr '\0' '\n')
-
-if [ -z "$MANIFESTS" ]; then
-	echo "update-deps: no tracked Cargo.toml found" >&2
-	exit 1
-fi
-
-for manifest in $MANIFESTS; do
+# build outputs never leak into the list. The list stays
+# null-delimited end to end (night-zen-2): a future manifest under a
+# directory whose name carries whitespace survives the iteration
+# intact — a newline-joined list would split the path and run
+# cargo update against the wrong directory.
+manifest_count=0
+while IFS= read -r -d '' manifest; do
+	manifest_count=$((manifest_count + 1))
 	dir=$(dirname "$manifest")
 	echo "update-deps: cargo update in ${dir}"
 	(cd "$dir" && cargo update)
-done
+done < <(git ls-files -z -- '*Cargo.toml' | LC_ALL=C sort -z)
+
+if [ "${manifest_count}" -eq 0 ]; then
+	echo "update-deps: no tracked Cargo.toml found" >&2
+	exit 1
+fi
 
 # The prebuilt lane must never ship stale behind an ebpf/ refresh:
 # when anything under ebpf/ moved (the lock in practice), the tree pin
