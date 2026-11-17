@@ -114,9 +114,12 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       # v1.1, night-depth-hardening-2 SHA pin (the line-length law keeps
-      # the pin comment above the use).
+      # the long-form comment above the use; the bare "# v1.1" token
+      # rides the pin line itself so the actions-pin health sweep
+      # enlists it — an untokened pin is permanently exempt, and an
+      # exempt pin is a contract nobody runs).
       - name: Install the Kani verifier
-        uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f
+        uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f  # v1.1
 
       - name: Prove the pure laws over their whole input spaces
         run: |

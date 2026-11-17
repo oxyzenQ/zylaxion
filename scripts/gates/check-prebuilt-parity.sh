@@ -75,7 +75,6 @@
 # rename under ebpf/ still stales the pin — the pin describes the
 # tree, not just its content multiset.
 #
-# Usage: bash scripts/gates/check-prebuilt-parity.sh
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -113,7 +112,7 @@ ebpf_tree_blake3() {
 # ── 1. the lane exists and its object is structurally sane ────────
 if [ ! -d "$PREBUILT_DIR" ]; then
         fail "ebpf-prebuilt/ is missing — the registry lane cannot ship. Run ./scripts/dev/regenerate-ebpf-prebuilt.sh"
-        echo "FAIL: 1 of 4 checks (lane missing)"
+        echo "FAIL: early exit (lane missing)"
         exit 1
 fi
 if [ ! -f "$MANIFEST" ]; then
@@ -128,7 +127,7 @@ fi
 # regenerate-ebpf-prebuilt.sh enforces in both of its modes).
 if ! b3sum --version 2>/dev/null | grep -q '1.8.7'; then
         fail "b3sum 1.8.7 is not on PATH — the lane's digest tool (install: ./scripts/dev/bootstrap-ebpf.sh)"
-        echo "FAIL: 1 of 4 checks (digest tool missing)"
+        echo "FAIL: early exit (digest tool missing)"
         exit 1
 fi
 

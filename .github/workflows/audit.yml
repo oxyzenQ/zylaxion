@@ -17,9 +17,10 @@
 # grow a new CVE).
 #
 # This is the canonical source for vulnerability scanning — the local
-# gatekeeper (build.sh check-all) skips cargo-audit per policy; this
-# lane owns the verdict (cargo audit --deny warnings: any advisory
-# blocks).
+# gatekeeper (build.sh check-all) runs cargo audit as its [4/4] step
+# too, but as an advisory pass (a soft skip when the binary is absent);
+# this lane owns the hard verdict (cargo audit --deny warnings: any
+# advisory blocks).
 #
 # Weekly schedule: Monday 03:00 UTC = 10:00 WIB (night-consistent-1) —
 # the same clock maintenance.yml already keeps (one schedule spelling

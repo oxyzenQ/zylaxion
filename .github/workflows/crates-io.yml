@@ -16,7 +16,7 @@
 # auto-excludes nested packages, so the detached ebpf/ workspace (its
 # own Cargo.toml) cannot ride a registry tarball — the crate ships
 # ebpf-prebuilt/ instead (a plain directory, NOT a nested package):
-# the two maintainer-built objects, the same bytes the GitHub Release
+# the one maintainer-built object, the same bytes the GitHub Release
 # binaries embed. The default feature is `ebpf`, so a plain
 # `cargo install zylaxion` lands the full-featured binary on a stable
 # toolchain — no nightly anywhere near the user. The publish job's own

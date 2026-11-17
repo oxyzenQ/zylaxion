@@ -138,7 +138,8 @@ if [[ ! -f "${HANDOVER_PATH_SRC}" || ! -f "${HANDOVER_SERVICE_SRC}" ]]; then
 fi
 if ! command -v cargo >/dev/null 2>&1; then
     echo "error: cargo not found on PATH." >&2
-    echo "  install the Rust toolchain first:  curl https://sh.rustup.rs -sSf | sh" >&2
+    echo "  install the Rust toolchain first (download, inspect, then run):" >&2
+    echo "    curl https://sh.rustup.rs -sSf -o /tmp/rustup-init.sh && sh /tmp/rustup-init.sh" >&2
     exit 1
 fi
 

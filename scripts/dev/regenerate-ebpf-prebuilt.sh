@@ -207,26 +207,24 @@ fi
 # rustup run forces the dated pin (the CARGO env a build script hands
 # down resolves to the stable cargo, which would drop the -Z flags);
 # cwd inside ebpf/ keeps the crate's .cargo/config.toml in effect.
-# The inherited rustflags get the same host-poison strip and v3 force
-# build/ebpf.rs applies (env rustflags shadow config; host-CPU flags
-# are poison for bpfel; the v3 level is what selects BPF_ATOMIC).
-FLAGS="${RUSTFLAGS:-}"
-if [ -n "${CARGO_ENCODED_RUSTFLAGS:-}" ]; then
-        FLAGS="${FLAGS} ${CARGO_ENCODED_RUSTFLAGS//$'\x1f'/ }"
-fi
-FILTERED=""
-for token in $FLAGS; do
-        case "$token" in
-        *target-cpu* | *linker=* | *link-self-contained*) ;; # host poison, dropped
-        *) FILTERED="${FILTERED}${FILTERED:+ }${token}" ;;
-        esac
-done
-export RUSTFLAGS="${FILTERED} -Ctarget-cpu=v3"
+# The inherited rustflags get the SAME wholesale drop build/ebpf.rs
+# applies (night-depth-hardening-3): the nested build takes NOTHING
+# from the channel. A token-level filter cannot keep up with a
+# foreign driver's evolving flag vocabulary — the kani proof build's
+# "--cfg=kani --kani-compiler --sysroot ..." set leaked through the
+# former strip on the parent route and cost the first push-net Kani
+# run its target-spec probe — and env rustflags shadow config anyway.
+# With every channel dropped, ebpf/.cargo/config.toml supplies the
+# build defaults, including the -C target-cpu=v3 level that selects
+# BPF_ATOMIC: this script and the parent build.rs agree
+# flag-for-flag.
 
 echo "building the tap object (${PIN}, bpf-linker ${BPF_LINKER_VERSION})..."
 (
         cd ebpf
-        env -u CARGO_ENCODED_RUSTFLAGS -u RUSTC -u RUSTC_WORKSPACE_WRAPPER -u RUSTC_WRAPPER \
+        env -u RUSTFLAGS -u CARGO_ENCODED_RUSTFLAGS \
+                -u CARGO_TARGET_BPFEL_UNKNOWN_NONE_RUSTFLAGS \
+                -u RUSTC -u RUSTC_WORKSPACE_WRAPPER -u RUSTC_WRAPPER \
                 rustup run "$PIN" cargo build --release --locked \
                 --target bpfel-unknown-none.json --package zylaxion-ebpf \
                 -Z build-std=core -Z json-target-spec

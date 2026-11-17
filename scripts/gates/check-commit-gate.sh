@@ -13,9 +13,12 @@
 #   - commit time: THIS gate, wired into git via .githooks/pre-commit
 #     (core.hooksPath=.githooks, self-installed by gate-keepers.sh)
 #   - push time:   gate-keepers.sh and the wholesale CI gate run
-#   - ship time:   the parity steps in crates-io.yml and release.yml,
-#     the last line of defense before the registry upload and the
-#     release binaries
+#   - ship time:   build/prebuilt.rs — the packaging walk re-verifies
+#     the manifest pin against the shipped object (blake3 + size) and
+#     panics on drift, the last line of defense before the registry
+#     upload and the release binaries (no workflow step calls
+#     check-prebuilt-parity.sh; the freshness the publish lane feels
+#     is this in-process verifier, night-zen-lts-2)
 #
 # What it enforces at the moment a commit is created:
 #   1. Prebuilt parity (delegated to the one writer's read-only --check

@@ -52,7 +52,7 @@
 #       any casing outside the two legal families: lowercase, and the
 #       identifier family (ZYLAXION_* env vars, the scripts/ banner
 #       titles). A wrong-case name anywhere fails the push)
-#   10. Pre-commit hook self-install (night-improve-31 — the zelynic
+#   0.  Pre-commit hook self-install (night-improve-31 — the zelynic
 #       NIGHT-dinner-1 shape: the first wholesale run on a clone
 #       points core.hooksPath at .githooks, repo-local, never
 #       --global, so every future commit on that clone executes the
@@ -60,15 +60,20 @@
 #       parity + the ebpf/ <-> ebpf-prebuilt/ pairing rule) even when
 #       this wholesale script is forgotten. The hook enforces the same
 #       lane contract at commit time that sections above enforce at
-#       push time)
-#   11. Documentation disclaimer (night-dragon-maintenance-3 —
-#       scripts/gates/inject-disclaimer.sh: every living .md carries
-#       the stale-data disclaimer as its final block; PLACEMENT is
-#       the verdict, never marker presence, so a block pasted
-#       mid-file or beside a header is stripped and re-appended at
-#       the bottom. The section normalizes first, then holds the
-#       --check verdict — the zejtron section-19 shape. CHANGELOG.md
-#       and docs/archive/ stay excluded: the frozen records are never
+#       push time. Wiring, not a gate: it runs before section 1 and
+#       carries no run_section number)
+#   10. Documentation disclaimer (night-dragon-maintenance-3 —
+#       scripts/gates/inject-disclaimer.sh --check: every living .md
+#       carries the stale-data disclaimer as its final block;
+#       PLACEMENT is the verdict, never marker presence, so a block
+#       pasted mid-file or beside a header fails here. The check
+#       verdict IS the gate; the writing mode (a bare
+#       inject-disclaimer.sh run) is the explicit repair command the
+#       FAIL banner names, never part of the default run — a run that
+#       rewrote first would let CI normalize the violation on the
+#       disposable checkout and go green, the defect shipping while
+#       the fix evaporates (night-zen-lts-2). CHANGELOG.md and
+#       docs/archive/ stay excluded: the frozen records are never
 #       rewritten)
 #
 # Usage:
@@ -241,16 +246,16 @@ run_section 8 "Release parity" \
 run_section 9 "Name-case rule" \
         python3 scripts/gates/check-name-case.py
 
-# ── 10/11. Documentation disclaimer (bottom-of-file placement) ──────────────
-# The injector normalizes first (a misplaced block is stripped and
-# re-appended as the file's final block), then the --check verdict is
-# the gate: every living .md carries the stale-data disclaimer as its
-# last content block — placement is the verdict, never marker
-# presence (night-dragon-maintenance-3, the zejtron section-19 shape).
-run_section 10 "Documentation disclaimer (normalize)" \
-        bash scripts/gates/inject-disclaimer.sh
-
-run_section 11 "Documentation disclaimer" \
+# ── 10. Documentation disclaimer (bottom-of-file placement) ─────────────────
+# The --check verdict IS the gate: every living .md carries the
+# stale-data disclaimer as its last content block — placement is the
+# verdict, never marker presence (night-dragon-maintenance-3, the
+# zejtron section-19 shape). The writing mode (normalize) is the
+# explicit repair command the FAIL banner names, never part of the
+# default run: a run that rewrites first would let CI fix the
+# violation on the disposable checkout and go green — the defect
+# would ship while the fix evaporates (night-zen-lts-2).
+run_section 10 "Documentation disclaimer" \
         bash scripts/gates/inject-disclaimer.sh --check
 
 # ── Verdict ─────────────────────────────────────────────────────────────

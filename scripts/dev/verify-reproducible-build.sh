@@ -53,11 +53,16 @@ echo "== build 2 of 2 (target $B) =="
 CARGO_TARGET_DIR="$B" cargo pro-linux-amd64-gnu --locked -q
 BIN_B="$B/x86_64-unknown-linux-gnu/release/zylaxion"
 
-"$BIN_A" -V > /tmp/repro-a.txt
-"$BIN_B" -V > /tmp/repro-b.txt
+# mktemp, not fixed names: a concurrent run or a planted symlink at a
+# predictable /tmp path must not clobber or redirect the stamp capture
+# (night-zen-lts-2).
+STAMP_A="$(mktemp /tmp/repro-a.XXXXXX.txt)"
+STAMP_B="$(mktemp /tmp/repro-b.XXXXXX.txt)"
+"$BIN_A" -V > "$STAMP_A"
+"$BIN_B" -V > "$STAMP_B"
 
 STAMPS_MATCH=1
-if diff -u /tmp/repro-a.txt /tmp/repro-b.txt; then
+if diff -u "$STAMP_A" "$STAMP_B"; then
     echo "STAMPS: byte-identical - the provenance chain (commit, clock source, lock fingerprint, self-hash anchor) renders the same bytes on both builds"
 else
     STAMPS_MATCH=0

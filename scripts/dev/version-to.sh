@@ -20,10 +20,12 @@
 #   CHANGELOG.md                   (night-improve-9: the release ledger line)
 #   any sibling Cargo.toml that carries its OWN version line
 #                                  (night-improve-9: the zelynic ebpf lane,
-#                                  generalized — zylaxion has no such manifest
-#                                  today, all members inherit
-#                                  version.workspace = true; the scanner
-#                                  honors one the day it appears)
+#                                  generalized — sibling_scan() honors every
+#                                  such manifest the find turns up; today
+#                                  that is ebpf/, fuzz/, and
+#                                  scripts/audit/harness/, all carrying
+#                                  their own version = line, all mirrored
+#                                  on every bump)
 # Files auto-derived: scripts/build.sh (reads from Cargo.toml), the binary
 # (env!("CARGO_PKG_VERSION")). README.md is probed for a version surface and
 # reported honestly either way (the zelynic NIGHT-hunt-32 rule: never claim a
