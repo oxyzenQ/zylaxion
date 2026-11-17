@@ -242,8 +242,10 @@ pub(super) fn init_state(
     // transcendental) and every derived constant below quantizes once.
     let housing_g = (std::f64::consts::PI * f64::from(housing_freq) / f64::from(sr)).tan();
     let housing_k = 1.0 / f64::from(profile.housing.resonance);
-    state.housing_g = anchor(housing_g);
-    state.housing_k = anchor(housing_k);
+    // night-zen-lts-1: the g/k STATE fields are retired — the frozen
+    // trio below is their only consumer lineage, so storing the
+    // intermediates too was write-only state (every reader died with
+    // the per-sample re-derivation night-depth-hardening-1 removed).
     state.housing_mix = profile.housing.mix;
 
     // night-depth-hardening-1: the housing curve is the constant
@@ -388,7 +390,8 @@ pub(super) fn init_state(
     state.sample_count = 0;
 
     // Initialize the click + spring noise generator with the
-    // per-keystroke seed. After 6 xorshift32 rolls above, `rng` is
+    // per-keystroke seed. After the seven xorshift32 rolls above (the
+    // six seed/drift rolls plus the pan-jitter roll), `rng` is
     // well-mixed and unique per keypress. XOR with a fixed constant
     // so even if the counter wraps to 0 we still have a non-zero
     // seed (xorshift32 with seed=0 produces all zeros forever).
@@ -417,7 +420,9 @@ pub(super) fn init_state(
     // re-read the profile every sample. When enabled is false, the
     // render path skips all ambient computation (zero cost).
     state.ambient_enabled = profile.ambient.enabled;
-    state.ambient_level = profile.ambient.noise_level;
+    // night-zen-lts-1: the ambient_level STATE field is retired — the
+    // envelope starts at the same profile value and the render path's
+    // stop floor is absolute (1e-6), so the field had no reader left.
     // night-master-4: the ambient rattle envelope follows the same
     // c^(R/S) sample-rate law as the main decay — the rattle is a
     // ~1 ms burst at the reference rate and must stay one at every
@@ -449,11 +454,14 @@ pub(super) fn init_state(
 
     // Pre-compute the release-ramp coefficient (v10.2.0+ — dragonzen
     // audit N2). Target: bring the envelope from its current value to
-    // ~1% over 2 ms, regardless of sample rate. Solving
-    // `coeff^N = 0.01` for `N = 2 ms * sample_rate` gives
-    // `coeff = 0.01^(1/N)`. At 44.1 kHz: N ≈ 88, coeff ≈ 0.9499.
-    // At 48 kHz: N ≈ 96, coeff ≈ 0.9535. At 96 kHz: N ≈ 192,
-    // coeff ≈ 0.9765. Clamped to (0, 0.9999) for safety.
+    // ~4% (~-28 dB) over 2 ms, regardless of sample rate. Solving
+    // `coeff^N = 0.04` for `N = 2 ms * sample_rate` gives
+    // `coeff = 0.04^(1/N)`. At 44.1 kHz: N = 88.2, coeff ≈ 0.9642.
+    // At 48 kHz: N = 96, coeff ≈ 0.9670. At 96 kHz: N = 192,
+    // coeff ≈ 0.9834. Clamped to (0, 0.9999) for safety.
+    // (night-zen-lts-1: the comment previously said ~1% / 0.01^(1/N)
+    // with the coefficients that constant produces — the shipped
+    // constant has been 0.04; the comment now names the code's law.)
     // night-frontier-3C: the 1/N ratio and the pow run in f64, the
     // clamp happens before the single quantization.
     let release_samples = (0.002 * f64::from(sr)).max(1.0);
