@@ -23,7 +23,7 @@
 mod proofs {
     use crate::commands::player::gain_from_percent;
     use crate::engine::VoicePool;
-    use crate::profiles::mechanical::u32_to_signed_f32;
+    use crate::profiles::u32_to_signed_f32;
 
     /// The volume cell's law, proven over the whole f32 domain: a
     /// finite volume clamps into [-100, 100] exactly, a non-finite one

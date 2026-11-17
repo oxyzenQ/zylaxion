@@ -307,8 +307,9 @@ pub(super) fn preflight_ebpf_prerequisites(toolchain: &str) {
 /// passed explicitly so the invocation is correct even without the
 /// config. Environment: the parent's RUSTC/RUSTC_WRAPPER are poison for
 /// the sub-build (the stable compiler would compile build-std core); the
-/// inherited rustflags pass through the host-poison strip and then get
-/// the v3 codegen level forced. --locked keeps the committed Cargo.lock
+/// inherited rustflags are dropped wholesale (night-depth-hardening-3,
+/// the drop_inherited_rustflags law) and the v3 codegen level is forced
+/// onto the clean slate. --locked keeps the committed Cargo.lock
 /// authoritative; stdio is inherited so the nested compiler output
 /// streams through to the build log.
 pub(super) fn run_nested_ebpf_build(ebpf_dir: &std::path::Path) {
@@ -329,7 +330,7 @@ pub(super) fn run_nested_ebpf_build(ebpf_dir: &std::path::Path) {
         .env_remove("RUSTC")
         .env_remove("RUSTC_WORKSPACE_WRAPPER")
         .env_remove("RUSTC_WRAPPER");
-    strip_host_poison_rustflags(&mut nested);
+    drop_inherited_rustflags(&mut nested);
     force_bpf_v3_rustflags(&mut nested);
     let status = nested.status().unwrap_or_else(|e| {
         panic!(
@@ -488,91 +489,50 @@ pub(super) fn validate_ebpf_object(data: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
-/// Strip the host-poison tokens from the inherited rustflags before the
-/// nested bpfel build sees them: host-CPU and host-linker flags are
-/// poison for a cross-build ("-Ctarget-cpu=native" lowers for the BUILD
-/// host's ISA; "-Clinker=..." retargets the linker; "-Wl,..." speaks the
-/// GCC driver syntax bpf-linker cannot parse — the GNU full-RELRO
-/// hardening token rides exactly this shape and cost the supermassive
-/// from-source legs their build). Everything else survives verbatim, so
-/// CI's `RUSTFLAGS="-D warnings"` contract keeps covering the ebpf crate
-/// and bpf-linker's own `-C link-arg=--btf` form stays legal. A survivor
-/// list that emptied out is removed outright, never set-empty: an
-/// empty-but-SET rustflags variable shadows the ebpf config's own
-/// rustflags (the v3 codegen level) with nothing.
-pub(super) fn strip_host_poison_rustflags(cmd: &mut Command) {
-    if let Some(value) = std::env::var_os("CARGO_ENCODED_RUSTFLAGS") {
-        match strip_host_poison(&value.to_string_lossy(), '\u{1f}') {
-            Some(filtered) if !filtered.is_empty() => {
-                cmd.env("CARGO_ENCODED_RUSTFLAGS", filtered);
-            }
-            _ => {
-                cmd.env_remove("CARGO_ENCODED_RUSTFLAGS");
-            }
-        }
-    }
-    if let Some(value) = std::env::var_os("RUSTFLAGS") {
-        match strip_host_poison(&value.to_string_lossy(), ' ') {
-            Some(filtered) if !filtered.is_empty() => {
-                cmd.env("RUSTFLAGS", filtered);
-            }
-            _ => {
-                cmd.env_remove("RUSTFLAGS");
-            }
-        }
-    }
-}
-
-/// The pure token filter behind the poison strip: `Some(joined)` when
-/// any token was dropped, `None` when nothing changed (so the caller can
-/// env_remove instead of re-setting an identical value). A poisoned
-/// value token takes its paired `-C` flag name with it — flags travel as
-/// two tokens (`-C`, then the value) in both the space-separated
-/// RUSTFLAGS form and the \u{1f}-separated CARGO_ENCODED_RUSTFLAGS form,
-/// and an orphan `-C` in the survivor list is a phantom flag for rustc.
-pub(super) fn strip_host_poison(value: &str, sep: char) -> Option<String> {
-    let raw: Vec<&str> = value.split(sep).collect();
-    let mut tokens: Vec<&str> = Vec::with_capacity(raw.len());
-    for t in &raw {
-        let tt = t.trim();
-        let poisoned = tt.contains("target-cpu")
-            || tt.contains("linker=")
-            || tt.contains("link-self-contained")
-            || tt.contains("-Wl,");
-        if poisoned && tokens.last().is_some_and(|last| last.trim() == "-C") {
-            // The flag name immediately before a poisoned value is the
-            // half of that flag — it goes too.
-            tokens.pop();
-        } else if !poisoned {
-            tokens.push(t);
-        }
-    }
-    let dropped = tokens.len() != raw.len();
-    if dropped {
-        Some(tokens.join(&sep.to_string()))
-    } else {
-        None
-    }
+/// Drop the parent's rustflags wholesale before the nested bpfel build
+/// sees them. A bpfel object build owns its flag set: host ISA flags
+/// ("-Ctarget-cpu=native"), host linker retargeting ("-Clinker=..."),
+/// and GNU link args ("-Wl,...") are poison for a cross-build, and the
+/// verifier-driver flag class rides the same channel — the kani proof
+/// build's "--cfg=kani --kani-compiler --sysroot ..." set leaked through
+/// the former token-level strip and cost the first push-net Kani run its
+/// target-spec probe (night-depth-hardening-3, run 44035184599). No
+/// token-level filter can keep up with a foreign driver's evolving flag
+/// vocabulary, so the nested build takes NOTHING from the channel: the
+/// ebpf/.cargo/config.toml supplies the build defaults and
+/// force_bpf_v3_rustflags pins the codegen level after this. The one
+/// live lane that sets RUSTFLAGS (the release matrix) ships only the
+/// tokens this drop removes anyway, and the documented BTF recipe
+/// (RUSTFLAGS='-Cdebuginfo=2 -Clink-arg=--btf') runs directly inside
+/// ebpf/, where this function never executes.
+pub(super) fn drop_inherited_rustflags(cmd: &mut Command) {
+    cmd.env_remove("RUSTFLAGS");
+    cmd.env_remove("CARGO_ENCODED_RUSTFLAGS");
+    // The target-specific channel cargo reads alongside the two generic
+    // ones: a caller that curated bpfel flags through it would otherwise
+    // re-poison exactly what the generic drop just cleaned.
+    cmd.env_remove("CARGO_TARGET_BPFEL_UNKNOWN_NONE_RUSTFLAGS");
 }
 
 /// Force the v3 BPF codegen level onto the nested build, onto whichever
-/// rustflags variable SURVIVED the poison strip: the LLVM BPF backend
+/// rustflags variable SURVIVED the wholesale drop: the LLVM BPF backend
 /// selects the BPF_ATOMIC RMW instructions (the SMP-safe stats counters
 /// need them) only at cpu v3. The survivor lives on the CHILD command's
 /// explicit env overrides, not in std::env — reading the parent here
-/// would replay every token the strip just dropped and reintroduce the
+/// would replay every token the drop just removed and reintroduce the
 /// poison (the night-dragon-2 leak: the force overwrote the strip's
 /// filtered value with the raw parent value plus the v3 flag). get_envs
-/// reads exactly those child overrides (the strip always ran first, so
-/// every inherited variable is already either re-set or removed
-/// explicitly). With no survivor variable the ebpf/.cargo/config.toml
-/// supplies the same flag.
+/// reads exactly those child overrides (the drop always ran first, so
+/// every inherited variable is already removed explicitly). In practice
+/// no variable survives, and the ebpf/.cargo/config.toml supplies the
+/// same flag; the survivor branches stay as the defensive path for any
+/// future curated survivor.
 pub(super) fn force_bpf_v3_rustflags(cmd: &mut Command) {
     const FLAG: &str = "-Ctarget-cpu=v3";
     // An empty-but-SET variable is the same as unset for flag purposes —
     // appending to it would inject an empty token that rustc reads as a
     // phantom filename (reproduced live: `rustc - ... '' -Ctarget-cpu=v3`);
-    // the strip now removes emptied variables for the same reason.
+    // the wholesale drop removes emptied variables for the same reason.
     let encoded = cmd
         .get_envs()
         .find(|(k, _)| *k == "CARGO_ENCODED_RUSTFLAGS")

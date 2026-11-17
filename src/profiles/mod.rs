@@ -39,6 +39,15 @@ pub use registry::{
 // lands — the same scoped allow the registry bridge above carries.
 #[allow(unused_imports)]
 pub use mechanical::{MechanicalClick, ZactrixEngine};
+// night-depth-hardening-3: the kani verifier module
+// (src/engine/kani_proofs.rs, the cfg(kani) bounded proofs) imports the
+// noise-mapping law by its crate-visible name — the harness compiles as
+// part of THIS crate, so the crate-scoped re-export is the narrow door
+// it needs; the module itself stays private. The allow rides the same
+// law as the identity re-export above: the harness compiles under
+// nothing else, so every normal build sees an unused import.
+#[allow(unused_imports)]
+pub(crate) use mechanical::u32_to_signed_f32;
 pub use model::{AcousticModel, SynthState};
 pub use params::{
     AmbientParams, ClickParams, DecayParams, HousingParams, KeyTrigger, MAX_POLYPHONY, SAMPLE_RATE,
