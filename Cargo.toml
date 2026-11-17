@@ -205,7 +205,23 @@ log = "0.4"
 # and 0.30's I/O-safety adoption and PollFd Copy removal never touch
 # the audited calls (PollFd::new feeds the array directly; kill's
 # Pid/Option<Signal> shape is stable).
+# night-upgrade-deps-1: the 0.31 line is the live LTS line — 0.31.4
+# (2026-11-17, the lock already carries it) ships a recvfrom UB fix and
+# the posix_spawn error-handling repair, so the patch stream is alive.
+# 0.32.0 (2026-11-14, three days old at audit) breaks only
+# socket::accept/accept4 (OwnedFd) and makes fcntl::vmsplice unsafe —
+# neither is in the audited calls above, so there is zero benefit in
+# moving today. Adopt 0.32 at a scheduled dependency night after its
+# first patch cycle, against the same audited-calls checklist.
 nix = { version = "0.31", features = ["signal", "poll", "user", "fs"] }
+# night-upgrade-deps-1: the whole surface is HeapRb plus the four
+# traits (Consumer, Observer, Producer, Split) and three call sites —
+# try_push, try_pop, vacant_len (src/audio/mod.rs). The 0.5 line is
+# actively patched and 0.5.3 (2026-10-08) is line-latest in the lock;
+# 0.6.0 (2026-10-30) is a fresh breaking line published without a
+# changelog (no CHANGELOG.md in the crate, no release tags since
+# v0.4.0) — the LTS law does not follow a breaking line that cannot
+# state what it broke. Re-review at 0.6.1.
 ringbuf = "0.5"
 # night-improve-23: libc survives for the raw BPF/perf syscalls in
 # src/ebpf/bpf_syscall.rs (the tracepoint link pin lane) — the one
@@ -238,6 +254,14 @@ signal-hook = { version = "0.4", default-features = false }
 # raw `ALSA lib ...` lines on a cardless host) cannot spew across the
 # rendered CLI surfaces; the guard restores the library default on
 # drop so the player path keeps its full diagnosis.
+# night-upgrade-deps-1: the 0.6.x line (0.5.0 2026-06-12, 0.6.1
+# 2026-07-31) pairs with the alsa 0.12 line, and cpal 0.18.2 (2026-08-16,
+# the newest cpal) still rides alsa 0.11 — so this pin STAYS at 0.4.0:
+# bumping it alone would split the graph (alsa 0.11 and 0.12 plus two
+# alsa-sys copies in one build, the exact state the lockstep law above
+# forbids) and buy nothing — the direct surface is the two
+# snd_lib_error_set_handler symbols. The move is one lockstep step when
+# cpal adopts alsa 0.12. cargo-audit clean at 0.4.0 (1509 advisories).
 [target.'cfg(target_os = "linux")'.dependencies]
 alsa-sys = "0.4.0"
 
