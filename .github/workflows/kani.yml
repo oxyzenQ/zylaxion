@@ -2,18 +2,42 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # OS: Linux only — zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 #
-# Dragon Guard - Kani (night-depth-hardening-2): the proven datapath lane.
+# Dragon Guard - Kani (night-depth-hardening-2/3): the proven datapath lane.
 # The bounded-model-checking verifier compiles the pure law harnesses in
-# src/kani_proofs.rs and proves each invariant over the WHOLE reachable
-# input space — the volume clamp cell, the gain monotonicity, and the
-# noise mapping — not a sampled slice of it. Unit tests sample; this lane
-# quantifies. The solver time is bounded by the harnesses' own input
+# src/engine/kani_proofs.rs and proves each invariant over the WHOLE
+# reachable input space — the volume clamp cell, the gain monotonicity, and
+# the noise mapping — not a sampled slice of it. Unit tests sample; this
+# lane quantifies. The solver time is bounded by the harnesses' own input
 # domains (u32 / f32 single values, no loops, no heap), so the lane stays
 # inside a CI-sized budget.
+#
+# night-depth-hardening-3 makes the lane a push net, not an absent one: the
+# push and pull_request triggers ride UNFILTERED (the owner's unfiltered-CI
+# simplification — no path filter, no branch filter, the same blind posture
+# ci.yml and miri.yml carry — the surface globs' sync tax cost more than the
+# runner minutes they saved), the Monday sweep stays the weekly full-net
+# tick, and workflow_dispatch is the on-demand deep check. The build
+# prerequisites ride the same pair every other root-crate lane carries
+# (ci.yml, miri.yml, maintenance.yml): the apt install feeds alsa-sys's
+# pkg-config probe, and the bootstrap provides the dated nightly pin and
+# bpf-linker that the default ebpf feature's preflight hard-requires — a
+# Kani build compiles the same build.rs as every other lane, so a missing
+# prerequisite is a red verifier run with no proof in it (the same
+# 55-second red shape miri.yml documents from the pre-bootstrap era).
+#
+# The loom verdict (the other half of the proven-datapath pitch, answered
+# honestly): NO loom. The concurrency surface is std primitives plus the
+# external crates' own protocols — no hand-rolled lock-free algorithm to
+# prove — and the ring lanes already carry deterministic interleaving pins
+# (night-hardening-2, night-frontier-Z1). A loom dependency here would
+# model-check the vendors' internals, not this tree's code: theater, not
+# proof. The Kani half is the honest half and it is wired below.
 
 name: Dragon Guard - Kani
 
 on:
+  push:
+  pull_request:
   # Weekly schedule: Monday 03:00 UTC = 10:00 WIB (night-consistent-1) —
   # one schedule clock across the estate.
   schedule:
@@ -25,13 +49,31 @@ on:
 permissions:
   contents: read
 
+# Rapid pushes to the same ref cancel the superseded run instead of
+# queueing a duplicate verifier build (the miri.yml shape).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+
 jobs:
   kani:
+    name: Kani proof verification (the proven pure families)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # A cap, not a speed claim: the toolchain install and the crate build
+    # dominate the wall clock; the proofs themselves are bounded by
+    # construction (the harnesses' own input domains).
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+        with:
+          # night-depth-hardening-3: the checkout token never outlives
+          # this step — no later step can read it back (the miri.yml law).
+          persist-credentials: false
 
       - name: Harden the runner DNS
         run: |
@@ -44,6 +86,29 @@ jobs:
             printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n'
             sudo cat /etc/resolv.conf
           } | sudo tee /etc/resolv.conf > /dev/null
+
+      - name: Install system dependencies
+        run: |
+          # The maintenance.yml idiom (retries + connect timeout):
+          # alsa-sys's pkg-config probe needs the dev headers before any
+          # root-crate compile can start.
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 update -qq
+          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 install -y -qq \
+            libasound2-dev pkg-config
+
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       # v1.1, night-depth-hardening-2 SHA pin (the line-length law keeps
       # the pin comment above the use).
