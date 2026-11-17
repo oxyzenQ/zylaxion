@@ -99,7 +99,7 @@ pub fn cmd_volume(percent: u32, force_this: bool) {
     let cap = crate::session::preset::MAX_VOLUME_PERCENT;
     let cap_note = if percent > cap {
         format!(
-            "--force-this carried it past the {cap}% cap (force ceiling {})%)",
+            "--force-this carried it past the {cap}% cap (force ceiling {}%)",
             crate::session::preset::MAX_FORCE_VOLUME_PERCENT
         )
     } else {

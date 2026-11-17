@@ -223,6 +223,21 @@ v80.0.0-alpha.1
   microsecond scale on a shared runner) against a law whose every
   observed round sat at 93-97%; a true break still fails loudly.
 
+### Fixed
+
+- **night-zen-lts-3: the volume force-note closes its parens** —
+  `--force-this` past the 200% cap printed the cap note with a stray
+  close paren and the percent stranded outside the inner paren
+  ("(force ceiling 10000)%))" — three closes on two opens, the value
+  line's own parens unbalanced on the user's screen). The note now
+  ends "(force ceiling 10000%)" so the composed confirmation reads
+  "...(force ceiling 10000%))" — balanced. The fix rides a
+  paren-balance audit over every string literal the CLI prints
+  (a tokenizer separating strings from char literals, lifetimes and
+  nestable comments): exactly one slip estate-wide, this one; the
+  clap-classifier prefix "(possible values" the same sweep flagged
+  is a prefix match by design, not a print.
+
 ### Documentation
 
 - **night-hardening-2, gap 1: the reserved sound-class lane recorded
