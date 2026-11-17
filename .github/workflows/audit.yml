@@ -22,7 +22,7 @@
 # this lane owns the hard verdict (cargo audit --deny warnings: any
 # advisory blocks).
 #
-# Weekly schedule: Monday 03:00 UTC = 10:00 WIB (night-consistent-1) —
+# Weekly schedule: Sunday 03:00 UTC = 10:00 WIB (night-consistent-1) —
 # the same clock maintenance.yml already keeps (one schedule spelling
 # per estate).
 # =============================================================================
@@ -33,7 +33,7 @@ name: Dragon Guard - Security Audit
   push:
   pull_request:
   schedule:
-    - cron: "0 3 * * 1"  # Monday 03:00 UTC = 10:00 WIB
+    - cron: "0 3 * * 0"  # Sunday 03:00 UTC = 10:00 WIB
   workflow_dispatch: {}
 
 permissions:

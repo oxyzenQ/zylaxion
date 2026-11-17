@@ -15,7 +15,7 @@
 # push and pull_request triggers ride UNFILTERED (the owner's unfiltered-CI
 # simplification — no path filter, no branch filter, the same blind posture
 # ci.yml and miri.yml carry — the surface globs' sync tax cost more than the
-# runner minutes they saved), the Monday sweep stays the weekly full-net
+# runner minutes they saved), the Sunday sweep stays the weekly full-net
 # tick, and workflow_dispatch is the on-demand deep check. The build
 # prerequisites ride the same pair every other root-crate lane carries
 # (ci.yml, miri.yml, maintenance.yml): the apt install feeds alsa-sys's
@@ -38,10 +38,10 @@ name: Dragon Guard - Kani
 on:
   push:
   pull_request:
-  # Weekly schedule: Monday 03:00 UTC = 10:00 WIB (night-consistent-1) —
+  # Weekly schedule: Sunday 03:00 UTC = 10:00 WIB (night-consistent-1) —
   # one schedule clock across the estate.
   schedule:
-    - cron: "0 3 * * 1"
+    - cron: "0 3 * * 0"
   # Manual trigger from the Actions tab.
   workflow_dispatch:
 
