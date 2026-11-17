@@ -210,11 +210,11 @@ pub(crate) fn render_reference(color: bool) -> String {
     let environment: &[(&str, &str)] = &[
         (
             "ZYLAXION_PRESET=<name>",
-            "the persistent preset `zylaxion on` starts from",
+            "the preset `zylaxion on` starts from when set\n— it overrides the stored slot; the CLI flag\nwins over both",
         ),
         (
             "ZYLAXION_VOLUME=<gain>",
-            "the persistent output gain, linear — 5.5 laptop\nspeakers, 1.5 headphones; a different scale\nthan the percent lane, capped at 10.0",
+            "the persistent output gain, linear — 5.5 laptop\nspeakers, 1.5 headphones; a different scale\nthan the percent lane: gain 5.5 = percent 100\n(the compiled default), the 10.0 cap ≈ percent\n182; no force escape lives on the env lane",
         ),
         ("NO_COLOR=1", "plain bytes on every surface, always"),
         (

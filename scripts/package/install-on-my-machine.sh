@@ -219,6 +219,16 @@ fi
 
 echo ">> Done."
 echo
+# night-zen-lts-5: an upgrade swaps the binary on disk, but a player
+# that is already running keeps the previous build's engine in memory
+# (the pins and the maps are shared, so live retunes still land — only
+# the code waits). Name the skew instead of leaving it to be discovered
+# by ear; a bare `on` answers "already on" for a live registration.
+if "${PROJECT_NAME}" status 2>/dev/null | grep -q "running (pid"; then
+    echo "  Note: a player is already running from the previous build:"
+    echo "      ${PROJECT_NAME} off && ${PROJECT_NAME} on   # load this build's engine"
+    echo
+fi
 echo "Next steps:"
 echo "  - Plant the tap now (the oneshot is enabled for future boots):"
 echo "      sudo systemctl start ${PROJECT_NAME}-attach"
