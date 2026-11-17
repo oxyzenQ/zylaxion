@@ -65,8 +65,11 @@ check "F1 unreleased emptied" "1" \
     "$(awk '/^## \[Unreleased\]$/{f=1;next} f&&/^## /{exit} f{c++} END{print c+0}' "${WORK}/CHANGELOG.md")"
 check "F1 section heading shape" "1" \
     "$(grep -c '^## \[v80.3.0\] — growth naturally — [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$' "${WORK}/CHANGELOG.md")"
-check "F1 section order" "## [Unreleased]|## [v80.3.0] — growth naturally" \
-    "$(grep -m3 '^## \[' "${WORK}/CHANGELOG.md" | sed -n '2p;3p' | sed 's/ — [0-9-]*$//' | paste -sd'|')"
+check "F1 section order" "## [Released]|## [v80.3.0] — growth naturally" \
+    "$(grep -m2 '^## \[' "${WORK}/CHANGELOG.md" | sed 's/ — [0-9-]*$//' | paste -sd'|')"
+F1_UNREL_LINE="$(grep -n '^## \[Unreleased\]$' "${WORK}/CHANGELOG.md" | cut -d: -f1)"
+F1_SEC_LINE="$(grep -n '^## \[v80.3.0\]' "${WORK}/CHANGELOG.md" | cut -d: -f1)"
+if [ "${F1_SEC_LINE:-99999}" -lt "${F1_UNREL_LINE:-0}" ]; then ok "F1 carried above unreleased"; else bad "F1 carried above unreleased" "section line < unreleased line" "${F1_SEC_LINE:-?} vs ${F1_UNREL_LINE:-?}"; fi
 F1_MARKER="$(awk '/^## \[Unreleased\]$/{f=1;next} f&&/^## /{exit} f&&NF&&!/^### /{print; exit}' "${WORK}/f1")"
 check "F1 first bullet carried" "1" \
     "$(awk '/^## \[v80.3.0\]/{f=1;next} f&&/^## /{exit} f{print}' "${WORK}/CHANGELOG.md" | grep -cF -- "${F1_MARKER}")"
@@ -103,7 +106,7 @@ cp "${WORK}/f6" "${WORK}/f6.before"
 run_bump "${WORK}/f6" "80.3.0"
 if diff -q "${WORK}/f6.before" "${WORK}/CHANGELOG.md" > /dev/null; then ok "F6 untouched"; else bad "F6 untouched" "identical" "changed"; fi
 
-echo "F7: unreleased is the last section - carried at end of file"
+echo "F7: unreleased is the last section - carried under the Released ledger"
 printf '# Changelog\n\n## [Released]\n\nv80.1.0\n\n## [Unreleased]\n\n### Fixed\n\n- late note\n' > "${WORK}/f7"
 run_bump "${WORK}/f7" "80.1.1"
 check "F7 carried section exists" "1" \

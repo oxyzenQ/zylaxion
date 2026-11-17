@@ -56,6 +56,18 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-ledger-3: the version's own section sits under the Released
+  ledger** — the night-ledger-1 carry spliced the new version's
+  section below `## [Unreleased]`, which still filed a shipped record
+  in the unreleased zone — the owner reads top-down and a released
+  section under the running notes reads as unreleased (the exact
+  v80.0.6 trap, one step removed). The carry now lands the section
+  directly under the `## [Released]` ledger and above the running
+  section: everything released sits above `## [Unreleased]`, nothing
+  released is ever read from below it. The ambiguous-ledger probe now
+  guards both headings, and the battery pins the invariant (the
+  carried section's line must precede the `## [Unreleased]` line).
+
 - **night-ledger-1: the bump record lands in the released history** —
   `scripts/dev/version-to.sh` used to file a bare version line under
   `## [Released]` and leave the cycle's notes stuck under
@@ -64,13 +76,13 @@ v80.0.0-alpha.1
   change from the unreleased section and had to re-file the record by
   hand). A bump now carries the running notes verbatim into the
   version's own section — `## [vX.Y.Z] — tagline — date`, newest
-  first, directly below the running section — with the date from the
+  first, under the `## [Released]` ledger — with the date from the
   system clock in UTC, an optional `--tagline` that rides the release
   commit subject, and fail-closed probes: an ambiguous ledger
   (duplicate `## [Unreleased]` headings) or a foreign `[Released]`
   shape writes nothing. Verified by a ten-fixture harness run
   against the functions as shipped (real-shape carry, byte-verbatim
-  body, idempotence, fresh ledger, EOF carry, every refusal path).
+  body, idempotence, fresh ledger, every refusal path).
 
 ### Documentation
 
@@ -78,13 +90,13 @@ v80.0.0-alpha.1
   ledger backfill: the twenty-two release notes that had piled up
   under this running section (v80.0.3 through v80.2.1 shipped with
   no section of their own) moved verbatim into the released sections
-  below, each attributed from git history (the introducing commit of
-  every bullet mapped to the release that shipped its work; the
-  night-frontier series rides v80.1.0, the hardening and depth
-  series ride v80.2.0-night.1, the zen-lts series rides v80.2.1).
-  The running section holds only the current cycle again, and the
-  next bump's carry (night-ledger-1) files each cycle where it
-  belongs from now on.
+  above the running section, each attributed from git history (the
+  introducing commit of every bullet mapped to the release that
+  shipped its work; the night-frontier series rides v80.1.0, the
+  hardening and depth series ride v80.2.0-night.1, the zen-lts series
+  rides v80.2.1). The running section holds only the current cycle
+  again, and the next bump's carry (night-ledger-1) files each cycle
+  where it belongs from now on.
 
 ## [v80.2.1] — growth naturally — 2026-11-18
 

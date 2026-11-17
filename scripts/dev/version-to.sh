@@ -50,10 +50,13 @@
 # newest first, pre-release and stable alike, above "## [Unreleased]".
 # night-ledger-1: the bump also CARRIES the release detail — the notes the
 # cycle accumulated under "## [Unreleased]" move verbatim into the version's
-# own section ("## [vX.Y.Z] — tagline — date", newest first, directly below
-# the running section), so a release's record never stays filed under
-# "Unreleased" (nine releases piled up there before this: v80.0.3 through
-# v80.2.1 shipped with no section of their own). The tagline is optional
+# own section ("## [vX.Y.Z] — tagline — date", newest first), spliced
+# directly UNDER the "## [Released]" ledger and ABOVE the running section
+# (night-ledger-3 placement): everything released sits above
+# "## [Unreleased]", so a shipped record is never read from the unreleased
+# zone (the v80.0.6 trap: nine releases piled up there before this,
+# v80.0.3 through v80.2.1 shipped with no section of their own). The
+# tagline is optional
 # (--tagline "...", the same words the release commit carries, and the
 # commit message rides it too); the date is read from the system clock in
 # UTC, never hardcoded. Probed honestly: a missing file, a missing anchor,
@@ -186,18 +189,23 @@ changelog_release() {
     changelog_carry_detail "$1" "${tagline}"
 }
 
-# Carry the unreleased detail into the released section (night-ledger-1).
-# The bare ledger line used to be the whole bump record: the cycle's
-# notes stayed under "## [Unreleased]" release after release, and the
-# owner read a shipped change from the wrong section. A bump is a
-# release event — the notes the running section holds move verbatim
-# into the version's own section: "## [vX.Y.Z] — tagline — date",
-# newest first, directly below the running section. The header stays
-# behind for the fresh cycle; the date comes from the system clock in
-# UTC (the same law the freeze record runs on), never hardcoded.
-# Probes: an ambiguous ledger (more than one "## [Unreleased]"
-# heading) writes nothing; an empty running section is the expected
-# steady state after a clean carry, not a failure.
+# Carry the unreleased detail into the released section (night-ledger-1,
+# placement fixed by night-ledger-3). The bare ledger line used to be the
+# whole bump record: the cycle's notes stayed under "## [Unreleased]"
+# release after release, and the owner read a shipped change from the
+# wrong section. A bump is a release event — the notes the running
+# section holds move verbatim into the version's own section:
+# "## [vX.Y.Z] — tagline — date", newest first, spliced directly UNDER
+# the "## [Released]" ledger and ABOVE the running section, so nothing
+# released ever sits below "## [Unreleased]" (the old placement put the
+# version's own section below the running notes — a shipped record filed
+# in the unreleased zone, the exact trap the v80.0.6 bump hit). The
+# running header stays behind for the fresh cycle; the date comes from
+# the system clock in UTC (the same law the freeze record runs on),
+# never hardcoded. Probes: an ambiguous ledger (more than one
+# "## [Released]" or "## [Unreleased]" heading) writes nothing; an empty
+# running section is the expected steady state after a clean carry, not
+# a failure.
 changelog_carry_detail() {
     local ver="v$1"
     local tagline="${2:-}"
@@ -209,10 +217,11 @@ changelog_carry_detail() {
     else
         heading="## [${ver}] — ${date_stamp}"
     fi
-    local count
-    count="$(grep -c '^## \[Unreleased\]$' CHANGELOG.md || true)"
-    if [ "${count}" != "1" ]; then
-        echo -e "  ${YELLOW}!${NC} CHANGELOG.md        → ambiguous ledger (${count:-0} ## [Unreleased] headings) — detail not carried"
+    local rcount ucount
+    rcount="$(grep -c '^## \[Released\]$' CHANGELOG.md || true)"
+    ucount="$(grep -c '^## \[Unreleased\]$' CHANGELOG.md || true)"
+    if [ "${rcount}" != "1" ] || [ "${ucount}" != "1" ]; then
+        echo -e "  ${YELLOW}!${NC} CHANGELOG.md        → ambiguous ledger (${rcount:-0} ## [Released], ${ucount:-0} ## [Unreleased] headings) — detail not carried"
         return 0
     fi
     # The running body: between the "## [Unreleased]" heading and the
@@ -229,12 +238,15 @@ changelog_carry_detail() {
         echo -e "  ${GREEN}OK${NC} CHANGELOG.md        → unreleased section already clean — nothing to carry"
         return 0
     fi
-    # One pass: drop the running body out of "## [Unreleased]" (the
-    # header keeps one blank spacer for the fresh cycle) and splice the
-    # carried section in before the first heading that follows — or at
-    # the file end when the running section is the last one. Heading
-    # and body ride through the environment: awk -v would eat backslash
-    # escapes, and prose carries them.
+    # One pass, two splices: the carried section lands UNDER the
+    # "## [Released]" ledger — after the heading, its spacer and the
+    # bare version lines, before the first heading that follows (a
+    # previous version section or "## [Unreleased]") — and the running
+    # body drops out of "## [Unreleased]" (the header keeps one blank
+    # spacer for the fresh cycle). Held blanks normalize to exactly one
+    # blank line at every seam. Heading and body ride through the
+    # environment: awk -v would eat backslash escapes, and prose
+    # carries them.
     local tmp
     tmp="$(mktemp)"
     ZYLAXION_CARRY_HEADING="${heading}" ZYLAXION_CARRY_BODY="${body}" awk '
@@ -242,12 +254,12 @@ changelog_carry_detail() {
             h = ENVIRON["ZYLAXION_CARRY_HEADING"]
             b = ENVIRON["ZYLAXION_CARRY_BODY"]
         }
-        /^## \[Unreleased\]$/ && !seen {
-            seen = 1
+        /^## \[Released\]$/ && !rseen {
+            rseen = 1
             print
             next
         }
-        seen && !secdone {
+        rseen && !rdone {
             if ($0 ~ /^## /) {
                 print ""
                 print h
@@ -255,14 +267,38 @@ changelog_carry_detail() {
                 print b
                 print ""
                 print
-                secdone = 1
+                if ($0 == "## [Unreleased]") useen = 1
+                rdone = 1
+                next
+            }
+            if ($0 ~ /^[ \t]*$/) {
+                rpending = 1
+                next
+            }
+            if (rpending) {
+                print ""
+                rpending = 0
+            }
+            print
+            next
+        }
+        /^## \[Unreleased\]$/ && !useen {
+            useen = 1
+            print
+            next
+        }
+        useen && !udone {
+            if ($0 ~ /^## /) {
+                print ""
+                print
+                udone = 1
                 next
             }
             next
         }
         { print }
         END {
-            if (seen && !secdone) {
+            if (rseen && !rdone) {
                 print ""
                 print h
                 print ""
@@ -271,7 +307,7 @@ changelog_carry_detail() {
         }
     ' CHANGELOG.md >"${tmp}"
     mv "${tmp}" CHANGELOG.md
-    echo -e "  ${GREEN}OK${NC} CHANGELOG.md        → detail carried into ## [${ver}] (${date_stamp})"
+    echo -e "  ${GREEN}OK${NC} CHANGELOG.md        → detail carried under ## [Released] as ## [${ver}] (${date_stamp})"
 }
 
 # Sync Cargo.lock to the bumped package (night-improve-9: the old
