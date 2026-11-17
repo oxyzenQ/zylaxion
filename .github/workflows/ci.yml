@@ -63,7 +63,7 @@ concurrency:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # night-dragon-lts: the compile lanes carry the same bounded-patience
     # law the rest of the estate runs on — a wedged lane dies with a
     # named timeout: the ten-minute estate cap, not the runner's hour.
@@ -201,7 +201,7 @@ jobs:
   # aya-ebpf is pure Rust and the object needs no host headers.
   ebpf:
     name: eBPF tap build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # night-dragon-lts: bounded patience, same law as the check job.
     timeout-minutes: 10
     steps:

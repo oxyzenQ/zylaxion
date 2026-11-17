@@ -78,7 +78,7 @@ concurrency:
 jobs:
   fmt:
     name: supermassive lane - formatting gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -96,7 +96,7 @@ jobs:
 
   test-units:
     name: supermassive lane - unit battery (the bin crate)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -236,7 +236,7 @@ jobs:
 
   test-integration:
     name: supermassive lane - integration battery
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -372,7 +372,7 @@ jobs:
 
   test-targets:
     name: supermassive lane - examples, benches, doc tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -515,7 +515,7 @@ jobs:
 
   doc-build:
     name: supermassive lane - documentation (warnings denied)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -653,7 +653,7 @@ jobs:
 
   release-shape:
     name: supermassive lane - release shape proof
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -799,7 +799,7 @@ jobs:
 
   claims:
     name: supermassive lane - the claims (rootless)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # night-frontier-2B: the lane now carries the depth verification
     # legs (the reproducible-build attestation compiles the tree twice;
     # the kernel matrix fetches three sha256-pinned kernel images on a

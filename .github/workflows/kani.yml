@@ -65,7 +65,7 @@ env:
 jobs:
   kani:
     name: Kani proof verification (the proven pure families)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # A cap, not a speed claim: the toolchain install and the crate build
     # dominate the wall clock; the proofs themselves are bounded by
     # construction (the harnesses' own input domains).
