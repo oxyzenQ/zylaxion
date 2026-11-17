@@ -48,9 +48,18 @@
 # a bump is a release event — the ledger records it the same way the Cargo
 # files do: a "## [Released]" heading with the bare version line under it,
 # newest first, pre-release and stable alike, above "## [Unreleased]".
-# Probed honestly: a missing file, a missing anchor, or a "## [Released]"
-# section without this tool's own shape warns and writes nothing — a ledger
-# this script did not create is not one it rewrites.
+# night-ledger-1: the bump also CARRIES the release detail — the notes the
+# cycle accumulated under "## [Unreleased]" move verbatim into the version's
+# own section ("## [vX.Y.Z] — tagline — date", newest first, directly below
+# the running section), so a release's record never stays filed under
+# "Unreleased" (nine releases piled up there before this: v80.0.3 through
+# v80.2.1 shipped with no section of their own). The tagline is optional
+# (--tagline "...", the same words the release commit carries, and the
+# commit message rides it too); the date is read from the system clock in
+# UTC, never hardcoded. Probed honestly: a missing file, a missing anchor,
+# an ambiguous ledger (more than one "## [Unreleased]" heading), or a
+# "## [Released]" section without this tool's own shape warns and writes
+# nothing — a ledger this script did not create is not one it rewrites.
 # =============================================================================
 set -euo pipefail
 
@@ -99,14 +108,22 @@ validate_version() {
     fi
 }
 
-# Write the release line to CHANGELOG.md (night-improve-9). The ledger
-# shape is the owner's: a "## [Released]" heading with the bare version
-# line under it — newest first, created above "## [Unreleased]" when
-# absent. Honest probes: a missing file, a missing "## [Unreleased]"
-# anchor, or a "## [Released]" section without this tool's own shape
-# warns and writes nothing.
+# Write the release record to CHANGELOG.md (night-improve-9, carried by
+# night-ledger-1). Two steps, each with its own honest verdict:
+#   1. the ledger line — a "## [Released]" heading with the bare version
+#      line under it, newest first (the owner's shape, created above
+#      "## [Unreleased]" when absent);
+#   2. the detail carry — the cycle's notes move verbatim out of
+#      "## [Unreleased]" into the version's own section, so the release
+#      record never stays filed under "Unreleased".
+# Honest probes: a missing file, a missing "## [Unreleased]" anchor, an
+# ambiguous ledger, or a "## [Released]" section without this tool's own
+# shape warns and writes nothing — a ledger this script did not create is
+# not one it rewrites. A failed ledger line also skips the carry: the
+# record lands whole or not at all.
 changelog_release() {
     local ver="v$1"
+    local tagline="${2:-}"
     if [ ! -f CHANGELOG.md ]; then
         echo -e "  ${YELLOW}!${NC} CHANGELOG.md        → file absent, nothing to write"
         return 0
@@ -140,6 +157,7 @@ changelog_release() {
         else
             rm -f "${tmp}"
             echo -e "  ${YELLOW}!${NC} CHANGELOG.md        → unexpected ## [Released] shape (no blank spacer under the heading) — nothing to write"
+            return 0
         fi
     else
         # No section yet — create it above "## [Unreleased]" (the
@@ -160,8 +178,100 @@ changelog_release() {
         else
             rm -f "${tmp}"
             echo -e "  ${YELLOW}!${NC} CHANGELOG.md        → no ## [Unreleased] anchor found — nothing to write"
+            return 0
         fi
     fi
+    # The ledger line landed — now carry the release detail. The raw
+    # version rides across: the carry adds its own "v" prefix.
+    changelog_carry_detail "$1" "${tagline}"
+}
+
+# Carry the unreleased detail into the released section (night-ledger-1).
+# The bare ledger line used to be the whole bump record: the cycle's
+# notes stayed under "## [Unreleased]" release after release, and the
+# owner read a shipped change from the wrong section. A bump is a
+# release event — the notes the running section holds move verbatim
+# into the version's own section: "## [vX.Y.Z] — tagline — date",
+# newest first, directly below the running section. The header stays
+# behind for the fresh cycle; the date comes from the system clock in
+# UTC (the same law the freeze record runs on), never hardcoded.
+# Probes: an ambiguous ledger (more than one "## [Unreleased]"
+# heading) writes nothing; an empty running section is the expected
+# steady state after a clean carry, not a failure.
+changelog_carry_detail() {
+    local ver="v$1"
+    local tagline="${2:-}"
+    local date_stamp
+    date_stamp="$(date -u +%Y-%m-%d)"
+    local heading
+    if [ -n "${tagline}" ]; then
+        heading="## [${ver}] — ${tagline} — ${date_stamp}"
+    else
+        heading="## [${ver}] — ${date_stamp}"
+    fi
+    local count
+    count="$(grep -c '^## \[Unreleased\]$' CHANGELOG.md || true)"
+    if [ "${count}" != "1" ]; then
+        echo -e "  ${YELLOW}!${NC} CHANGELOG.md        → ambiguous ledger (${count:-0} ## [Unreleased] headings) — detail not carried"
+        return 0
+    fi
+    # The running body: between the "## [Unreleased]" heading and the
+    # next "## " heading, trimmed of its blank frame. A "## " line at
+    # column zero reads as the boundary — the ledger prose keeps its
+    # fences indented, the same shape every heading probe here trusts.
+    local body
+    body="$(awk '
+        /^## \[Unreleased\]$/ { insec = 1; next }
+        insec && /^## / { exit }
+        insec { print }
+    ' CHANGELOG.md | awk 'NF && !s { s = NR } NF { e = NR } { l[NR] = $0 } END { for (i = s; i <= e; i++) print l[i] }')"
+    if [ -z "${body}" ]; then
+        echo -e "  ${GREEN}OK${NC} CHANGELOG.md        → unreleased section already clean — nothing to carry"
+        return 0
+    fi
+    # One pass: drop the running body out of "## [Unreleased]" (the
+    # header keeps one blank spacer for the fresh cycle) and splice the
+    # carried section in before the first heading that follows — or at
+    # the file end when the running section is the last one. Heading
+    # and body ride through the environment: awk -v would eat backslash
+    # escapes, and prose carries them.
+    local tmp
+    tmp="$(mktemp)"
+    ZYLAXION_CARRY_HEADING="${heading}" ZYLAXION_CARRY_BODY="${body}" awk '
+        BEGIN {
+            h = ENVIRON["ZYLAXION_CARRY_HEADING"]
+            b = ENVIRON["ZYLAXION_CARRY_BODY"]
+        }
+        /^## \[Unreleased\]$/ && !seen {
+            seen = 1
+            print
+            next
+        }
+        seen && !secdone {
+            if ($0 ~ /^## /) {
+                print ""
+                print h
+                print ""
+                print b
+                print ""
+                print
+                secdone = 1
+                next
+            }
+            next
+        }
+        { print }
+        END {
+            if (seen && !secdone) {
+                print ""
+                print h
+                print ""
+                print b
+            }
+        }
+    ' CHANGELOG.md >"${tmp}"
+    mv "${tmp}" CHANGELOG.md
+    echo -e "  ${GREEN}OK${NC} CHANGELOG.md        → detail carried into ## [${ver}] (${date_stamp})"
 }
 
 # Sync Cargo.lock to the bumped package (night-improve-9: the old
@@ -209,7 +319,7 @@ lock_sync_and_verify() {
 if [ $# -eq 0 ]; then
     echo -e "Current version: ${GREEN}v$(current_version)${NC}"
     echo ""
-    echo "Usage: ./scripts/dev/version-to.sh v<VERSION> [--commit]"
+    echo "Usage: ./scripts/dev/version-to.sh v<VERSION> [--commit] [--tagline \"...\"]"
     exit 0
 fi
 
@@ -217,14 +327,24 @@ NEW_VERSION="${1#v}"
 shift
 
 COMMIT=false
-for arg in "$@"; do
-    case "${arg}" in
+TAGLINE=""
+while [ $# -gt 0 ]; do
+    case "${1}" in
     --commit | -c) COMMIT=true ;;
+    --tagline)
+        if [ $# -lt 2 ]; then
+            echo -e "${RED}Error: --tagline needs a value (the words the release commit carries)${NC}" >&2
+            exit 1
+        fi
+        TAGLINE="${2}"
+        shift
+        ;;
     *)
-        echo -e "${RED}Unknown option: ${arg}${NC}" >&2
+        echo -e "${RED}Unknown option: ${1}${NC}" >&2
         exit 1
         ;;
     esac
+    shift
 done
 
 validate_version "${NEW_VERSION}"
@@ -347,8 +467,8 @@ else
     echo -e "  ${YELLOW}!${NC} README.md           → no version surface found (no release URL / versioned example / Version line) — nothing to rewrite"
 fi
 
-# --- Update CHANGELOG.md (night-improve-9: the release ledger line) ---
-changelog_release "${NEW_VERSION}"
+# --- Update CHANGELOG.md (night-improve-9: the ledger line; night-ledger-1: the detail carry) ---
+changelog_release "${NEW_VERSION}" "${TAGLINE}"
 
 # --- scripts/build.sh reads dynamically from Cargo.toml, no update needed ---
 echo -e "  ${GREEN}OK${NC} scripts/build.sh    → auto (reads from Cargo.toml)"
@@ -427,6 +547,14 @@ if [ "${COMMIT}" = "true" ]; then
         # -e, not -f: the stage set can carry ./ebpf-prebuilt/, a directory.
         [ -e "$f" ] && git add "$f"
     done
-    git commit -m "release: v${NEW_VERSION}"
-    echo -e "${GREEN}OK Committed: release: v${NEW_VERSION}${NC}"
+    # The tagline rides the commit subject (the owner's release shape:
+    # "release: v80.2.1 growth naturally"), so the amend-after-bump the
+    # tagline used to need is gone.
+    if [ -n "${TAGLINE}" ]; then
+        git commit -m "release: v${NEW_VERSION} ${TAGLINE}"
+        echo -e "${GREEN}OK Committed: release: v${NEW_VERSION} ${TAGLINE}${NC}"
+    else
+        git commit -m "release: v${NEW_VERSION}"
+        echo -e "${GREEN}OK Committed: release: v${NEW_VERSION}${NC}"
+    fi
 fi

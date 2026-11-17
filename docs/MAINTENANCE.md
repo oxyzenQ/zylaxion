@@ -13,7 +13,7 @@ gates exist, not to run the levers.
 The single sanctioned tool is `scripts/dev/version-to.sh`:
 
 ```bash
-./scripts/dev/version-to.sh v80.2.0
+./scripts/dev/version-to.sh v80.2.0 --tagline "growth naturally" --commit
 ```
 
 What it does (all lanes verified in-situ):
@@ -30,6 +30,17 @@ What it does (all lanes verified in-situ):
    an absent file, an already-recorded version, or a missing
    `[Unreleased]` anchor is a warning and a no-op, never a fabricated
    entry.
+5. Carries the release detail (night-ledger-1): the notes the cycle
+   accumulated under `[Unreleased]` move verbatim into the version's
+   own section — `## [vX.Y.Z] — tagline — date` — placed directly
+   below the running section, so a shipped change never stays filed
+   under "Unreleased" (nine releases piled up there before this:
+   v80.0.3 through v80.2.1 shipped with no section of their own). The
+   date comes from the system clock in UTC; the tagline is optional
+   and rides the release commit subject when given. An ambiguous
+   ledger (more than one `[Unreleased]` heading) refuses the carry;
+   an empty running section is the expected steady state after a
+   clean carry, not a failure.
 
 The rule around it: versions move ONLY through this tool, by the
 Owner, and a release tag is only ever pushed by the Owner. A tag

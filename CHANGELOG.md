@@ -296,6 +296,22 @@ v80.0.0-alpha.1
 
 ### Fixed
 
+- **night-ledger-1: the bump record lands in the released history** —
+  `scripts/dev/version-to.sh` used to file a bare version line under
+  `## [Released]` and leave the cycle's notes stuck under
+  `## [Unreleased]` release after release (v80.0.3 through v80.2.1
+  shipped with no section of their own — the owner read a shipped
+  change from the unreleased section and had to re-file the record by
+  hand). A bump now carries the running notes verbatim into the
+  version's own section — `## [vX.Y.Z] — tagline — date`, newest
+  first, directly below the running section — with the date from the
+  system clock in UTC, an optional `--tagline` that rides the release
+  commit subject, and fail-closed probes: an ambiguous ledger
+  (duplicate `## [Unreleased]` headings) or a foreign `[Released]`
+  shape writes nothing. Verified by a ten-fixture harness run
+  against the functions as shipped (real-shape carry, byte-verbatim
+  body, idempotence, fresh ledger, EOF carry, every refusal path).
+
 - **night-zen-lts-3: the volume force-note closes its parens** —
   `--force-this` past the 200% cap printed the cap note with a stray
   close paren and the percent stranded outside the inner paren
