@@ -120,7 +120,10 @@ banner "==> [1/4] cargo fmt --check"
 cargo fmt --manifest-path "$MANIFEST" --all -- --check
 
 banner "==> [2/4] cargo clippy"
-cargo clippy --manifest-path "$MANIFEST" --all-targets -- -D warnings
+# --all-features matches ci.yml and maintenance.yml exactly: a
+# feature-gated warning must fail the local gate too, not only CI
+# (night-zen-lts-2).
+cargo clippy --manifest-path "$MANIFEST" --all-targets --all-features -- -D warnings
 
 banner "==> [3/4] cargo test"
 if [ "$QUIET" -eq 1 ]; then

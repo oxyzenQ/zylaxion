@@ -50,7 +50,15 @@ BIN=scripts/audit/harness/target/release/zactrix-audit
 EVIDENCE="$OUT/footprint.txt"
 : > "$EVIDENCE"
 
-export PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-/home/z/my-project/alsa-root/lib/pkgconfig}"
+# The ALSA probe: honor an inherited PKG_CONFIG_PATH. Only when
+# pkg-config cannot see alsa on its own does the local build root
+# (alsa-root/) ride in as the fallback default — a machine whose
+# pkg-config already resolves alsa keeps its own search path untouched
+# (night-zen-lts-2: the old unconditional default baked one machine's
+# absolute path in).
+if ! pkg-config --exists alsa 2>/dev/null; then
+        export PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-/home/z/my-project/alsa-root/lib/pkgconfig}"
+fi
 
 CLK_TCK=$(getconf CLK_TCK)
 NPROC=$(nproc)

@@ -89,8 +89,14 @@ MIRI_FILTER="${MIRI_FILTER:-}"
 MIRI_NO_INSTALL="${MIRI_NO_INSTALL:-0}"
 MIRI_FULL="${MIRI_FULL:-0}"
 
-readonly MIRI_STAMP_FILE="target/miri-stamp"
-readonly MIRI_LOG_FILE="target/miri-log.txt"
+# The stamp and the log anchor to the REPO ROOT, not to the caller's
+# cwd: build.sh's cargo steps are manifest-anchored and the runner can
+# be dispatched from any directory, so a cwd-relative stamp would read
+# and write the wrong file from a subdirectory — the CI verdict and
+# the local banner must read the same file (night-zen-lts-2).
+readonly MIRI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+readonly MIRI_STAMP_FILE="${MIRI_ROOT}/target/miri-stamp"
+readonly MIRI_LOG_FILE="${MIRI_ROOT}/target/miri-log.txt"
 
 # resolve_nightly_name - the toolchain name the runner addresses.
 # Plain `nightly` wins (what CI installs and what +nightly resolves);
@@ -258,11 +264,11 @@ run_miri() {
     local start_ms end_ms duration_ms
     start_ms=$(date +%s%3N 2>/dev/null || date +%s)
 
-    mkdir -p target
+    mkdir -p "${MIRI_ROOT}/target"
     rm -f "${MIRI_LOG_FILE}"
     local miri_exit=0
     MIRIFLAGS="${MIRIFLAGS:-}" \
-        cargo "+${nightly_name}" miri test --locked -- "${harness_args[@]}" 2>&1 | tee "${MIRI_LOG_FILE}" || miri_exit=1
+        cargo "+${nightly_name}" miri test --locked -- "${harness_args[@]+"${harness_args[@]}"}" 2>&1 | tee "${MIRI_LOG_FILE}" || miri_exit=1
 
     end_ms=$(date +%s%3N 2>/dev/null || date +%s)
     duration_ms=$((end_ms - start_ms))

@@ -503,7 +503,7 @@ if [ -x /usr/bin/zylaxion ] && SUDO_USER=zed /usr/bin/zylaxion attach >/dev/null
 			kill -0 "$PLAY8" 2>/dev/null || break
 			sleep 0.25
 		done
-		kill -0 "$PLAY8" 2>/dev/null && pkill -f "/usr/bin/zylaxion play" 2>/dev/null || true
+		kill -0 "$PLAY8" 2>/dev/null && pkill -f "/usr/bin/zylaxion _play" 2>/dev/null || true
 	fi
 	if [ -x "$Z/zactrix-audit" ]; then
 		"$Z/zactrix-audit" --notice-drive >/tmp/p8-harness.out 2>&1

@@ -24,7 +24,7 @@
 //
 // The suite below is the only thing that executes these vectors -
 // `cargo test` never runs build-script tests; the standing runner is:
-//   rustc --edition 2021 --test build.rs -o /tmp/zylaxion-build-test
+//   rustc --edition 2024 --test build.rs -o /tmp/zylaxion-build-test
 //     && /tmp/zylaxion-build-test
 // The vectors were hashed with the reference b3sum 1.8.7 binary as
 // the ground truth (crates.io b3sum, --locked), on deterministic

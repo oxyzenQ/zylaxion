@@ -123,7 +123,7 @@ SKIP_DIRS = {
 }
 SKIP_FILES = {
     "CHANGELOG.md",
-    "CHANGELOG-v6.0.0.md",  # the frozen v6.0.0 era record (archive home)  # frozen historical record
+    "CHANGELOG-v6.0.0.md",  # the frozen v6.0.0 era record (archive home)
     # The frozen v6.0.0-era records — frozen historical evidence, never
     # rewritten (the same exclusion policy as every other gate).
     "audit-v6.0.0.md",
@@ -132,6 +132,11 @@ SKIP_FILES = {
     "check-language.sh",  # this detector's own word set
 }
 SKIP_SUFFIXES = (".png", ".lock")
+# The frozen audit-night narratives — the same prefix class the emoji
+# sweep exempts. The two non-ASCII gates must police overlapping
+# content with ONE exclusion policy, or the drift itself becomes a
+# finding (night-zen-lts-2).
+SKIP_PREFIXES = ("audit-night-",)
 MARKER = "NON_LATIN_FIXTURE:"
 
 
@@ -143,7 +148,7 @@ files = []
 for root, dirnames, filenames in os.walk("."):
     dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
     for name in sorted(filenames):
-        if name in SKIP_FILES or name.endswith(SKIP_SUFFIXES):
+        if name in SKIP_FILES or name.endswith(SKIP_SUFFIXES) or name.startswith(SKIP_PREFIXES):
             continue
         files.append(os.path.join(root, name))
 
