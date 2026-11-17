@@ -39,6 +39,55 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
+### Changed
+
+- **night-zen-ci-1: the runner estate pinned against the Ubuntu 26
+  flip** — GitHub's x64 `ubuntu-latest` label migrates to Ubuntu
+  26.04 in a gradual rollout of October 19 through November 19, 2026
+  (actions/runner-images #14748), so every floating lane could change
+  its operating system mid-flight without an owner decision. The
+  fourteen remaining `ubuntu-latest` jobs (audit, the ci check and
+  eBPF build lanes, gate-keepers, kani, maintenance, supermassive,
+  supermassive-e2e) now run `ubuntu-24.04` — the image the release,
+  crates-io, fuzz, miri and arm lanes already pin — and the whole
+  estate sits on one image: the flip changes nothing here, and a
+  26.04 upgrade becomes a deliberate, benchmarked move instead of a
+  silent drift.
+
+### Fixed
+
+- **night-ledger-1: the bump record lands in the released history** —
+  `scripts/dev/version-to.sh` used to file a bare version line under
+  `## [Released]` and leave the cycle's notes stuck under
+  `## [Unreleased]` release after release (v80.0.3 through v80.2.1
+  shipped with no section of their own — the owner read a shipped
+  change from the unreleased section and had to re-file the record by
+  hand). A bump now carries the running notes verbatim into the
+  version's own section — `## [vX.Y.Z] — tagline — date`, newest
+  first, directly below the running section — with the date from the
+  system clock in UTC, an optional `--tagline` that rides the release
+  commit subject, and fail-closed probes: an ambiguous ledger
+  (duplicate `## [Unreleased]` headings) or a foreign `[Released]`
+  shape writes nothing. Verified by a ten-fixture harness run
+  against the functions as shipped (real-shape carry, byte-verbatim
+  body, idempotence, fresh ledger, EOF carry, every refusal path).
+
+### Documentation
+
+- **night-ledger-2: the released history carries its notes** — the
+  ledger backfill: the twenty-two release notes that had piled up
+  under this running section (v80.0.3 through v80.2.1 shipped with
+  no section of their own) moved verbatim into the released sections
+  below, each attributed from git history (the introducing commit of
+  every bullet mapped to the release that shipped its work; the
+  night-frontier series rides v80.1.0, the hardening and depth
+  series ride v80.2.0-night.1, the zen-lts series rides v80.2.1).
+  The running section holds only the current cycle again, and the
+  next bump's carry (night-ledger-1) files each cycle where it
+  belongs from now on.
+
+## [v80.2.1] — growth naturally — 2026-11-18
+
 ### Added
 
 - **night-zen-lts-6: the owner-machine CLI UX battery** —
@@ -60,6 +109,187 @@ v80.0.0-alpha.1
   (`./scripts/audit/cli-e2e.sh b3`) or all. Smoke-proven in the
   map-less sandbox: b1 and b4 green, `sig` 4/4 depths, the rescue
   tips exact.
+
+### Changed
+
+- **night-zen-lts-5: the review loop's micro-gaps, closed** — the
+  install script now names the build skew it used to leave silent:
+  after [4/4], a player that is already running keeps the previous
+  build's engine in memory (the pins and the maps are shared, so live
+  retunes still land — only the code waits), and the script prints
+  the one honest remediation, `off && on` (a bare `on` answers
+  "already on" for a live registration; the orphan-sweep takeover
+  fires for dead pids only). The help's env lane now maps the two
+  scales into each other — "gain 5.5 = percent 100 (the compiled
+  default), the 10.0 cap ≈ percent 182; no force escape lives on the
+  env lane" (the law in preset.rs: DEFAULT_MASTER_VOLUME 5.5,
+  MAX_VOLUME_GAIN 10.0, volume_percent_from_gain) — and
+  ZYLAXION_PRESET stops saying "persistent" for what is an override
+  order (the env beats the stored slot, the CLI flag beats both).
+  The CLI battery at HEAD: the force ceiling refuses 10001 (rc 2),
+  the 200% cap refuses 201 without --force-this (rc 2), the
+  synopsis's <0-200> holds (0 passes the gate, 201 refuses), sig
+  recomputes D0-D2, list-presets marks the active row, the
+  no-subcommand quick status degrades honestly, and the residue
+  sweep is clean.
+
+- **night-zen-lts-4: the tagline says what the code proves** —
+  "computed in the kernel" is retired estate-wide (the README hero
+  and paragraph, the Cargo.toml description that both `-V` and
+  crates.io inherit, the CLI banner and its pinning test): the
+  kernel does not compute the sound — `ebpf/src/main.rs`'s `tap()`
+  filters, gates, maps and publishes (~1-2 µs per keystroke,
+  PROOF 7), and the zero-sample procedural engine in `src/engine` +
+  `src/audio` does the synthesis. The sharpened claim — "decided in
+  the kernel, synthesized in pure math" — points each clause at its
+  checkable half: `tap()` for the deciding, the engine for the math.
+  "The tap voices every keystroke" became "the tap hears every
+  keystroke" — the engine voices what the kernel already heard, the
+  phrasing the architecture section always carried. The README lines
+  that were already true (the synthesis split, the branch table) are
+  untouched.
+
+### Fixed
+
+- **night-zen-lts-3: the volume force-note closes its parens** —
+  `--force-this` past the 200% cap printed the cap note with a stray
+  close paren and the percent stranded outside the inner paren
+  ("(force ceiling 10000)%))" — three closes on two opens, the value
+  line's own parens unbalanced on the user's screen). The note now
+  ends "(force ceiling 10000%)" so the composed confirmation reads
+  "...(force ceiling 10000%))" — balanced. The fix rides a
+  paren-balance audit over every string literal the CLI prints
+  (a tokenizer separating strings from char literals, lifetimes and
+  nestable comments): exactly one slip estate-wide, this one; the
+  clap-classifier prefix "(possible values" the same sweep flagged
+  is a prefix match by design, not a print.
+
+## [v80.2.0] — growth naturally — 2026-11-17
+
+### Changed
+
+- **night-consistent-1: one schedule day across the estate** — the
+  four weekly lanes still carrying Monday crons (audit.yml, fuzz.yml,
+  kani.yml, maintenance.yml) move to Sunday 03:00 UTC = 10:00 WIB,
+  the day miri.yml already keeps: every scheduled lane in the estate
+  now fires once a week on the same day at the same hour — the
+  owner's Sunday-morning window — and the lane-header comments read
+  true (fuzz.yml's stale "Monday 07:30 WIB (00:30 UTC)" prose and
+  miri.yml's stale "(00:00 UTC / 07:00 WIB)" parenthetical are
+  corrected to the real clock).
+
+- **The estate clock (night-consistent-1)** — all four scheduled
+  workflows ride 10:00 WIB: audit.yml and maintenance.yml move to
+  Monday 03:00 UTC (from 07:00), fuzz.yml to Monday 03:00 UTC (from
+  00:30), miri.yml to Sunday 03:00 UTC (from 00:00). The days stay;
+  the clock becomes one spelling.
+
+## [v80.2.0-night.1] — depth test — 2026-11-17
+
+### Added
+
+- **night-hardening-2, gap 3: the decision laws pinned exhaustively**
+  — a std-only verification battery (no new dependency) over the
+  full input domains the example pins only sampled: the attach-error
+  classifiers swept across every errno (-2..=133) on all three
+  syscall lanes plus the marker wire format's whole code space; the
+  privilege verdict matrix over its entire fact space (including all
+  eight detach cells); the orphan ladder total over the whole stage
+  domain (1024 cells); the volume gate enumerated over its whole
+  percent domain in both override states; the preset resolver's whole
+  presence space (36 cells); the percent lane's gain law monotone
+  over 0..=10000 in one sweep; and the live control-plane lanes
+  (volume cell, ArcSwap model) hammered under concurrent render with
+  the render net's finite-and-clamped invariant pinned per sample.
+
+- **The proven datapath, landed (night-depth-hardening-2)** — the
+  Kani bounded-model-checking lane (`Dragon Guard - Kani`, the
+  estate's 10:00 WIB clock) proves three pure laws over their WHOLE
+  reachable input spaces: the volume clamp cell (every f32 — finite
+  inputs clamp inside [-100, 100] with a lossless bit round-trip,
+  non-finite falls back to the compiled default), the gain law (the
+  untrusted control-map percent across the whole u32 domain —
+  finite, non-negative, monotone), and the noise mapping (every u32
+  bit pattern stays inside [-1, 1]). The harnesses compile under
+  cfg(kani) alone, declared in Cargo.toml so the rustcfg check stays
+  silent. Loom is honestly refused: the SPSC ring is the third-party
+  ringbuf crate and the one first-party lock-free surface is the
+  single-atomic volume cell the lane already proves.
+
+- **The unsafe audit's score law (night-depth-hardening-3)** —
+  `clippy::undocumented_unsafe_blocks` rides the three crate roots
+  at deny, and all 64 unsafe blocks across the estate carry honest
+  per-site `// SAFETY:` comments (the syscall attr laws, the fd
+  ownership edges, the FP control-register asm, the ringbuf record
+  casts, the pipe and sigaction wires, the test tree's env and
+  self-wake blocks). Comments only, zero logic moved.
+
+- **The PROOF 1 soak's runtime determinism evidence committed**
+  (`scripts/audit/soak-evidence.txt`): two independent full runs of
+  the one-million-keystroke soak, the final-1000-sample FNV-1a hash
+  byte-identical (`b1a485622e6e5eca` both runs), RSS growth 0 KiB
+  (target < 1024), all 16 pool slots returned.
+
+### Changed
+
+- **night-hardening-2, gap 2: the control plane is evented** — the
+  verbs raise a zero-payload SIGUSR1 after the map write (gated on
+  the RUNNING state and the zombie-aware liveness probe; the player
+  installs its handler before registering its pid), the watcher wakes
+  in poll(2) on a pipe byte instead of sleeping through the
+  heartbeat, and `off` / `preset --switch` / `volume` now apply in
+  microseconds instead of up to 100 ms. The pinned map remains the
+  only authority; the 100 ms re-read stays as the liveness heartbeat
+  and the 10 s read-failure budget is untouched. A failed wake lane
+  degrades to the heartbeat alone.
+
+- **night-hardening-2, gap 4: the stale volume-setter lane retired** —
+  the orchestrator pair (`Orchestrator::set_master_volume` /
+  `Orchestrator::master_volume`) and the pool's convenience pair
+  (`VoicePool::set_master_volume` / `VoicePool::master_volume`) sat
+  unwired: the volume hot-reload lane shipped through the watcher's
+  direct `volume_factor` cell store (always via the `volume_bits`
+  clamp law), because the render loop owns the pool mutably and pool
+  methods are unreachable there. Four dead entry points into one
+  atomic cell deleted; the cell remains the single volume law.
+
+- **The e2e battery's notice-drive drain rides the uapi ringbuf
+  header law** — struct bpf_ringbuf_hdr is len u32 + pg_off u32, and
+  the drain read it as one u64, so every record length carried its
+  pg_off high word (slice end 12884902008 on an 8192-byte mapping;
+  the Z2 CI guest named the panic). The length now rides the low
+  word only, and a record whose body would cross the mapped window
+  is skipped. The echo search also rides the two-consumer fact (the
+  player's watcher and the drain race one ring): the echo is
+  searched across every record the drain holds, and a miss names
+  every record shape it saw. The guest leg turned fully green: the
+  wake rows 12-27 us, the retune applied through the evented lane,
+  the authority row held, the notice-drive echo passed.
+
+- **The PROOF 7 relative-law gate rides a 3% jitter band** — one
+  floor leg measured unmapped 0.7% above press (timer noise at
+  microsecond scale on a shared runner) against a law whose every
+  observed round sat at 93-97%; a true break still fails loudly.
+
+### Documentation
+
+- **night-hardening-2, gap 1: the reserved sound-class lane recorded
+  honestly** — the ring record's four-byte `slot` rides the same
+  keymap lookup that gates unmapped keys (zero added per-event cost);
+  the userspace mirror's field record and the innovations ledger now
+  state that the lane is deliberately unwired, that wiring it is an
+  owner decision (per-class parameters would re-baseline every preset
+  row through the audit harness), and that the record shape stays
+  stable until that decision.
+
+- **The innovations ledger carries entry 44** (the proven datapath —
+  bounded model checking over the pure laws, with the Loom
+  refusal's facts) **and entry 45** (the unsafe audit's score law),
+  and the verify section names the Kani lane and the clippy gate.
+
+## [v80.1.0] — frontier — 2026-11-12
+
+### Added
 
 - **night-frontier-Z3, C1: the mode-state fold, measured and
   refused** — the freeze bar's referee ran before any engine change:
@@ -132,6 +362,7 @@ v80.0.0-alpha.1
   attempt named the wall: bpftool/libbpf v1.0 refuses the object's
   legacy map definitions outright — the lane speaks the loader's
   parser instead.)
+
 - **night-frontier-Z1, A3: the golden render corpus gate** — the
   committed render corpus re-rendered and compared row by row with a
   machine-readable verdict naming every delta
@@ -141,205 +372,14 @@ v80.0.0-alpha.1
   heterogeneous x86 claims lane (the init-time transcendental
   boundary is real and stays visible, named, every run); the engine
   freeze becomes a byte gate ("the sound IS the bytes").
+
 - **night-frontier-Z1, A2 remainder: the SPSC ring's interleaving
   pins** — the ring's laws (FIFO integrity under any interleaving,
   produced == accepted + refused, every accepted frame delivered, the
   drop contract at the full boundary, the vacancy-after-drain
   contract) pinned with real threads and boundary cells, std-only.
-- **night-hardening-2, gap 3: the decision laws pinned exhaustively**
-  — a std-only verification battery (no new dependency) over the
-  full input domains the example pins only sampled: the attach-error
-  classifiers swept across every errno (-2..=133) on all three
-  syscall lanes plus the marker wire format's whole code space; the
-  privilege verdict matrix over its entire fact space (including all
-  eight detach cells); the orphan ladder total over the whole stage
-  domain (1024 cells); the volume gate enumerated over its whole
-  percent domain in both override states; the preset resolver's whole
-  presence space (36 cells); the percent lane's gain law monotone
-  over 0..=10000 in one sweep; and the live control-plane lanes
-  (volume cell, ArcSwap model) hammered under concurrent render with
-  the render net's finite-and-clamped invariant pinned per sample.
 
-- **The proven datapath, landed (night-depth-hardening-2)** — the
-  Kani bounded-model-checking lane (`Dragon Guard - Kani`, the
-  estate's 10:00 WIB clock) proves three pure laws over their WHOLE
-  reachable input spaces: the volume clamp cell (every f32 — finite
-  inputs clamp inside [-100, 100] with a lossless bit round-trip,
-  non-finite falls back to the compiled default), the gain law (the
-  untrusted control-map percent across the whole u32 domain —
-  finite, non-negative, monotone), and the noise mapping (every u32
-  bit pattern stays inside [-1, 1]). The harnesses compile under
-  cfg(kani) alone, declared in Cargo.toml so the rustcfg check stays
-  silent. Loom is honestly refused: the SPSC ring is the third-party
-  ringbuf crate and the one first-party lock-free surface is the
-  single-atomic volume cell the lane already proves.
-
-- **The unsafe audit's score law (night-depth-hardening-3)** —
-  `clippy::undocumented_unsafe_blocks` rides the three crate roots
-  at deny, and all 64 unsafe blocks across the estate carry honest
-  per-site `// SAFETY:` comments (the syscall attr laws, the fd
-  ownership edges, the FP control-register asm, the ringbuf record
-  casts, the pipe and sigaction wires, the test tree's env and
-  self-wake blocks). Comments only, zero logic moved.
-
-- **The PROOF 1 soak's runtime determinism evidence committed**
-  (`scripts/audit/soak-evidence.txt`): two independent full runs of
-  the one-million-keystroke soak, the final-1000-sample FNV-1a hash
-  byte-identical (`b1a485622e6e5eca` both runs), RSS growth 0 KiB
-  (target < 1024), all 16 pool slots returned.
-
-### Changed
-
-- **night-zen-ci-1: the runner estate pinned against the Ubuntu 26
-  flip** — GitHub's x64 `ubuntu-latest` label migrates to Ubuntu
-  26.04 in a gradual rollout of October 19 through November 19, 2026
-  (actions/runner-images #14748), so every floating lane could change
-  its operating system mid-flight without an owner decision. The
-  fourteen remaining `ubuntu-latest` jobs (audit, the ci check and
-  eBPF build lanes, gate-keepers, kani, maintenance, supermassive,
-  supermassive-e2e) now run `ubuntu-24.04` — the image the release,
-  crates-io, fuzz, miri and arm lanes already pin — and the whole
-  estate sits on one image: the flip changes nothing here, and a
-  26.04 upgrade becomes a deliberate, benchmarked move instead of a
-  silent drift.
-
-- **night-zen-lts-5: the review loop's micro-gaps, closed** — the
-  install script now names the build skew it used to leave silent:
-  after [4/4], a player that is already running keeps the previous
-  build's engine in memory (the pins and the maps are shared, so live
-  retunes still land — only the code waits), and the script prints
-  the one honest remediation, `off && on` (a bare `on` answers
-  "already on" for a live registration; the orphan-sweep takeover
-  fires for dead pids only). The help's env lane now maps the two
-  scales into each other — "gain 5.5 = percent 100 (the compiled
-  default), the 10.0 cap ≈ percent 182; no force escape lives on the
-  env lane" (the law in preset.rs: DEFAULT_MASTER_VOLUME 5.5,
-  MAX_VOLUME_GAIN 10.0, volume_percent_from_gain) — and
-  ZYLAXION_PRESET stops saying "persistent" for what is an override
-  order (the env beats the stored slot, the CLI flag beats both).
-  The CLI battery at HEAD: the force ceiling refuses 10001 (rc 2),
-  the 200% cap refuses 201 without --force-this (rc 2), the
-  synopsis's <0-200> holds (0 passes the gate, 201 refuses), sig
-  recomputes D0-D2, list-presets marks the active row, the
-  no-subcommand quick status degrades honestly, and the residue
-  sweep is clean.
-
-- **night-zen-lts-4: the tagline says what the code proves** —
-  "computed in the kernel" is retired estate-wide (the README hero
-  and paragraph, the Cargo.toml description that both `-V` and
-  crates.io inherit, the CLI banner and its pinning test): the
-  kernel does not compute the sound — `ebpf/src/main.rs`'s `tap()`
-  filters, gates, maps and publishes (~1-2 µs per keystroke,
-  PROOF 7), and the zero-sample procedural engine in `src/engine` +
-  `src/audio` does the synthesis. The sharpened claim — "decided in
-  the kernel, synthesized in pure math" — points each clause at its
-  checkable half: `tap()` for the deciding, the engine for the math.
-  "The tap voices every keystroke" became "the tap hears every
-  keystroke" — the engine voices what the kernel already heard, the
-  phrasing the architecture section always carried. The README lines
-  that were already true (the synthesis split, the branch table) are
-  untouched.
-
-- **night-consistent-1: one schedule day across the estate** — the
-  four weekly lanes still carrying Monday crons (audit.yml, fuzz.yml,
-  kani.yml, maintenance.yml) move to Sunday 03:00 UTC = 10:00 WIB,
-  the day miri.yml already keeps: every scheduled lane in the estate
-  now fires once a week on the same day at the same hour — the
-  owner's Sunday-morning window — and the lane-header comments read
-  true (fuzz.yml's stale "Monday 07:30 WIB (00:30 UTC)" prose and
-  miri.yml's stale "(00:00 UTC / 07:00 WIB)" parenthetical are
-  corrected to the real clock).
-
-- **night-hardening-2, gap 2: the control plane is evented** — the
-  verbs raise a zero-payload SIGUSR1 after the map write (gated on
-  the RUNNING state and the zombie-aware liveness probe; the player
-  installs its handler before registering its pid), the watcher wakes
-  in poll(2) on a pipe byte instead of sleeping through the
-  heartbeat, and `off` / `preset --switch` / `volume` now apply in
-  microseconds instead of up to 100 ms. The pinned map remains the
-  only authority; the 100 ms re-read stays as the liveness heartbeat
-  and the 10 s read-failure budget is untouched. A failed wake lane
-  degrades to the heartbeat alone.
-- **night-hardening-2, gap 4: the stale volume-setter lane retired** —
-  the orchestrator pair (`Orchestrator::set_master_volume` /
-  `Orchestrator::master_volume`) and the pool's convenience pair
-  (`VoicePool::set_master_volume` / `VoicePool::master_volume`) sat
-  unwired: the volume hot-reload lane shipped through the watcher's
-  direct `volume_factor` cell store (always via the `volume_bits`
-  clamp law), because the render loop owns the pool mutably and pool
-  methods are unreachable there. Four dead entry points into one
-  atomic cell deleted; the cell remains the single volume law.
-
-- **The estate clock (night-consistent-1)** — all four scheduled
-  workflows ride 10:00 WIB: audit.yml and maintenance.yml move to
-  Monday 03:00 UTC (from 07:00), fuzz.yml to Monday 03:00 UTC (from
-  00:30), miri.yml to Sunday 03:00 UTC (from 00:00). The days stay;
-  the clock becomes one spelling.
-
-- **The e2e battery's notice-drive drain rides the uapi ringbuf
-  header law** — struct bpf_ringbuf_hdr is len u32 + pg_off u32, and
-  the drain read it as one u64, so every record length carried its
-  pg_off high word (slice end 12884902008 on an 8192-byte mapping;
-  the Z2 CI guest named the panic). The length now rides the low
-  word only, and a record whose body would cross the mapped window
-  is skipped. The echo search also rides the two-consumer fact (the
-  player's watcher and the drain race one ring): the echo is
-  searched across every record the drain holds, and a miss names
-  every record shape it saw. The guest leg turned fully green: the
-  wake rows 12-27 us, the retune applied through the evented lane,
-  the authority row held, the notice-drive echo passed.
-
-- **The PROOF 7 relative-law gate rides a 3% jitter band** — one
-  floor leg measured unmapped 0.7% above press (timer noise at
-  microsecond scale on a shared runner) against a law whose every
-  observed round sat at 93-97%; a true break still fails loudly.
-
-### Fixed
-
-- **night-ledger-1: the bump record lands in the released history** —
-  `scripts/dev/version-to.sh` used to file a bare version line under
-  `## [Released]` and leave the cycle's notes stuck under
-  `## [Unreleased]` release after release (v80.0.3 through v80.2.1
-  shipped with no section of their own — the owner read a shipped
-  change from the unreleased section and had to re-file the record by
-  hand). A bump now carries the running notes verbatim into the
-  version's own section — `## [vX.Y.Z] — tagline — date`, newest
-  first, directly below the running section — with the date from the
-  system clock in UTC, an optional `--tagline` that rides the release
-  commit subject, and fail-closed probes: an ambiguous ledger
-  (duplicate `## [Unreleased]` headings) or a foreign `[Released]`
-  shape writes nothing. Verified by a ten-fixture harness run
-  against the functions as shipped (real-shape carry, byte-verbatim
-  body, idempotence, fresh ledger, EOF carry, every refusal path).
-
-- **night-zen-lts-3: the volume force-note closes its parens** —
-  `--force-this` past the 200% cap printed the cap note with a stray
-  close paren and the percent stranded outside the inner paren
-  ("(force ceiling 10000)%))" — three closes on two opens, the value
-  line's own parens unbalanced on the user's screen). The note now
-  ends "(force ceiling 10000%)" so the composed confirmation reads
-  "...(force ceiling 10000%))" — balanced. The fix rides a
-  paren-balance audit over every string literal the CLI prints
-  (a tokenizer separating strings from char literals, lifetimes and
-  nestable comments): exactly one slip estate-wide, this one; the
-  clap-classifier prefix "(possible values" the same sweep flagged
-  is a prefix match by design, not a print.
-
-### Documentation
-
-- **night-hardening-2, gap 1: the reserved sound-class lane recorded
-  honestly** — the ring record's four-byte `slot` rides the same
-  keymap lookup that gates unmapped keys (zero added per-event cost);
-  the userspace mirror's field record and the innovations ledger now
-  state that the lane is deliberately unwired, that wiring it is an
-  owner decision (per-class parameters would re-baseline every preset
-  row through the audit harness), and that the record shape stays
-  stable until that decision.
-
-- **The innovations ledger carries entry 44** (the proven datapath —
-  bounded model checking over the pure laws, with the Loom
-  refusal's facts) **and entry 45** (the unsafe audit's score law),
-  and the verify section names the Kani lane and the clippy gate.
+## [v80.0.3] — signature — 2026-11-02
 
 ### License
 
@@ -353,7 +393,6 @@ v80.0.0-alpha.1
   the Linux ecosystem), with a perpetual path ($129,999 one-time +
   20%/year). Existing Company-tier buyers at $29,999 are
   grandfathered. Individual $99 and Business $2,199 byte-identical.
-
 ## [v80.0.2] — be honest — 2026-10-31
 
 ### Changed
