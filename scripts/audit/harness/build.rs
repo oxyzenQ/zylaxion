@@ -4,7 +4,7 @@
 //! night-strict-warnings-1: the harness's mirror of the root crate's
 //! zero-warning gate (root build.rs carries the full law). The same
 //! env var emits the same cfg; the harness's crate root carries the
-//! matching cfg_attr, and the #[path]-included zylaxion module trees
+//! matching cfg_attr, and the path-included zylaxion module trees
 //! compile under it too. The gate rides the env var — NOT RUSTFLAGS —
 //! so the alias/release rustflags sources stay untouched.
 

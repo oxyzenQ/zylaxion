@@ -33,8 +33,8 @@
 
 /// The 16-byte kernel record: ns@0, kind@8, value@12.
 /// night-strict-warnings-1: this file is the ONE shared definition of
-/// the wire layout, #[path]-included verbatim by both sides — the tap
-/// build never reads the three contract facts below (it only ever
+/// the wire layout, included verbatim by path from both sides — the
+/// tap build never reads the three contract facts below (it only ever
 /// publishes KIND_VOLUME); the loader and the watcher consume them on
 /// the userspace side. The allow is the honest shape: the tap carries
 /// the contract whole, the marker names which side answers.
