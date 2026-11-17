@@ -15,7 +15,6 @@ in
 [docs/archive/CHANGELOG-V10.0.0-ERA.md](docs/archive/CHANGELOG-V10.0.0-ERA.md),
 and the pre-v10 release notes live next to it in
 [docs/archive/CHANGELOG-v6.0.0.md](docs/archive/CHANGELOG-v6.0.0.md).
-
 ## [Released]
 
 v80.2.1
@@ -36,67 +35,6 @@ v80.0.0-rc.1
 v80.0.0-beta.2
 v80.0.0-beta.1
 v80.0.0-alpha.1
-
-## [Unreleased]
-
-### Changed
-
-- **night-zen-ci-1: the runner estate pinned against the Ubuntu 26
-  flip** — GitHub's x64 `ubuntu-latest` label migrates to Ubuntu
-  26.04 in a gradual rollout of October 19 through November 19, 2026
-  (actions/runner-images #14748), so every floating lane could change
-  its operating system mid-flight without an owner decision. The
-  fourteen remaining `ubuntu-latest` jobs (audit, the ci check and
-  eBPF build lanes, gate-keepers, kani, maintenance, supermassive,
-  supermassive-e2e) now run `ubuntu-24.04` — the image the release,
-  crates-io, fuzz, miri and arm lanes already pin — and the whole
-  estate sits on one image: the flip changes nothing here, and a
-  26.04 upgrade becomes a deliberate, benchmarked move instead of a
-  silent drift.
-
-### Fixed
-
-- **night-ledger-3: the version's own section sits under the Released
-  ledger** — the night-ledger-1 carry spliced the new version's
-  section below `## [Unreleased]`, which still filed a shipped record
-  in the unreleased zone — the owner reads top-down and a released
-  section under the running notes reads as unreleased (the exact
-  v80.0.6 trap, one step removed). The carry now lands the section
-  directly under the `## [Released]` ledger and above the running
-  section: everything released sits above `## [Unreleased]`, nothing
-  released is ever read from below it. The ambiguous-ledger probe now
-  guards both headings, and the battery pins the invariant (the
-  carried section's line must precede the `## [Unreleased]` line).
-
-- **night-ledger-1: the bump record lands in the released history** —
-  `scripts/dev/version-to.sh` used to file a bare version line under
-  `## [Released]` and leave the cycle's notes stuck under
-  `## [Unreleased]` release after release (v80.0.3 through v80.2.1
-  shipped with no section of their own — the owner read a shipped
-  change from the unreleased section and had to re-file the record by
-  hand). A bump now carries the running notes verbatim into the
-  version's own section — `## [vX.Y.Z] — tagline — date`, newest
-  first, under the `## [Released]` ledger — with the date from the
-  system clock in UTC, an optional `--tagline` that rides the release
-  commit subject, and fail-closed probes: an ambiguous ledger
-  (duplicate `## [Unreleased]` headings) or a foreign `[Released]`
-  shape writes nothing. Verified by a ten-fixture harness run
-  against the functions as shipped (real-shape carry, byte-verbatim
-  body, idempotence, fresh ledger, every refusal path).
-
-### Documentation
-
-- **night-ledger-2: the released history carries its notes** — the
-  ledger backfill: the twenty-two release notes that had piled up
-  under this running section (v80.0.3 through v80.2.1 shipped with
-  no section of their own) moved verbatim into the released sections
-  above the running section, each attributed from git history (the
-  introducing commit of every bullet mapped to the release that
-  shipped its work; the night-frontier series rides v80.1.0, the
-  hardening and depth series ride v80.2.0-night.1, the zen-lts series
-  rides v80.2.1). The running section holds only the current cycle
-  again, and the next bump's carry (night-ledger-1) files each cycle
-  where it belongs from now on.
 
 ## [v80.2.1] — growth naturally — 2026-11-18
 
@@ -405,6 +343,7 @@ v80.0.0-alpha.1
   the Linux ecosystem), with a perpetual path ($129,999 one-time +
   20%/year). Existing Company-tier buyers at $29,999 are
   grandfathered. Individual $99 and Business $2,199 byte-identical.
+
 ## [v80.0.2] — be honest — 2026-10-31
 
 ### Changed
@@ -2974,3 +2913,64 @@ v80.0.0-alpha.1
 
 <!-- Entries land here as they merge; the owner promotes
      [Unreleased] to a dated version heading at release time. -->
+
+## [Unreleased]
+
+### Changed
+
+- **night-zen-ci-1: the runner estate pinned against the Ubuntu 26
+  flip** — GitHub's x64 `ubuntu-latest` label migrates to Ubuntu
+  26.04 in a gradual rollout of October 19 through November 19, 2026
+  (actions/runner-images #14748), so every floating lane could change
+  its operating system mid-flight without an owner decision. The
+  fourteen remaining `ubuntu-latest` jobs (audit, the ci check and
+  eBPF build lanes, gate-keepers, kani, maintenance, supermassive,
+  supermassive-e2e) now run `ubuntu-24.04` — the image the release,
+  crates-io, fuzz, miri and arm lanes already pin — and the whole
+  estate sits on one image: the flip changes nothing here, and a
+  26.04 upgrade becomes a deliberate, benchmarked move instead of a
+  silent drift.
+
+### Fixed
+
+- **night-ledger-3: the version's own section sits under the Released
+  ledger** — the night-ledger-1 carry spliced the new version's
+  section below `## [Unreleased]`, which still filed a shipped record
+  in the unreleased zone — the owner reads top-down and a released
+  section under the running notes reads as unreleased (the exact
+  v80.0.6 trap, one step removed). The carry now lands the section
+  directly under the `## [Released]` ledger and above the running
+  section: everything released sits above `## [Unreleased]`, nothing
+  released is ever read from below it. The ambiguous-ledger probe now
+  guards both headings, and the battery pins the invariant (the
+  carried section's line must precede the `## [Unreleased]` line).
+
+- **night-ledger-1: the bump record lands in the released history** —
+  `scripts/dev/version-to.sh` used to file a bare version line under
+  `## [Released]` and leave the cycle's notes stuck under
+  `## [Unreleased]` release after release (v80.0.3 through v80.2.1
+  shipped with no section of their own — the owner read a shipped
+  change from the unreleased section and had to re-file the record by
+  hand). A bump now carries the running notes verbatim into the
+  version's own section — `## [vX.Y.Z] — tagline — date`, newest
+  first, under the `## [Released]` ledger — with the date from the
+  system clock in UTC, an optional `--tagline` that rides the release
+  commit subject, and fail-closed probes: an ambiguous ledger
+  (duplicate `## [Unreleased]` headings) or a foreign `[Released]`
+  shape writes nothing. Verified by a ten-fixture harness run
+  against the functions as shipped (real-shape carry, byte-verbatim
+  body, idempotence, fresh ledger, every refusal path).
+
+### Documentation
+
+- **night-ledger-2: the released history carries its notes** — the
+  ledger backfill: the twenty-two release notes that had piled up
+  under this running section (v80.0.3 through v80.2.1 shipped with
+  no section of their own) moved verbatim into the released sections
+  above the running section, each attributed from git history (the
+  introducing commit of every bullet mapped to the release that
+  shipped its work; the night-frontier series rides v80.1.0, the
+  hardening and depth series ride v80.2.0-night.1, the zen-lts series
+  rides v80.2.1). The running section holds only the current cycle
+  again, and the next bump's carry (night-ledger-1) files each cycle
+  where it belongs from now on.

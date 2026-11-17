@@ -304,6 +304,12 @@ changelog_carry_detail() {
                 print ""
                 print b
             }
+            if (useen && !udone) {
+                # The running section is the last section in the file:
+                # the dropped body leaves the header alone at EOF - close
+                # it with the one blank spacer the fresh cycle rides on.
+                print ""
+            }
         }
     ' CHANGELOG.md >"${tmp}"
     mv "${tmp}" CHANGELOG.md
