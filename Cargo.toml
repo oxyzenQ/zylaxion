@@ -123,6 +123,16 @@ include = [
 [lints.rust]
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] }
 
+# night-depth-hardening-3: every unsafe block declares its own safety
+# argument — the comment IS the audit. One seat here so every clippy
+# lane (ci.yml, the maintenance lane, and the local gate) reads the
+# same bar: the warn level rides the lanes' existing `-D warnings`
+# into an error, with no second flag to keep in sync. The annotation
+# count at adoption: one block in examples/idle_cpu_sanity.rs; the
+# src/ tree was already fully annotated.
+[lints.clippy]
+undocumented_unsafe_blocks = "warn"
+
 [dependencies]
 # The unified dependency table — the exact union of the six former
 # crate manifests, versions untouched (the owner owns version bumps),
