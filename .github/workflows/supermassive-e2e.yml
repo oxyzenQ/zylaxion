@@ -489,6 +489,24 @@ jobs:
               -o Dir::Etc::sourceparts=/dev/null \
               -o APT::Get::List-Cleanup=0
             PATTERN='linux-image-unsigned-5\.15\.0-[0-9]+-generic'
+          elif [ "${{ matrix.leg.pocket }}" = "lts-6.8" ]; then
+            # noble main ONLY — the GA suite frozen by archive policy
+            # (the floor leg's law, one series later): the weekly
+            # noble-updates ABI bumps are deliberately NOT configured,
+            # so the seat resolves the GA 6.8.0-31 line, never the
+            # newest 6.8. night-runner-1's first run named the defect
+            # honestly: without this branch the seat fell to the
+            # latest pattern and resolved 7.0.0-42, and the guest's
+            # exact-family witness refused the drift exactly as
+            # designed.
+            echo "deb http://archive.ubuntu.com/ubuntu/ noble main" \
+              | sudo tee /etc/apt/sources.list.d/noble-ga-6.8.list >/dev/null
+            sudo timeout 240 apt-get -o Acquire::Retries=5 \
+              -o Acquire::http::Timeout=45 update \
+              -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/noble-ga-6.8.list \
+              -o Dir::Etc::sourceparts=/dev/null \
+              -o APT::Get::List-Cleanup=0
+            PATTERN='linux-image-unsigned-6\.8\.0-[0-9]+-generic'
           elif [ "${{ matrix.leg.pocket }}" = "below-floor" ]; then
             # focal main ONLY — the GA suite, the same frozen-pocket
             # law (the zejtron witness lane rides the same live
@@ -604,6 +622,19 @@ jobs:
             else
               echo "FAIL: uinput neither staged nor built-in — the keystroke injector has no kernel half"
               exit 1
+            fi
+            # night-runner-1, the Debian serio split, named by the
+            # first 6.1 run: i8042 is a MODULE on bookworm while atkbd
+            # is builtin — without it no PS/2 event node ever exists
+            # and the real-user law reads a false SKIP. Stage it when
+            # the artifact carries one (jammy, noble and Arch build the
+            # chain in, so nothing is staged there).
+            I8042_KO=$(find pkg -path '*lib/modules*' -name 'i8042.ko*' | head -1)
+            if [ -n "$I8042_KO" ]; then
+              cp "$I8042_KO" /tmp/kfloor/stage/mods/
+              echo "i8042: staged (the Debian serio split)"
+            else
+              echo "i8042: not shipped by this artifact (the serio chain is built in)"
             fi
             # night-runner-1: Arch compresses each module individually
             # (.ko.zst) and the guest's insmod speaks plain .ko — the

@@ -309,6 +309,23 @@ for mod in soundcore snd snd-timer snd-pcm snd-dummy uinput; do
         fi
 done
 
+# night-runner-1, the Debian serio split: i8042 rides as a module on
+# bookworm while atkbd is builtin — without it the PS/2 port binds
+# nothing and no /dev/input event node ever exists, so the real-user
+# law reads a false SKIP. Load it when the workflow staged one; the
+# kernels that build the chain in stage nothing, which is the honest
+# no-op shape here.
+I8042_KO=$(find "$MODDIR" -name "i8042.ko*" 2>/dev/null | head -1)
+if [ -n "$I8042_KO" ]; then
+        if insmod "$I8042_KO" 2>/dev/null || grep -q i8042 /proc/modules; then
+                note "module i8042 loaded (the Debian serio split, atkbd builtin binds the port)" PASS
+        else
+                note "module i8042 (insmod $(basename "$I8042_KO"))" FAIL
+        fi
+else
+        echo "MASS: no i8042.ko staged (this kernel builds the serio chain in)"
+fi
+
 # The sound card is the PCM witness's stage: snd-dummy must have
 # registered card 0 before the engine's audio probes run.
 sleep 1
