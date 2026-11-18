@@ -156,6 +156,14 @@ fi
 # alsa.pc is unreachable with PKG_CONFIG_LIBDIR scoped like this.
 export PKG_CONFIG_PATH="$MUSL_ROOT/prefix/lib/pkgconfig"
 export PKG_CONFIG_LIBDIR="$MUSL_ROOT/prefix/lib/pkgconfig"
+# The cross gate, satisfied honestly: alsa-sys's pkg-config refuses a
+# target!=host query without a declared sysroot — the gate exists to
+# stop HOST libs leaking into a cross build (the T1 trap class), and
+# this lane's leak-proofing is the private-prefix verdict above. The
+# prefix IS the musl sysroot and its pc paths are absolute, so the
+# declared root is "/": a no-op prefix that unlocks the crate's cross
+# mode and re-routes nothing.
+export PKG_CONFIG_SYSROOT_DIR="/"
 ALSALIBS="$(pkg-config --static --libs alsa)"
 case "$ALSALIBS" in
     *-lasound*) echo "alsa link verdict: $ALSALIBS (private musl prefix only)" ;;
