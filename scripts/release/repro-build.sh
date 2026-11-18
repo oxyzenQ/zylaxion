@@ -122,8 +122,17 @@ else
     # above) pins __DATE__/__TIME__ if any TU used them.
     (
         cd "$WORK/$ALSAMIX_NAME"
-        CC=musl-gcc CFLAGS="-O2 -g0 -fno-ident" \
-            ./configure --prefix="$MUSL_ROOT/prefix" \
+        # --host is the cross mode the musl lane NEEDS (musl-gcc cannot
+        # run configure's test programs on a glibc build host), and the
+        # kernel UAPI headers ride the CFLAGS explicitly: musl-gcc's
+        # -nostdinc excludes /usr/include, and alsa's sources need
+        # <linux/types.h> + <asm/types.h> from linux-libc-dev — libc-
+        # agnostic kernel headers, not glibc objects, so the weld-trap
+        # law stays intact (musl's own headers still win every name).
+        CC=musl-gcc \
+            CFLAGS="-O2 -g0 -fno-ident -I/usr/include -I/usr/include/x86_64-linux-gnu" \
+            ./configure --host=x86_64-unknown-linux-musl \
+            --prefix="$MUSL_ROOT/prefix" \
             --disable-shared --enable-static --disable-python >/dev/null
         make -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)" >/dev/null
         make install >/dev/null
