@@ -187,9 +187,24 @@ testing the wrong kernel), and the below-floor seat keeps proving the
 refusal direction live on every push. The owner's CachyOS host (the
 nested-bpffs section above) and the hosted archive head carry the top
 of the span; a newer series rides the dynamic `latest` seat the day
-the archive serves it. The per-leg verdicts are the CI runs' own
-MASS-VERDICT lines — a red leg names itself in the run log, a green
-leg is the runtime record.
+the archive serves it.
+
+**Measured (run `3186208`, all six seats green):** the 5.15.0-25
+floor leg, the 6.1.0-50-amd64 bookworm leg, the 6.6.72-1-lts Arch
+leg, the 6.8.0-31 noble GA leg, the archive head (7.0.0-42 that run)
+and the 5.4 refusal walk all PASS their whole batteries — the tap
+lifecycle, PROOF 7's in-kernel prog-run, PROOF 8's evented control
+plane, the engine's full chaos. The first instrument run
+(`9874e33`) named two defects from live evidence and the fixes
+shipped with the evidence recorded: the 6.8 seat's drift to a 7.0
+kernel was caught and refused by its own family witness (the
+instrument working as designed), and the 6.1 seat's false SKIP was
+traced to bookworm shipping `evdev` as a module while the whole
+serio chain rides builtin — the split modules are staged and loaded
+now, and the probe reads its lawful PASS. The floor seat's one
+PROOF 7 relative-gate trip (`412` vs `382`, cleared by the rerun) is
+recorded as a measurement-noise flake, not a kernel fact; the full
+chain sits in `docs/audit-night-depth-hardening-Z1.md`.
 
 <!-- ZYLAXION-DISCLAIMER -->
 <!--

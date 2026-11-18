@@ -153,6 +153,14 @@ stamp surfaces run anywhere; its ALSA runtime stays partial by nature
 (libasound dlopens its PCM plugin tree), which is exactly why the lane
 proves identity, not audio.
 
+**Measured (the chain live):** commit `42c0cb4`, the two CI hosts
+produced byte-identical binaries with byte-identical `-V` stamps —
+shared sha256
+`69cca2cf403688a07553e3c70da77b5fb248664ca205a02a8d604a3801d56d51` —
+and the lane has re-passed on every push since. The same recipe's
+local two-cold-pass verdict is recorded in
+`docs/audit-night-depth-hardening-Z1.md`.
+
 ## Verification tools required
 
 - `sha512sum` — GNU coreutils (preinstalled on every Linux)
