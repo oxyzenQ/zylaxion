@@ -646,7 +646,14 @@ floor, never counted. Files of truth:
 `scripts/audit/zactrix-kernel-matrix.sh`,
 `scripts/audit/harness/src/btfmatrix.rs`; the measured matrix is
 recorded in `docs/KERNEL_COMPATIBILITY.md` and
-`docs/CO_RE_PORTABILITY.md`.
+`docs/CO_RE_PORTABILITY.md`. night-runner-1 completes the same law on
+the runtime half: the Supermassive E2E KVM matrix grew the LTS-span
+witness seats (the 6.1 Debian bookworm and 6.6 Arch LTS pinned
+artifacts, the 6.8 noble GA frozen pocket) beside the 5.15 floor and
+the archive head, each booting the real kernel family and running the
+whole battery with the exact-family witness — the pending runtime
+records of the kernel checklist now live as CI verdicts, not doc
+claims.
 
 **40. The golden render corpus — the freeze as a byte gate.** The
 freeze (entry 31) names the admission law in prose; the corpus makes

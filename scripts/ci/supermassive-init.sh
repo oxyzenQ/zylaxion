@@ -121,6 +121,13 @@ echo "127.0.0.1 zylaxion-vm" >> /etc/hosts 2>/dev/null || true
 #                 leg's battery is the REFUSAL walk - doctor, attach,
 #                 and on must all refuse honestly naming the floor,
 #                 the direction every other lane can only compute.
+# night-runner-1 adds the LTS-span witness seats, each with the same
+# exact-family law (a resolver drift fails loudly instead of quietly
+# testing the wrong kernel):
+#   lts-6.1     - the Debian bookworm 6.1.0-50 family (the pinned
+#                 artifact the BTF matrix already rides);
+#   lts-6.6     - the Arch LTS 6.6.72-1 family (the second pin);
+#   lts-6.8     - the noble GA 6.8.0-31 family (the frozen pocket).
 kver=$(uname -r)
 major=${kver%%.*}
 minor=$(echo "$kver" | cut -d. -f2 | grep -oE '^[0-9]+' || echo 0)
@@ -141,6 +148,33 @@ floor)
                 note "kernel $kver (the 5.15 documented floor, the exact GA family)" PASS
         elif [ "$at_or_above_floor" = true ]; then
                 note "kernel (uname -r = $kver, above the floor but NOT the 5.15 family — the floor leg's resolver drifted)" FAIL
+        else
+                note "kernel (uname -r = $kver, wanted >= 5.15)" FAIL
+        fi
+        ;;
+lts-6.1)
+        if [ "$at_or_above_floor" = true ] && [ "${kver#6.1.}" != "$kver" ]; then
+                note "kernel $kver (the 6.1 LTS family, the Debian bookworm witness)" PASS
+        elif [ "$at_or_above_floor" = true ]; then
+                note "kernel (uname -r = $kver, above the floor but NOT the 6.1 family — the leg's staging drifted)" FAIL
+        else
+                note "kernel (uname -r = $kver, wanted >= 5.15)" FAIL
+        fi
+        ;;
+lts-6.6)
+        if [ "$at_or_above_floor" = true ] && [ "${kver#6.6.}" != "$kver" ]; then
+                note "kernel $kver (the 6.6 LTS family, the Arch LTS witness)" PASS
+        elif [ "$at_or_above_floor" = true ]; then
+                note "kernel (uname -r = $kver, above the floor but NOT the 6.6 family — the leg's staging drifted)" FAIL
+        else
+                note "kernel (uname -r = $kver, wanted >= 5.15)" FAIL
+        fi
+        ;;
+lts-6.8)
+        if [ "$at_or_above_floor" = true ] && [ "${kver#6.8.}" != "$kver" ]; then
+                note "kernel $kver (the 6.8 GA family, the noble witness)" PASS
+        elif [ "$at_or_above_floor" = true ]; then
+                note "kernel (uname -r = $kver, above the floor but NOT the 6.8 family — the leg's staging drifted)" FAIL
         else
                 note "kernel (uname -r = $kver, wanted >= 5.15)" FAIL
         fi

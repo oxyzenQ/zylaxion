@@ -27,10 +27,14 @@
 # timeout-minutes lines carry the estate-wide ten-minute cap
 # (owner-decided): every job fails fast at ten minutes.
 #
-# The three legs cross the kernel span exactly as before
+# The three zelynic seats cross the kernel span exactly as before
 # (night-dragon-maintenance-4): below the floor, the focal 5.4 refusal
 # witness; the documented 5.15 floor, jammy's 5.15.0 line; the newest
-# kernel the archive serves. The verdict relay is the zelynic sentinel
+# kernel the archive serves. night-runner-1 adds the LTS-span witness
+# seats beside them — 6.1 (Debian bookworm), 6.6 (Arch LTS), 6.8 (the
+# noble GA kernel) — each a sha256-pinned foreign-distro artifact or a
+# frozen GA pocket, so the pending runtime records live in CI instead
+# of a doc claim. The verdict relay is the zelynic sentinel
 # contract: the guest's init (scripts/ci/supermassive-init.sh) prints
 # MASS-RESULT rows plus one final MASS-VERDICT line on the serial
 # console; the Verdict step greps them (a VM cannot pass exit codes
@@ -241,13 +245,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The same three seats night-dragon-maintenance-4 gave the
-        # floor: the REAL minimum (the jammy GA release-day 5.15.0
-        # kernel, the jammy main pocket only) on the LOW envelope;
-        # the archive's head on the full envelope; the focal 5.4 GA
-        # kernel (BELOW the documented floor) proving the refusal
-        # walk. Each spec tier is one gnu leg — glibc is the only
-        # libc the matrix ships.
+        # The zelynic seats night-dragon-maintenance-4 gave the floor:
+        # the REAL minimum (the jammy GA release-day 5.15.0 kernel, the
+        # jammy main pocket only) on the LOW envelope; the archive's
+        # head on the full envelope; the focal 5.4 GA kernel (BELOW the
+        # documented floor) proving the refusal walk. Each spec tier is
+        # one gnu leg — glibc is the only libc the matrix ships.
+        # night-runner-1 adds the LTS-span witness seats beside them:
+        # the 6.1 (Debian bookworm) / 6.6 (Arch LTS) / 6.8 (noble GA)
+        # runtime records the kernel checklist left pending, each
+        # booting the FULL battery on its pinned artifact.
         leg:
           - title: supermassive e2e - low specs (the 5.15 documented floor)
             pocket: floor
@@ -255,6 +262,12 @@ jobs:
             pocket: latest
           - title: supermassive e2e - below the floor (the 5.4 refusal witness)
             pocket: below-floor
+          - title: supermassive e2e - LTS span (the 6.1 bookworm witness)
+            pocket: lts-6.1
+          - title: supermassive e2e - LTS span (the 6.6 Arch witness)
+            pocket: lts-6.6
+          - title: supermassive e2e - LTS span (the 6.8 noble GA witness)
+            pocket: lts-6.8
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -314,10 +327,13 @@ jobs:
           # sources off the azure mirror (archive.ubuntu.com, Fastly)
           # and earns the update lane — three named attempts, each
           # inside its own kill timer. cpio is preinstalled; the fetch
-          # is qemu-system-x86's.
+          # is qemu-system-x86's. zstd (night-runner-1) decompresses the
+          # Arch LTS leg's per-module .ko.zst files for the guest's
+          # plain-insmod staging, and the .pkg.tar.zst extraction rides
+          # tar --zstd.
           APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
           if sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y \
-              --no-install-recommends qemu-system-x86 cpio; then
+              --no-install-recommends qemu-system-x86 cpio zstd; then
             echo "apt: the fast path landed (the image's lists held)"
           else
             echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
@@ -330,7 +346,7 @@ jobs:
               echo "--- apt attempt $attempt: update + install ---"
               if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
                 && sudo timeout 900 apt-get "${APT_OPTS[@]}" install -y \
-                     --no-install-recommends qemu-system-x86 cpio; then
+                     --no-install-recommends qemu-system-x86 cpio zstd; then
                 landed="attempt $attempt"
                 break
               fi
@@ -430,7 +446,37 @@ jobs:
           # stall detection on top. Sized to the measured records
           # (a healthy mirror serves even the 166 MB modules deb in
           # well under a minute), not to optimism.
-          if [ "${{ matrix.leg.pocket }}" = "floor" ]; then
+          # night-runner-1: the LTS-span seats ride PINNED foreign-distro
+          # artifacts (the pin-table law, the zactrix-kernel-matrix
+          # shape): fetched, sha256-verified, extracted directly — no
+          # apt pocket is configured for a foreign distro, and the pin
+          # table below is the ONLY legal way the artifacts change (the
+          # tree's supply-chain law). Each pin was verified live against
+          # the artifact it stages (the 6.1 deb carries the full module
+          # tree, Debian has no modules split; the 6.6 Arch package
+          # carries usr/lib/modules with per-module .ko.zst).
+          PIN_URL=""
+          if [ "${{ matrix.leg.pocket }}" = "lts-6.1" ]; then
+            PIN_URL="https://deb.debian.org/debian/pool/main/l/linux/linux-image-6.1.0-50-amd64-unsigned_6.1.176-1_amd64.deb"
+            PIN_SHA="439422e41d2dbb840b60b81e3bf5e5955bfa56b7a8c268aec83c9ff882d421e6"
+            PIN_NAME="bookworm-6.1.0-50-amd64.deb"
+          elif [ "${{ matrix.leg.pocket }}" = "lts-6.6" ]; then
+            PIN_URL="https://archive.archlinux.org/packages/l/linux-lts/linux-lts-6.6.72-1-x86_64.pkg.tar.zst"
+            PIN_SHA="a527cb8907781c2110d6b1bebb3340689c46a73ff4ad7de1a387946c44907a14"
+            PIN_NAME="arch-6.6.72-1-lts.pkg.tar.zst"
+          fi
+          if [ -n "$PIN_URL" ]; then
+            ARTIFACT="/tmp/kfloor/$PIN_NAME"
+            curl -fsSL --retry 5 --retry-all-errors -o "$ARTIFACT" "$PIN_URL"
+            echo "$PIN_SHA  $ARTIFACT" | sha256sum -c -
+            mkdir -p pkg
+            case "$ARTIFACT" in
+              *.deb) dpkg-deb -x "$ARTIFACT" pkg ;;
+              *.pkg.tar.zst) tar --zstd -xf "$ARTIFACT" -C pkg ;;
+              *) echo "FAIL: unknown pinned artifact shape"; exit 1 ;;
+            esac
+            echo "pinned artifact: $PIN_NAME (sha256 verified)"
+          elif [ "${{ matrix.leg.pocket }}" = "floor" ]; then
             # jammy main ONLY — the GA suite, frozen by archive
             # policy. jammy-updates is deliberately NOT configured:
             # its weekly 5.15.0-x ABI bumps would drag the "floor"
@@ -461,6 +507,9 @@ jobs:
             # resolve step; only the pattern differs here.
             PATTERN='linux-image-unsigned-[0-9]+\.[0-9]+\.0-[0-9]+-generic'
           fi
+          # The ubuntu-pocket machinery (floor / below-floor / latest)
+          # only runs when no pinned foreign artifact owns this leg.
+          if [ -z "$PIN_URL" ]; then
           IMG=$(apt-cache search --names-only "$PATTERN" 2>/dev/null \
             | grep -oE 'linux-image-unsigned-[0-9.]+-[0-9]+-generic' \
             | sort -uV | tail -1 || true)
@@ -518,38 +567,52 @@ jobs:
             [ -e "$deb" ] || continue
             dpkg-deb -x "$deb" pkg
           done
-          VMLINUZ=$(find pkg/boot -name 'vmlinuz-*' | head -1)
-          test -n "$VMLINUZ" || { echo "FAIL: no vmlinuz in the debs"; ls -la pkg/boot || true; exit 1; }
+          fi
+          # The generalized vmlinuz discovery (night-runner-1): Debian
+          # puts the image in boot/, Arch in usr/lib/modules/<ver>/ —
+          # one find serves both shapes, the ubuntu pockets unchanged.
+          VMLINUZ=$(find pkg -type f \( -name 'vmlinuz-*' -o -name 'vmlinuz' \) | head -1)
+          test -n "$VMLINUZ" || {
+            echo "FAIL: no vmlinuz in the staged kernel artifacts"
+            find pkg -name 'vmlinuz*' | head -5 || true
+            exit 1
+          }
           cp "$VMLINUZ" /tmp/kfloor/stage/vmlinuz
-          # Stage the battery's module chain from the SAME kernel's
-          # module trees (same-suite vermagic by construction): the
-          # sound core chain (snd-dummy is the PCM witness's card).
-          # uinput is NOT in the required set: verified against both
-          # reference kernels, jammy's 5.15.0-198 and noble's 7.0.0-38
-          # build uinput INTO vmlinuz (modules.builtin carries
-          # kernel/drivers/input/misc/uinput.ko in both, no .ko ships
-          # in any deb) — a missing uinput.ko is the expected shape,
-          # the guest init accepts the built-in. Stage it when the
-          # archive does ship one (future series may un-inline it).
-          # The below-floor leg stages nothing: its battery is the
-          # refusal walk, and the kernel floor gate fires before any
-          # module could matter.
+          # The staged battery chain rides the SAME kernel's module tree
+          # (same-suite vermagic by construction): the sound core chain
+          # (snd-dummy is the PCM witness's card). uinput is staged when
+          # the artifact ships it (Debian 6.1 and Arch 6.6 both do —
+          # verified live); the ubuntu GA kernels build uinput INTO
+          # vmlinuz (modules.builtin carries it, no .ko ships in any
+          # deb) — a missing uinput.ko is the expected shape there, the
+          # guest init accepts the built-in. The finds are generalized
+          # (night-runner-1): Debian stages lib/modules/, Arch
+          # usr/lib/modules/ — one glob serves both.
           if [ "${{ matrix.leg.pocket }}" != "below-floor" ]; then
             for ko in soundcore snd snd-timer snd-pcm snd-dummy; do
-              SRC=$(find pkg/lib/modules -name "${ko}.ko*" | head -1)
-              test -n "$SRC" || { echo "FAIL: module $ko not in the kernel's module debs"; exit 1; }
+              SRC=$(find pkg -path '*lib/modules*' -name "${ko}.ko*" | head -1)
+              test -n "$SRC" || { echo "FAIL: module $ko not in the kernel's staged artifact"; exit 1; }
               cp "$SRC" /tmp/kfloor/stage/mods/
             done
-            UINPUT_KO=$(find pkg/lib/modules -name 'uinput.ko*' | head -1)
+            UINPUT_KO=$(find pkg -path '*lib/modules*' -name 'uinput.ko*' | head -1)
             if [ -n "$UINPUT_KO" ]; then
               cp "$UINPUT_KO" /tmp/kfloor/stage/mods/
-              echo "uinput: staged from the kernel's module debs"
-            elif grep -rq "uinput" pkg/lib/modules/*/modules.builtin 2>/dev/null; then
+              echo "uinput: staged from the kernel's module artifacts"
+            elif find pkg -path '*lib/modules*' -name modules.builtin \
+                -exec grep -q "uinput" {} \; ; then
               echo "uinput: built into the kernel (modules.builtin) — nothing to stage"
             else
               echo "FAIL: uinput neither staged nor built-in — the keystroke injector has no kernel half"
               exit 1
             fi
+            # night-runner-1: Arch compresses each module individually
+            # (.ko.zst) and the guest's insmod speaks plain .ko — the
+            # staged set decompresses here, loudly on any zstd failure.
+            for z in /tmp/kfloor/stage/mods/*.ko.zst; do
+              [ -e "$z" ] || continue
+              zstd -d -q "$z"
+              rm -f "$z"
+            done
           else
             echo "below-floor leg: no module chain staged (the refusal walk needs none)"
           fi

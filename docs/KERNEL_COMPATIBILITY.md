@@ -160,6 +160,37 @@ sandbox host (5.10.134) passes the same instrument as evidence that
 the instrument works, and counts toward nothing — it is below the
 supported floor.
 
+## The runtime span, live in CI (night-runner-1)
+
+The BTF matrix above proves the LOAD-time facts on the three LTS
+lines; the runtime half now has its own seats. night-runner-1 adds
+the LTS-span witness legs to the Supermassive E2E KVM matrix — each
+boots its REAL kernel family inside the micro-VM and runs the WHOLE
+battery (the tap lifecycle, PROOF 7's in-kernel prog-run, PROOF 8's
+evented control plane, the engine's full chaos):
+
+| kernel line | leg source | witness law |
+|---|---|---|
+| 5.15 (the floor) | jammy main GA pocket, frozen | exact 5.15.* family |
+| 6.1 LTS | Debian bookworm `6.1.0-50-amd64`, sha256-pinned deb | exact 6.1.* family |
+| 6.6 LTS | Arch Linux LTS `6.6.72-1-lts`, sha256-pinned package | exact 6.6.* family |
+| 6.8 | noble main GA pocket (6.8.0-31), frozen | exact 6.8.* family |
+| newest served | the archive's head (dynamic doctrine) | at-or-above-floor |
+| 5.4 (below the floor) | focal main GA pocket, frozen | refusal walk |
+
+The foreign-distro artifacts are sha256-pinned with the same law the
+BTF matrix introduced (the pin table in
+`.github/workflows/supermassive-e2e.yml` is the only legal way the
+artifacts change), the guest init witnesses its resolved kernel
+family per leg (a resolver drift fails loudly instead of quietly
+testing the wrong kernel), and the below-floor seat keeps proving the
+refusal direction live on every push. The owner's CachyOS host (the
+nested-bpffs section above) and the hosted archive head carry the top
+of the span; a newer series rides the dynamic `latest` seat the day
+the archive serves it. The per-leg verdicts are the CI runs' own
+MASS-VERDICT lines — a red leg names itself in the run log, a green
+leg is the runtime record.
+
 <!-- ZYLAXION-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
