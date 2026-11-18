@@ -916,7 +916,7 @@ dependencies = [
 
 [[package]]
 name = "zactrix-audit"
-version = "80.2.2"
+version = "80.2.3"
 dependencies = [
  "arc-swap",
  "aya-obj",

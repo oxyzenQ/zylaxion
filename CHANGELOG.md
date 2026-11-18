@@ -17,6 +17,7 @@ and the pre-v10 release notes live next to it in
 [docs/archive/CHANGELOG-v6.0.0.md](docs/archive/CHANGELOG-v6.0.0.md).
 ## [Released]
 
+v80.2.3
 v80.2.2
 v80.2.1
 v80.2.0
