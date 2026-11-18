@@ -9,7 +9,8 @@
 # line and the detail carry (night-ledger-1) are extracted VERBATIM from
 # the shipped script at runtime — the battery runs the functions a bump
 # will actually run, never a copy that can drift. Ten fixtures:
-#   F1  the real ledger shape — line, carry, emptied running section
+#   F1  the real ledger shape, a seeded running body — line, carry,
+#       emptied running section
 #   F2  no tagline — the minimal heading
 #   F3  an empty running section — nothing to carry, line alone
 #   F4  idempotence — a re-run at a recorded version writes nothing
@@ -55,7 +56,29 @@ run_bump() { # run_bump <fixture-file> <version> [tagline]
 }
 
 # F1 rides the real ledger as it stands — the shape a bump actually meets.
-cp "${SCRIPT_DIR}/CHANGELOG.md" "${WORK}/f1"
+# The live running body rides the release cycle instead: empty right after
+# a bump, full mid-cycle. A body-less carry left this battery red on every
+# post-release commit (the v80.2.2 lesson: green mid-cycle, five failures
+# the day the next release shipped). The fixture keeps the real ledger and
+# versioned sections above it and SEEDS a known body under the live
+# ## [Unreleased] heading, so the carry fires deterministically on every
+# cycle state — the script under test still meets the real file's shape.
+if ! grep -q '^## \[Unreleased\]$' "${SCRIPT_DIR}/CHANGELOG.md"; then
+    echo "FATAL: the live CHANGELOG.md carries no ## [Unreleased] anchor — the F1 fixture cannot seed it" >&2
+    exit 2
+fi
+{
+    # Drop whatever body the live running section holds this cycle; the
+    # seeded body replaces it below. A "## " heading at column zero ends
+    # the drop (the section is not always last — F7 covers that side).
+    awk '
+        /^## \[Unreleased\]$/ { drop = 1; print; next }
+        drop && /^## / { drop = 0 }
+        drop { next }
+        { print }
+    ' "${SCRIPT_DIR}/CHANGELOG.md"
+    printf '\n### Changed\n\n- seed-alpha the carry rides a body the battery planted\n- seed-beta the second line rides along\n'
+} > "${WORK}/f1"
 
 echo "F1: real shape - ledger line, carry into own section, Unreleased emptied"
 run_bump "${WORK}/f1" "80.3.0" "growth naturally"
