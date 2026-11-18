@@ -124,9 +124,12 @@ pub fn cmd_status(verbose: bool) {
             "the pin set is partial (a crashed attach?) — sudo zylaxion attach replants it",
         );
     }
-    // The kernel-policy note (night-badas-4 round 5): a locked
-    // unprivileged-bpf kernel refuses the map reads too — name why.
-    if !crate::session::privilege::euid_is_root() && !kernel.unpriv_bpf_allowed() {
+    // The kernel-policy note (night-badas-4 round 5, the era split
+    // night-ebpf-era-1): a dispatch-era kernel (5.15-5.18) refuses
+    // the plain user's map reads outright at sysctl 1 or 2 — name
+    // why. On 5.19+ the reads ride the pins' file permissions and
+    // succeed at any posture, so no warning is owed there.
+    if !kernel.unpriv_map_ops_allowed(crate::session::privilege::euid_is_root()) {
         crate::output::warning(kernel.unpriv_bpf_verdict());
     }
     // Open the control map once: the tap line below reads the chain

@@ -48,6 +48,11 @@
 /// The owner-mandated minimum kernel: 5.15 LTS.
 pub const MIN_KERNEL: (u32, u32) = (5, 15);
 
+/// The first kernel whose unprivileged-bpf gate covers object
+/// creation only: 5.19 (measured from the mainline source — see
+/// [`narrowed_unpriv_gate`]).
+pub const NARROWED_UNPRIV_GATE: (u32, u32) = (5, 19);
+
 /// Everything the two consumers need, in one structure.
 #[derive(Debug, Clone)]
 pub struct KernelReport {
@@ -109,35 +114,71 @@ impl KernelReport {
 
     /// The pure posture law: does this sysctl value allow the plain
     /// user's bpf() calls at all? Only `0` does — `1` and `2` both
-    /// gate every non-bpf_capable caller; root is never gated (the
-    /// gate keys on capability, not on the sysctl).
+    /// gate non-bpf_capable callers on every era; root is never
+    /// gated (the gate keys on capability, not on the sysctl). The
+    /// era-aware verb consequence lives in
+    /// [`Self::unpriv_map_ops_allowed`].
     pub fn unpriv_bpf_allowed(&self) -> bool {
         self.unpriv_bpf_disabled == 0
     }
 
-    /// The doctor's posture line — a pure function of the raw value
-    /// and the boot-param fact. The value-2 arm splits on the lock:
-    /// a boot-parameter 2 is unflippable this boot; any other 2 is
-    /// the distro's default and root may write 0 over it. Every arm
-    /// carries the substring the E2E engine pins ("unprivileged
-    /// bpf") — do not reword it away.
+    /// The era-aware ops law: may THIS caller talk to the pinned
+    /// control plane — a bpffs file open (`BPF_OBJ_GET`), element ops
+    /// on that fd, the events ring consumed through its mmap? Root is
+    /// never gated; the sysctl at 0 gates nothing
+    /// ([`Self::unpriv_bpf_allowed`]); and from 5.19 the sysctl at 1
+    /// or 2 gates object CREATION only — the verbs create nothing, so
+    /// the pinned-fd ops ride `map_get_sys_perms`, the pinned file's
+    /// own permissions. On 5.15 through 5.18 the dispatch gate refuses
+    /// every plain-user bpf() call, and the honest answer stays the
+    /// refusal.
+    pub fn unpriv_map_ops_allowed(&self, euid_is_root: bool) -> bool {
+        euid_is_root || self.unpriv_bpf_allowed() || narrowed_unpriv_gate(self.parsed)
+    }
+
+    /// The doctor's posture line — a pure function of the raw value,
+    /// the boot-param fact, and the gate era. Every arm carries the
+    /// substring the E2E engine pins ("unprivileged bpf") — do not
+    /// reword it away. The transition-law wording is the mainline
+    /// handler's own (measured at 5.15, 5.18 and master:
+    /// `locked_state` keys on 1 only — 1 is the permanent lock, a 2
+    /// is root-writable to 0 on every era), which is why the old
+    /// "boot-param 2 = unflippable" claim is gone: mainline honors no
+    /// such parameter, and the verdict now tells the operator to run
+    /// the write as the test instead of trusting a model.
     pub fn unpriv_bpf_verdict(&self) -> String {
+        // The verb consequence each era owes the plain user: the
+        // narrowed gate leaves the pinned-fd ops to the file
+        // permissions; the dispatch era refuses every plain-user
+        // call outright.
+        let verb_line = if narrowed_unpriv_gate(self.parsed) {
+            "the narrowed gate (5.19+) leaves the pinned-map ops to file \
+             permissions: the verbs still run as a plain user"
+        } else {
+            "this kernel's gate covers every plain-user bpf() call: the verbs \
+             cannot run as a plain user"
+        };
         match self.unpriv_bpf_disabled {
             0 => "unprivileged bpf: allowed — the control-plane verbs run as a plain user"
                 .to_string(),
-            1 => "unprivileged bpf: disabled (1) — the verbs cannot run as a plain user; \
-                  root may re-enable it this boot: sysctl -w kernel.unprivileged_bpf_disabled=0"
-                .to_string(),
-            2 if self.unpriv_bpf_boot_locked => {
-                "unprivileged bpf: locked (2) — the boot parameter \
-                  bpf.unprivileged_bpf_disabled=2 planted this lock and it cannot be re-enabled \
-                  this boot; the control-plane verbs cannot run as a plain user"
-                    .to_string()
+            1 => format!(
+                "unprivileged bpf: disabled (1) — the permanent lock (the handler accepts \
+                 no transition back to 0); {verb_line}"
+            ),
+            2 => {
+                let boot_note = if self.unpriv_bpf_boot_locked {
+                    " — the cmdline carries bpf.unprivileged_bpf_disabled=2; mainline \
+                     honors no such parameter and the handler locks only at 1, so the \
+                     write of 0 is still the test"
+                } else {
+                    ""
+                };
+                format!(
+                    "unprivileged bpf: disabled (2) — the distro's default posture\
+                     {boot_note}; root may write 0 over it this boot: sudo sysctl -w \
+                     kernel.unprivileged_bpf_disabled=0; {verb_line}"
+                )
             }
-            2 => "unprivileged bpf: disabled (2) — the distro's built-in default, no \
-                  boot-parameter lock on the cmdline; root may re-enable it this boot: \
-                  sudo sysctl -w kernel.unprivileged_bpf_disabled=0"
-                .to_string(),
             other => format!(
                 "unprivileged bpf: disabled ({other}) — the kernel refuses unprivileged bpf()"
             ),
@@ -145,21 +186,22 @@ impl KernelReport {
     }
 
     /// The kernel-policy gate for every surface that must talk to the
-    /// pinned control plane (night-badas-4 round 5): when the kernel
-    /// gates unprivileged bpf() and the caller is not root, no map
-    /// read or write can succeed — the honest answer is the classified
-    /// refusal, not the misleading "not attached" shape an EPERM
-    /// surfaces as. The message carries the substring the E2E battery
-    /// pins ("unprivileged bpf") — do not reword it without the
-    /// engine's sm_audio.py.
-    pub fn unpriv_map_write_refusal(&self, euid_is_root: bool) -> Option<String> {
-        if euid_is_root || self.unpriv_bpf_allowed() {
+    /// pinned control plane (night-badas-4 round 5, the era split
+    /// night-ebpf-era-1): when the kernel refuses this caller's map
+    /// ops ([`Self::unpriv_map_ops_allowed`]), the honest answer is
+    /// the classified refusal, not the misleading "not attached"
+    /// shape an EPERM surfaces as. The message carries the substring
+    /// the E2E battery pins ("unprivileged bpf") — do not reword it
+    /// without the engine's sm_audio.py.
+    pub fn unpriv_map_ops_refusal(&self, euid_is_root: bool) -> Option<String> {
+        if self.unpriv_map_ops_allowed(euid_is_root) {
             return None;
         }
         Some(format!(
-            "{}\n  tip: the pins stay readable after `sudo zylaxion attach`, but the \
-             control-plane map ops need the kernel's unprivileged bpf gate open — \
-             see `zylaxion doctor`",
+            "{}\n  tip: the pins stay readable after `sudo zylaxion attach`, but this \
+             kernel's dispatch-era gate refuses every plain-user map op while the \
+             sysctl sits at 1 or 2 — root can open it: sudo sysctl -w \
+             kernel.unprivileged_bpf_disabled=0 (or see `zylaxion doctor`)",
             self.unpriv_bpf_verdict()
         ))
     }
@@ -170,6 +212,31 @@ pub fn is_supported(parsed: Option<(u32, u32)>) -> bool {
     match parsed {
         Some((major, minor)) => {
             major > MIN_KERNEL.0 || (major == MIN_KERNEL.0 && minor >= MIN_KERNEL.1)
+        }
+        None => false,
+    }
+}
+
+/// The pure gate-era law: does this kernel narrow the
+/// unprivileged-bpf sysctl gate to the object-creation commands?
+///
+/// Measured from the mainline source, not remembered (night-ebpf-era-1):
+/// v5.15 through v5.18 put `if (sysctl_unprivileged_bpf_disabled &&
+/// !bpf_capable()) return -EPERM;` at the head of `__sys_bpf` — every
+/// plain-user bpf() call dies, element ops on an already-pinned map
+/// included. v5.19 replaced it with `capable = bpf_capable() ||
+/// !sysctl_unprivileged_bpf_disabled;` feeding the creation commands
+/// only (the kernel's own intent comment names the shape), and v6.5
+/// moved the two checks into `map_create` and `bpf_prog_load` — same
+/// semantics, with pinned-fd element ops governed by
+/// `map_get_sys_perms` (FMODE_CAN_READ / FMODE_CAN_WRITE) at every
+/// era since. An unparsable release reads conservative (false):
+/// never guess an era the kernel did not state.
+pub fn narrowed_unpriv_gate(parsed: Option<(u32, u32)>) -> bool {
+    match parsed {
+        Some((major, minor)) => {
+            major > NARROWED_UNPRIV_GATE.0
+                || (major == NARROWED_UNPRIV_GATE.0 && minor >= NARROWED_UNPRIV_GATE.1)
         }
         None => false,
     }

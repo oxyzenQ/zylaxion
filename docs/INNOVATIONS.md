@@ -380,10 +380,14 @@ drift problem: attach prechecks and doctor reports that re-implement
 their own verdicts disagree. One `probe()` builds the kernel report —
 release parse against the 5.15 floor, BTF full-token search for the
 attach symbol, bpffs mount check, lockdown mode, and the
-`unprivileged_bpf_disabled` sysctl shape with its boot-parameter
-cross-check — and both the doctor (print) and attach (hard gate)
+`unprivileged_bpf_disabled` sysctl shape with its gate-era law
+(night-ebpf-era-1: 5.15-5.18 gate every plain-user bpf() call at the
+dispatch level, 5.19+ narrow the gate to object creation so the
+pinned-fd ops ride the pins' file permissions, and the transition
+law is the mainline handler's own — the permanent lock lives at 1)
+— and both the doctor (print) and attach (hard gate)
 consume the same verdicts. The BTF match is documented as a preflight,
-not proof. File of truth: `src/session/kernel.rs`; seventeen tests in
+not proof. File of truth: `src/session/kernel.rs`; nineteen tests in
 `test/session/kernel_tests.rs`.
 
 ## The body: lifecycle, privilege, and the stateless player

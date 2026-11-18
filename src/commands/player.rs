@@ -139,12 +139,15 @@ pub fn cmd_play() {
     //    one the kernel enforces from the limit itself.
     force_no_coredump();
 
-    // The kernel-policy gate (night-badas-4 round 5): the player's
-    // whole registration ride is control-map writes — a kernel that
-    // gates unprivileged bpf() ends the run here, classified, instead
-    // of an EPERM surfacing as a cryptic map error.
+    // The kernel-policy gate (night-badas-4 round 5, the era split
+    // night-ebpf-era-1): the player's whole registration ride is
+    // pinned-fd map ops — a dispatch-era kernel (5.15-5.18) that
+    // gates every plain-user bpf() call ends the run here, classified,
+    // instead of an EPERM surfacing as a cryptic map error. 5.19+
+    // narrow the gate to object creation: the verbs create nothing,
+    // and the ops ride the pins' own file permissions.
     if let Some(refusal) = crate::session::kernel::probe()
-        .unpriv_map_write_refusal(crate::session::privilege::euid_is_root())
+        .unpriv_map_ops_refusal(crate::session::privilege::euid_is_root())
     {
         crate::output::error(refusal);
         process::exit(1);

@@ -341,10 +341,12 @@ measurable improvement proven by the audit harness.
   everything after that is unprivileged.
 - **Kernel 5.15+ with BPF available** — lockdown / integrity modes
   that block BPF are refused with the exact reason.
-- **The kernel's own unprivileged-bpf gate** — distros that build
-  `CONFIG_BPF_UNPRIV_DEFAULT_OFF=y` in boot with
-  `kernel.unprivileged_bpf_disabled=2`: the control verbs refuse
-  classified and `zylaxion doctor` carries the posture line.
+- **The kernel's own unprivileged-bpf gate** — 5.15 through 5.18
+  gate every plain-user bpf() call at the dispatch level: with the
+  sysctl at 1 or 2 the control verbs refuse classified and
+  `zylaxion doctor` carries the posture line. 5.19+ narrow the gate
+  to object creation — the verbs create nothing, so they ride the
+  pins' file permissions there, at any posture.
 - **Audio rides the desktop's bridge** — cpal → PipeWire / PulseAudio
   / ALSA. There is no direct JACK backend and no network audio.
 - **A keystroke is a scancode, never a letter** — sound class and

@@ -113,29 +113,36 @@ zylaxion's own gate, not at the kernel's.
 
 The engine's existing probe (sm_audio.py, the unprivileged-bpf gate
 row) tests zylaxion's refusal, not the kernel's raw answer — so the
-tree has no witness for the split. Two smaller drifts ride along:
-the doctor's "2 with a boot-parameter lock" arm models a kernel shape
-the mainline handler does not carry (the handler locks ONLY at 1 —
-the boot-param premise of night-dinner-3 needs re-witnessing or
-re-wording), and the `unpriv_bpf_allowed()` name describes the
-5.15-era semantics, not the 6.1+ ones.
+tree had no witness for the split. Two smaller drifts rode along:
+the doctor's "2 with a boot-parameter lock" arm modeled a kernel
+shape the mainline handler does not carry, and the refusal law
+modeled the dispatch era for every kernel.
 
-**The follow-up, evidence-first per the house law** (proposed, not
-shipped with this record): extend the E2E unprivileged-bpf probe with
-a RAW pinned-fd lookup-and-update attempt as the plain user. The
-Supermassive E2E matrix already spans the eras — the jammy 5.15 leg
-(dispatch gate: the raw op must fail) against the bookworm 6.1 / Arch
-6.6 / noble 6.8 / archive-head 7.0 legs (narrowed gate: the raw op
-must succeed on chowned pins). One instrument, both eras witnessed,
-per-leg. If the witness lands, split the posture law per kernel era
-(`is_narrowed_gate()` keyed on the parsed release), make the doctor's
-posture line era-aware, and the promised UX returns on every modern
-distro without touching the buried surface. If a distro backport
-refuses anyway, the current law is vindicated and stays — either way
-the claim stops being a model and becomes a measurement. The 5.15
-floor keeps the honest limitation no matter what: its gate genuinely
-closes the verbs, and the README's Limitations section stays
-truthful for it.
+**The follow-up, shipped as night-ebpf-era-1** (the boundary measured
+before any edit): the source walk pinned the gate-scope flip at
+**5.19** — v5.15 through v5.18 dispatch-gate every plain-user bpf()
+call, v5.19 computes the gate for the creation commands only (the
+kernel's own intent comment names the shape), v6.5 moves the two
+checks into `map_create` and `bpf_prog_load` with the pinned-fd ops
+on `map_get_sys_perms` — and the transition law proved UNIFORM
+across the eras: the handler at 5.15, 5.18 and master carries the
+same `locked_state = unpriv_enable == 1` (1 permanent, 2
+root-writable to 0), so night-dinner-3's boot-param premise is
+re-worded, not re-witnessed: the verdict now reports the planted
+parameter and names the handler's law. The tree ships the era split
+end to end: `narrowed_unpriv_gate()` keyed on the parsed release in
+`src/session/kernel.rs`, the verbs' gate and the doctor's posture
+line era-aware (`unpriv_map_ops_allowed` /
+`unpriv_map_ops_refusal`), the README's limitation truthful per
+era, and the witness instrument in the engine — a raw pinned-fd
+open-plus-lookup as the plain user and a two-way sysctl flip with
+restore (a 1 is never touched: its lock cannot be undone this
+boot), asserting the kernel's measured answer against the era law
+on every leg. The promised UX returns on every 5.19+ distro without
+touching the buried surface; the 5.15 floor keeps the honest
+limitation, and the E2E is the arbiter — a leg whose kernel
+contradicts the law reds the battery instead of the operator
+finding it.
 
 ## The decision
 
@@ -143,14 +150,16 @@ truthful for it.
    on the side of the fence the kernel maintains. No architecture
    change, no daemon resurrection, no unprivileged-loading detour —
    the deprecated lane stays untouched by construction.
-2. **Schedule the witness instrument** (the raw-op E2E probe above)
-   as its own night task before any law edit; the posture change,
-   if any, rides the measured boundary, not this record's reading.
+2. **The witness instrument** (the raw-op E2E probe above) shipped
+   as night-ebpf-era-1 together with the era-aware law, the boundary
+   measured from the source before any edit; the E2E legs arbitrate
+   the law from here on.
 3. **Keep the honest limitations truthful**: the README's
-   unprivileged-bpf limitation stays for the floor era regardless of
-   the 6.1+ refinement; the doctor's posture line is the single
-   surface operators see, and it must name the era split once the
-   witness exists.
+   unprivileged-bpf limitation names the era split now
+   (night-ebpf-era-1) — the dispatch-era floor keeps its refusal,
+   the 5.19+ world rides the file-permission model; the doctor's
+   posture line is the single surface operators see, and it carries
+   the same split.
 4. **Never market around the closed door.** No claim that zylaxion
    "works without privileges where others cannot" — the design works
    WITH the kernel's model (privileged load once, file-permission

@@ -391,13 +391,52 @@ def _real_usage(ledger: Ledger, binary: str, user: str) -> None:
             return
 
         posture = _unpriv_bpf_disabled()
+        narrowed = _narrowed_unpriv_gate()
+
+        # The raw-op witness (night-ebpf-era-1): the kernel's own
+        # answer to one plain-user pinned-fd op, measured, not
+        # modeled — the binary's verb law and the kernel itself must
+        # agree per era. 5.15-5.18 refuse at the dispatch gate (even
+        # the pin open dies there), 5.19+ hand the ops to the pins'
+        # file permissions and the lookup answers.
+        expect_ok = posture == 0 or narrowed
+        raw_rc, raw_out = _raw_pinned_map_op(user)
+        if (raw_rc == 0) == expect_ok:
+            era = "narrowed (5.19+)" if narrowed else "dispatch (pre-5.19)"
+            ledger.pass_row(
+                "the raw pinned-fd op matches the gate-era law",
+                f"posture {posture}, era {era}: {raw_out[:70]}",
+            )
+        else:
+            ledger.fail_row(
+                "the raw pinned-fd op contradicts the gate-era law",
+                f"posture {posture}, rc={raw_rc}: {raw_out[:200]}",
+            )
+
+        # The transition-law witness (night-ebpf-era-1): the mainline
+        # handler locks only at 1 — the knob flips both ways at root
+        # on every era, and the boot posture is restored before the
+        # chain continues. A 1 is never touched: that lock cannot be
+        # undone this boot and touching it would wedge the leg.
+        flip_rc, flip_out = _witness_transition_law()
+        if flip_rc == 0:
+            ledger.pass_row(
+                "the sysctl transition law holds (flipped and restored)",
+                flip_out[:90],
+            )
+        else:
+            ledger.fail_row(
+                "the sysctl transition law holds (flipped and restored)",
+                flip_out[:200],
+            )
+
         rc, out = _run_as_user(user, binary, ["on"])
-        if posture != 0:
-            # The kernel refuses every unprivileged bpf() — no map
-            # write can succeed as this user, so the honest
-            # expectation is the classified refusal itself
-            # (night-badas-4 round 5): the product names the gate,
-            # the rc stays 1, and the chain below it cannot run.
+        if posture != 0 and not narrowed:
+            # The dispatch-era gate (5.15-5.18) refuses every plain
+            # user's bpf() call — no map op can succeed as this user,
+            # so the honest expectation is the classified refusal
+            # itself (night-badas-4 round 5): the product names the
+            # gate, the rc stays 1, and the chain below it cannot run.
             if rc == 1 and "unprivileged bpf" in out:
                 ledger.pass_row(
                     "on as the real user refuses at the kernel's "
@@ -413,11 +452,32 @@ def _real_usage(ledger: Ledger, binary: str, user: str) -> None:
             _run([binary, "detach"])
             return
         if rc == 0 and "sound on:" in out:
-            ledger.pass_row(
-                f"{user} turns the sound on (no input group, no sudo)",
-                out.splitlines()[0][:70],
-            )
+            if posture != 0:
+                # The narrowed gate (5.19+) gates object creation
+                # only: the verbs create nothing, and the kernel
+                # hands the plain user the pinned-fd ops — the chain
+                # runs at the locked posture, and a self-refusal here
+                # would be the product refusing what the kernel
+                # allows.
+                ledger.pass_row(
+                    f"{user} turns the sound on at posture {posture} "
+                    "(the narrowed gate)",
+                    "the era-aware law: no refusal the kernel would not make",
+                )
+            else:
+                ledger.pass_row(
+                    f"{user} turns the sound on (no input group, no sudo)",
+                    out.splitlines()[0][:70],
+                )
         else:
+            if posture != 0 and narrowed:
+                ledger.fail_row(
+                    f"{user} turns the sound on at posture {posture} "
+                    "(the narrowed gate)",
+                    f"rc={rc}: {out[:400]}",
+                )
+                _run([binary, "detach"])
+                return
             ledger.fail_row(
                 f"{user} turns the sound on (no input group, no sudo)",
                 f"rc={rc}: {out[:400]}",
@@ -592,19 +652,137 @@ def _real_usage(ledger: Ledger, binary: str, user: str) -> None:
 def _unpriv_bpf_disabled() -> int:
     """The kernel's unprivileged-bpf posture (night-badas-4 round 5).
 
-    Ubuntu builds the gate in (CONFIG_BPF_UNPRIV_DEFAULT_OFF=y on both
-    reference kernels, verified against the shipped configs): the guest
-    boots at 2, every unprivileged bpf() is refused for the whole boot,
-    and root cannot re-enable it. The real-user chain is a series of
-    control-map writes, so this lane tests what the kernel honestly
-    allows — the full zero-to-hero chain when the sysctl sits at 0,
-    the honest refusal when it does not.
+    Ubuntu builds the gate in (CONFIG_BPF_UNPRIV_DEFAULT_OFF=y on the
+    reference kernels, verified against the shipped configs): the
+    guests boot at 2. What that means is era-shaped, and the battery
+    measures it, never models it: 5.15-5.18 gate every plain-user
+    bpf() call at the dispatch level (the real-user chain cannot run
+    and the honest expectation is the classified refusal), 5.19+
+    narrow the gate to object creation and hand the pinned-fd ops to
+    file permissions (the chain runs at the locked posture). The
+    transition law — a 2 is root-writable to 0 on every era, the
+    handler locks only at 1 — is witnessed live by the flip probe;
+    this docstring's old "root cannot re-enable it" claim was
+    refuted by the mainline handler and by the Debian 13 witness in
+    src/session/kernel.rs.
     """
     try:
         with open("/proc/sys/kernel/unprivileged_bpf_disabled") as fh:
             return int(fh.read().strip() or "0")
     except (OSError, ValueError):
         return 0
+
+
+_SYSCTL = "/proc/sys/kernel/unprivileged_bpf_disabled"
+
+# The raw-op witness program (night-ebpf-era-1): one plain-user
+# pinned-fd op against the chowned control map, exactly the ops the
+# verbs ride — BPF_OBJ_GET (a bpffs file open) and BPF_MAP_LOOKUP_ELEM
+# (an element op on that fd). bpf() is syscall 321 on x86_64; the attr
+# structs mirror linux/bpf.h (OBJ_GET: pathname + bpf_fd + file_flags
+# = 16 bytes; LOOKUP_ELEM: map_fd + key + value + flags = 32 bytes).
+# Exit codes: 0 = the op succeeded, 3 = the pin open was refused,
+# 4 = the pin opened but the lookup was refused.
+_RAW_OP_SNIPPET = r"""
+import ctypes
+libc = ctypes.CDLL(None, use_errno=True)
+BPF_OBJ_GET, BPF_MAP_LOOKUP_ELEM = 17, 1
+class path_attr(ctypes.Structure):
+    _fields_ = [("pathname", ctypes.c_char_p), ("bpf_fd", ctypes.c_int),
+                ("file_flags", ctypes.c_uint)]
+class lookup_attr(ctypes.Structure):
+    _fields_ = [("map_fd", ctypes.c_uint), ("key", ctypes.c_void_p),
+                ("value", ctypes.c_void_p), ("flags", ctypes.c_ulong)]
+a = path_attr()
+a.pathname = b"/sys/fs/bpf/zylaxion/control"
+a.bpf_fd = 0
+a.file_flags = 0
+fd = libc.syscall(321, BPF_OBJ_GET, ctypes.byref(a), 16)
+if fd < 0:
+    print("the pin open was refused, errno", ctypes.get_errno())
+    raise SystemExit(3)
+l = lookup_attr()
+key = ctypes.c_uint(0)
+val = ctypes.c_uint(0)
+l.map_fd = fd
+l.key = ctypes.addressof(key)
+l.value = ctypes.addressof(val)
+l.flags = 0
+r = libc.syscall(321, BPF_MAP_LOOKUP_ELEM, ctypes.byref(l), 32)
+if r < 0:
+    print("the pin opened, the lookup was refused, errno",
+          ctypes.get_errno())
+    raise SystemExit(4)
+print("the pin opened, the lookup answered, control[0] =", val.value)
+"""
+
+
+def _kernel_release() -> tuple[int, int]:
+    """The guest kernel's `(major, minor)`, `(0, 0)` when unparsable.
+
+    Handles the real shapes: "5.15.0-156-generic", "6.12.1". A
+    missing minor reads 0; anything unparsable reads (0, 0) — a
+    witness never guesses a version the kernel did not state.
+    """
+    try:
+        with open("/proc/sys/kernel/osrelease", encoding="utf-8") as fh:
+            release = fh.read().strip()
+        major_txt, _, rest = release.partition(".")
+        minor_txt = rest.partition(".")[0].partition("-")[0]
+        return int(major_txt), int(minor_txt) if minor_txt else 0
+    except (OSError, ValueError):
+        return (0, 0)
+
+
+def _narrowed_unpriv_gate() -> bool:
+    """The gate-era law, the engine's mirror of the binary's own
+    (src/session/kernel.rs::narrowed_unpriv_gate): 5.19+ narrow the
+    unprivileged-bpf sysctl gate to object creation; 5.15-5.18 gate
+    every plain-user bpf() call at the dispatch level. The raw-op
+    witness asserts against this split, per leg, every run.
+    """
+    major, minor = _kernel_release()
+    return major > 5 or (major == 5 and minor >= 19)
+
+
+def _raw_pinned_map_op(user: str) -> tuple[int, str]:
+    """One plain-user pinned-fd op, measured: the kernel's answer,
+    not the model's."""
+    return _run(["sudo", "-u", user, "python3", "-c", _RAW_OP_SNIPPET],
+                timeout=30)
+
+
+def _write_sysctl(value: str) -> tuple[int, str]:
+    """One root write into the sysctl file — a plain file write, no
+    /usr/bin/sysctl dependency (every leg carries python3; procps's
+    sysctl is one more package to be absent)."""
+    return _run(
+        ["python3", "-c", f"open('{_SYSCTL}', 'w').write('{value}')"],
+        timeout=15,
+    )
+
+
+def _witness_transition_law() -> tuple[int, str]:
+    """The transition law, measured live (night-ebpf-era-1): the
+    mainline handler's `locked_state` keys on 1 only, so the knob
+    must accept the root write in BOTH directions on every kernel
+    era — the boot posture is flipped to the other locked value and
+    restored before the chain continues. Skips honestly when the
+    posture is 1 (the permanent lock: a flip cannot be undone this
+    boot and touching it would wedge the leg)."""
+    posture = _unpriv_bpf_disabled()
+    if posture == 1:
+        return 0, "the boot posture is 1 — the permanent lock is left untouched"
+    flipped = "2" if posture == 0 else "0"
+    out = _write_sysctl(flipped)
+    if out[0] != 0:
+        return 1, f"the write of {flipped} was refused: {out[1][:120]}"
+    if _unpriv_bpf_disabled() != int(flipped):
+        return 1, f"the sysctl still reads {_unpriv_bpf_disabled()} after the write of {flipped}"
+    restored = _write_sysctl(str(posture))
+    if restored[0] != 0 or _unpriv_bpf_disabled() != posture:
+        return 1, f"the restore to {posture} failed: {restored[1][:120]}"
+    return 0, f"{posture} → {flipped} accepted, restored to {posture} (the boot posture)"
 
 
 def _readable_by(user: str, path: str) -> bool:

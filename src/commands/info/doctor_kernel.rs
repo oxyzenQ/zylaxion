@@ -340,21 +340,22 @@ pub(super) fn kernel_station(root: bool) -> bool {
             );
             ok = false;
         }
-        // The unprivileged-bpf posture (night-badas-4 round 5): the
-        // control-plane verbs run as a plain user only when the kernel
-        // allows unprivileged bpf(). A distro that builds the gate in
-        // (Ubuntu does, CONFIG_BPF_UNPRIV_DEFAULT_OFF=y) locks the
-        // verbs out for the whole boot — the doctor's duty is to name
-        // it, the same way lockdown is named. The canonical verdict
-        // string carries its own "unprivileged bpf:" lead; the row key
-        // replaces it (the strip keeps the row geometry, the fallback
-        // keeps the truth if the canonical string ever changes shape).
+        // The unprivileged-bpf posture (night-badas-4 round 5, the
+        // era split night-ebpf-era-1): the row reports the raw
+        // posture with the era-aware verdict — 5.15-5.18 gate every
+        // plain-user bpf() call at the dispatch level, 5.19+ leave
+        // the pinned-fd ops to the pins' file permissions. The tier
+        // keys on the VERB consequence (may this caller reach the
+        // control plane), not on the raw value: root rides the
+        // capability law and a narrowed-era plain user at posture 2
+        // is a working setup, not a failure — a distro that locks
+        // only the creation lane no longer fails the doctor.
         let unpriv_verdict = kernel.unpriv_bpf_verdict();
         let unpriv_value = unpriv_verdict
             .strip_prefix("unprivileged bpf: ")
             .unwrap_or(&unpriv_verdict)
             .to_string();
-        if kernel.unpriv_bpf_allowed() {
+        if kernel.unpriv_map_ops_allowed(root) {
             println!(
                 "{}",
                 crate::output::kv("unpriv bpf:", &crate::output::ok_line(&unpriv_value))

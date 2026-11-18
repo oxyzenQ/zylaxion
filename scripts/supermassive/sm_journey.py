@@ -23,11 +23,13 @@ the guest so the fixes can never regress silently:
     code-chosen output device for a machine with no audio hardware,
     the same substitution a VM (or the transcript's headless box)
     needs to prove frames without speakers.
-  the verdict honesty law — at sysctl value 2 with no boot parameter
-    on the command line, the verdict must be the runtime-default arm
-    (the sysctl remedy), never the boot-lock claim the transcript
-    refuted; with the parameter planted, the boot-lock arm is the
-    honest one; at value 0 the allowed arm is.
+  the verdict honesty law — at sysctl value 2 the verdict is the
+    runtime-default arm (the sysctl remedy), never the boot-lock
+    claim the transcript refuted; when the parameter IS planted on
+    the command line, the verdict reports the fact and names the
+    mainline handler's law (the permanent lock lives at 1 — the
+    write of 0 is the test, never trusted as a model); at value 0
+    the allowed arm is.
 
 Root lane only (it chmods the bpffs mount and drives root's attach).
 It rides the micro-VM's --full lane between the tap lifecycle and the
@@ -57,7 +59,11 @@ sys.dont_write_bytecode = True
 from sm_report import Ledger, Step  # noqa: E402
 
 BPFFS = "/sys/fs/bpf"
-BOOT_LOCK_TOKEN = "bpf.unprivileged_bpf_disabled"
+# The whole-token shape (night-ebpf-era-1): the binary's own
+# boot-param law (src/session/kernel.rs::unpriv_bpf_locked_by_boot_param)
+# matches the exact value-carrying token — "=1", "=20" and stray
+# prefixes must never read as the planted lock.
+BOOT_LOCK_TOKEN = "bpf.unprivileged_bpf_disabled=2"
 RUN_TIMEOUT = 90
 
 
@@ -105,9 +111,11 @@ def _unpriv_posture() -> int:
 
 
 def _boot_param_locked() -> bool:
+    """The exact whole-token match, the binary's own law — a value of
+    1, a stray prefix, or a longer number must not read as the lock."""
     try:
         with open("/proc/cmdline", encoding="utf-8") as fh:
-            return BOOT_LOCK_TOKEN in fh.read()
+            return BOOT_LOCK_TOKEN in fh.read().split()
     except OSError:
         return False
 
@@ -250,10 +258,11 @@ def _stage_self_heal(ledger: Ledger, binary: str, user: str) -> None:
                 f"{user} turns the sound on through the relaxed door",
                 out.splitlines()[0][:70],
             )
-        elif rc == 1 and "unprivileged bpf" in out and "refused to open" in out:
+        elif rc == 1 and "unprivileged bpf" in out:
             ledger.pass_row(
-                "the door is proven open — the refusal moved to the kernel's bpf gate",
-                "the walk-block is gone; the posture wall is the honest remainder",
+                "the door is proven open — the refusal is the kernel's posture wall",
+                "the walk-block is gone; the unprivileged-bpf wall (the policy "
+                "gate or the map open) is the honest remainder",
             )
             _run([binary, "detach"])
             return
@@ -321,10 +330,13 @@ def _stage_self_heal(ledger: Ledger, binary: str, user: str) -> None:
 
 
 def _stage_verdict_honesty(ledger: Ledger, binary: str, user: str) -> None:
-    """The value-2 verdict has two truths (night-dinner-3): the boot
-    parameter lock the transcript never had, and the runtime default
-    the transcript disproved with one sysctl. The doctor must speak
-    the one the machine actually wears."""
+    """The value-2 verdict has two truths (night-dinner-3, re-measured
+    by night-ebpf-era-1): the runtime default the transcript proved
+    flippable, and the planted parameter the mainline handler does
+    not honor (the permanent lock lives at 1). The doctor must speak
+    the one the machine actually wears — and when the parameter is
+    planted, it must name the handler's law instead of claiming a
+    lock nothing enforces."""
     with Step(ledger, "the verdict honesty law — value 2, two truths"):
         value = _unpriv_posture()
         boot_locked = _boot_param_locked()
@@ -343,15 +355,20 @@ def _stage_verdict_honesty(ledger: Ledger, binary: str, user: str) -> None:
                     f"rc={rc}: {out[:400]}",
                 )
         elif boot_locked:
-            if "locked (2)" in out and "cannot be re-enabled" in out:
+            planted = BOOT_LOCK_TOKEN in out and "locks only at 1" in out
+            refuted = "cannot be re-enabled" in out
+            if planted and not refuted:
                 ledger.pass_row(
-                    "the verdict speaks the boot-lock arm when the parameter plants it",
-                    f"{BOOT_LOCK_TOKEN} is on the command line",
+                    "the verdict reports the planted parameter and names the "
+                    "handler's law (night-ebpf-era-1)",
+                    "the lock claim nothing enforces stays gone; the write of "
+                    "0 is named as the test",
                 )
             else:
                 ledger.fail_row(
-                    "the verdict speaks the boot-lock arm when the parameter plants it",
-                    f"rc={rc}: {out[:400]}",
+                    "the verdict reports the planted parameter and names the "
+                    "handler's law (night-ebpf-era-1)",
+                    f"rc={rc}, planted={planted}, refuted={refuted}: {out[:400]}",
                 )
         else:
             runtime_arm = "disabled (2)" in out and (

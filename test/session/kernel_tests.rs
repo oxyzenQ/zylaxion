@@ -287,10 +287,29 @@ fn unpriv_bpf_allowed_law() {
 }
 
 #[test]
-fn unpriv_map_write_refusal_law() {
-    let report = |raw: u8, boot_locked: bool| KernelReport {
+fn narrowed_unpriv_gate_law() {
+    // Measured from the mainline source (night-ebpf-era-1): 5.15
+    // through 5.18 gate every plain-user bpf() call at the dispatch
+    // level, 5.19 narrows the gate to the creation commands, and the
+    // pinned-fd element ops ride the file-permission model from
+    // there on.
+    assert!(!narrowed_unpriv_gate(Some((5, 14))));
+    assert!(!narrowed_unpriv_gate(Some((5, 15))));
+    assert!(!narrowed_unpriv_gate(Some((5, 18))));
+    assert!(narrowed_unpriv_gate(Some((5, 19))));
+    assert!(narrowed_unpriv_gate(Some((6, 0))));
+    assert!(narrowed_unpriv_gate(Some((6, 12))));
+    assert!(narrowed_unpriv_gate(Some((7, 1))));
+    // An unparsable release reads conservative — never guess an era
+    // the kernel did not state.
+    assert!(!narrowed_unpriv_gate(None));
+}
+
+#[test]
+fn unpriv_map_ops_refusal_law() {
+    let report = |raw: u8, parsed: (u32, u32), boot_locked: bool| KernelReport {
         release: String::new(),
-        parsed: Some((6, 8)),
+        parsed: Some(parsed),
         btf: false,
         bpffs: true,
         input_tap: String::new(),
@@ -299,39 +318,53 @@ fn unpriv_map_write_refusal_law() {
         unpriv_bpf_disabled: raw,
         unpriv_bpf_boot_locked: boot_locked,
     };
-    // Allowed posture: no refusal, whatever the euid.
-    assert!(report(0, false).unpriv_map_write_refusal(false).is_none());
-    assert!(report(0, false).unpriv_map_write_refusal(true).is_none());
+    // The open posture: no refusal, whatever the era and the euid.
+    assert!(
+        report(0, (5, 15), false)
+            .unpriv_map_ops_refusal(false)
+            .is_none()
+    );
+    assert!(
+        report(0, (6, 12), false)
+            .unpriv_map_ops_refusal(false)
+            .is_none()
+    );
     // Root is never gated — the kernel's gate keys on capability,
     // not on the sysctl (the rescue path stays reachable).
-    assert!(report(2, true).unpriv_map_write_refusal(true).is_none());
-    // A gated plain user gets the classified refusal, carrying the
-    // value and the substring the E2E engine pins (sm_audio.py).
-    let locked = report(2, true).unpriv_map_write_refusal(false).unwrap();
+    assert!(report(2, (5, 15), true).unpriv_map_ops_refusal(true).is_none());
+    assert!(report(2, (6, 12), true).unpriv_map_ops_refusal(true).is_none());
+    // The dispatch era (5.15-5.18): a gated plain user gets the
+    // classified refusal, carrying the value and the substring the
+    // E2E engine pins (sm_audio.py).
+    let locked = report(2, (5, 15), true).unpriv_map_ops_refusal(false).unwrap();
     assert!(locked.contains("unprivileged bpf"), "{locked}");
     assert!(locked.contains("(2)"), "{locked}");
     assert!(locked.contains("doctor"), "{locked}");
-    let disabled = report(1, false).unpriv_map_write_refusal(false).unwrap();
+    assert!(locked.contains("sysctl"), "{locked}");
+    let disabled = report(1, (5, 15), false).unpriv_map_ops_refusal(false).unwrap();
     assert!(disabled.contains("unprivileged bpf"), "{disabled}");
     assert!(disabled.contains("(1)"), "{disabled}");
-    // The recoverable arm names the remedy; the boot-param-locked arm
-    // says the truth: this boot cannot re-enable it.
-    assert!(disabled.contains("re-enable"), "{disabled}");
-    assert!(locked.contains("cannot be re-enabled"), "{locked}");
-    // night-dinner-3: a value of 2 WITHOUT the boot param is the
-    // distro default, not a lock — the refusal must NOT claim an
-    // unflippable boot and must carry the sysctl remedy.
-    let defaulted = report(2, false).unpriv_map_write_refusal(false).unwrap();
-    assert!(defaulted.contains("unprivileged bpf"), "{defaulted}");
-    assert!(!defaulted.contains("cannot be re-enabled"), "{defaulted}");
-    assert!(defaulted.contains("sysctl"), "{defaulted}");
+    // The narrowed era (5.19+): the verbs create nothing, so the
+    // pinned-fd ops ride the file permissions — no refusal at any
+    // locked posture, and the product must not self-refuse what the
+    // kernel allows.
+    assert!(
+        report(2, (5, 19), false)
+            .unpriv_map_ops_refusal(false)
+            .is_none()
+    );
+    assert!(
+        report(1, (6, 12), false)
+            .unpriv_map_ops_refusal(false)
+            .is_none()
+    );
 }
 
 #[test]
 fn unpriv_bpf_verdict_law() {
-    let report = |raw: u8, boot_locked: bool| KernelReport {
+    let report = |raw: u8, parsed: (u32, u32), boot_locked: bool| KernelReport {
         release: String::new(),
-        parsed: Some((6, 8)),
+        parsed: Some(parsed),
         btf: false,
         bpffs: true,
         input_tap: String::new(),
@@ -340,24 +373,48 @@ fn unpriv_bpf_verdict_law() {
         unpriv_bpf_disabled: raw,
         unpriv_bpf_boot_locked: boot_locked,
     };
-    assert!(report(0, false).unpriv_bpf_verdict().contains("allowed"));
-    assert!(
-        report(1, false)
-            .unpriv_bpf_verdict()
-            .contains("disabled (1)")
-    );
-    // night-dinner-3: the value-2 arm splits on the boot-param lock —
-    // the Debian 13 shape (no boot param) is a flippable default, NOT
-    // a lock; the boot-param shape is the honest "locked" claim.
-    let defaulted = report(2, false).unpriv_bpf_verdict();
+    // Every arm carries the substring the E2E engine pins.
+    for verdict in [
+        report(0, (5, 15), false).unpriv_bpf_verdict(),
+        report(1, (5, 15), false).unpriv_bpf_verdict(),
+        report(2, (6, 12), false).unpriv_bpf_verdict(),
+        report(9, (6, 12), false).unpriv_bpf_verdict(),
+    ] {
+        assert!(verdict.contains("unprivileged bpf"), "{verdict}");
+    }
+    // The transition law is the mainline handler's own, uniform
+    // across the eras (measured at 5.15, 5.18 and master): 1 is the
+    // permanent lock, a 2 is root-writable to 0. No arm may claim a
+    // re-enable for 1 and no arm may claim an unflippable 2.
+    let old_locked = report(1, (5, 15), false).unpriv_bpf_verdict();
+    assert!(old_locked.contains("disabled (1)"), "{old_locked}");
+    assert!(old_locked.contains("permanent lock"), "{old_locked}");
+    assert!(!old_locked.contains("re-enable"), "{old_locked}");
+    assert!(old_locked.contains("verbs cannot run"), "{old_locked}");
+    let narrowed_locked = report(1, (6, 12), false).unpriv_bpf_verdict();
+    assert!(narrowed_locked.contains("permanent lock"), "{narrowed_locked}");
+    assert!(narrowed_locked.contains("verbs still run"), "{narrowed_locked}");
+    // night-dinner-3, re-measured (night-ebpf-era-1): the boot-param
+    // premise is refuted by the uniform handler law — the cmdline
+    // fact is REPORTED, the lock claim is gone, and the write of 0
+    // is named as the test, not trusted as a model.
+    let defaulted = report(2, (6, 12), false).unpriv_bpf_verdict();
     assert!(defaulted.contains("disabled (2)"), "{defaulted}");
     assert!(!defaulted.contains("cannot be re-enabled"), "{defaulted}");
     assert!(defaulted.contains("sysctl"), "{defaulted}");
-    let locked = report(2, true).unpriv_bpf_verdict();
-    assert!(locked.contains("locked (2)"), "{locked}");
-    assert!(locked.contains("cannot be re-enabled"), "{locked}");
+    assert!(defaulted.contains("verbs still run"), "{defaulted}");
+    let boot_locked = report(2, (6, 12), true).unpriv_bpf_verdict();
     assert!(
-        report(9, false)
+        boot_locked.contains("bpf.unprivileged_bpf_disabled=2"),
+        "{boot_locked}"
+    );
+    assert!(boot_locked.contains("locks only at 1"), "{boot_locked}");
+    assert!(!boot_locked.contains("cannot be re-enabled"), "{boot_locked}");
+    // The dispatch-era consequence: the verbs cannot run.
+    let old_defaulted = report(2, (5, 15), false).unpriv_bpf_verdict();
+    assert!(old_defaulted.contains("verbs cannot run"), "{old_defaulted}");
+    assert!(
+        report(9, (6, 12), false)
             .unpriv_bpf_verdict()
             .contains("disabled (9)")
     );

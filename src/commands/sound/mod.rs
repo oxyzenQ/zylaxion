@@ -279,13 +279,16 @@ pub(crate) fn open_control() -> Result<Array<MapData, u32>, String> {
 }
 
 /// One kernel-policy gate for the verbs that must talk to the pinned
-/// control plane (night-badas-4 round 5): the classified refusal beats
-/// the misleading "not attached" shape an EPERM takes on a kernel that
-/// gates unprivileged bpf(). Root is never gated (capability-keyed).
+/// control plane (night-badas-4 round 5, the era split
+/// night-ebpf-era-1): the classified refusal beats the misleading
+/// "not attached" shape an EPERM takes on a dispatch-era kernel
+/// (5.15-5.18) that refuses every plain-user bpf() call. Root is
+/// never gated (capability-keyed), and 5.19+ leave the pinned-fd ops
+/// to the pins' own file permissions.
 fn kernel_policy_gate() {
     let kernel = crate::session::kernel::probe();
     if let Some(refusal) =
-        kernel.unpriv_map_write_refusal(crate::session::privilege::euid_is_root())
+        kernel.unpriv_map_ops_refusal(crate::session::privilege::euid_is_root())
     {
         crate::output::error(refusal);
         process::exit(1);
