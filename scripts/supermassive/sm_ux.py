@@ -219,26 +219,33 @@ def _tapless_doors(ledger: Ledger, binary: str, full_mode: bool) -> None:
         # refusal (a root player would open audio in root's session —
         # the parent owns the door before anything spawns); the
         # self-test lane is unprivileged and meets the kernel gate,
-        # the tap gate, or the unprivileged-bpf posture gate (a distro
+        # the tap gate, the unprivileged-bpf posture gate (a distro
         # that builds CONFIG_BPF_UNPRIV_DEFAULT_OFF=y locks the verbs
-        # out for the whole boot) — all honest environment verdicts.
-        # The user's tap-less door is asserted separately in the
-        # real-usage lane (on after detach, as the real user).
+        # out for the whole boot), or — on a narrowed-era kernel
+        # (5.19+, night-ebpf-era-1) where the posture gate no longer
+        # fires — the walk-block door (the verb reached the pin open
+        # honestly and the host's bpffs mode refused the walk). All
+        # honest environment verdicts. The user's tap-less door is
+        # asserted separately in the real-usage lane (on after
+        # detach, as the real user).
         root_door = "do not use sudo" in out
         kernel_door = "kernel eBPF verdict" in out
         tap_door = "the tap is not attached" in out and "zylaxion attach" in out
         posture_door = "unprivileged bpf" in out
+        walk_door = "cannot walk to" in out and "chmod o+x" in out
         if full_mode:
             ok = rc == 1 and root_door
             shape = "root door"
         else:
-            ok = rc == 1 and (tap_door or kernel_door or posture_door)
+            ok = rc == 1 and (tap_door or kernel_door or posture_door or walk_door)
             if tap_door:
                 shape = "tap door"
             elif kernel_door:
                 shape = "kernel door"
-            else:
+            elif posture_door:
                 shape = "posture door"
+            else:
+                shape = "walk door"
         if ok:
             ledger.pass_row(
                 "on without the ready environment answers honestly",
@@ -248,7 +255,8 @@ def _tapless_doors(ledger: Ledger, binary: str, full_mode: bool) -> None:
             ledger.fail_row(
                 "on without the ready environment answers honestly",
                 f"rc={rc}, root-door={root_door}, tap-door={tap_door}, "
-                f"kernel-door={kernel_door}, posture-door={posture_door}: {out[:90]}",
+                f"kernel-door={kernel_door}, posture-door={posture_door}, "
+                f"walk-door={walk_door}: {out[:90]}",
             )
 
         rc, out = run_cli(binary, ["_play"])

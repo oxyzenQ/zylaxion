@@ -679,13 +679,14 @@ _SYSCTL = "/proc/sys/kernel/unprivileged_bpf_disabled"
 # pinned-fd op against the chowned control map, exactly the ops the
 # verbs ride — BPF_OBJ_GET (a bpffs file open) and BPF_MAP_LOOKUP_ELEM
 # (an element op on that fd). bpf() is syscall 321 on x86_64. The attr
-# rides a full-union-sized zero-filled buffer (256 bytes): every real
-# caller (libbpf, aya, bpftool) passes the union size, the kernel's
-# CHECK_ATTR law demands zero beyond each command's last field, and
-# the pathname is an explicitly NUL-terminated buffer — the kernel's
-# getname refuses a string with no terminator (the EINVAL the first
-# shape of this probe met on the lts-6.8 leg; the CI run is the
-# arbiter, and it red the battery for it).
+# rides a full-union-sized zero-filled buffer (256 bytes, the exact
+# shape libbpf, aya and bpftool ride: the tail laws are met by
+# construction on every era) and the pathname field holds a POINTER
+# to a separately NUL-terminated string — the kernel's getname
+# refuses an unterminated one, and the first two shapes of this
+# probe met exactly that law (the CI runs are the arbiter, and they
+# red the battery twice for it: an unterminated c_char_p target,
+# then the string memmoved into the pointer's own slot).
 # Exit codes: 0 = the op succeeded, 3 = the pin open was refused,
 # 4 = the pin opened but the lookup was refused.
 _RAW_OP_SNIPPET = r"""
@@ -694,9 +695,9 @@ import struct as _s
 libc = ctypes.CDLL(None, use_errno=True)
 BPF_OBJ_GET, BPF_MAP_LOOKUP_ELEM = 17, 1
 ATTR_SIZE = 256
+pathbuf = ctypes.create_string_buffer(b"/sys/fs/bpf/zylaxion/control")
 buf = ctypes.create_string_buffer(ATTR_SIZE)
-PATH = b"/sys/fs/bpf/zylaxion/control"
-ctypes.memmove(buf, PATH, len(PATH))
+_s.pack_into("Q", buf, 0, ctypes.addressof(pathbuf))
 fd = libc.syscall(321, BPF_OBJ_GET, buf, ATTR_SIZE)
 if fd < 0:
     print("the pin open was refused, errno", ctypes.get_errno())
