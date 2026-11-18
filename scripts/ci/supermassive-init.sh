@@ -309,21 +309,31 @@ for mod in soundcore snd snd-timer snd-pcm snd-dummy uinput; do
         fi
 done
 
-# night-runner-1, the Debian serio split: i8042 rides as a module on
-# bookworm while atkbd is builtin — without it the PS/2 port binds
-# nothing and no /dev/input event node ever exists, so the real-user
-# law reads a false SKIP. Load it when the workflow staged one; the
-# kernels that build the chain in stage nothing, which is the honest
-# no-op shape here.
+# night-runner-1, the Debian input split: bookworm builds the whole
+# serio chain (serio, i8042, libps2, atkbd) INTO vmlinuz but ships
+# evdev as a module — without it the PS/2 port produces no
+# /dev/input/event* node and the real-user law reads a false SKIP.
+# Load the split modules when the workflow staged them; the kernels
+# that build them in stage nothing, which is the honest no-op shape.
 I8042_KO=$(find "$MODDIR" -name "i8042.ko*" 2>/dev/null | head -1)
 if [ -n "$I8042_KO" ]; then
         if insmod "$I8042_KO" 2>/dev/null || grep -q i8042 /proc/modules; then
-                note "module i8042 loaded (the Debian serio split, atkbd builtin binds the port)" PASS
+                note "module i8042 loaded (the Debian input split, the port is a module)" PASS
         else
                 note "module i8042 (insmod $(basename "$I8042_KO"))" FAIL
         fi
 else
         echo "MASS: no i8042.ko staged (this kernel builds the serio chain in)"
+fi
+EVDEV_KO=$(find "$MODDIR" -name "evdev.ko*" 2>/dev/null | head -1)
+if [ -n "$EVDEV_KO" ]; then
+        if insmod "$EVDEV_KO" 2>/dev/null || grep -q evdev /proc/modules; then
+                note "module evdev loaded (the Debian input split, the event interface is a module)" PASS
+        else
+                note "module evdev (insmod $(basename "$EVDEV_KO"))" FAIL
+        fi
+else
+        echo "MASS: no evdev.ko staged (this kernel builds the event interface in)"
 fi
 
 # The sound card is the PCM witness's stage: snd-dummy must have

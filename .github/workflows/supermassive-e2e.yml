@@ -623,18 +623,26 @@ jobs:
               echo "FAIL: uinput neither staged nor built-in — the keystroke injector has no kernel half"
               exit 1
             fi
-            # night-runner-1, the Debian serio split, named by the
-            # first 6.1 run: i8042 is a MODULE on bookworm while atkbd
-            # is builtin — without it no PS/2 event node ever exists
-            # and the real-user law reads a false SKIP. Stage it when
-            # the artifact carries one (jammy, noble and Arch build the
-            # chain in, so nothing is staged there).
+            # night-runner-1, the Debian input split, named by the first
+            # two 6.1 runs: bookworm builds the whole serio chain (serio,
+            # i8042, libps2, atkbd) INTO vmlinuz but ships evdev as a
+            # MODULE — without it no /dev/input/event* node ever exists
+            # and the real-user law reads a false SKIP. Stage the split
+            # modules when the artifact carries them (jammy, noble and
+            # Arch build evdev in, so nothing is staged there).
             I8042_KO=$(find pkg -path '*lib/modules*' -name 'i8042.ko*' | head -1)
             if [ -n "$I8042_KO" ]; then
               cp "$I8042_KO" /tmp/kfloor/stage/mods/
-              echo "i8042: staged (the Debian serio split)"
+              echo "i8042: staged (this kernel ships the serio port as a module)"
             else
               echo "i8042: not shipped by this artifact (the serio chain is built in)"
+            fi
+            EVDEV_KO=$(find pkg -path '*lib/modules*' -name 'evdev.ko*' | head -1)
+            if [ -n "$EVDEV_KO" ]; then
+              cp "$EVDEV_KO" /tmp/kfloor/stage/mods/
+              echo "evdev: staged (this kernel ships the event interface as a module)"
+            else
+              echo "evdev: not shipped by this artifact (the event interface is built in)"
             fi
             # night-runner-1: Arch compresses each module individually
             # (.ko.zst) and the guest's insmod speaks plain .ko — the
