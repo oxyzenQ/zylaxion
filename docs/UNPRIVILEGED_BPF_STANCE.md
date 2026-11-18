@@ -112,7 +112,7 @@ mainstream), the product therefore refuses UX the kernel permits: the
 zylaxion's own gate, not at the kernel's.
 
 The engine's existing probe (sm_audio.py, the unprivileged-bpf gate
-row) tests ZYLAXION's refusal, not the kernel's raw answer — so the
+row) tests zylaxion's refusal, not the kernel's raw answer — so the
 tree has no witness for the split. Two smaller drifts ride along:
 the doctor's "2 with a boot-parameter lock" arm models a kernel shape
 the mainline handler does not carry (the handler locks ONLY at 1 —
