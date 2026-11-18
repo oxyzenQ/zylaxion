@@ -178,3 +178,28 @@ pro-audit-harness = [
   "--manifest-path",
   "scripts/audit/harness/Cargo.toml",
 ]
+
+# ── the D4 reproducible-chain instrument alias (night-depth-hardening-Z1)
+#
+# The static musl v3 shape the two-host reproducible lane builds
+# (.github/workflows/reproducible.yml + scripts/release/repro-build.sh):
+# process identity, not a release shape — the shipping contract stays
+# glibc-only (night-dragon-maintenance-T1 stands; zero new surface).
+# One deliberate deviation from the alias grammar above, documented:
+# NO rustflags ride this alias, because the recipe's redacted-path
+# remaps (--remap-path-prefix=${HOME}/.cargo and ${PWD}) must expand
+# per host in the SHELL, so the full token set rides the recipe's
+# RUSTFLAGS env — the same channel release.yml's matrix uses, and env
+# RUSTFLAGS composes cleanly with the alias's env stamp here (the
+# target-level shadow trap cannot fire: this alias carries no
+# build.rustflags for it to shadow). The alias is what keeps the
+# from-source law intact: the lane never runs a bare `cargo build`.
+pro-linux-amd64-v3-musl = [
+  "build",
+  "--profile",
+  "pro-linux-amd64-v3-musl",
+  "--target",
+  "x86_64-unknown-linux-musl",
+  "--config",
+  "env.ZYLAXION_BUILD=\"local-pro-linux-amd64-v3-musl\"",
+]

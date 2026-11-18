@@ -233,8 +233,19 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   the KVM floor lives in `supermassive-e2e.yml` (night-ci-split-1).
   The E2E leg names keep the zelynic low/best specs shape —
   `supermassive e2e - low specs (the 5.15 documented floor)` and
-  `supermassive e2e - best specs (the archive's head)` (night-badas-5).
-  No musl twins: glibc is the only libc the matrix ships.
+  `supermassive e2e - best specs (the archive's head)` (night-badas-5),
+  with the LTS-span witness seats beside them (the 6.1 bookworm / 6.6
+  Arch / 6.8 noble GA runtime records, night-runner-1). No musl twins
+  in the E2E matrix: glibc is the only libc the matrix ships.
+- **Reproducible release chain lane (night-depth-hardening-Z1):**
+  `Dragon Guard - Reproducible Release Chain` (reproducible.yml) runs
+  on EVERY push: two independent hosts follow ONE pinned recipe
+  (`scripts/release/repro-build.sh` — pinned toolchain, SOURCE_DATE_EPOCH,
+  static musl v3, redacted paths, locked deps, the sha256-pinned alsa
+  source in a private musl prefix) with NO shared build cache, and the
+  verify job `cmp`s the two binaries byte-for-byte. The musl shape is
+  the identity instrument only — the shipping contract stays glibc-only
+  (night-dragon-maintenance-T1), zero new release surface.
 - **Linting:** Run `actionlint` and `yamllint` on `.github/workflows/*`.
 
 ## Branding & Metadata

@@ -1,0 +1,214 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: AGPL-3.0-only
+# =============================================================================
+# DRAGON GUARD - REPRODUCIBLE RELEASE CHAIN (night-depth-hardening-Z1, D4)
+# =============================================================================
+#
+# D3 (scripts/dev/verify-reproducible-build.sh) proves ARTIFACT identity:
+# one host, two builds, stamps + cmp. This lane upgrades the claim to
+# PROCESS identity (D4): TWO INDEPENDENT HOSTS follow ONE pinned recipe
+# (scripts/release/repro-build.sh) — the pinned toolchain
+# (rust-toolchain.toml, 1.98.1), SOURCE_DATE_EPOCH = the commit
+# timestamp, the static musl v3 shape built cold with redacted path
+# prefixes — and the verify job `cmp`s the two binaries. Byte-identical
+# means: the hash the release publishes is the hash anyone can rebuild
+# from source, which retires the "modified build without a trace" class
+# permanently. Zero new release surface: the musl v3 shape is the
+# identity instrument, the shipping contract stays glibc-only
+# (night-dragon-maintenance-T1).
+#
+# Why the musl shape here: cosmostrix's mature reproducible lane builds
+# the static musl pair; zylaxion's one C dependency (alsa) is compiled
+# from the sha256-pinned source with musl-gcc into a private prefix
+# inside the recipe, so the night-dragon-maintenance-T1 weld trap (the
+# host's glibc libasound welded onto a musl CRT) is avoided BY
+# CONSTRUCTION and the recipe is self-contained on a stock runner.
+#
+# No shared build cache rides this lane: both hosts compile the entire
+# graph from the lockfile — the proof is about the process, not the
+# cache. The toolchain cache (the pinned pins themselves, never build
+# outputs) is the only warm thing here.
+#
+# Action pins: release-commit SHAs with version tokens, the
+# night-improve-8 estate — kept current by
+# scripts/gates/check-actions-pins.sh.
+
+---
+name: Dragon Guard - Reproducible Release Chain
+
+"on":
+  push:
+  workflow_dispatch: {}
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+  # night-strict-warnings-1: strict compile lane — one warning fails
+  # the build (the full law lives in ci.yml's env block).
+  ZYLAXION_STRICT_WARNINGS: "1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reproducible_build:
+    name: reproducible chain - build (host ${{ matrix.host }})
+    runs-on: ubuntu-24.04
+    # Sized to the estate's ten-minute cap; the cold musl graph on a
+    # warm toolchain cache fits the records the estate's deep lanes
+    # hold. A cold day that busts it is a measured-record resize, not a
+    # cap bump (the fail-fast doctrine, not a speed claim).
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # Two independent hosts: two separate runner VMs, each following
+        # the SAME pinned recipe (scripts/release/repro-build.sh). The
+        # runner image is identical by fleet contract; every byte-shaping
+        # input is pinned by the recipe, so the two VMs are the two
+        # independent processes the D4 claim needs.
+        host: [a, b]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+        with:
+          # night-dragon-maintenance-6: the checkout token never
+          # outlives this step — no later step can read it back.
+          persist-credentials: false
+
+      # The recipe's own tool needs (musl-gcc is the alsa cross-build's
+      # compiler; pkg-config drives the private-prefix verdict). The
+      # same three-attempt doctrine as every install lane, sized down:
+      # these are tiny packages on the runner's own lists.
+      - name: Install musl-tools + pkg-config
+        run: |
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          for attempt in 1 2 3; do
+            echo "--- apt attempt $attempt ---"
+            if sudo timeout 300 apt-get "${APT_OPTS[@]}" install -y -qq \
+                musl-tools pkg-config; then
+              echo "apt: landed on attempt $attempt"
+              break
+            fi
+            if [ "$attempt" = 3 ]; then
+              echo "::error::apt stalled on all three named attempts"
+              exit 1
+            fi
+            sleep 10
+          done
+
+      - name: Compute the build-prerequisites cache key
+        id: prereq
+        run: |
+          # Both toolchain pins and the bootstrap script fold into one
+          # hash, so the tools cache can never serve a stale pin.
+          KEY="${{ hashFiles('**/rust-toolchain.toml', 'ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}"
+          echo "key=${KEY}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the build-prerequisites cache (the pinned toolchains + the bootstrap bins)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ~/.rustup/toolchains
+            ~/.cargo/bin
+            ~/.local/bin
+          key: ${{ runner.os }}-repro-tools-${{ steps.prereq.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-repro-tools-
+
+      # The pinned toolchain governs (no rustup override anywhere — the
+      # same law every lane rides).
+      - name: Install the pinned toolchain + musl target
+        run: |
+          rustup show active-toolchain
+          rustup target add x86_64-unknown-linux-musl
+
+      # The source-built eBPF lane (a git checkout) needs the dated
+      # nightly + the pinned prebuilt bpf-linker (all sha256-pinned in
+      # the bootstrap).
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # One build per host, the SAME recipe: dirty-tree refusal, the
+      # sha256-pinned alsa source compiled with musl-gcc into a private
+      # prefix, the weld-trap verdict asserted, then the pinned flags.
+      # No build cache: the whole graph recompiles from the lockfile.
+      - name: Run the reproducible recipe (the pinned half)
+        run: ./scripts/release/repro-build.sh
+
+      - name: Record the host hash
+        run: sha256sum reproducible-zylaxion | tee "zylaxion-sha256-host-${{ matrix.host }}.txt"
+
+      - name: Upload the host artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7, night-improve-8 SHA pin
+        with:
+          name: reproducible-zylaxion-host-${{ matrix.host }}
+          path: |
+            reproducible-zylaxion
+            zylaxion-sha256-host-${{ matrix.host }}.txt
+          retention-days: 1
+          if-no-files-found: error
+
+  reproducible_verify:
+    name: reproducible chain - verify (byte identity)
+    runs-on: ubuntu-24.04
+    needs: [reproducible_build]
+    timeout-minutes: 10
+    steps:
+      - name: Download host a artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, night-improve-8 SHA pin
+        with:
+          name: reproducible-zylaxion-host-a
+          path: host-a
+
+      - name: Download host b artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8, night-improve-8 SHA pin
+        with:
+          name: reproducible-zylaxion-host-b
+          path: host-b
+
+      - name: Compare byte-for-byte
+        run: |
+          set -euo pipefail
+          A="host-a/reproducible-zylaxion"
+          B="host-b/reproducible-zylaxion"
+          ls -l "$A" "$B"
+          # chmod 755 - the artifact round-trip may drop the exec bit
+          # (the night-ci-split-2 shape); the cmp reads bytes, the -V
+          # smoke below runs the binary.
+          chmod 755 "$A" "$B"
+          # The static binary executes anywhere; the stamp surfaces run
+          # on both halves and must render the same bytes (the D3
+          # attestation's cross-host edition).
+          "$A" -V > /tmp/stamp-a.txt
+          "$B" -V > /tmp/stamp-b.txt
+          if ! diff -u /tmp/stamp-a.txt /tmp/stamp-b.txt; then
+            echo "::error::the -V stamp surfaces differ between the two hosts"
+            exit 1
+          fi
+          echo "STAMPS: byte-identical across the two hosts"
+          if cmp -s "$A" "$B"; then
+            echo "REPRODUCIBLE RELEASE CHAIN: PASS - two independent hosts produced byte-identical binaries"
+            echo "shared sha256: $(sha256sum "$A" | awk '{print $1}')"
+            {
+              echo "## Reproducible release chain (D4)"
+              echo
+              echo '```'
+              sha256sum "$A" "$B"
+              echo '```'
+              echo
+              echo "Byte-identical across two independent hosts: the published"
+              echo "hash is the hash anyone can rebuild from source."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::Reproducibility FAILED: the two host builds differ byte-wise"
+            sha256sum "$A" "$B"
+            cmp -l "$A" "$B" | head -20 || true
+            exit 1
+          fi

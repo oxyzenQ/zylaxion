@@ -614,6 +614,13 @@ and exits 2 on any tamper. Files of truth: `src/info/signature.rs`,
 `src/commands/sig.rs`, and
 `scripts/release/generate-provenance-words.py`; pinned by
 `test/info/signature_tests.rs` and `test/commands/sig_tests.rs`.
+night-depth-hardening-Z1 deepens the matrix with the process-identity
+depth (D4): the `Dragon Guard - Reproducible Release Chain` lane builds
+the static musl v3 shape on two independent hosts from one pinned
+recipe (`scripts/release/repro-build.sh`, toolchain + epoch + redacted
+paths + locked deps) and `cmp`s them byte-identical in CI — the
+published hash becomes the hash anyone can rebuild from source, so the
+identity the matrix seals is also the identity the PROCESS produces.
 
 **39. The kernel matrix proof — the "5.15+" floor measured, not
 claimed.** The floor question: the tap's kernel contract (the fentry

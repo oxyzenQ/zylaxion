@@ -33,6 +33,10 @@ scripts/audit/out/
 *.raw
 *.wav
 
+# Reproducible-chain flat artifacts (scripts/release/repro-build.sh)
+/reproducible-zylaxion
+/zylaxion-sha256-host-*.txt
+
 # Python bytecode (the supermassive engine is source, never bytecode)
 __pycache__/
 *.pyc

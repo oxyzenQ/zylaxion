@@ -115,6 +115,44 @@ Defense in depth across three independent hash families
 (SHA-2, BLAKE3, SHA-3 XOF). A future cryptanalytic break of any
 single family does not invalidate verification via the other two.
 
+## Process identity: the reproducible release chain (night-depth-hardening-Z1)
+
+The checksums above establish **artifact identity** — these exact bytes
+are the bytes the release published — and the D3 anchor
+(`scripts/dev/verify-reproducible-build.sh`) proves the build self-reports
+honestly. night-depth-hardening-Z1 upgrades the claim to **process
+identity** (D4): the `Dragon Guard - Reproducible Release Chain` lane
+(`.github/workflows/reproducible.yml`) builds the static musl v3 shape on
+TWO INDEPENDENT HOSTS from ONE pinned recipe
+(`scripts/release/repro-build.sh`) — the pinned toolchain
+(`rust-toolchain.toml`), `SOURCE_DATE_EPOCH` pinned to the commit
+timestamp, redacted path prefixes, `--locked` deps, no shared build
+cache — and the verify job `cmp`s the two binaries. Byte-identical means
+the hash the release publishes is the hash anyone can rebuild from
+source, which retires the "modified build without a trace" class
+permanently.
+
+Reproduce it locally (the same recipe the CI hosts run):
+
+```bash
+# one build, the CI host shape (prints the sha256)
+./scripts/release/repro-build.sh
+
+# the local process proof: two cold builds on this host, cmp'd
+./scripts/release/repro-build.sh --cold-two-pass
+```
+
+Honesty notes, recorded not hidden: the musl v3 shape is the
+process-identity INSTRUMENT — it is not a shipped artifact, and the
+release contract stays glibc-only (night-dragon-maintenance-T1, zero new
+surface). The recipe compiles alsa-lib from a sha256-pinned source
+tarball with musl-gcc into a private prefix and asserts the
+pkg-config verdict before linking, so the glibc-weld trap the T1 removal
+documented is avoided by construction. The static binary's `-V` and
+stamp surfaces run anywhere; its ALSA runtime stays partial by nature
+(libasound dlopens its PCM plugin tree), which is exactly why the lane
+proves identity, not audio.
+
 ## Verification tools required
 
 - `sha512sum` — GNU coreutils (preinstalled on every Linux)
