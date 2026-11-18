@@ -275,6 +275,14 @@ fn trigger_produces_decaying_amplitude() {
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "the 200 ms bound is a real-time claim: Miri interprets every op \
+              (the whole suite runs ~10x slower under it), so a wall-clock \
+              evented-wake deadline cannot hold there — the message lane's \
+              correctness is what Miri can still verify, and the timing pin \
+              is fully live in the normal battery"
+)]
 fn control_stop_wakes_the_parked_loop() {
     // night-frontier-Z4: the stop lane must WAKE a parked loop. The
     // loop is idle (no voices) and parks with no timer — a message on
