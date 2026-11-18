@@ -678,42 +678,42 @@ _SYSCTL = "/proc/sys/kernel/unprivileged_bpf_disabled"
 # The raw-op witness program (night-ebpf-era-1): one plain-user
 # pinned-fd op against the chowned control map, exactly the ops the
 # verbs ride — BPF_OBJ_GET (a bpffs file open) and BPF_MAP_LOOKUP_ELEM
-# (an element op on that fd). bpf() is syscall 321 on x86_64; the attr
-# structs mirror linux/bpf.h (OBJ_GET: pathname + bpf_fd + file_flags
-# = 16 bytes; LOOKUP_ELEM: map_fd + key + value + flags = 32 bytes).
+# (an element op on that fd). bpf() is syscall 321 on x86_64. The attr
+# rides a full-union-sized zero-filled buffer (256 bytes): every real
+# caller (libbpf, aya, bpftool) passes the union size, the kernel's
+# CHECK_ATTR law demands zero beyond each command's last field, and
+# the pathname is an explicitly NUL-terminated buffer — the kernel's
+# getname refuses a string with no terminator (the EINVAL the first
+# shape of this probe met on the lts-6.8 leg; the CI run is the
+# arbiter, and it red the battery for it).
 # Exit codes: 0 = the op succeeded, 3 = the pin open was refused,
 # 4 = the pin opened but the lookup was refused.
 _RAW_OP_SNIPPET = r"""
 import ctypes
+import struct as _s
 libc = ctypes.CDLL(None, use_errno=True)
 BPF_OBJ_GET, BPF_MAP_LOOKUP_ELEM = 17, 1
-class path_attr(ctypes.Structure):
-    _fields_ = [("pathname", ctypes.c_char_p), ("bpf_fd", ctypes.c_int),
-                ("file_flags", ctypes.c_uint)]
-class lookup_attr(ctypes.Structure):
-    _fields_ = [("map_fd", ctypes.c_uint), ("key", ctypes.c_void_p),
-                ("value", ctypes.c_void_p), ("flags", ctypes.c_ulong)]
-a = path_attr()
-a.pathname = b"/sys/fs/bpf/zylaxion/control"
-a.bpf_fd = 0
-a.file_flags = 0
-fd = libc.syscall(321, BPF_OBJ_GET, ctypes.byref(a), 16)
+ATTR_SIZE = 256
+buf = ctypes.create_string_buffer(ATTR_SIZE)
+PATH = b"/sys/fs/bpf/zylaxion/control"
+ctypes.memmove(buf, PATH, len(PATH))
+fd = libc.syscall(321, BPF_OBJ_GET, buf, ATTR_SIZE)
 if fd < 0:
     print("the pin open was refused, errno", ctypes.get_errno())
     raise SystemExit(3)
-l = lookup_attr()
-key = ctypes.c_uint(0)
-val = ctypes.c_uint(0)
-l.map_fd = fd
-l.key = ctypes.addressof(key)
-l.value = ctypes.addressof(val)
-l.flags = 0
-r = libc.syscall(321, BPF_MAP_LOOKUP_ELEM, ctypes.byref(l), 32)
+lbuf = ctypes.create_string_buffer(ATTR_SIZE)
+keybuf = ctypes.create_string_buffer(_s.pack("I", 0))
+valbuf = ctypes.create_string_buffer(4)
+_s.pack_into("I", lbuf, 0, fd)
+_s.pack_into("Q", lbuf, 8, ctypes.addressof(keybuf))
+_s.pack_into("Q", lbuf, 16, ctypes.addressof(valbuf))
+r = libc.syscall(321, BPF_MAP_LOOKUP_ELEM, lbuf, ATTR_SIZE)
 if r < 0:
     print("the pin opened, the lookup was refused, errno",
           ctypes.get_errno())
     raise SystemExit(4)
-print("the pin opened, the lookup answered, control[0] =", val.value)
+val = _s.unpack("I", valbuf.raw[:4])[0]
+print("the pin opened, the lookup answered, control[0] =", val)
 """
 
 

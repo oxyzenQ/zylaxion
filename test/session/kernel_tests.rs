@@ -331,17 +331,29 @@ fn unpriv_map_ops_refusal_law() {
     );
     // Root is never gated — the kernel's gate keys on capability,
     // not on the sysctl (the rescue path stays reachable).
-    assert!(report(2, (5, 15), true).unpriv_map_ops_refusal(true).is_none());
-    assert!(report(2, (6, 12), true).unpriv_map_ops_refusal(true).is_none());
+    assert!(
+        report(2, (5, 15), true)
+            .unpriv_map_ops_refusal(true)
+            .is_none()
+    );
+    assert!(
+        report(2, (6, 12), true)
+            .unpriv_map_ops_refusal(true)
+            .is_none()
+    );
     // The dispatch era (5.15-5.18): a gated plain user gets the
     // classified refusal, carrying the value and the substring the
     // E2E engine pins (sm_audio.py).
-    let locked = report(2, (5, 15), true).unpriv_map_ops_refusal(false).unwrap();
+    let locked = report(2, (5, 15), true)
+        .unpriv_map_ops_refusal(false)
+        .unwrap();
     assert!(locked.contains("unprivileged bpf"), "{locked}");
     assert!(locked.contains("(2)"), "{locked}");
     assert!(locked.contains("doctor"), "{locked}");
     assert!(locked.contains("sysctl"), "{locked}");
-    let disabled = report(1, (5, 15), false).unpriv_map_ops_refusal(false).unwrap();
+    let disabled = report(1, (5, 15), false)
+        .unpriv_map_ops_refusal(false)
+        .unwrap();
     assert!(disabled.contains("unprivileged bpf"), "{disabled}");
     assert!(disabled.contains("(1)"), "{disabled}");
     // The narrowed era (5.19+): the verbs create nothing, so the
@@ -392,8 +404,14 @@ fn unpriv_bpf_verdict_law() {
     assert!(!old_locked.contains("re-enable"), "{old_locked}");
     assert!(old_locked.contains("verbs cannot run"), "{old_locked}");
     let narrowed_locked = report(1, (6, 12), false).unpriv_bpf_verdict();
-    assert!(narrowed_locked.contains("permanent lock"), "{narrowed_locked}");
-    assert!(narrowed_locked.contains("verbs still run"), "{narrowed_locked}");
+    assert!(
+        narrowed_locked.contains("permanent lock"),
+        "{narrowed_locked}"
+    );
+    assert!(
+        narrowed_locked.contains("verbs still run"),
+        "{narrowed_locked}"
+    );
     // night-dinner-3, re-measured (night-ebpf-era-1): the boot-param
     // premise is refuted by the uniform handler law — the cmdline
     // fact is REPORTED, the lock claim is gone, and the write of 0
@@ -409,10 +427,16 @@ fn unpriv_bpf_verdict_law() {
         "{boot_locked}"
     );
     assert!(boot_locked.contains("locks only at 1"), "{boot_locked}");
-    assert!(!boot_locked.contains("cannot be re-enabled"), "{boot_locked}");
+    assert!(
+        !boot_locked.contains("cannot be re-enabled"),
+        "{boot_locked}"
+    );
     // The dispatch-era consequence: the verbs cannot run.
     let old_defaulted = report(2, (5, 15), false).unpriv_bpf_verdict();
-    assert!(old_defaulted.contains("verbs cannot run"), "{old_defaulted}");
+    assert!(
+        old_defaulted.contains("verbs cannot run"),
+        "{old_defaulted}"
+    );
     assert!(
         report(9, (6, 12), false)
             .unpriv_bpf_verdict()

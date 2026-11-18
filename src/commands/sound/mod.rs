@@ -287,8 +287,7 @@ pub(crate) fn open_control() -> Result<Array<MapData, u32>, String> {
 /// to the pins' own file permissions.
 fn kernel_policy_gate() {
     let kernel = crate::session::kernel::probe();
-    if let Some(refusal) =
-        kernel.unpriv_map_ops_refusal(crate::session::privilege::euid_is_root())
+    if let Some(refusal) = kernel.unpriv_map_ops_refusal(crate::session::privilege::euid_is_root())
     {
         crate::output::error(refusal);
         process::exit(1);
