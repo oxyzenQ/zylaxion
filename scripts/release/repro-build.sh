@@ -120,17 +120,27 @@ else
     # Deterministic CFLAGS: -g0 drops debug paths, -fno-ident drops the
     # compiler's .comment identity, and SOURCE_DATE_EPOCH (exported
     # above) pins __DATE__/__TIME__ if any TU used them.
+    # The kernel UAPI include window (the header edition of the
+    # weld-trap law): musl-gcc's -nostdinc excludes /usr/include, and
+    # alsa's sources need <linux/types.h> and <asm/types.h>. Putting
+    # /usr/include itself on the search path is FORBIDDEN here — its
+    # glibc headers shadow musl's (the CI run named it:
+    # /usr/include/stdio.h winning over musl's, __gnuc_va_list chaos).
+    # The window carries ONLY the libc-agnostic kernel UAPI trees, so
+    # musl's headers win every name and no glibc object can enter.
+    UAPI="$MUSL_ROOT/uapi"
+    mkdir -p "$UAPI"
+    ln -sfn /usr/include/linux "$UAPI/linux"
+    ASM_SRC="/usr/include/x86_64-linux-gnu/asm"
+    [ -d "$ASM_SRC" ] || ASM_SRC="/usr/include/asm"
+    ln -sfn "$ASM_SRC" "$UAPI/asm"
+    ln -sfn /usr/include/asm-generic "$UAPI/asm-generic"
     (
         cd "$WORK/$ALSAMIX_NAME"
         # --host is the cross mode the musl lane NEEDS (musl-gcc cannot
-        # run configure's test programs on a glibc build host), and the
-        # kernel UAPI headers ride the CFLAGS explicitly: musl-gcc's
-        # -nostdinc excludes /usr/include, and alsa's sources need
-        # <linux/types.h> + <asm/types.h> from linux-libc-dev — libc-
-        # agnostic kernel headers, not glibc objects, so the weld-trap
-        # law stays intact (musl's own headers still win every name).
+        # run configure's test programs on a glibc build host).
         CC=musl-gcc \
-            CFLAGS="-O2 -g0 -fno-ident -I/usr/include -I/usr/include/x86_64-linux-gnu" \
+            CFLAGS="-O2 -g0 -fno-ident -I$UAPI" \
             ./configure --host=x86_64-unknown-linux-musl \
             --prefix="$MUSL_ROOT/prefix" \
             --disable-shared --enable-static --disable-python >/dev/null
