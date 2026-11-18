@@ -70,6 +70,11 @@ file where the truth lives.
 [EBPF_ONLY_VS_DAEMON.md](EBPF_ONLY_VS_DAEMON.md) — the honest ledger
 of the eBPF-only bet: what the daemon deletion wins, what it costs,
 and who the trade serves.
+[UNPRIVILEGED_BPF_STANCE.md](UNPRIVILEGED_BPF_STANCE.md) — the
+kernel's unprivileged-bpf shutdown measured against the tree: what
+the sysctl gates per kernel era, why the attach-once / pinned-consumer
+design survives it, and the posture-law follow-up the evidence asks
+for.
 [BRANDING.md](BRANDING.md) — the palette contract (brand purple
 `#A855F7`, the CLI color tiers). [QA.md](../QA.md) — verified answers,
 one question one honest answer. [GLOSSARY.md](GLOSSARY.md) — the
