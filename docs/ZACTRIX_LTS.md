@@ -327,8 +327,10 @@ driver's T0 anchor, stamped as the first statement of the process.
 **Substitutions, named once.** The sandbox has no root, no
 `CAP_BPF`, no writable `/sys/fs/bpf`, no `bpftool`, and no sound
 card. (1) The pinned control map is an `AtomicU32` cell read on the
-watcher's 10 s liveness heartbeat (night-frontier-Z2 B1: the real
-watcher's evented wake is cheaper — the stand-in keeps only the
+watcher stand-in's own 10 s floor cadence (night-frontier-Z4: the
+real watcher parks in a FOREVER poll over the notice ring and the
+wake pipe, with a 60 s backstop that arms only when both evented
+lanes are dead — the stand-in's sleep is only its conservative
 floor); the measurement window's timer performs the
 `enabled=0` write the CLI's `off` would. (2) The events ring is a
 wall-clock-paced source thread; its 100 ms blocking sleep stands in
@@ -406,10 +408,16 @@ entire remainder on its `recv_timeout` cadence — ~10 µs per wakeup,
 about 1000 wakeups per second around the clock). The idle-CPU audit
 has since landed on exactly that loop: the flat 1 ms wait is now
 adaptive (1 ms while voices render, 100 ms while the pool is
-silent), the README row and the architecture diagram now carry the
-poll(2) + adaptive-wait truth with the measured 0.035% idle figure,
-and `examples/idle_cpu_sanity.rs` guards the regression (1.131%
-before, 0.035% after on a release-build 10 s getrusage window). The
+silent), and night-frontier-Z4 demoted the silent half to NOTHING —
+the loop parks with no timer at all (the /proc witness counts ZERO
+voluntary context switches on the parked loop over a silent window;
+the getrusage figure read 0.004% on the audit machine — the full
+progression: 1.131% → 0.035% → 0.004%, and the last step is zero
+events, not a smaller percent). The README row and the architecture
+diagram carry the park truth with the measured figures, and
+`examples/idle_cpu_sanity.rs` guards the regression in both regimes
+(the phase-1 witness re-counts the thread's context switches; the
+phase-2 window still bounds the active cost). The
 "~1–2 µs per keystroke" kernel-side claim is untested here (the
 INCONCLUSIVE dimension) and uncontradicted.
 

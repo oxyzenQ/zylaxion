@@ -177,6 +177,34 @@ impl ControlWake {
     }
 }
 
+/// The installed control wake pipe's write end (raw), or -1 when the
+/// wake lane is not installed. The graceful signal handler
+/// (`session::signals`) writes its own byte to THIS pipe so a
+/// SIGTERM/SIGINT/SIGQUIT/SIGHUP wakes the watcher's parked poll —
+/// the evented hop night-frontier-Z4's stop lane needs.
+pub fn installed_wake_write_fd() -> libc::c_int {
+    WAKE_WRITE_FD_RAW.load(Ordering::Relaxed)
+}
+
+/// Write one best-effort wake byte from NORMAL process context (this
+/// is NOT async-signal-safe — the SIGUSR1 handler is the only writer
+/// in signal context; everything else goes through here). The wind-
+/// down lane (night-frontier-Z4): the watcher parks in a forever
+/// poll, and a parked thread is woken by an fd event, not by a flag —
+/// the process's post-run teardown writes this byte so the watcher's
+/// join cannot hang. A lost byte costs latency, never correctness:
+/// the watcher's own lanes and backstop still carry the stop.
+pub fn poke() {
+    let fd = installed_wake_write_fd();
+    if fd >= 0 {
+        let byte = 1u8;
+        // SAFETY: write(2) on the pipe's write end with a local buffer
+        // of exactly one byte; a failure (EAGAIN on an implausibly
+        // full pipe) is dropped — a pending byte already arms the wake.
+        let _ = unsafe { libc::write(fd, (&byte as *const u8).cast(), 1) };
+    }
+}
+
 #[cfg(test)]
 #[path = "../../test/session/wake_tests.rs"]
 mod tests;

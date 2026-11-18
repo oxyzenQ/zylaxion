@@ -20,7 +20,7 @@
 
 [package]
 name = "zylaxion"
-version = "80.2.3"
+version = "80.3.0"
 # night-improve-4: edition 2024 across the whole tree so the repo speaks
 # one edition (the zelynic lineage). The 2024 floor is Rust 1.85; the
 # pinned toolchain below (1.98.1) rides far above it.
@@ -227,18 +227,15 @@ ringbuf = "0.5"
 # src/ebpf/bpf_syscall.rs (the tracepoint link pin lane) — the one
 # place the typed API surface of aya cannot reach.
 libc = "0.2"
-# night-security-1: default-features = false — the default "channel"
-# and "iterator" features compile the signal-delivery channel and the
-# Signals iterator module trees; this crate uses only flag::register
-# and the consts (both ungated), so the default modules are dead
-# weight in every build. flag and consts stay available with no
-# default features — verified against signal-hook 0.3's lib.rs gates.
-# night-dinner-9: re-verified on 0.4 — flag and consts remain ungated,
-# the default set is still ["channel", "iterator"], and flag::register
-# kept its exact Result<SigId, Error> shape; the only 0.4.0 core break
-# (low_level::pipe moving to OwnedFd) is a module this crate never
-# touches.
-signal-hook = { version = "0.4", default-features = false }
+# night-frontier-Z4: signal-hook left the tree with the flag-poll era —
+# the graceful shutdown handlers are the house's own sigaction lanes
+# (src/session/signals.rs), the same async-signal-safe shape
+# session::wake's SIGUSR1 handler documents, writing the control wake
+# byte the evented stop lane needs. 12 → 11 direct dependencies: the
+# peak lean law moves forward, not backward. The 12-dep history
+# (night-improve-22/23): toml died with config.toml, serde and
+# serde_json died with the daemon IPC, libinput died with the seat
+# capture.
 # night-improve-22: the `toml` dependency died with config.toml — the
 # preset registry is compile-time data. night-improve-23: serde and
 # serde_json died with the daemon IPC (there is no protocol left to

@@ -8,14 +8,18 @@
 //! a channel that never delivers an event (the exact thread shape the
 //! player's render loop occupies between keystrokes) and counts the
 //! CPU time the process burns in that window via getrusage. The idle
-//! loop is allowed a small blocking-wait heartbeat, never a poll; the
-//! pass bar sits in the wide honest gap between the two measured
-//! regimes.
+//! loop is a PARKED thread (night-frontier-Z4: no timer while silent),
+//! never a poll; the pass bar sits in the wide honest gap between the
+//! two measured regimes.
 //!
 //! Evidence lane for the idle-CPU audit: the old flat 1 ms event poll
 //! burned about 1.9 percent of one core around the clock (the
 //! `ps aux` reading: 1.9 percent CPU, 76 CPU-minutes over a multi-day
-//! mostly-idle session). The adaptive wait reads 0.0 percent in ps.
+//! mostly-idle session). The adaptive wait read 0.0 percent in ps.
+//! night-frontier-Z4 goes further: the silent loop parks with NO
+//! timer — the parked thread must emit ZERO context switches over the
+//! window, and PHASE 1 witnesses exactly that from
+//! /proc/self/task/<tid>/status.
 //!
 //! PHASE 2 (the DEPTHBORE audit's extension): the ACTIVE regime — the
 //! render loop with voices actually decaying, paced by a
@@ -164,6 +168,36 @@ fn cpu_seconds() -> f64 {
     user + sys
 }
 
+/// The Z4 witness reader: the named thread's (voluntary,
+/// nonvoluntary) context switches from /proc/self/task, or None when
+/// /proc is unavailable — the witness is then skipped with a warning,
+/// never a silent pass.
+fn thread_wakeups(name: &str) -> Option<(u64, u64)> {
+    let tasks = std::fs::read_dir("/proc/self/task").ok()?;
+    for entry in tasks.flatten() {
+        let tid = entry.file_name();
+        let comm =
+            std::fs::read_to_string(format!("/proc/self/task/{}/comm", tid.display())).ok()?;
+        if comm.trim_end() == name {
+            let status =
+                std::fs::read_to_string(format!("/proc/self/task/{}/status", tid.display()))
+                    .ok()?;
+            let mut vol = None;
+            let mut nonvol = None;
+            for line in status.lines() {
+                if let Some(v) = line.strip_prefix("voluntary_ctxt_switches:") {
+                    vol = v.trim().parse::<u64>().ok();
+                }
+                if let Some(v) = line.strip_prefix("nonvoluntary_ctxt_switches:") {
+                    nonvol = v.trim().parse::<u64>().ok();
+                }
+            }
+            return Some((vol?, nonvol?));
+        }
+    }
+    None
+}
+
 fn main() {
     // ── PHASE 1: the idle regime (the original guard) ──────────────
     println!(
@@ -176,29 +210,39 @@ fn main() {
         44_100,
     )));
     let (tx, rx) = crossbeam_channel::unbounded::<crate::core::KeyEvent>();
-    let stop_flag = Arc::new(AtomicBool::new(false));
+    let (stop_tx, stop_rx) = crossbeam_channel::unbounded::<crate::core::ControlStop>();
 
     let cpu_before = cpu_seconds();
     let wall = Instant::now();
 
-    let loop_flag = Arc::clone(&stop_flag);
     let handle = std::thread::Builder::new()
         .name("idle-loop".to_string())
         .spawn(move || {
             // The receiver never sees an event: the loop spends the
-            // whole window in its idle branch (no voices active), the
-            // exact regime `ps` reports on between keystrokes.
-            orchestrator.run(&model, &rx, loop_flag);
+            // whole window PARKED in the silent select (no voices
+            // active), the exact regime `ps` reports on between
+            // keystrokes.
+            orchestrator.run(&model, &rx, &stop_rx);
         })
         .expect("spawn the idle-loop thread");
 
-    std::thread::sleep(MEASURE_WINDOW);
+    // The Z4 wakeup witness: let the loop reach its park, then count
+    // the thread's context switches across the silent window. The
+    // pre-Z4 loop's 100 ms timeout woke the thread about ten times
+    // per second here; the parked loop must show ZERO.
+    std::thread::sleep(Duration::from_secs(1));
+    let wake_before = thread_wakeups("idle-loop");
+    std::thread::sleep(MEASURE_WINDOW - Duration::from_secs(1));
+    let wake_after = thread_wakeups("idle-loop");
 
-    // Stop via the flag — the same lane `zylaxion off` rides (the
-    // control watcher clears enabled=0, the watcher sets this flag).
-    // The sender drops too, so no blocking wait can wedge the join.
-    stop_flag.store(true, Ordering::Relaxed);
+    // Stop via the control stop lane — the same message `zylaxion
+    // off` ends up riding (the watcher forwards one ControlStop per
+    // stop decision). The dropped senders are the belt-and-braces
+    // wake: a disconnect is a ready op, so no blocking wait wedges
+    // the join.
+    let _ = stop_tx.send(crate::core::ControlStop);
     drop(tx);
+    drop(stop_tx);
     handle.join().expect("idle loop exits cleanly on stop");
 
     let wall_s = wall.elapsed().as_secs_f64();
@@ -221,6 +265,38 @@ fn main() {
         );
     }
 
+    // The Z4 witness verdict (night-frontier-Z4): the parked loop's
+    // context-switch delta over the silent window must be exactly
+    // zero — the mechanical, /proc-counted proof that the idle wait
+    // is a park, not a timer.
+    match (wake_before, wake_after) {
+        (Some((bv, bn)), Some((av, an))) => {
+            let dv = av - bv;
+            let dn = an - bn;
+            println!(
+                "[idle_cpu_sanity] phase 1 witness: voluntary +{dv}, nonvoluntary +{dn} over the silent window"
+            );
+            if dv != 0 || dn != 0 {
+                println!(
+                    "[idle_cpu_sanity] FAIL: the parked loop woke {dv} voluntary +{dn} nonvoluntary \
+                     times — a timer hides in the idle wait (the Z4 park is broken)"
+                );
+                failed = true;
+            } else {
+                println!(
+                    "[idle_cpu_sanity] PASS: the parked loop emitted ZERO wakeups — \
+                     the idle wait is a park, not a timer"
+                );
+            }
+        }
+        _ => {
+            println!(
+                "[idle_cpu_sanity] WARN: the wakeup witness could not read /proc/self/task \
+                 (the ctx-switch evidence is unavailable on this host; the CPU bar above still ran)"
+            );
+        }
+    }
+
     // ── PHASE 2: the active regime (the DEPTHBORE extension) ───────
     // Voices actually decaying, hardware-shaped back-pressure, 5
     // keystrokes per second — the cost of PRODUCING sound, which is
@@ -238,9 +314,12 @@ fn main() {
         PacedSink::SAMPLE_RATE,
     )));
     let (tx, rx) = crossbeam_channel::unbounded::<crate::core::KeyEvent>();
-    let stop_flag = Arc::new(AtomicBool::new(false));
+    let feed_flag = Arc::new(AtomicBool::new(false));
+    // Main's own handle to the feeder's flag — the feeder moves its
+    // clone into the closure; the stop below stores through this one.
+    let feed_flag_main = Arc::clone(&feed_flag);
+    let (stop_tx, stop_rx) = crossbeam_channel::unbounded::<crate::core::ControlStop>();
 
-    let feed_flag = Arc::clone(&stop_flag);
     // The feeder owns a clone of the sender; main keeps the original so
     // the drop below (plus the feeder's exit) disconnects the channel —
     // the same shutdown shape phase 1 rides.
@@ -291,18 +370,19 @@ fn main() {
     let cpu_before = cpu_seconds();
     let wall = Instant::now();
 
-    let loop_flag = Arc::clone(&stop_flag);
     let handle = std::thread::Builder::new()
         .name("active-loop".to_string())
         .spawn(move || {
-            orchestrator.run(&model, &rx, loop_flag);
+            orchestrator.run(&model, &rx, &stop_rx);
         })
         .expect("spawn the active-loop thread");
 
     std::thread::sleep(MEASURE_WINDOW);
 
-    stop_flag.store(true, Ordering::Relaxed);
+    let _ = stop_tx.send(crate::core::ControlStop);
+    feed_flag_main.store(true, Ordering::Relaxed);
     drop(tx);
+    drop(stop_tx);
     handle.join().expect("active loop exits cleanly on stop");
     let _ = feeder.join();
 

@@ -167,15 +167,19 @@ detached from a terminal, always polling for config or input. The
   every byte of state lives in the kernel's pinned BPF maps.
 - It is the mouth, not the brain: it blocks until the kernel tap
   rings the event buffer, renders the DSP math, and sleeps again.
-  The bridge thread blocks in `poll(2)` with a 100 ms cap and the
-  render loop blocks on its channel (1 ms while voices render,
-  100 ms while silent) — no busy-wait anywhere.
-- The measured idle cost is 0.035% of one core over a 10 s silent
-  window, which `ps` rounds to 0.0% — reproducible with
+  The bridge thread blocks in `poll(2)` with no timeout (its one exit
+  lane is the wind-down pipe) and the render loop parks while silent —
+  a blocking select over the event channel and the stop lane with NO
+  timer at all (the 1 ms pacing arms only while voices render) — no
+  busy-wait anywhere, no timer wakeups between keystrokes.
+- The measured idle cost is ZERO timer wakeups: the /proc witness
+  counts zero voluntary context switches on the parked loop over a
+  silent window, and the getrusage CPU figure reads 0.004% of one
+  core on the audit machine — reproducible with
   `cargo run --release --example idle_cpu_sanity`.
-- The cost honesty, both regimes: silence is the 0.035% figure above;
-  producing sound is real work — about 1.1% of total CPU (~2.15% of
-  one core) at a continuous 5 keystrokes/second (measured,
+- The cost honesty, both regimes: silence is the zero-wakeup park
+  above; producing sound is real work — about 1.1% of total CPU
+  (~2.15% of one core) at a continuous 5 keystrokes/second (measured,
   docs/ZACTRIX_LTS.md PROOF 6 STATE B), reproducible with the same
   example's phase 2. The render loop wakes ~700-1000 times per second
   while voices decay — that is the 64-frame chunk throughput floor,

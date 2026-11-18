@@ -8,7 +8,8 @@
 //! ```text
 //!  input (The Ears)        core (The Brain)       engine (The Voice)      audio (The Mouth)
 //!  ───────────             ───────────             ────────────────        ──────────────
-//!  KeyEvent ──channel──►  recv_timeout()
+//!  KeyEvent ──channel──►  parked select (silent) /
+//!                         recv_timeout(1ms) (active)
 //!                                │
 //!                          trigger / release
 //!                                │
@@ -30,7 +31,6 @@ use std::sync::Arc;
 
 mod pan;
 use pan::scancode_to_pan;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use crate::audio::AudioSink;
@@ -66,23 +66,25 @@ const SLEEP_THRESHOLD: usize = 128;
 /// paces the ring buffer against the audio callback on a 1 ms
 /// cadence. `recv_timeout` still returns the instant an event lands,
 /// so this timeout never delays a keystroke — it bounds only how
-/// often the loop re-checks its stop flag while a decay tail is
+/// often the loop re-checks the stop lane while a decay tail is
 /// being rendered.
+///
+/// night-frontier-Z4: this is the ONLY timer the render loop owns,
+/// and it arms only while sound is playing — render pacing is real
+/// work, reported as such. While SILENT the loop carries no timer at
+/// all (see [`Orchestrator::run`]).
 const EVENT_POLL_TIMEOUT: Duration = Duration::from_millis(1);
 
-/// The render-wait timeout while the pool is SILENT (no active
-/// voices) — the idle-CPU audit's fix. The old loop waited at most
-/// 1 ms around the clock: 1000 futex wakeups per second for a
-/// process that was supposedly doing nothing, reading about 1.9
-/// percent CPU in `ps` after days of idle (76 CPU-minutes on the
-/// reporting machine). While idle the loop now blocks 100 ms — the
-/// same cadence law as the control watcher — dropping the wakeup
-/// rate a hundredfold, and `ps` reads 0.0 percent. Keystroke
-/// latency is untouched: `recv_timeout` wakes the moment an event
-/// arrives regardless of the timeout, and the first press also
-/// re-arms the 1 ms pacing immediately (the pool is active by the
-/// next iteration).
-const IDLE_WAIT_TIMEOUT: Duration = Duration::from_millis(100);
+/// The control stop command (night-frontier-Z4): the render loop's
+/// evented stop lane. The control-plane watcher sends one on every
+/// stop decision (the cleared enabled gate, the read-failure verdict,
+/// the graceful signal, the process wind-down). The old shape polled
+/// an `AtomicBool` each iteration of a timer-waking loop; the Z4 loop
+/// has NO timer while idle — a parked thread is asleep in the kernel
+/// until a channel op or an fd event lands — so a flag set from
+/// another thread could sleep forever. A stop must WAKE the loop:
+/// the command is a message, and the message is the wake.
+pub struct ControlStop;
 
 // ── Pan mapping ─────────────────────────────────────────────────────────
 
@@ -251,18 +253,46 @@ impl<S: AudioSink> Orchestrator<S> {
     /// Blocks the calling thread until one of three conditions:
     ///
     /// 1. `event_rx` is disconnected (input source shut down).
-    /// 2. `stop_flag` is set to `true` (e.g. IPC "stop" command or SIGTERM).
+    /// 2. A [`ControlStop`] arrives on `stop_rx` (the control-plane
+    ///    watcher's stop decision — the cleared enabled gate, the
+    ///    read-failure verdict, a graceful signal, the process
+    ///    wind-down).
+    /// 3. The render or audio machinery fails.
     ///
     /// When the loop exits, `CpalSink` is dropped, releasing the audio
     /// device and un-stalling the PipeWire graph.
     ///
+    /// # The wait law (night-frontier-Z4: the last timer dies)
+    ///
+    /// The loop has TWO wait regimes, scoped by the pool's own state:
+    ///
+    /// - **Silent** (no active voices): a blocking select over the
+    ///   event channel and the stop lane with NO timeout. The thread
+    ///   parks in the kernel until the tap rings or a stop lands —
+    ///   zero timer wakeups while silent. The thread wakes the
+    ///   instant an event arrives, so keystroke latency is untouched;
+    ///   the first press re-arms the 1 ms pacing by the next
+    ///   iteration (the pool is active then).
+    /// - **Active** (voices decaying): `recv_timeout(1 ms)` — the
+    ///   render pacing, real work feeding the Mouth's ring between
+    ///   key events. Unchanged from the pre-Z4 loop; the stop lane is
+    ///   checked with a cheap `try_recv` each pacing iteration.
+    ///
+    /// The deep history this law completes: the first loop waited 1 ms
+    /// around the clock (1000 futex wakeups per second, about 1.9
+    /// percent CPU for a supposedly idle process — the idle-CPU
+    /// audit's numbers); night-improve-27's adaptive wait demoted the
+    /// silent burn to 100 ms (ten wakeups per second, 0.035 percent);
+    /// Z4 demotes it to NOTHING — the park replaces the timer, and
+    /// the idle cost is zero events, not a small percent.
+    ///
     /// # Hot-reload support
     ///
     /// The `model` parameter is an `Arc<ArcSwap<M>>` — a lock-free
-    /// atomic pointer to the acoustic model. The IPC "reload" command
-    /// can swap the pointer at any time (from another thread) by
-    /// calling `model.store(Arc::new(new_model))`. The render loop
-    /// picks up the new model on its next iteration without blocking.
+    /// atomic pointer to the acoustic model. The control plane can
+    /// swap the pointer at any time (from another thread) by calling
+    /// `model.store(Arc::new(new_model))`. The render loop picks up
+    /// the new model on its next iteration without blocking.
     ///
     /// - **Active voices** (currently decaying) keep using the profile
     ///   they captured at trigger time — they finish naturally.
@@ -277,13 +307,14 @@ impl<S: AudioSink> Orchestrator<S> {
     /// * `model` — Hot-swappable acoustic model behind an `ArcSwap`.
     /// * `event_rx` — Channel receiver yielding [`KeyEvent`]s from
     ///   the input layer.
-    /// * `stop_flag` — Shared flag checked each loop iteration; when
-    ///   `true`, the loop breaks and the audio device is released.
+    /// * `stop_rx` — The control stop lane ([`ControlStop`]); a
+    ///   message here wakes the parked loop and the audio device is
+    ///   released.
     pub fn run<M: AcousticModel>(
         &mut self,
         model: &Arc<ArcSwap<M>>,
         event_rx: &Receiver<KeyEvent>,
-        stop_flag: Arc<AtomicBool>,
+        stop_rx: &Receiver<ControlStop>,
     ) {
         // ── Pre-fill ring buffer with minimal silence ─────────────
         // Only enough to cover one ALSA period so the very first
@@ -319,127 +350,89 @@ impl<S: AudioSink> Orchestrator<S> {
         // actual chunk size each iteration.
         let mut batch = [[0.0f32; 2]; MAX_RENDER_CHUNK];
 
-        // v10.2.0 (dragonzen audit S4), rewritten by night-hunt-1,
-        // reframed by night-improve-27: the idle heartbeat.
-        //
-        // The daemon-era stuck-thread wording, plus a restart command
-        // for a service that never existed in this architecture, died
-        // with the libinput daemon it named (the sweep pins both dead).
-        // In
-        // the eBPF pipeline a wedged input lane cannot hide here — the
-        // bridge thread dies loudly (the channel disconnects and
-        // run() exits) or logs its own poll errors. What IS honest
-        // from this seat is the weaker claim: no keys arrived for a
-        // long while, which is either ordinary idle (the overwhelmingly
-        // common case) or the kernel tap is not delivering (a detached
-        // or wedged tap — the player's ring-buffer fd keeps the old
-        // map alive even after an unpin, so liveness is NOT provable
-        // from here; that is the same inode lesson the orphan sweep
-        // learned). The messages below teach the two actions that
-        // cover both branches — type, or off — and hand the fork to
-        // the diagnostic lanes (doctor, attach) that can tell them
-        // apart. A restart cannot re-plant a detached tap.
-        let mut last_event_monotonic = std::time::Instant::now();
-        let heartbeat_debug = Duration::from_secs(60);
-        let heartbeat_warn = Duration::from_secs(5 * 60);
-        let mut heartbeat_debug_emitted = false;
-        let mut heartbeat_warn_emitted = false;
+        // night-frontier-Z4: the idle heartbeat retires with the timer
+        // it rode. Its 60 s debug / 5 min warning lines could only
+        // fire on a timeout wake, and its own comment already carried
+        // the honest confession: this seat cannot prove tap liveness
+        // (the ring-buffer fd outlives an unpin — the inode lesson the
+        // orphan sweep learned). The Z4 loop does not wake while
+        // idle, so idle logs cannot exist; the diagnostics that could
+        // actually tell "ordinary idle" from "the tap is not
+        // delivering" stay where they can prove something — `zylaxion
+        // doctor`, `zylaxion status`, and the E2E battery's witnesses.
 
-        // ── The render loop: adaptive blocking wait ─────────────
+        // ── The render loop: the parked wait (night-frontier-Z4) ──
         // (The interrupt-driven half of the pipeline is the audio
-        // callback itself — hardware clocked. This loop blocks on
-        // the event channel: 1 ms while voices render, 100 ms while
-        // the pool is silent.)
+        // callback itself — hardware clocked. While SILENT this loop
+        // parks with no timer at all; while ACTIVE it paces the ring
+        // on the 1 ms render cadence.)
         loop {
-            // 0. Check stop flag — IPC "stop" command or SIGTERM
-            //    handler sets this to true.  Break immediately so
-            //    CpalSink is dropped and PipeWire graph is released.
-            if stop_flag.load(Ordering::Relaxed) {
-                log::info!("stop flag set — shutting down");
-                self.fade_out_before_drop();
-                return;
-            }
-
-            // v10.2.0 (S4): heartbeat check. Cheap — one Instant::
-            // elapsed() per loop iteration (microseconds).
-            let idle = last_event_monotonic.elapsed();
-            if !heartbeat_debug_emitted && idle >= heartbeat_debug {
-                log::debug!(
-                    "no key events in {:.0}s — idle (normal during quiet periods)",
-                    idle.as_secs()
-                );
-                heartbeat_debug_emitted = true;
-            }
-            if !heartbeat_warn_emitted && idle >= heartbeat_warn {
-                // The night-improve-27 reframe, one honest adjustment:
-                // the locked draft said "the tap is live and idle",
-                // but the player's seat cannot prove tap liveness (the
-                // held ring-buffer fd outlives an unpin — the inode
-                // lesson). The line teaches the two actions and hands
-                // the liveness fork to the lanes that can prove it.
-                // The log lane, never a raw terminal print — a
-                // detached player must not write terminal bytes
-                // (night-hunter-6); this surfaces in a foreground
-                // `_play` run or with RUST_LOG on.
-                log::warn!(
-                    "no key events in {}s — idle; type to hear the sound, \
-                     or `zylaxion off` to stop. Keys silent while pressed means the tap is \
-                     not delivering — `zylaxion doctor` tells you why.",
-                    heartbeat_warn.as_secs()
-                );
-                heartbeat_warn_emitted = true;
-            }
-
-            // 1. Block until a key event arrives, with an adaptive
-            //    timeout: 1 ms while voices are active (the render
-            //    pacing), 100 ms while the pool is silent — the
-            //    idle-CPU audit's fix. The old flat 1 ms wait spun
-            //    1000 futex wakeups per second around the clock even
-            //    when nothing was happening, burning about 1.9
-            //    percent of a core (the 1.9 percent ps reading and
-            //    its 76 CPU-minutes). Either way, recv_timeout wakes
-            //    the thread the instant the first key of a
-            //    simultaneous pair arrives, so the second key
-            //    (arriving µs later) is processed in the drain loop
-            //    below with zero extra latency — only the stop flag
-            //    ever waits out the timeout.
-            let wait = if self.pool.is_active() {
-                EVENT_POLL_TIMEOUT
-            } else {
-                IDLE_WAIT_TIMEOUT
-            };
-            match event_rx.recv_timeout(wait) {
-                Ok(event) => {
-                    // v10.2.0 (S4): reset the heartbeat on any event.
-                    // The input thread is alive and producing events —
-                    // the player is healthy.
-                    last_event_monotonic = std::time::Instant::now();
-                    heartbeat_debug_emitted = false;
-                    heartbeat_warn_emitted = false;
-
-                    // Snapshot the current model ONCE per event batch.
-                    // ArcSwap::load() is a single atomic load — no
-                    // blocking, no allocation. The Guard keeps the
-                    // snapshot alive for the duration of this batch
-                    // even if another thread swaps in a new model
-                    // mid-batch.
-                    let model_guard = model.load();
-                    let model_ref: &M = &model_guard;
-
-                    Self::handle_input_event(&mut self.pool, model_ref, &event);
-                    // Drain any co-arriving events (e.g. 'k' and 'a'
-                    // pressed within the same µs window).
-                    while let Ok(event) = event_rx.try_recv() {
-                        Self::handle_input_event(&mut self.pool, model_ref, &event);
+            // The wait, by regime (night-frontier-Z4). SILENT: a
+            // blocking select over [events, stop] with NO timeout —
+            // the park IS the idle state, zero timer wakeups; the
+            // thread sleeps in the kernel until the first op lands.
+            // ACTIVE: the 1 ms render pacing (real work — feeding the
+            // Mouth's ring between key events) plus a cheap stop-lane
+            // check. Both arms wake the instant their op lands; a
+            // simultaneous event+stop pair resolves at the loop top
+            // on the next iteration either way.
+            if self.pool.is_active() {
+                // The ACTIVE regime: `recv_timeout` wakes the instant
+                // a key lands, so the pacing never delays a keystroke
+                // — the same guarantee the pre-Z4 loop documented.
+                match event_rx.recv_timeout(EVENT_POLL_TIMEOUT) {
+                    Ok(event) => {
+                        // Snapshot the current model ONCE per event
+                        // batch. ArcSwap::load() is a single atomic
+                        // load — no blocking, no allocation. The Guard
+                        // keeps the snapshot alive for the duration of
+                        // this batch even if another thread swaps in a
+                        // new model mid-batch.
+                        let model_guard = model.load();
+                        let model_ref: &M = &model_guard;
+                        Self::handle_event_batch(&mut self.pool, model_ref, event_rx, event);
+                    }
+                    Err(crossbeam_channel::RecvTimeoutError::Timeout) => {}
+                    Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
+                        log::warn!("input channel disconnected — shutting down");
+                        self.fade_out_before_drop();
+                        return;
                     }
                 }
-                Err(crossbeam_channel::RecvTimeoutError::Timeout) => {}
-                Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
-                    log::warn!("input channel disconnected — shutting down");
+                // The stop lane rides the pacing cadence: one
+                // try_recv per 1 ms iteration while sound plays (the
+                // flag era's stop check, evented — the watcher's
+                // ControlStop message lands within one pacing step).
+                if stop_rx.try_recv().is_ok() {
+                    log::info!("control stop — shutting down");
                     self.fade_out_before_drop();
                     return;
-                } // Timeout is handled by falling through — the loop
-                  // re-checks the stop flag at the top of the next iteration.
+                }
+            } else {
+                // The SILENT regime: the park. A dropped event sender
+                // (the bridge died) is a ready op and wakes the park;
+                // a ControlStop wakes it the same way. This arm is
+                // where the old loop's 100 ms idle timeout used to
+                // wake the thread ten times a second for nothing.
+                crossbeam_channel::select! {
+                    recv(event_rx) -> res => match res {
+                        Ok(event) => {
+                            let model_guard = model.load();
+                            let model_ref: &M = &model_guard;
+                            Self::handle_event_batch(&mut self.pool, model_ref, event_rx, event);
+                        }
+                        Err(_) => {
+                            log::warn!("input channel disconnected — shutting down");
+                            self.fade_out_before_drop();
+                            return;
+                        }
+                    },
+                    recv(stop_rx) -> _ => {
+                        log::info!("control stop — shutting down");
+                        self.fade_out_before_drop();
+                        return;
+                    }
+                }
             }
 
             // 2. Only render and push when voices are active.
@@ -497,6 +490,23 @@ impl<S: AudioSink> Orchestrator<S> {
             //    `write_batch` never blocks — it silently drops if
             //    the buffer filled between the vacancy check and now.
             self.sink.write_batch(chunk);
+        }
+    }
+
+    /// Process one delivered event and drain the co-arriving ones
+    /// (e.g. 'k' and 'a' pressed within the same µs window) under one
+    /// model snapshot — the batch shape the pre-Z4 loop inlined in
+    /// both wait arms, extracted when the wait became two regimes.
+    #[inline]
+    fn handle_event_batch<M: AcousticModel>(
+        pool: &mut VoicePool,
+        model: &M,
+        event_rx: &Receiver<KeyEvent>,
+        first: KeyEvent,
+    ) {
+        Self::handle_input_event(pool, model, &first);
+        while let Ok(event) = event_rx.try_recv() {
+            Self::handle_input_event(pool, model, &event);
         }
     }
 

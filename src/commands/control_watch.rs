@@ -4,12 +4,18 @@
 //! The control-plane watcher (night-frontier-Z2 B1) — its own module
 //! so the player stays under the no-mercy line ledger.
 //!
-//! The wait is ONE poll over [the notice ring, the wake pipe] with the
-//! 10 s heartbeat underneath; the drained records are kernel-stamped
+//! The wait is ONE poll over [the notice ring, the wake pipe] with NO
+//! timeout (night-frontier-Z4: the last timer dies — the thread parks
+//! until a lane answers); the drained records are kernel-stamped
 //! hints, the control map is the only authority, and a wake that
-//! carried no change says "authority held" out loud. The 10 s read-
-//! failure patience survived the cadence demotion, honestly
-//! re-derived from a read count to a clock (the night-dragon-lts law).
+//! carried no change says "authority held" out loud. A 60 s backstop
+//! arms ONLY when the poll set is empty (both evented lanes failed to
+//! open — an exotic sandbox), because a timer is the only remaining
+//! wake channel there and `off` must always land. The read-failure
+//! patience survived, honestly re-derived from a read count to a
+//! clock (the night-dragon-lts law), and every stop decision now
+//! FORWARDS one ControlStop to the render loop — the watcher's exit
+//! must wake the loop it is stopping, or the loop would park forever.
 
 use std::os::fd::{AsFd as _, BorrowedFd};
 use std::sync::Arc;
@@ -34,13 +40,15 @@ const ENABLED_SLOT: u32 = 0;
 const PRESET_ID_SLOT: u32 = 1;
 const VOLUME_PCT_SLOT: u32 = 2;
 
-/// night-frontier-Z2 B1: the control watcher's wait is now ONE poll
-/// over [the notice ring, the wake pipe], and this value is its
-/// liveness heartbeat — the worst-case latency ONLY when every wake
-/// lane is dead (no ring, no signal). The evented wakes answer in
-/// microseconds; this number demoted from the latency path (the old
-/// 100 ms CONTROL_POLL_MS) to a floor nobody should ever feel.
-const CONTROL_HEARTBEAT_MS: u16 = 10_000;
+/// night-frontier-Z4: the watcher's wait is a FOREVER poll over
+/// [the notice ring, the wake pipe] — zero timer wakeups while the
+/// lanes live. This value is the LAST-RESORT backstop, and it arms
+/// ONLY when the poll set is empty (both the notice ring AND the
+/// wake pipe failed to open — an exotic sandbox): a timer is the only
+/// remaining wake channel when both evented lanes are dead, and `off`
+/// must always land. Demoted from the old 10 s heartbeat: one wake
+/// per minute, one map read each — a backstop, not a poller.
+const CONTROL_BACKSTOP_MS: u16 = 60_000;
 
 /// night-dragon-lts: the read-failure patience. The LAW is unchanged
 /// — 10 s of consecutive failures mean the pinned map is genuinely
@@ -87,17 +95,20 @@ pub(crate) fn spawn(
     stop_flag: Arc<AtomicBool>,
     model: Arc<ArcSwap<MechanicalClick>>,
     control_wake: Option<ControlWake>,
+    stop_tx: crossbeam_channel::Sender<crate::core::ControlStop>,
     preset_index: u32,
     volume_percent: u32,
     sample_rate: u32,
     volume_factor: Arc<AtomicU32>,
 ) -> Option<std::thread::JoinHandle<()>> {
     // ── The control-plane watcher: the evented wake (night-frontier-Z2
-    //    B1) — one poll over [the notice ring, the wake pipe], the 10 s
-    //    heartbeat underneath, and a control-map re-read (the ONLY
-    //    authority) on every wake. enabled=0 stops (the CLI's off/exit
-    //    is one map write plus one notice); preset and volume changes
-    //    apply live.
+    //    B1) — one poll over [the notice ring, the wake pipe] with no
+    //    timeout (night-frontier-Z4: the park IS the idle state; the
+    //    60 s backstop arms only on an empty set), and a control-map
+    //    re-read (the ONLY authority) on every wake. enabled=0 stops
+    //    (the CLI's off/exit is one map write plus one notice);
+    //    preset and volume changes apply live. Every stop decision
+    //    forwards one ControlStop to the render loop first.
     let watcher =
         {
             let stop_flag = Arc::clone(&stop_flag);
@@ -139,15 +150,17 @@ pub(crate) fn spawn(
                 let mut notices_drained: u32 = 0;
                 let mut applied_something = false;
                 loop {
-                    // The wait (night-frontier-Z2 B1): ONE poll over
-                    // [the notice ring, the wake pipe] with the 10 s
-                    // heartbeat timeout as the liveness floor. The
+                    // The wait (night-frontier-Z4): ONE poll over
+                    // [the notice ring, the wake pipe] with NO
+                    // timeout — the park is the idle state and costs
+                    // zero timer wakeups while the lanes live. The
                     // notice ring carries the evented control wake (a
                     // verb drives the pinned relay, the KERNEL produces
                     // the record — no signal permission, no pid
                     // targeting, an auditable trail); the wake pipe
-                    // stays the session fast path. Either lane — or the
-                    // heartbeat itself — lands in the map re-read that
+                    // carries the session fast path and the graceful
+                    // signals. Either lane — or, on an empty set, the
+                    // 60 s backstop — lands in the map re-read that
                     // follows, which remains the only authority.
                     let mut fds: Vec<PollFd> = Vec::new();
                     let notice_fd = notices.as_ref().map(|ring| ring.as_fd());
@@ -163,7 +176,12 @@ pub(crate) fn spawn(
                             PollFlags::POLLIN,
                         ));
                     }
-                    match poll(&mut fds, PollTimeout::from(CONTROL_HEARTBEAT_MS)) {
+                    let timeout = if fds.is_empty() {
+                        PollTimeout::from(CONTROL_BACKSTOP_MS)
+                    } else {
+                        PollTimeout::NONE
+                    };
+                    match poll(&mut fds, timeout) {
                         Ok(_) => {}
                         Err(nix::errno::Errno::EINTR) => {}
                         Err(e) => {
@@ -171,7 +189,20 @@ pub(crate) fn spawn(
                             std::thread::sleep(Duration::from_millis(10));
                         }
                     }
-                    if stop_flag.load(Ordering::Relaxed) {
+                    // Two stop setters, one readable truth: the
+                    // watcher's own decisions (the store below) and
+                    // the graceful signal static (SIGTERM and
+                    // friends — the handler also wrote the wake byte
+                    // that woke this poll). Either way the decision
+                    // must WAKE the loop it is stopping: one
+                    // ControlStop message goes out before the thread
+                    // returns, or the parked render loop would never
+                    // learn the stop landed.
+                    if stop_flag.load(Ordering::Relaxed)
+                        || crate::session::signals::graceful_stop_requested()
+                    {
+                        stop_flag.store(true, Ordering::Relaxed);
+                        let _ = stop_tx.send(crate::core::ControlStop);
                         return;
                     }
                     // The pipe's readable slot drains its coalesced
@@ -231,6 +262,7 @@ pub(crate) fn spawn(
                         Ok(_) => {
                             log::info!("control map cleared the enabled flag — stopping");
                             stop_flag.store(true, Ordering::Relaxed);
+                            let _ = stop_tx.send(crate::core::ControlStop);
                             return;
                         }
                         Err(e) => match first_read_failure {
@@ -249,6 +281,7 @@ pub(crate) fn spawn(
                                          is gone; stopping"
                                     );
                                     stop_flag.store(true, Ordering::Relaxed);
+                                    let _ = stop_tx.send(crate::core::ControlStop);
                                     return;
                                 }
                                 log::warn!(

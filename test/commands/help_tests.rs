@@ -270,10 +270,12 @@ fn the_dead_service_command_appears_nowhere_in_the_living_tree() {
     );
 }
 
-/// The reframed idle diagnostic teaches the two actions and never
-/// claims a stuck thread: the 300s line carries the off escape and
-/// the honest liveness fork. (A file read — cfg(not(miri)) with the
-/// sweep above.)
+/// The Z4 park is the idle diagnostic now (night-frontier-Z4): the
+/// retired heartbeat's teaching must be GONE — a parked loop never
+/// wakes, so idle log lines cannot exist — the stuck-thread lie must
+/// stay dead, the 100 ms idle timer must stay dead, and the silent
+/// wait must be the no-timer select whose arms carry the stop lane.
+/// (A file read — cfg(not(miri)) with the sweep above.)
 #[cfg(not(miri))]
 #[test]
 fn the_idle_heartbeat_teaches_type_or_off() {
@@ -282,11 +284,23 @@ fn the_idle_heartbeat_teaches_type_or_off() {
     )
     .expect("core source readable");
     assert!(
-        core.contains("no key events in {}s — idle; type to hear the sound"),
-        "the 300s line must teach type-or-off"
+        !core.contains("no key events in"),
+        "the idle heartbeat lines must stay retired — a parked loop never wakes to log them"
     );
     assert!(
         !core.contains("input thread may be stuck"),
         "the stuck-thread lie must stay dead"
+    );
+    assert!(
+        !core.contains("IDLE_WAIT_TIMEOUT"),
+        "the 100 ms idle timer must stay dead (night-frontier-Z4: the park replaces it)"
+    );
+    assert!(
+        core.contains("crossbeam_channel::select!"),
+        "the silent wait must be the blocking select — the park, no timer"
+    );
+    assert!(
+        core.contains("recv(stop_rx)"),
+        "the stop lane must be an arm of the parked wait"
     );
 }

@@ -17,6 +17,7 @@ and the pre-v10 release notes live next to it in
 [docs/archive/CHANGELOG-v6.0.0.md](docs/archive/CHANGELOG-v6.0.0.md).
 ## [Released]
 
+v80.3.0
 v80.2.3
 v80.2.2
 v80.2.1
@@ -37,6 +38,51 @@ v80.0.0-rc.1
 v80.0.0-beta.2
 v80.0.0-beta.1
 v80.0.0-alpha.1
+
+## [v80.3.0] — night-frontier-Z4: the last timer dies — the parked player and the evented stop — 2026-11-18
+
+### Added
+
+- **night-frontier-Z4: the parked-player witness rides the E2E
+  battery** — `scripts/supermassive/sm_idle.py`, its own no-mercy
+  module: attach, `on`, a 20 s silent window, and the per-thread
+  context-switch deltas from `/proc/<pid>/task/<tid>/status` — render
+  +0, bridge +0, watcher ≤ 1 — plus the park's survival row and the
+  evented `off` row, on every micro-VM kernel leg. The in-tree pin
+  (`idle_park_emits_zero_wakeups`) and `idle_cpu_sanity` phase 1
+  witness the same zero without root or a tap.
+
+### Changed
+
+- **night-frontier-Z4: the last timer dies — the player parks while
+  silent** — the render loop's silent wait is a blocking select over
+  the event channel and the new `ControlStop` stop lane with NO
+  timeout (the 1 ms pacing arms only while voices render); the
+  bridge's events-ring poll is a forever block (its one exit lane is
+  a wind-down pipe the teardown writes); the watcher's poll lost its
+  timeout and the 10 s heartbeat demoted to a 60 s backstop that arms
+  only when the poll set is empty — a timer is the only remaining
+  wake channel when both evented lanes are dead, and `off` must
+  always land. Every stop decision is now a message — a flag cannot
+  wake a parked thread — and the idle heartbeat log ladder retired
+  with the timer it rode. Witnessed: ZERO voluntary context switches
+  on the parked loop (the `/proc` witness; getrusage 0.004% of one
+  core on the audit machine — the full progression 1.131% → 0.035% →
+  0.004%, the last step zero events, not a smaller percent), and the
+  render bytes are exactly the pre-Z4 bytes (the golden corpus's
+  structural gate identical on both sides of the change — the
+  documented libm/CPU dispatch boundary, not a render change). The
+  full law lives in `docs/INNOVATIONS.md` entry 46; the README row,
+  the FAQ, the eBPF-only ledger, and the LTS proof carry the synced
+  figures.
+
+### Removed
+
+- **night-frontier-Z4: signal-hook left the dependency tree** — the
+  graceful shutdown handlers are the house's own sigaction lanes (the
+  same async-signal-safe shape the SIGUSR1 handler documents, plus
+  the control wake byte the evented stop needs). 12 → 11 direct
+  dependencies, 136 → 129 lockfile crates.
 
 ## [v80.2.2] — 2026-11-17
 

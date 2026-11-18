@@ -412,10 +412,15 @@ the map re-read that follows is the only authority. The 100 ms poll
 demoted to a 10 s liveness heartbeat — the night-dragon-lts read-
 failure patience survived, honestly re-derived from a read count to
 a clock — and `off`, `preset`, and `volume` land in microseconds on
-every kernel from the 5.15 floor up. Files of truth:
-`src/commands/player.rs` (the two-fd watcher), `src/session/wake.rs`
-(the signal lane), `src/ebpf/notice.rs` (the schema), and
-`src/ebpf/bpf_syscall.rs` (the publish lane).
+every kernel from the 5.15 floor up. night-frontier-Z4 demoted the
+heartbeat again: the watcher's poll is now a FOREVER block (zero
+timer wakeups while the lanes live) and the 10 s heartbeat survives
+only as the 60 s backstop that arms when the poll set is EMPTY — a
+timer is the only remaining wake channel when both evented lanes are
+dead, and `off` must always land (entry 46 carries the full law).
+Files of truth: `src/commands/player.rs` (the two-fd watcher),
+`src/session/wake.rs` (the signal lane), `src/ebpf/notice.rs` (the
+schema), and `src/ebpf/bpf_syscall.rs` (the publish lane).
 
 **25. The orphan lifecycle: identity gate and escalation ladder.**
 The double-sound problem: a player that outlives the map it watched
@@ -462,7 +467,15 @@ audited cost was roughly 1.9 percent CPU, 76 CPU-minutes on the
 owner's machine. The wait adapts: 1 ms while the pool is active,
 100 ms while silent, an instant wake on event arrival, and a 500 us
 sleep when ring vacancy runs low, with a heartbeat log ladder
-(60 s debug, 5 min warning). File of truth: `src/core/mod.rs`.
+(60 s debug, 5 min warning). night-frontier-Z4 completed the arc
+(entry 46): the silent half retired into a PARK — a blocking select
+over the event channel and the new stop lane with no timeout, zero
+timer wakeups while idle (the 1 ms pacing arms only while voices
+render) — and the heartbeat log ladder retired with the timer it
+rode (a parked loop never wakes to log; the liveness fork stays with
+`doctor` and `status`). The stop became a message (`ControlStop`),
+because a flag cannot wake a parked thread. File of truth:
+`src/core/mod.rs`.
 
 **30. The shutdown silence pad.** The pop problem: dropping the
 audio sink mid-playback can leave a non-zero offset in the sound
@@ -763,6 +776,62 @@ was deleted. Files of truth: `src/main.rs`, `ebpf/src/main.rs`,
 `// SAFETY:` line under `src/`, `test/`, `ebpf/src/`, and
 `scripts/audit/harness/src/`.
 
+**46. The last timer dies — the parked player and the evented stop
+(night-frontier-Z4).** The arc's final demotion: entry 29 took the
+idle burn 1.9% → 0.035% (ten timer wakeups a second), and this entry
+takes it to ZERO — the render loop's silent wait is a blocking select
+over [the event channel, the stop lane] with no timeout, the bridge's
+events-ring poll is a FOREVER block (its one exit lane is a wind-down
+pipe the process writes at teardown), and the watcher's poll lost its
+timeout too. The physics: a parked thread is asleep in the kernel
+until a channel op or an fd event lands — no atomic store can wake
+it, so every stop decision became a message: the watcher forwards one
+`ControlStop` on a channel (the cleared enabled gate, the read-
+failure verdict, the graceful signals, the wind-down), the graceful
+handler — the house's own sigaction lanes now, signal-hook left the
+dependency tree (12 → 11 direct dependencies, 129 lockfile crates) —
+writes one byte to the control wake pipe so SIGTERM wakes the parked
+watcher, and the post-run teardown pokes both parked threads (the
+flag is the decision, the byte is the wake) so no join can hang. The
+one timer that survives is the watcher's 60 s backstop, and it arms
+ONLY when the poll set is empty (both the notice ring and the wake
+pipe failed to open — an exotic sandbox): a timer is the only
+remaining wake channel when both evented lanes are dead, and `off`
+must always land — a backstop, not a poller (one wake per minute,
+one map read each). The tamper posture is UNCHANGED and honestly so:
+the held map fds outlive an unpin (the inode lesson the orphan sweep
+learned), so a hand-removed pin set was never detectable from the
+player's seat — Z4 changes the cadence of a silence that already
+existed, and `attach` + `off` recovers it as before. The evidence is
+mechanical: the in-tree `idle_park_emits_zero_wakeups` test counts
+the parked thread's context switches from /proc (zero over a 2 s
+window), `control_stop_wakes_the_parked_loop` proves the message
+lane wakes the park inside a 200 ms bound (the 300 ms disconnect
+fallback beneath it fails loudly, never hangs a runner),
+`idle_cpu_sanity` phase 1 witnesses the same zero on the real loop
+(getrusage 0.004% of one core on the audit machine — the full
+progression 1.131% → 0.035% → 0.004%, and the last step is zero
+events, not a smaller percent), and the E2E battery grew the
+parked-player witness leg (`scripts/supermassive/sm_idle.py`, its
+own no-mercy module): attach, on, a 20 s silent window, and the
+per-thread deltas — render +0, bridge +0, watcher ≤ 1, the player
+alive, and `off` still landing through the evented stop — on every
+micro-VM kernel leg. The engine freeze is untouched: the render
+bytes are exactly the pre-Z4 bytes (the golden corpus's structural
+gate: missing=0, added=0, the byte-delta profile identical to the
+pre-Z4 tree on the same machine — the documented libm/CPU dispatch
+boundary, not a render change). Files of truth: `src/core/mod.rs`
+(the park, the ControlStop contract), `src/commands/player.rs` (the
+bridge's forever poll + wind-down pipe, the teardown pokes),
+`src/commands/control_watch.rs` (the forever poll + the 60 s
+backstop + the ControlStop forwards), `src/session/signals.rs` (the
+graceful sigaction + the wake byte), `src/session/wake.rs`
+(`installed_wake_write_fd` + `poke`), `examples/idle_cpu_sanity.rs`
+(the phase-1 /proc witness), `scripts/supermassive/sm_idle.py` (the
+E2E parked-player witness); pinned by `test/core/core_tests.rs`
+(`idle_park_emits_zero_wakeups`, `control_stop_wakes_the_parked_loop`)
+and `test/commands/help_tests.rs` (the retired-heartbeat pin).
+
 ## The test tree that pins the ledger
 
 The ledger is not honored by prose alone: 36 test files carrying 284
@@ -779,8 +848,8 @@ pass:
   smooth release ramp, the clamp and NaN silence net, and the engine
   freeze declaration (entries 9, 11, 12, 31).
 - `test/core/` — the Orchestrator: the pan law, the timestamp lane,
-  the adaptive wait, and the ring bridge behavior (entries 7, 8, 15,
-  29).
+  the adaptive wait, the ring bridge behavior, and the Z4 park
+  witness (entries 7, 8, 15, 29, 46).
 - `test/ebpf/` (args, loader, bpf_syscall, embedded, attach_error,
   pin) — the tap ABI shapes, the chain vocabulary and its control
   slot, the raw-syscall lanes, the AlignedElf guard, the failure
@@ -814,7 +883,12 @@ gate consumes; `zylaxion status` reads the TAP_KIND slot the loader
 wrote; the proven-datapath harnesses of entry 44 verify under the
 Kani lane (`cargo kani` — the Monday 10:00 WIB schedule or a manual
 dispatch from the Actions tab); the unsafe audit's score law of
-entry 45 is `cargo clippy --all-targets -- -D warnings` itself. Where a number in any other doc disagrees with the code, the
+entry 45 is `cargo clippy --all-targets -- -D warnings` itself; the
+parked-player law of entry 46 is `cargo run --release --example
+idle_cpu_sanity` (phase 1 prints the /proc wake count — the zero —
+and the CPU figure) and, on a root lane, the E2E parked-player
+witness leg (`scripts/supermassive/sm_idle.py` through the full
+battery). Where a number in any other doc disagrees with the code, the
 code wins — and the doc gets the PR.
 
 <!-- ZYLAXION-DISCLAIMER -->

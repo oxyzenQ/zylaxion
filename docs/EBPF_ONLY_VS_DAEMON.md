@@ -42,9 +42,10 @@ real process while it plays — `ps aux` shows `zylaxion _play`
 between `on` and `off`. A process that lives only while the sound
 plays is not a daemon: it has no PID file, no IPC socket, no
 supervision, and no state of its own, and it blocks rather than
-polls (the bridge waits in `poll(2)` on the ring-buffer fd; the
-render loop waits on its channel, 1 ms while voices render and
-100 ms while silent — and the control watcher wakes instantly on a
+polls (the bridge waits in `poll(2)` on the ring-buffer fd with no
+timeout; the render loop parks while silent — a blocking wait with no
+timer at all, the 1 ms pacing arms only while voices render —
+and the control watcher wakes instantly on a
 zero-payload SIGUSR1 after any verb's map write (night-hardening-2),
 the pinned map staying the only authority). `off` removes it
 completely. The resident part
@@ -62,7 +63,7 @@ marketing.
 | Passive input | No evdev grab, no `/dev/input` node access, no udev rule, no `input` group membership; the tap observes `input_event()` kernel-side and gates every event against pinned maps | The attach path plants no device nodes; the privilege doc table lists exactly one privileged verb |
 | Smaller supply chain | libinput/udev capture stack, toml/serde config stack, notify watcher, and the xdg/dbus session families are all gone from the tree | `Cargo.lock` swept transitively per family, zero hits; the CI cargo-audit lane (`--deny warnings`) guards what remains |
 | Unprivileged control plane | After one `sudo zylaxion attach` per boot, every verb rides the pinned maps — no privileged process ever residents | The E2E battery runs the full zero-to-hero chain as a plain user |
-| Zero idle cost | The audio callback is hardware-clocked; the bridge blocks in `poll(2)` and the render loop blocks on its channel (1 ms while voices render, 100 ms while silent) — no poll loop anywhere. Measured: 0.035% of one core idle (`idle_cpu_sanity`), 0.0% as `ps` rounds it | The ring buffer bridge renders under 3 ms typical latency |
+| Zero idle cost | The audio callback is hardware-clocked; the bridge blocks in `poll(2)` with no timeout and the render loop parks while silent — a blocking wait with no timer (the 1 ms pacing arms only while voices render). The /proc witness counts ZERO context switches on the parked loop (`idle_cpu_sanity`); the getrusage CPU figure reads 0.004% of one core on the audit machine | The parked-player witness leg in the E2E battery re-counts the thread deltas on the real player; the ring buffer bridge renders under 3 ms typical latency |
 | Kernel-side telemetry for free | The tap accumulates per-key counters in the kernel at zero userspace cost | `zylaxion status --verbose` renders them; no userspace sound tool offers this for free |
 | No config to drift | No parse errors, no schema versioning, no file watching, no per-boot divergence between what you typed and what runs | The registry is compile-time data proven in-range by the registry test tree |
 | Honest failure surfaces | `doctor` probes what it can actually probe (kernel floor, BTF, bpffs, lockdown, unprivileged-bpf posture, audio); refusals are classified, not generic | The E2E probes pin the refusal contract per kernel posture |
@@ -90,8 +91,8 @@ blunted anyway.
 The honest arithmetic is not "fewer crates is better" — it is which
 crates the binary needs to do its one job.
 
-- The current tree: 12 portable direct dependencies plus one
-  Linux-gated link (alsa-sys, the ALSA stderr guard), 136 lockfile
+- The current tree: 11 portable direct dependencies plus one
+  Linux-gated link (alsa-sys, the ALSA stderr guard), 129 lockfile
   crates, and every feature gate mapped to a live call site
   (night-security-1 audited them gate by gate). The Linux-resolved
   graph is 52 crates; the rest of the lock is the other platforms'

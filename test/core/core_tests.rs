@@ -113,6 +113,42 @@ fn orchestrator_error_is_error() {
 
 use crate::profiles::MechanicalClick;
 use std::sync::Mutex;
+use std::time::Instant;
+
+// ── The Z4 witness (night-frontier-Z4) ─────────────────────────────
+//
+// Per-thread voluntary/nonvoluntary context switches, read from the
+// thread's own /proc status file — the same mechanical surface the
+// E2E battery's idle-wakeup witness uses inside the micro-VM guest.
+
+/// Find a thread by its comm name and return (voluntary,
+/// nonvoluntary) context switches. `None` = not found or unreadable —
+/// the witness test fails loudly on that, it never passes silently.
+fn thread_wakeups(name: &str) -> Option<(u64, u64)> {
+    let tasks = std::fs::read_dir("/proc/self/task").ok()?;
+    for entry in tasks.flatten() {
+        let tid = entry.file_name();
+        let comm =
+            std::fs::read_to_string(format!("/proc/self/task/{}/comm", tid.display())).ok()?;
+        if comm.trim_end() == name {
+            let status =
+                std::fs::read_to_string(format!("/proc/self/task/{}/status", tid.display()))
+                    .ok()?;
+            let mut vol = None;
+            let mut nonvol = None;
+            for line in status.lines() {
+                if let Some(v) = line.strip_prefix("voluntary_ctxt_switches:") {
+                    vol = v.trim().parse::<u64>().ok();
+                }
+                if let Some(v) = line.strip_prefix("nonvoluntary_ctxt_switches:") {
+                    nonvol = v.trim().parse::<u64>().ok();
+                }
+            }
+            return Some((vol?, nonvol?));
+        }
+    }
+    None
+}
 
 /// A test-only AudioSink that records every sample written to it.
 /// Uses `Arc<Mutex<Vec<...>>>` so the test can clone the Arc before
@@ -158,12 +194,12 @@ fn run_with_single_keypress(scancode: u32, wait_ms: u64) -> Vec<[f32; 2]> {
 
     let model = Arc::new(ArcSwap::from_pointee(MechanicalClick::new(sr)));
     let (tx, rx) = crossbeam_channel::unbounded();
-    let stop_flag = Arc::new(AtomicBool::new(false));
+    let (_stop_tx, stop_rx) = crossbeam_channel::unbounded::<ControlStop>();
 
     let handle = std::thread::Builder::new()
         .name("test-orchestrator".into())
         .spawn(move || {
-            orchestrator.run(&model, &rx, stop_flag);
+            orchestrator.run(&model, &rx, &stop_rx);
         })
         .expect("spawn test thread");
 
@@ -239,33 +275,56 @@ fn trigger_produces_decaying_amplitude() {
 }
 
 #[test]
-fn stop_flag_exits_run_cleanly() {
+fn control_stop_wakes_the_parked_loop() {
+    // night-frontier-Z4: the stop lane must WAKE a parked loop. The
+    // loop is idle (no voices) and parks with no timer — a message on
+    // the stop lane is the wake. The margins are wide on purpose: the
+    // evented wake lands in microseconds, the disconnect fallback
+    // (a dropped stop sender) sits at 300 ms, so the 200 ms bound
+    // proves the MESSAGE woke the loop, not the fallback — a broken
+    // stop lane fails loudly here instead of hanging a CI runner.
     let sr = 44_100u32;
     let (sink, _samples) = MockSink::new(sr);
     let mut orchestrator = Orchestrator::new_with(sink);
 
     let model = Arc::new(ArcSwap::from_pointee(MechanicalClick::new(sr)));
     let (_tx, rx) = crossbeam_channel::unbounded::<KeyEvent>();
-    let stop_flag = Arc::new(AtomicBool::new(false));
+    let (stop_tx, stop_rx) = crossbeam_channel::unbounded::<ControlStop>();
 
-    let stop_clone = Arc::clone(&stop_flag);
+    let started = Instant::now();
     let handle = std::thread::Builder::new()
         .name("test-stop".into())
         .spawn(move || {
-            orchestrator.run(&model, &rx, stop_flag);
+            orchestrator.run(&model, &rx, &stop_rx);
         })
         .expect("spawn");
 
-    // Set stop_flag after 50ms.
+    // Park for 50 ms, then command the stop.
     std::thread::sleep(Duration::from_millis(50));
-    stop_clone.store(true, Ordering::Relaxed);
+    stop_tx.send(ControlStop).expect("send the stop");
 
-    // The thread should exit within ~100ms (50ms poll + 28ms
-    // fade-out). Give it 500ms to be safe.
+    // The disconnect fallback arms at 300 ms (the sender's clone is
+    // dropped there) so a broken message lane still terminates the
+    // test — and fails the bound below, loudly.
+    let fallback_tx = stop_tx.clone();
+    std::thread::Builder::new()
+        .spawn(move || {
+            std::thread::sleep(Duration::from_millis(300));
+            drop(fallback_tx);
+        })
+        .expect("spawn the fallback");
+
     let joined = handle.join();
     assert!(
         joined.is_ok(),
-        "orchestrator thread should exit cleanly after stop_flag"
+        "orchestrator thread should exit cleanly after the control stop"
+    );
+    let elapsed = started.elapsed();
+    assert!(
+        elapsed < Duration::from_millis(200),
+        "the control stop must WAKE the parked loop (evented, ~microseconds); \
+         took {elapsed:?} — the message lane is broken (the 300 ms disconnect \
+         fallback answered instead)"
     );
 }
 
@@ -277,17 +336,17 @@ fn channel_disconnect_exits_run_cleanly() {
 
     let model = Arc::new(ArcSwap::from_pointee(MechanicalClick::new(sr)));
     let (tx, rx) = crossbeam_channel::unbounded::<KeyEvent>();
-    let stop_flag = Arc::new(AtomicBool::new(false));
+    let (_stop_tx, stop_rx) = crossbeam_channel::unbounded::<ControlStop>();
 
     let handle = std::thread::Builder::new()
         .name("test-disconnect".into())
         .spawn(move || {
-            orchestrator.run(&model, &rx, stop_flag);
+            orchestrator.run(&model, &rx, &stop_rx);
         })
         .expect("spawn");
 
-    // Drop the sender — the receiver's recv_timeout will return
-    // Disconnected, causing run() to exit.
+    // Drop the sender — the parked loop's event arm sees the
+    // disconnect as a ready op, causing run() to exit.
     std::thread::sleep(Duration::from_millis(20));
     drop(tx);
 
@@ -310,12 +369,12 @@ fn hot_reload_model_swap_mid_render() {
     let model = Arc::new(ArcSwap::from_pointee(MechanicalClick::new(sr)));
     let model_for_thread = Arc::clone(&model);
     let (tx, rx) = crossbeam_channel::unbounded();
-    let stop_flag = Arc::new(AtomicBool::new(false));
+    let (_stop_tx, stop_rx) = crossbeam_channel::unbounded::<ControlStop>();
 
     let handle = std::thread::Builder::new()
         .name("test-hotreload".into())
         .spawn(move || {
-            orchestrator.run(&model_for_thread, &rx, stop_flag);
+            orchestrator.run(&model_for_thread, &rx, &stop_rx);
         })
         .expect("spawn");
 
@@ -368,9 +427,9 @@ fn master_volume_affects_output_amplitude() {
     let mut orch_lo = Orchestrator::new_with_volume(sink_lo, 1.0);
     let model_lo = Arc::new(ArcSwap::from_pointee(MechanicalClick::new(sr)));
     let (tx_lo, rx_lo) = crossbeam_channel::unbounded();
-    let stop_lo = Arc::new(AtomicBool::new(false));
+    let (_stop_tx_lo, stop_rx_lo) = crossbeam_channel::unbounded::<ControlStop>();
     let handle_lo = std::thread::spawn(move || {
-        orch_lo.run(&model_lo, &rx_lo, stop_lo);
+        orch_lo.run(&model_lo, &rx_lo, &stop_rx_lo);
     });
     tx_lo
         .send(KeyEvent {
@@ -388,9 +447,9 @@ fn master_volume_affects_output_amplitude() {
     let mut orch_hi = Orchestrator::new_with_volume(sink_hi, 10.0);
     let model_hi = Arc::new(ArcSwap::from_pointee(MechanicalClick::new(sr)));
     let (tx_hi, rx_hi) = crossbeam_channel::unbounded();
-    let stop_hi = Arc::new(AtomicBool::new(false));
+    let (_stop_tx_hi, stop_rx_hi) = crossbeam_channel::unbounded::<ControlStop>();
     let handle_hi = std::thread::spawn(move || {
-        orch_hi.run(&model_hi, &rx_hi, stop_hi);
+        orch_hi.run(&model_hi, &rx_hi, &stop_rx_hi);
     });
     tx_hi
         .send(KeyEvent {
@@ -421,5 +480,56 @@ fn master_volume_affects_output_amplitude() {
     assert!(
         energy_hi > energy_lo,
         "higher master volume should produce more energy: energy_lo={energy_lo:.4}, energy_hi={energy_hi:.4}"
+    );
+}
+
+#[test]
+#[cfg_attr(
+    miri,
+    ignore = "the witness reads /proc, which Miri's isolated runs do not expose"
+)]
+fn idle_park_emits_zero_wakeups() {
+    // night-frontier-Z4's core claim, witnessed mechanically: the
+    // idle render loop is a PARKED thread — zero voluntary and zero
+    // nonvoluntary context switches over a real 2 s silent window.
+    // The pre-Z4 loop's 100 ms idle timeout produced ~20 voluntary
+    // switches per second in this exact regime; the parked loop
+    // produces none, because nothing wakes it but a channel op.
+    let sr = 44_100u32;
+    let (sink, _samples) = MockSink::new(sr);
+    let mut orchestrator = Orchestrator::new_with(sink);
+
+    let model = Arc::new(ArcSwap::from_pointee(MechanicalClick::new(sr)));
+    let (tx, rx) = crossbeam_channel::unbounded::<KeyEvent>();
+    let (stop_tx, stop_rx) = crossbeam_channel::unbounded::<ControlStop>();
+
+    let handle = std::thread::Builder::new()
+        .name("test-park".into())
+        .spawn(move || {
+            orchestrator.run(&model, &rx, &stop_rx);
+        })
+        .expect("spawn");
+
+    // Let the loop reach its park, then witness a 2 s silent window.
+    std::thread::sleep(Duration::from_millis(200));
+    let before = thread_wakeups("test-park")
+        .expect("the parked loop thread must be findable in /proc/self/task");
+    std::thread::sleep(Duration::from_millis(2000));
+    let after = thread_wakeups("test-park").expect("the parked loop thread must still be findable");
+
+    drop(stop_tx); // a dropped stop sender is a ready op — the park wakes
+    drop(tx);
+    let _ = handle.join();
+
+    assert_eq!(
+        after.0 - before.0,
+        0,
+        "ZERO voluntary context switches expected while idle parked: \
+         a timer wake hides in the idle wait"
+    );
+    assert_eq!(
+        after.1 - before.1,
+        0,
+        "ZERO nonvoluntary context switches expected: a parked thread never runs"
     );
 }

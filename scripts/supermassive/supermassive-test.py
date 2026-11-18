@@ -30,7 +30,13 @@ Python engine, two lanes.
                                 kernel-side telemetry, the PCM
                                 witness, live preset/volume map
                                 writes, off, the zero-process state),
-                                and the realtime depth stresstest
+                                the parked-player witness
+                                (night-frontier-Z4: a 20 s silent
+                                window, the per-thread context-switch
+                                deltas — render +0, bridge +0, watcher
+                                <= 1 — the park's survival and the
+                                evented off), and the realtime depth
+                                stresstest
                                 (night-dragon-maintenance-2, the
                                 zejtron storm lineage: three
                                 concurrent uinput writers, telemetry and the
@@ -68,6 +74,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from sm_audio import battery as audio_battery  # noqa: E402
 from sm_btf import battery as btf_battery  # noqa: E402
+from sm_idle import battery as idle_battery  # noqa: E402
 from sm_repro import battery as repro_battery  # noqa: E402
 from sm_env import (  # noqa: E402
     asound_cards,
@@ -227,6 +234,10 @@ def full(binary: str) -> int:
     tap_battery(ledger, binary, GUEST_USER)
     journey_battery(ledger, binary, GUEST_USER)
     audio_battery(ledger, binary, user=GUEST_USER, tree_root=REPO_ROOT)
+    # night-frontier-Z4: the parked-player witness — the ZERO-timer
+    # law on the REAL player, its own no-mercy module (the sm_audio
+    # split), composed right after the real-usage family.
+    idle_battery(ledger, binary, GUEST_USER)
     storm_battery(ledger, binary, GUEST_USER)
     static_battery(ledger, binary, REPO_ROOT, root_lane=True)
     return ledger.finish()

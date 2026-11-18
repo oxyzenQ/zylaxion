@@ -80,7 +80,7 @@ binary itself.
 | **24 presets compiled in** | Filter frequencies, resonance Q, decay coefficients, spring mix: type-checked Rust data baked into the binary. Zero parse errors possible, zero I/O at startup. |
 | **Micro-randomized** | Every keypress gets a unique noise seed, ±1.5% pitch drift, ±5% amplitude drift, ±3% stereo pan jitter, and inter-keystroke timing variation. The same key never sounds identical twice. |
 | **Sample-rate honest** | Every decay envelope is renormalized to the output device's rate with the `c^(R/S)` law anchored at the 44.1 kHz authoring reference — the same preset rings the same length at 44.1, 48, and 96 kHz. The headless render audit measured 0.0% tail spread across all 24 presets. |
-| **Low latency, zero idle cost** | The audio callback is hardware-clocked (interrupt-driven); the render loop blocks on its event channel — 1 ms while voices render, 100 ms while silent — instead of polling. Measured idle cost: 0.035% of one core over a 10 s silent window (`cargo run --release --example idle_cpu_sanity`), which `ps` rounds to 0.0%. While sound is actually playing the cost is real work, reported as such: about 1.1% of total CPU (~2.15% of one core) at a continuous 5 keystrokes/second (docs/ZACTRIX_LTS.md PROOF 6 STATE B) — the same example's phase 2 measures the active regime on your machine. Typical keystroke latency stays under 3 ms. |
+| **Low latency, zero idle cost** | The audio callback is hardware-clocked (interrupt-driven); the render loop PARKS while silent — a blocking wait with no timer at all, woken only by the kernel tap or a stop command (night-frontier-Z4: the last timer dies). The /proc witness counts **ZERO context switches** on the parked loop over a 10 s silent window (`cargo run --release --example idle_cpu_sanity`), and the getrusage CPU cost reads 0.004% of one core on the audit machine (the pre-Z4 adaptive wait measured 0.035%; the first loop burned 1.9%). While sound is actually playing the cost is real work, reported as such: about 1.1% of total CPU (~2.15% of one core) at a continuous 5 keystrokes/second (docs/ZACTRIX_LTS.md PROOF 6 STATE B) — the same example's phase 2 measures the active regime on your machine. Typical keystroke latency stays under 3 ms. |
 | **Stateless player** | The player process is born on `on`, reads every byte of state from the pinned maps, and self-exits on `off` — zero processes remain. What stays resident is the kernel side only: one passive BPF program plus pinned maps, ~1-2 µs per keystroke (PROOF 7 measures this in-kernel cost — `scripts/audit/zactrix-prog-run.sh`). |
 | **Kernel-side typing telemetry** | The tap accumulates per-key counters in the kernel at zero userspace cost; `zylaxion status --verbose` renders them. A feature no userspace sound tool can offer for free. |
 | **Zero-leakage posture** | Hardware scancodes drive a pan position and a sound class — never letters. Not logged, not stored as sequences, not transmitted. The audit greps are in [Security & Privacy](#security--privacy). |
@@ -90,13 +90,13 @@ binary itself.
 Two structural decisions define the tool's footprint. Both are audited
 facts about this tree, not aspirations.
 
-**Peak lean dependency.** The tool carries 12 portable direct
+**Peak lean dependency.** The tool carries 11 portable direct
 dependencies plus one Linux-gated link (alsa-sys, the ALSA stderr
-guard) and 136 lockfile crates, features trimmed to what is used
+guard) and 129 lockfile crates, features trimmed to what is used
 (env_logger's timestamp and regex feature trees are gone — the build
 stamp is computed in `build.rs` via Hinnant's civil_from_days, so no
-time crate rides the tree; signal-hook's channel/iterator modules and
-nix's redundant process key are trimmed too). The daemon deletion
+time crate rides the tree; night-frontier-Z4 removed signal-hook
+entirely — the graceful handlers are the house's own sigaction lanes). The daemon deletion
 removed the entire libinput/udev capture stack. `cargo install
 zylaxion --locked` verifies the published tarball against the
 registry index before extraction.
@@ -380,18 +380,26 @@ always polling for config or input. What you see in `ps` is the
   state of its own — every byte of state lives in the kernel's pinned
   BPF maps.
 - It is only the mouth: the bridge thread blocks in `poll(2)` on the
-  ring-buffer fd, and the render loop blocks on its channel (1 ms
-  while voices render, 100 ms while silent). It wakes when the kernel
-  tap rings, plays the DSP math, and goes back to sleep.
+  ring-buffer fd with no timeout (its one exit lane is the wind-down
+  pipe), and the render loop parks while silent — a blocking select
+  over the event channel and the stop lane with NO timer at all (the
+  1 ms pacing arms only while voices render). It wakes when the kernel
+  tap rings, plays the DSP math, and goes back to sleep — and between
+  keystrokes it emits zero timer wakeups, witnessed mechanically.
 - The control plane is evented too (night-frontier-Z2 B1): a verb
   writes the control map, then drives a pinned kernel relay that
   produces one notice into a second ringbuf — the watcher's
   `poll(2)` wakes in microseconds (kernel-timestamped, auditable
   with `bpftool map dump`) and re-reads the control map, which stays
   the only authority.
-- Its measured idle cost is 0.035% of one core over a 10 s silent
-  window (`cargo run --release --example idle_cpu_sanity`), which
-  reads 0.0% in `ps`.
+- Its measured idle cost is ZERO timer wakeups: the /proc witness
+  counts zero voluntary context switches on the parked render loop and
+  the bridge over a silent window (`cargo run --release --example
+  idle_cpu_sanity` reports the count and the CPU cost — 0.004% of one
+  core on the audit machine), which reads 0.0% in `ps`. The watcher
+  keeps one 60 s backstop wake per minute — the last timer in the
+  estate, armed only as the off-verb guarantee when both evented wake
+  lanes are dead.
 
 If you do not want any userspace process running, you simply do not
 type `zylaxion on`. The kernel probe stays passive and resident,
@@ -462,7 +470,7 @@ passive, the player is disposable:
  │    keymap  (keycode -> sound class)                        │
  │    events  (ring buffer)      stats (per-key counters)     │
  └────────────────────────────┬───────────────────────────────┘
-                              │ poll(2) + blocking channel wait (0.0% idle CPU)
+                              │ poll(2) forever-block + parked channel wait (0.0% idle CPU, zero timer wakeups)
                               ▼
                  PLAYER (alive only while sound plays)
  ┌────────────────────────────────────────────────────────────┐

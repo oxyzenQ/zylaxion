@@ -190,6 +190,9 @@ def battery(
     The root lane rides all three stages; the rootless self-test lane
     rides the two proofs only (pure math, zero config) — the chain
     stage needs a kernel to attach into and a user to hand over to.
+    The parked-player witness (night-frontier-Z4) lives in its own
+    module now — sm_idle, the no-mercy LOC split — and the engine
+    (supermassive-test.py) composes it right after this battery.
     """
     _pure_math(ledger, binary, tree_root)
     _zero_config(ledger, binary)
@@ -647,7 +650,6 @@ def _real_usage(ledger: Ledger, binary: str, user: str) -> None:
                 "on after detach refuses honestly (back to the tap-less door)",
                 f"rc={rc}: {out[:120]}",
             )
-
 
 def _unpriv_bpf_disabled() -> int:
     """The kernel's unprivileged-bpf posture (night-badas-4 round 5).

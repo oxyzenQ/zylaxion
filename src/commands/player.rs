@@ -10,30 +10,36 @@
 //!   player pid) — there is no config, no pidfile, no socket, nothing to
 //!   supervise.
 //! - The input arrives from the kernel-side tap through the pinned
-//!   events ring buffer: the bridge blocks in poll(2) with a 100 ms
-//!   cap, and the render loop blocks on its channel (1 ms while
-//!   voices render, 100 ms while silent — the idle-CPU audit's
-//!   adaptive wait). No busy-wait anywhere; `ps` reads 0.0 percent
-//!   idle CPU.
+//!   events ring buffer: the bridge blocks in a FOREVER poll(2) on the
+//!   ring fd (the wind-down pipe is its one exit lane; the 100 ms cap
+//!   remains only as the exotic no-pipe fallback), and the render loop
+//!   parks with no timer while silent (night-frontier-Z4: the last
+//!   timer dies — the 1 ms pacing arms only while voices render). No
+//!   busy-wait anywhere; `ps` reads 0.0 percent idle CPU and the
+//!   scheduling threads emit zero timer wakeups between keystrokes.
 //! - The control plane is watched by one thread that polls the
 //!   notice ring and the wake pipe (night-frontier-Z2 B1: the
 //!   evented control wake — the writer drives the pinned relay, the
 //!   kernel produces the record, the watcher wakes in microseconds)
-//!   with a 10 s liveness heartbeat underneath, and re-reads the
-//!   control map on EVERY wake — enabled=0
+//!   as a FOREVER poll, and re-reads the control map on EVERY wake —
+//!   enabled=0
 //!   stops the player (the CLI's `off`/`exit` writes exactly that),
 //!   preset and volume changes apply live through the ArcSwap model
 //!   swap and the pool's atomic volume cell. night-hardening-2 adds
 //!   the fast path: the verbs raise a zero-payload SIGUSR1 after the
 //!   map write, the watcher's poll wakes instantly, and the map —
 //!   still the only authority — is re-read at once instead of at the
-//!   next heartbeat.
+//!   next heartbeat. The 10 s heartbeat retired to a 60 s backstop
+//!   that arms ONLY when the poll set is empty (both evented lanes
+//!   dead — an exotic sandbox), because a timer is the only remaining
+//!   wake channel there and `off` must always land.
 //!
 //! Crash posture: cattle, not pet. A dead player loses nothing — the
 //! next `zylaxion on` sees the stale pid in the control map, replants
 //! itself, and keeps playing. There is nothing to supervise because
 //! there is nothing to inherit.
 
+use std::os::fd::AsRawFd as _;
 use std::process;
 
 use std::sync::Arc;
@@ -49,13 +55,11 @@ use crate::ebpf::loader::KeyRingEvent;
 use crate::ebpf::pin;
 use crate::profiles::MechanicalClick;
 
-/// The control watcher's poll cadence: the worst-case latency of an
-/// `off`, a preset switch, or a volume change. 100 ms is invisible to
-/// a human and costs ~10 Hz of tiny map reads.
-/// The bridge's poll cap: the render-side bounded wait — the shutdown
-/// latency law and the idle-CPU audit's cadence. The CONTROL plane no
-/// longer rides this number (night-frontier-Z2 B1 demoted it from
-/// latency path to liveness heartbeat; see CONTROL_HEARTBEAT_MS).
+/// The bridge's poll cap, the FALLBACK shutdown lane
+/// (night-frontier-Z4): with the wind-down pipe the bridge's poll is
+/// a FOREVER BLOCK and this value never arms; it stays for the exotic
+/// sandbox where pipe(2) was refused, and as that posture's
+/// documented worst-case exit latency.
 const BRIDGE_POLL_MS: u16 = 100;
 
 /// The percent-of-default gain law: the control map carries a percent,
@@ -255,6 +259,30 @@ pub fn cmd_play() {
     //    thread had, minus libinput: the events come from the kernel
     //    tap, and the thread's only IO is the ring buffer fd.
     let (tx, rx) = crossbeam_channel::unbounded();
+
+    // ── The render loop's stop lane (night-frontier-Z4): the watcher
+    //    forwards every stop decision as ONE ControlStop message — a
+    //    parked loop is woken by a message, never by a flag (the old
+    //    flag rode the loop's timer, and the timer is gone).
+    let (stop_tx, stop_rx) = crossbeam_channel::unbounded::<crate::core::ControlStop>();
+
+    // ── The bridge's wind-down wake (night-frontier-Z4): a pipe the
+    //    main thread writes after the render loop exits, so the
+    //    bridge's poll can be a FOREVER BLOCK — the bridge's 100 ms
+    //    timer dies with the idle-CPU audit's cadence, and the byte is
+    //    the shutdown lane. Best-effort: a pipe(2) failure (an exotic
+    //    sandbox) keeps the old 100 ms cap as the shutdown lane, fully
+    //    correct on its own.
+    let (bridge_wake_read, bridge_wake_write): (
+        Option<std::os::fd::OwnedFd>,
+        Option<std::os::fd::OwnedFd>,
+    ) = match nix::unistd::pipe2(nix::fcntl::OFlag::O_CLOEXEC | nix::fcntl::OFlag::O_NONBLOCK) {
+        Ok(pair) => (Some(pair.0), Some(pair.1)),
+        Err(e) => {
+            log::warn!("bridge wind-down pipe unavailable ({e}) — the 100 ms cap remains");
+            (None, None)
+        }
+    };
     let bridge_stop = Arc::new(AtomicBool::new(false));
     let bridge = {
         let bridge_stop = Arc::clone(&bridge_stop);
@@ -296,13 +324,36 @@ pub fn cmd_play() {
                             return;
                         }
                     }
-                    // Block on the ring buffer fd until the tap rings
-                    // again or the 100 ms timeout fires (the watcher's
-                    // cadence — the bridge needs no control access).
-                    let fd = events.as_fd();
-                    let mut fds = [PollFd::new(fd, PollFlags::POLLIN)];
-                    match poll(&mut fds, PollTimeout::from(BRIDGE_POLL_MS)) {
-                        Ok(_) => {}
+                    // Block until the tap rings — and, night-frontier-Z4,
+                    // that is ALL this wait does: with the wind-down pipe
+                    // the poll is a FOREVER BLOCK (no timer; the process's
+                    // teardown writes one byte and the poll wakes). Without
+                    // the pipe (pipe(2) refused — an exotic sandbox) the
+                    // old 100 ms cap stays the shutdown lane.
+                    let mut fds: Vec<PollFd> = Vec::with_capacity(2);
+                    fds.push(PollFd::new(events.as_fd(), PollFlags::POLLIN));
+                    if let Some(wake) = &bridge_wake_read {
+                        fds.push(PollFd::new(wake.as_fd(), PollFlags::POLLIN));
+                    }
+                    let timeout = if bridge_wake_read.is_some() {
+                        PollTimeout::NONE
+                    } else {
+                        PollTimeout::from(BRIDGE_POLL_MS)
+                    };
+                    match poll(&mut fds, timeout) {
+                        Ok(_) => {
+                            // The wake slot readable = the wind-down byte
+                            // (the flag was stored before the byte was
+                            // written) — exit. Otherwise the events slot
+                            // answered and the loop top drains it.
+                            if fds.len() > 1
+                                && fds[1]
+                                    .revents()
+                                    .is_some_and(|f| f.intersects(PollFlags::POLLIN))
+                            {
+                                return;
+                            }
+                        }
                         Err(nix::errno::Errno::EINTR) => {}
                         Err(e) => {
                             log::warn!("ring buffer poll error: {e}");
@@ -326,6 +377,7 @@ pub fn cmd_play() {
         Arc::clone(&stop_flag),
         Arc::clone(&model),
         control_wake,
+        stop_tx,
         preset_index,
         volume_percent,
         sample_rate,
@@ -337,9 +389,13 @@ pub fn cmd_play() {
 
     // ── Graceful shutdown on SIGTERM / SIGINT / SIGQUIT (same contract
     //    the daemon honored: fade-out, sink drop, clean state).
-    if let Err(e) =
-        crate::session::signals::install_graceful_shutdown_handlers(Arc::clone(&stop_flag))
-    {
+    //    night-frontier-Z4: the handlers carry the wake byte too — the
+    //    watcher parks in a forever poll, so the signal must WAKE it
+    //    (the byte rides the control wake pipe), not just mark the
+    //    decision (the graceful static).
+    if let Err(e) = crate::session::signals::install_graceful_shutdown_handlers(
+        crate::session::wake::installed_wake_write_fd(),
+    ) {
         log::warn!("failed to install signal handlers: {e}");
     }
 
@@ -351,9 +407,9 @@ pub fn cmd_play() {
     log::info!("ready — press any key to hear it");
 
     // ── Run until stopped. run() consumes the receiver; when it
-    //    returns (stop flag, channel disconnect, or audio failure),
-    //    unregister and exit.
-    orchestrator.run(&model, &rx, Arc::clone(&stop_flag));
+    //    returns (a ControlStop, channel disconnect, or audio
+    //    failure), unregister and exit.
+    orchestrator.run(&model, &rx, &stop_rx);
 
     // ── Unregister: the control map goes back to the no-player
     //    posture. The tap stays attached — pins survive, the next `on`
@@ -367,7 +423,24 @@ pub fn cmd_play() {
     let _ = control.set(STATE_SLOT, &STATE_IDLE, 0);
     let _ = control.set(PLAYER_PID_SLOT, &0, 0);
     let _ = control.set(ENABLED_SLOT, &0, 0);
+    // ── Wind down the two parked threads (night-frontier-Z4): the
+    //    flag is the decision, the byte is the wake — each parked poll
+    //    gets its evented exit. The watcher's byte rides the control
+    //    wake pipe (the same lane SIGUSR1 uses; a lost byte costs
+    //    latency only — the 60 s backstop covers the exotic no-pipe
+    //    posture). The bridge's byte rides its own wind-down pipe
+    //    (absent only when pipe(2) was refused, where the 100 ms cap
+    //    remains).
+    stop_flag.store(true, Ordering::Relaxed);
+    crate::session::wake::poke();
     bridge_stop.store(true, Ordering::Relaxed);
+    if let Some(fd) = bridge_wake_write.as_ref() {
+        let byte = 1u8;
+        // SAFETY: write(2) on the nonblocking pipe's write end with a
+        // local one-byte buffer; EAGAIN is dropped — a byte already
+        // pending arms the same wake.
+        let _ = unsafe { libc::write(fd.as_raw_fd(), (&byte as *const u8).cast(), 1) };
+    }
     let _ = bridge.join();
     if let Some(handle) = watcher {
         let _ = handle.join();

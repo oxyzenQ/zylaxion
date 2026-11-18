@@ -3,7 +3,7 @@
 
 [package]
 name = "zactrix-audit"
-version = "80.2.3"
+version = "80.3.0"
 edition = "2024"
 publish = false
 

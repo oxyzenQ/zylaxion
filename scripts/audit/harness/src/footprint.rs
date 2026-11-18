@@ -59,7 +59,7 @@
 //!   pushed.
 
 use crate::audio::{AudioSink, CpalSink};
-use crate::core::{KeyEvent, Orchestrator};
+use crate::core::{ControlStop, KeyEvent, Orchestrator};
 use crate::engine::VoicePool;
 use crate::profiles::{DEFAULT_PRESET, MechanicalClick, registry_lookup};
 use crate::proof::rss_kib;
@@ -370,6 +370,11 @@ pub fn run_state(with_keys: bool) {
     // stand-in for the CLI's `off` write — named in the module doc.
     let control_enabled = Arc::new(AtomicU32::new(1));
     let stop_flag = Arc::new(AtomicBool::new(false));
+    // night-frontier-Z4: the player's stop became a MESSAGE — a parked
+    // loop is woken by a channel op, never by a flag. The watcher
+    // stand-in forwards its stop decision the same way the real
+    // watcher does: one ControlStop on the stop lane.
+    let (stop_tx, stop_rx) = crossbeam_channel::unbounded::<ControlStop>();
 
     // The control watcher: the player's exact heartbeat floor and
     // exit rule (enabled ≠ 1 → stop), plus the window force-clear.
@@ -378,6 +383,7 @@ pub fn run_state(with_keys: bool) {
     let watcher = {
         let control_enabled = Arc::clone(&control_enabled);
         let stop_flag = Arc::clone(&stop_flag);
+        let stop_tx = stop_tx.clone();
         std::thread::Builder::new()
             .name("footprint-watch".to_string())
             .spawn(move || {
@@ -388,6 +394,7 @@ pub fn run_state(with_keys: bool) {
                         || started.elapsed() >= Duration::from_secs(WINDOW_S)
                     {
                         stop_flag.store(true, Ordering::Relaxed);
+                        let _ = stop_tx.send(ControlStop);
                         return;
                     }
                 }
@@ -473,11 +480,11 @@ pub fn run_state(with_keys: bool) {
 
     // The player's run loop, verbatim: the orchestrator owns the
     // render pacing, the ring, and the cpal callback. The receiver
-    // drops when the source thread exits — the same two exit paths
-    // the player has (stop flag, channel disconnect), both through
-    // the fade-out.
+    // drops when the source thread exits — the same exit paths the
+    // player has (the watcher's ControlStop, channel disconnect),
+    // both through the fade-out.
     let (mut orchestrator, model) = build_player(PacedNullSink::new());
-    orchestrator.run(&model, &rx, Arc::clone(&stop_flag));
+    orchestrator.run(&model, &rx, &stop_rx);
 
     let _ = sampler.join();
     let _ = watcher.join();
