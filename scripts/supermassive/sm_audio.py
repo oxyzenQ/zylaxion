@@ -689,11 +689,17 @@ _SYSCTL = "/proc/sys/kernel/unprivileged_bpf_disabled"
 # then the string memmoved into the pointer's own slot).
 # Exit codes: 0 = the op succeeded, 3 = the pin open was refused,
 # 4 = the pin opened but the lookup was refused.
+#
+# The command enum, read off the UAPI (the third CI round caught it:
+# BPF_OBJ_GET is 7 - the 17 this probe first rode is
+# BPF_RAW_TRACEPOINT_OPEN, which EINVALs on any kernel at any
+# posture and made three rounds of attr-shape theory look like the
+# bug).
 _RAW_OP_SNIPPET = r"""
 import ctypes
 import struct as _s
 libc = ctypes.CDLL(None, use_errno=True)
-BPF_OBJ_GET, BPF_MAP_LOOKUP_ELEM = 17, 1
+BPF_OBJ_GET, BPF_MAP_LOOKUP_ELEM = 7, 1
 ATTR_SIZE = 256
 pathbuf = ctypes.create_string_buffer(b"/sys/fs/bpf/zylaxion/control")
 buf = ctypes.create_string_buffer(ATTR_SIZE)
