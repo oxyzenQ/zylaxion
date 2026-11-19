@@ -122,10 +122,10 @@ under both libms (the Miri failure is recorded, not hidden);
 and the fit is untouched: `zactrix-verify.sh` A/B against the
 pre-law build reports identical metric rows and grades on every
 preset (the C/B grades some presets carry are pre-existing and
-unchanged). Cross-libm byte-identity stays the deferred
-transcendental lane's job — this lane ends the rounding wobble the
-tree itself was adding. Files of truth:
-`src/profiles/mechanical/init.rs` (`anchor`, the f64 shape
+unchanged). Cross-libm byte-identity was the deferred transcendental
+lane's job — night-frontier-Z5 (entry 47) landed it: the libm
+answers left the audio path and that boundary is closed. Files of
+truth: `src/profiles/mechanical/init.rs` (`anchor`, the f64 shape
 constants); pinned by the `night_frontier_3c_*` tests in
 `test/profiles/mechanical_tests.rs`.
 
@@ -706,8 +706,9 @@ documented-cause re-baseline law, from any hand, including a
 post-acquisition engineer's. The gate never stamps the baseline
 itself; stamping stays the rates-parity lane's logged-run contract.
 File of truth: `scripts/audit/zactrix-golden.sh`; the corpus:
-`scripts/audit/rates-parity-baseline.txt` (x86-64, the A/B machine) +
-`scripts/audit/rates-parity-baseline-arm64.txt` (the strict lane).
+`scripts/audit/rates-parity-baseline.txt` — ONE corpus since
+night-frontier-Z5 (entry 47): the machine-independent bytes retired
+the per-arch split, and the byte gate is strict on every lane.
 
 **41. PROOF 7 — the tap's in-kernel cost, measured by the kernel
 itself.** The README's "~1-2 µs per keystroke" and "the whole cost is
@@ -743,7 +744,9 @@ real kernel), the harness binary riding the payload artifact. Files
 of truth:
 `scripts/audit/harness/src/progrun.rs` (the mode),
 `scripts/audit/zactrix-prog-run.sh` (the host wrapper), the guest
-wiring in `scripts/ci/supermassive-init.sh`.
+wiring in `scripts/ci/supermassive-init.sh`; night-frontier-Z5
+extracted the lane head into `prepare_tap`, which entry 48's corpus
+mode shares.
 
 **44. The proven datapath — bounded model checking over the pure
 laws (night-depth-hardening-2).** Unit tests sample; this lane
@@ -841,9 +844,89 @@ E2E parked-player witness); pinned by `test/core/core_tests.rs`
 (`idle_park_emits_zero_wakeups`, `control_stop_wakes_the_parked_loop`)
 and `test/commands/help_tests.rs` (the retired-heartbeat pin).
 
+**47. The certified bounded-domain transcendental lane — the libm
+leaves the audio path, the bytes go machine-independent
+(night-frontier-Z5).** The boundary this entry closes is the one
+entry 1 (3C) and entry 40 measured and deferred: the init-time
+transcendentals resolved through per-target libm, so the golden
+corpus's hash rows were machine fingerprints and the byte gate could
+only hold on a fleet-homogeneous lane. The lane replaces every libm
+transcendental on the audio path — the init anchors' tan, exp, powf,
+cos, and sin (ten call sites) and the render path's per-sample f32
+tan (click and spring travel, until the frozen-coefficient law
+freezes them) plus the housing fade's per-sample f32 exp (three
+sites) — with pure IEEE-754 f64 arithmetic: Taylor polynomials on
+CLOSED, architecture-locked domains (exp on [-64, 0], ln on (0, 1],
+sin/cos on [0, 4*pi] through a three-part Cody-Waite quadrant
+reduction, tan on [0, 0.45*pi] as the certified ratio, and the
+decay-law pow with its exact libm edges — pow(c, 1) == c keeps the
+44.1 kHz reference bit-identical), evaluated by Horner whose
+operation order Rust never reorders or contracts into FMA, so the
+returned bits are identical on x86-64-v3, x86-64-v4, arm64, and
+every glibc version, forever. The certificate is arithmetic, not
+trust: the generator (`scripts/engine/generate-detmath.py`,
+stdlib-only) computes every bound as an EXACT Fraction — the
+truncation term plus a conservative Horner rounding accumulation,
+rounded OUTWARD — and emits the tables plus golden bit vectors the
+test tree pins bit for bit (`test/engine/detmath_vectors.rs`; the
+generator's own simulation of the algorithm is the golden master).
+The bounds ride the tables under cfg(test) — a certificate exists
+exactly where it is enforced — and the domain guards refuse loudly
+outside the certified domain: unreachable by the clamp laws, kept as
+the house's clear-refusal tripwire. Measured on the documented-cause
+re-baseline: the corpus's measurands are unchanged per row (voice
+lifetime, ring decay, tail endpoint identical across the whole
+24 x 5 grid), every preset keeps its audit tier, the in-run and
+cross-run renders are byte-stable, and the f32 anchors match the
+libm oracle's anchors inside one spacing on the physically
+meaningful band — the quadrant boundary's clean-zero exception is
+bounded by the emitted RED_RHO certificate and pinned as such. The
+corpus, the parity lane, and the golden gate all upgraded with it:
+ONE baseline serves every architecture, the arm64 runner proves
+itself against the x86-committed bytes, and the byte gate is strict
+everywhere (entries 40 and 41 name the upgraded lanes; the audit
+record's closure section lives in docs/ZACTRIX_AUDIT.md). Files of
+truth: `src/engine/detmath/mod.rs` and `tables.rs`, the generator,
+`test/engine/detmath_tests.rs` + `detmath_vectors.rs`, and the
+updated call sites in `src/profiles/mechanical/{init,render}.rs`;
+the freeze admission rides the documented why in
+`src/engine/mod.rs`.
+
+**48. The tap-behavior golden corpus — the kernel side IS the bytes
+(night-frontier-Z5, PROOF 9).** Entry 40 pinned the userspace render;
+entry 41 measured the tap's cost; the kernel half's OBSERVABLE
+BEHAVIOR had no corpus. This lane pins it: the production tap object
+through the PROOF 7 lane's own head (`prepare_tap` — aya-obj parse,
+fresh maps from the parsed definitions, the loader's map-fd
+relocation, a raw bpf() load as the syscall type), driven through a
+scripted event sequence via BPF_PROG_TEST_RUN, with the events ring
+drained through the generic consumer lane
+(`scripts/audit/harness/src/ringdrain.rs`, the kernel's ringbuf mmap
+law single-sourced with the notice-drive lane). The golden contract
+is COMPILED — the tap's own semantics read off `ebpf/src/main.rs`:
+gate-off silence (zero records, zero counters), the keymap death,
+the autorepeat filter, the exact record order (press, release,
+burst), the ring saturation at capacity DERIVED from the kernel's
+own math (two metadata pages, the 8-byte record header, occupancy
+round_up(len, 8) + 8, against the size the KERNEL reports), the
+drop-on-full posture, and the counter law — stats count EVERY press
+because the fetch-add rides BEFORE the ring reservation, so a
+dropped event degrades the sound, never the telemetry. Timestamps
+are masked (the kernel clock is not behavior); the record shape
+mirrors the tap's 24-byte KeyRingEvent the way the pin paths are
+mirrored. A kernel or tap change that moves one tuple, one delta, or
+the capacity fails with the delta named. The lane needs NO attach
+and leaves NO residue (fresh maps, the process exits, the kernel
+reaps them); it runs beside PROOF 7 in the e2e micro-VM guest and
+honestly skips elsewhere. Files of truth:
+`scripts/audit/harness/src/tapgolden.rs` (the mode),
+`scripts/audit/harness/src/ringdrain.rs` (the shared drain),
+`scripts/audit/zactrix-tap-golden.sh` (the host wrapper), and the
+guest wiring in `scripts/ci/supermassive-init.sh`.
+
 ## The test tree that pins the ledger
 
-The ledger is not honored by prose alone: 36 test files carrying 284
+The ledger is not honored by prose alone: 38 test files carrying 297
 test functions pin the entries above, wired into the crate through
 `#[path]` modules. The family map, so an auditor can walk it in one
 pass:
@@ -853,9 +936,10 @@ pass:
   decay law, micro-randomization, the decoupled noise streams, the
   pan table, interval attenuation, velocity scaling, and the registry
   clamp contract (entries 1–10, 14).
-- `test/engine/` (pool, render, freeze) — oldest-first stealing, the
-  smooth release ramp, the clamp and NaN silence net, and the engine
-  freeze declaration (entries 9, 11, 12, 31).
+- `test/engine/` (pool, render, freeze, detmath) — oldest-first
+  stealing, the smooth release ramp, the clamp and NaN silence net,
+  the engine freeze declaration, and the certified transcendental
+  lane's vectors and certificates (entries 9, 11, 12, 31, 47).
 - `test/core/` — the Orchestrator: the pan law, the timestamp lane,
   the adaptive wait, the ring bridge behavior, and the Z4 park
   witness (entries 7, 8, 15, 29, 46).
@@ -887,7 +971,11 @@ laws, and round-trips named above; `scripts/audit/zactrix-audit.sh`
 and `zactrix-verify.sh` re-run the physical metrics on the real
 render path; the saturation-boundary rows of entry 43 re-run with
 `cargo run --release --manifest-path scripts/audit/harness/Cargo.toml
--- --fold-proof`; `zylaxion doctor` prints the kernel report the attach
+-- --fold-proof`; the certified lane's vectors and certificates verify
+with `cargo test detmath` and regenerate through
+`scripts/engine/generate-detmath.py`; the tap-behavior corpus runs
+`scripts/audit/zactrix-tap-golden.sh` (root, beside PROOF 7 in the
+e2e guest); `zylaxion doctor` prints the kernel report the attach
 gate consumes; `zylaxion status` reads the TAP_KIND slot the loader
 wrote; the proven-datapath harnesses of entry 44 verify under the
 Kani lane (`cargo kani` — the Monday 10:00 WIB schedule or a manual

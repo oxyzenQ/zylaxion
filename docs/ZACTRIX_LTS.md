@@ -22,8 +22,9 @@ scripts/audit/zactrix-rt.sh            # PROOF 3 (jitter measurement)
 scripts/audit/zactrix-reload.sh        # PROOF 5 (hot-reload session)
 scripts/audit/zactrix-soak.sh          # PROOF 1 (two one-million-keystroke runs)
 scripts/audit/zactrix-footprint.sh     # PROOF 6 (resource footprint: states A/B/C + cold-start)
-scripts/audit/zactrix-golden.sh        # the golden render corpus gate (night-frontier-Z1: the freeze as a byte gate)
+scripts/audit/zactrix-golden.sh        # the golden render corpus gate (night-frontier-Z1: the freeze as a byte gate; night-frontier-Z5: strict on every lane)
 scripts/audit/zactrix-prog-run.sh      # PROOF 7 (BPF_PROG_TEST_RUN — the e2e micro-VM lane: root, a real kernel, bpftool)
+scripts/audit/zactrix-tap-golden.sh    # PROOF 9 (the tap-behavior golden corpus — the kernel side pinned as bytes; the e2e micro-VM lane, no attach needed)
 ```
 
 The owner-machine CLI UX battery lives beside the proofs:

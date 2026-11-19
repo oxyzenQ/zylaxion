@@ -618,6 +618,38 @@ unchanged by this law and stays the pure-Rust transcendental lane's
 endgame. Pinned by the `night_frontier_3c_*` tests in
 `test/profiles/mechanical_tests.rs`.
 
+## The cross-arch boundary, closed (night-frontier-Z5)
+
+The two sections above record the boundary as measured: the
+init-time transcendentals resolved through per-target libm, so the
+hash rows were machine fingerprints and the corpus could only gate
+byte identity on a fleet-homogeneous lane. night-frontier-Z5 closed
+it: every libm transcendental on the audio path — the init anchors'
+tan/exp/powf/cos/sin (the f64 curve-anchor families above) and the
+travel-path f32 tan plus the housing f32 exp — now rides the
+certified bounded-domain transcendental lane
+(`src/engine/detmath/`; the generator
+`scripts/engine/generate-detmath.py` carries the exact-Fraction
+certificates and simulates the exact op order; the golden bit
+vectors pin the bits in `test/engine/detmath_vectors.rs`). Plain
+IEEE mul/add is the same on every target — Rust never contracts
+mul+add into FMA — so the rendered bytes carry no machine surface
+anymore. Measured on the documented-cause re-baseline: the
+measurands are unchanged per row (voice lifetime, ring decay, tail
+endpoint identical across the whole 24 x 5 corpus), every preset
+keeps its audit tier, and the hash columns are the one re-baseline
+the corpus's header documents (the certified det answers differ from
+the per-target libm answers within the certificate). The parity lane
+upgraded with the corpus: the arm64 runner diffs against the same
+x86-committed file and the cross-arch proof is GATED, not recorded —
+the mariana-2 recorded-only posture retired with its boundary. The
+one documented exception: at the exact quadrant boundary (cos of the
+rounded pi/2) the Cody-Waite reduction returns a clean zero where
+the true cosine of the rounded constant is ~6.1e-17 — an absolute
+deviation ~140 dB under the -60 dB measurand floor, deterministic on
+every machine, asserted against the emitted RED_RHO certificate by
+the detmath test tree.
+
 <!-- ZYLAXION-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
