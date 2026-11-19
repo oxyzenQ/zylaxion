@@ -43,6 +43,13 @@
 //!   --check verdict runs and a stale lane regenerates automatically
 //!   (the one-writer script does the writing; the parity gate still
 //!   enforces the pin at commit time).
+//! - `ZYLAXION_TAP_OBJECT_B3` — the blake3 over the staged eBPF object
+//!   (night-depth-hardening-Z1 D2, the zejtron night-frontier-Z5
+//!   shape): the runtime's `sig` surface re-hashes the embedded object
+//!   against this stamp (the D4 tap-object row), so a post-build patch
+//!   of the ring-0 asset is refused by name. The stamping lives in
+//!   build/tapstamp.rs; both lanes stamp the moment the object lands
+//!   in OUT_DIR.
 //!
 //! Every fallback degrades gracefully — a missing fact renders as
 //! "unknown", never a failed build.
@@ -176,6 +183,13 @@ fn main() {
 
 #[path = "build/ebpf.rs"]
 mod ebpf;
+
+// The tap object's build-time digest stamp (night-depth-hardening-Z1
+// D2, the zejtron camera.rs precedent): both staging lanes call this
+// the moment the object lands in OUT_DIR, so the runtime's D4 sig row
+// verifies the exact bytes the binary embeds.
+#[path = "build/tapstamp.rs"]
+mod tapstamp;
 
 // The registry-prebuilt lane (night-dragon-maintenance-0, the zejtron
 // build/ split): stages the maintainer-built ebpf-prebuilt/ object

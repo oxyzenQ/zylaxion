@@ -129,6 +129,10 @@ pub(super) fn build_ebpf_objects() {
     if !ebpf_dir.join("Cargo.toml").is_file() {
         let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR"));
         crate::prebuilt::stage_prebuilt_object(&manifest_dir, &out_dir);
+        // night-depth-hardening-Z1 D2: the registry lane's stamp site -
+        // the manifest-verified bytes land in OUT_DIR, and their blake3
+        // becomes the runtime's D4 sig row anchor.
+        crate::tapstamp::stamp_tap_digest(&out_dir);
         println!("cargo:rustc-env=ZYLAXION_EBPF_LANE=registry-prebuilt");
         return;
     }
@@ -176,6 +180,11 @@ pub(super) fn build_ebpf_objects() {
             stage_object(&out_dir, &data);
         }
     }
+
+    // night-depth-hardening-Z1 D2: the source lane's stamp site - both
+    // match arms above staged the freshly built object into OUT_DIR, and
+    // its blake3 becomes the runtime's D4 sig row anchor.
+    crate::tapstamp::stamp_tap_digest(&out_dir);
 
     refresh_prebuilt_lane(&manifest_dir);
 
