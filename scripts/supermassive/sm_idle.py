@@ -83,6 +83,58 @@ def _thread_switches(pid: int) -> dict[str, tuple[int, int]]:
     return threads
 
 
+def _cpu_idle_tick() -> float:
+    """One idle-time tick from /proc/stat's aggregate cpu line: the
+    idle + iowait jiffies converted to seconds. The kernel's own
+    accounting of how much the CPUs rested — always present, unlike
+    cpuidle sysfs, and the honest gate for the parked window (a
+    spinning poll shows up as missing idle time, whatever the guest's
+    idle-state driver exposes)."""
+    with open("/proc/stat", encoding="utf-8") as fh:
+        first = fh.readline()
+    fields = first.split()
+    if len(fields) < 5 or fields[0] != "cpu":
+        return 0.0
+    clk = os.sysconf("SC_CLK_TCK") or 100
+    idle_jiffies = int(fields[4])
+    iowait_jiffies = int(fields[5]) if len(fields) > 5 else 0
+    return (idle_jiffies + iowait_jiffies) / clk
+
+
+def _cpuidle_snapshot() -> dict[str, int]:
+    """One cpuidle residency snapshot, aggregated by state name across
+    cpus: /sys/devices/system/cpu/cpu*/cpuidle/state*/time (us). The
+    deep-state half of the Z6 witness — RECORDED, never gated: a
+    micro-VM guest exposes whatever idle states its kernel and machine
+    model carry, and the host's real C-states live above the guest's
+    view entirely. Absent sysfs returns an empty dict and the row is
+    an honest skip."""
+    rows: dict[str, int] = {}
+    try:
+        cpus = os.listdir("/sys/devices/system/cpu")
+    except OSError:
+        return rows
+    for cpu in sorted(cpus):
+        if not cpu.startswith("cpu") or cpu == "cpuidle":
+            continue
+        base = f"/sys/devices/system/cpu/{cpu}/cpuidle"
+        try:
+            states = os.listdir(base)
+        except OSError:
+            continue
+        for state in sorted(states):
+            try:
+                with open(f"{base}/{state}/name", encoding="utf-8") as fh:
+                    name = fh.read().strip()
+                with open(f"{base}/{state}/time", encoding="utf-8") as fh:
+                    time_us = int(fh.read().strip())
+            except (OSError, ValueError):
+                continue
+            if name:
+                rows[name] = rows.get(name, 0) + time_us
+    return rows
+
+
 def battery(ledger: Ledger, binary: str, user: str) -> None:
     """The parked-player witness; rows land on the ledger."""
     with Step(ledger, "the parked player — zero timer wakeups (night-frontier-Z4)"):
@@ -135,7 +187,15 @@ def battery(ledger: Ledger, binary: str, user: str) -> None:
             return
 
         before = _thread_switches(pid)
+        # The Z6 C-state witness brackets the SAME silent window: the
+        # parked loop's idle-time delta and the cpuidle residency rows
+        # describe the exact regime the zero-wakeup claim rides. No
+        # extra wall time — the snapshots ride the window that exists.
+        idle_before = _cpu_idle_tick()
+        cstates_before = _cpuidle_snapshot()
         time.sleep(SILENT_WINDOW_S)
+        idle_after = _cpu_idle_tick()
+        cstates_after = _cpuidle_snapshot()
         after = _thread_switches(pid)
 
         # The player must still be alive: a forever poll that degenerates
@@ -213,6 +273,47 @@ def battery(ledger: Ledger, binary: str, user: str) -> None:
             ledger.fail_row(
                 "the watcher stays at the 60 s backstop while silent",
                 f"voluntary +{watch[0]} — the backstop is polling, not parking",
+            )
+
+        # The Z6 C-state witness (night-frontier-Z6): the physics half
+        # of the idle claim. The GATE is the kernel's own idle-time
+        # accounting — a parked loop leaves the CPUs idle for essentially
+        # the whole window (the bar sits at 90 percent for scheduler
+        # noise); a spinning poll would eat the delta and fail here. The
+        # cpuidle residency rows are the RECORDED half: whatever states
+        # this guest exposes, their residency grew — and the host's real
+        # deep C-states stay the host instrument's (idle_cpu_sanity).
+        idle_delta_s = idle_after - idle_before
+        if idle_delta_s >= 0.9 * SILENT_WINDOW_S:
+            ledger.pass_row(
+                "the parked window's CPU rests (the idle-time witness)",
+                f"the kernel's idle time grew {idle_delta_s:.1f}s of the "
+                f"{SILENT_WINDOW_S}s window — the park rests the core, it does not spin it",
+            )
+        else:
+            ledger.fail_row(
+                "the parked window's CPU rests (the idle-time witness)",
+                f"idle time grew only {idle_delta_s:.1f}s of the "
+                f"{SILENT_WINDOW_S}s window — something burned CPU in the silence",
+            )
+
+        if cstates_before or cstates_after:
+            deltas = {
+                name: cstates_after.get(name, 0) - cstates_before.get(name, 0)
+                for name in sorted(set(cstates_before) | set(cstates_after))
+            }
+            pretty = ", ".join(
+                f"{name} +{d_us}us" for name, d_us in deltas.items() if d_us > 0
+            )
+            ledger.info(
+                "the cpuidle residency rows (measured, recorded — not gated)",
+                pretty or "no residency growth in the exposed states",
+            )
+        else:
+            ledger.skip_row(
+                "the cpuidle residency rows (measured, recorded — not gated)",
+                "cpuidle sysfs is absent in this guest — the deep-state half is the "
+                "host instrument's (idle_cpu_sanity), honestly skipped here",
             )
 
         rc, out = _run_as_user(user, binary, ["off"])

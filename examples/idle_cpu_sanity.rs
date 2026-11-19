@@ -198,6 +198,96 @@ fn thread_wakeups(name: &str) -> Option<(u64, u64)> {
     None
 }
 
+/// One cpuidle snapshot: per (cpu, state) name -> (entries, time_us),
+/// read from /sys/devices/system/cpu/*/cpuidle/state*/. The deep
+/// C-state residency is a HOST property — a micro-VM guest cannot see
+/// the host's idle states — so this witness belongs to this
+/// owner-machine instrument, not the E2E battery. Absent sysfs (a
+/// guest kernel without cpuidle, or a config without the driver)
+/// returns None and the witness is honestly skipped, never faked.
+fn cpuidle_snapshot() -> Option<Vec<(String, String, u64, u64)>> {
+    let mut rows = Vec::new();
+    let cpus = std::fs::read_dir("/sys/devices/system/cpu").ok()?;
+    for cpu in cpus.flatten() {
+        let cpu_name = cpu.file_name().to_string_lossy().to_string();
+        if !cpu_name.starts_with("cpu") || cpu_name == "cpuidle" {
+            continue;
+        }
+        let states = match std::fs::read_dir(cpu.path().join("cpuidle")) {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+        for state in states.flatten() {
+            let dir = state.path();
+            let name = std::fs::read_to_string(dir.join("name"))
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+            if name.is_empty() {
+                continue;
+            }
+            let time: u64 = std::fs::read_to_string(dir.join("time"))
+                .ok()?
+                .trim()
+                .parse()
+                .unwrap_or(0);
+            let usage: u64 = std::fs::read_to_string(dir.join("usage"))
+                .ok()?
+                .trim()
+                .parse()
+                .unwrap_or(0);
+            rows.push((cpu_name.clone(), name, usage, time));
+        }
+    }
+    if rows.is_empty() { None } else { Some(rows) }
+}
+
+/// Print the residency delta rows between two snapshots, aggregated
+/// by state name across cpus (the per-cpu rows carry the same states).
+fn print_cpuidle_deltas(
+    before: &Option<Vec<(String, String, u64, u64)>>,
+    after: &Option<Vec<(String, String, u64, u64)>>,
+) {
+    let (Some(b), Some(a)) = (before, after) else {
+        println!(
+            "[idle_cpu_sanity] C-state witness: SKIP — cpuidle sysfs is absent on this host \
+             (a guest kernel without the driver, or no deep states exposed)"
+        );
+        return;
+    };
+    // Aggregate by state name: sum usage and time across cpus.
+    let mut names: Vec<String> = b.iter().map(|(_, n, _, _)| n.clone()).collect();
+    names.sort_unstable();
+    names.dedup();
+    for name in &names {
+        let bu: u64 = b
+            .iter()
+            .filter(|(_, n, _, _)| n == name)
+            .map(|(_, _, u, _)| u)
+            .sum();
+        let bt: u64 = b
+            .iter()
+            .filter(|(_, n, _, _)| n == name)
+            .map(|(_, _, _, t)| t)
+            .sum();
+        let au: u64 = a
+            .iter()
+            .filter(|(_, n, _, _)| n == name)
+            .map(|(_, _, u, _)| u)
+            .sum();
+        let at: u64 = a
+            .iter()
+            .filter(|(_, n, _, _)| n == name)
+            .map(|(_, _, _, t)| t)
+            .sum();
+        let d_time = at.saturating_sub(bt);
+        let d_use = au.saturating_sub(bu);
+        println!(
+            "[idle_cpu_sanity] C-state residency: {name} +{d_use} entries, +{d_time} us over the silent window"
+        );
+    }
+}
+
 fn main() {
     // ── PHASE 1: the idle regime (the original guard) ──────────────
     println!(
@@ -213,6 +303,10 @@ fn main() {
     let (stop_tx, stop_rx) = crossbeam_channel::unbounded::<crate::core::ControlStop>();
 
     let cpu_before = cpu_seconds();
+    // The Z6 C-state witness: the residency snapshot brackets the same
+    // parked window the wakeup witness counts, so the deep-idle rows
+    // describe the exact regime the 0.004% claim rides.
+    let cstates_before = cpuidle_snapshot();
     let wall = Instant::now();
 
     let handle = std::thread::Builder::new()
@@ -234,6 +328,7 @@ fn main() {
     let wake_before = thread_wakeups("idle-loop");
     std::thread::sleep(MEASURE_WINDOW - Duration::from_secs(1));
     let wake_after = thread_wakeups("idle-loop");
+    let cstates_after = cpuidle_snapshot();
 
     // Stop via the control stop lane — the same message `zylaxion
     // off` ends up riding (the watcher forwards one ControlStop per
@@ -296,6 +391,12 @@ fn main() {
             );
         }
     }
+
+    // The Z6 residency rows: the physics half of the idle claim — the
+    // parked loop lets the core fall into the machine's idle states and
+    // STAY there. The rows are measurements (the states a machine
+    // exposes are its own); the gate above is the CPU and wakeup bar.
+    print_cpuidle_deltas(&cstates_before, &cstates_after);
 
     // ── PHASE 2: the active regime (the DEPTHBORE extension) ───────
     // Voices actually decaying, hardware-shaped back-pressure, 5
