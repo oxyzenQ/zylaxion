@@ -58,8 +58,11 @@ use super::embedded;
 /// The embedded pure-Rust tap object (night-improve-23): the aya-ebpf
 /// ELF staged into OUT_DIR by build.rs — source-built on a git checkout,
 /// registry-prebuilt on a crates.io extract; either way the same name,
-/// either way it rides inside the binary.
-static TAP_ELF: &[u8] =
+/// either way it rides inside the binary. `pub(crate)` since
+/// night-depth-hardening-Z1 D2: the sig surface's tap-object row
+/// re-hashes these exact bytes against the build-time stamp (the
+/// crate-internal read keeps the bytes out of any public API).
+pub(crate) static TAP_ELF: &[u8] =
     &embedded::AlignedElf::new(*include_bytes!(concat!(env!("OUT_DIR"), "/zylaxion-tap.o"))).bytes;
 
 /// The program names in the tap object (the ELF symbol names — see

@@ -13,11 +13,11 @@ use super::*;
     miri,
     ignore = "sig_report runs the D3 probe (current_exe/readlink) which Miri isolation refuses - the native CI lane owns it"
 )]
-fn pristine_build_reports_authentic_four_of_four() {
+fn pristine_build_reports_authentic_five_of_five() {
     let (text, verdict) = sig_report();
     assert_eq!(verdict, SigVerdict::Authentic);
     assert!(
-        text.contains("SIGNATURE: AUTHENTIC (4/4 depths verified)"),
+        text.contains("SIGNATURE: AUTHENTIC (5/5 depths verified)"),
         "{text}"
     );
     for row in [
@@ -25,6 +25,7 @@ fn pristine_build_reports_authentic_four_of_four() {
         "D1 embedded-marker",
         "D2 anchor-integrity",
         "D3 binary-self-hash",
+        "D4 tap-object",
     ] {
         assert!(text.contains(row), "missing depth row {row}:\n{text}");
     }

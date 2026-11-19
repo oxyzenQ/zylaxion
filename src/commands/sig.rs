@@ -1,13 +1,15 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The `sig` command surface — the four-depth signature report
-//! (night-signature-advanced-1, the cosmostrix reference port).
+//! The `sig` command surface — the five-depth signature report
+//! (night-signature-advanced-1, the cosmostrix reference port;
+//! night-depth-hardening-Z1 D2 adds the fifth depth, the zejtron
+//! night-frontier-Z5 shape).
 //!
-//! The owner runs sibling tools across the fleet (zejtron and
-//! cosmostrix print the same four-depth shape), so `zylaxion sig`
-//! renders the same verdict ladder over zylaxion's own provenance
-//! layers:
+//! The owner runs sibling tools across the fleet (zejtron renders the
+//! same ladder over its own provenance layers, its object row named
+//! for its camera), so `zylaxion sig` renders the same verdict ladder
+//! over zylaxion's own provenance layers:
 //!
 //!   D0  runtime-identity — the masked manifest materializes, carries
 //!       the marker and the identity shape.
@@ -16,6 +18,9 @@
 //!   D2  anchor-integrity — the embedded blake3 anchor recomputes from
 //!       the materialized payload (the cryptographic seal).
 //!   D3  binary-self-hash — blake3 over the running executable image.
+//!   D4  tap-object — the embedded eBPF object re-hashes to the
+//!       build-time stamp (night-depth-hardening-Z1 D2): the ring-0
+//!       asset joins the self-verification circle.
 //!
 //! Numbering note: these D0-D3 are the four VERIFICATION depths
 //! (family-parity labels, the owner's cross-tool contract). The `-V`
@@ -28,8 +33,9 @@
 //! The first three depths are the `-V` Depth-matrix line rendered per
 //! depth; they reuse `provenance_view()`'s single pass (the invariant
 //! documented there — the report shows exactly the bytes the integrity
-//! folds verify). D3 is exclusive to this command: it reads the whole
-//! image and must stay off the `-V` path.
+//! folds verify). D3 and D4 are exclusive to this command: D3 reads
+//! the whole image and D4 re-hashes the embedded object, and neither
+//! belongs on the `-V` path.
 //!
 //! # Honest limits of D3
 //!
@@ -40,6 +46,17 @@
 //! `pass` means the image was read in full and hashed; the comparison
 //! is the caller's. The docs and the report text below say this
 //! plainly — no fake "verified against itself" claim anywhere.
+//!
+//! # D4 closes D3's gap for the one asset that matters most
+//!
+//! The chicken-and-egg law applies to the IMAGE, not to the assets it
+//! carries: the tap object's digest CAN be embedded, because the build
+//! stamps it over the staged object before the bytes are compiled in
+//! (build/tapstamp.rs). D4 is therefore a true self-verify, not a
+//! fingerprint: the binary re-hashes the object it carries and refuses
+//! a post-build patch by name — the ring-0 asset is proven to be the
+//! object the build staged (and on the registry lane, the object the
+//! manifest pins).
 
 use std::io::Read;
 
@@ -94,7 +111,7 @@ fn binary_self_hash() -> Result<String, String> {
     Ok(hex)
 }
 
-/// Run the four-depth ladder and render the full report block.
+/// Run the five-depth ladder and render the full report block.
 ///
 /// The text is stable by contract (tests pin its shape, like the `-V`
 /// report): the purple banner header, four depth rows, an identity
@@ -127,6 +144,11 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     // D3: the running image's own blake3 fingerprint.
     let self_hash = binary_self_hash();
 
+    // D4: the embedded tap object against the build-time stamp
+    // (night-depth-hardening-Z1 D2) - the verification now covers the
+    // bytes that execute at ring 0, not only the identity claim.
+    let tap_object = crate::info::signature::tap_object_digest_check();
+
     let rows = [
         DepthRow {
             name: "runtime-identity",
@@ -157,6 +179,16 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
                 Ok(hex) => format!("b3:{hex}"),
                 Err(e) => format!("unavailable: {e}"),
             },
+        },
+        DepthRow {
+            // night-depth-hardening-Z1 D2: the embedded tap object
+            // re-hashes to the build-time stamp - the ring-0 asset
+            // joins the self-verification circle, and a post-build
+            // patch of the object is refused by name (both digests in
+            // the detail, the exit code hard non-zero below).
+            name: "tap-object",
+            passed: tap_object.0,
+            detail: tap_object.1,
         },
     ];
 
