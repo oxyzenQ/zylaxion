@@ -504,11 +504,33 @@ slightly faster, slightly easier to maintain.
 
 ### What zylaxion will NEVER be
 
-- No sample packs, no downloadable sound fonts, no assets to load
-- No daemon mode, no background supervision
-- No `config.toml`, no dotfile, no registry of any kind
-- No keystroke logging, telemetry, or analytics
-- No REST API, no network control plane
+These boundaries are the product, not a mood. Each line exists because
+crossing it would add attack surface, resident footprint, or
+supply-chain exposure without making the tool better at its one job:
+voicing keyboard events with pure math, decided in the kernel. A PR
+that crosses any line below needs the owner's explicit call — the
+default answer is no.
+
+| Domain | The line | Why the line holds |
+|--------|----------|--------------------|
+| Daemon | No daemon mode, no resident process, no supervisor loop, no client-server split. The systemd units in `assets/` are `Type=oneshot` boot helpers: they load and hand over the kernel tap, then exit — nothing of zylaxion stays resident but the BPF program and its pinned maps. | A resident process is a permanent attack surface and a lifecycle burden the kernel side already pays for. |
+| Sound | No soundboard, no media playback, no MIDI, no sample or soundfont engine, no general audio platform. The voice is procedural synthesis for keyboard events only — never a path for arbitrary audio content. | Every loadable sound asset is a payload; content loaders recreate the exact tool class zylaxion exists to replace. |
+| Game | No game, no gamification, no achievements, no scores, no WPM leaderboards, no typing tutor, no easter-egg modes. | Score chasing demands keystroke analytics; the privacy law forbids even aggregate sequences. |
+| Input scope | The tap hears keyboards only — no mouse, gamepad, touch, or hotword capture, ever. | Every added device multiplies the probe's kernel surface and the privacy review for zero product gain. |
+| Interface | No GUI, no tray applet, no web UI, no companion or mobile app. One CLI binary is the whole interface. | A second interface is a second codebase to keep honest; the CLI is the API (frozen since v80.0.0). |
+| Extensibility | No plugins, no scripting engine, no user-loadable presets or libraries at runtime. The preset registry is compile-time data. | A plugin loader is a code-execution surface: whoever controls a preset controls the process. |
+| Config | No config file, no dotfile, no registry of any kind. Precedence is CLI flags > environment > compiled defaults, and it stays that way. | Compile-time data ships verified; the kernel maps are the only mutable state, auditable with `bpftool`. |
+| Network | No REST API, no listener, no cloud config, no sync, no telemetry. The single outbound call is `--check-update`. | The keystroke stream must never have a network path — on principle and by construction. |
+| Privacy | No keystroke logging, storage, or analytics; no replay or macro engine. Counters stay aggregate; sequences never leave the kernel. | The moment zylaxion can record what was typed, it is a keylogger with a sound budget. |
+| Intelligence | No AI/ML models, no learned synthesis, no behavioral typing profiles. Pure math in, pure math out. | A model is an un-auditable binary asset riding the exact supply-chain lane this tree refuses (see the pure-Rust blake3 pin). |
+| Platforms | Linux at runtime, forever. No Windows, macOS, or BSD port. | The tap is a Linux kernel feature; a portable version would be a different, lesser tool. |
+
+The charter is checked, not remembered: every claim maps to a
+grep-able property of the tree — no listener in `src/`, no asset
+loader, no runtime library load, compile-time presets — and to the
+verification commands under [Security & Privacy](#security--privacy).
+When the source and this table disagree, the source is wrong and the
+boundary stands.
 
 ### Stable API (from v80.0.0)
 
