@@ -82,6 +82,14 @@ fn golden_vectors_hold_bit_for_bit() {
 }
 
 #[test]
+// The dense sweep is miri-hostile by size (40k libm-oracle points under
+// the interpreter) and adds no UB surface: safe float arithmetic is
+// exactly what miri does not reinterpret. The native CI lane owns it;
+// the golden vectors and the edge laws below stay miri-covered.
+#[cfg_attr(
+    miri,
+    ignore = "40k-point float sweeps: no UB surface, the native lane owns them"
+)]
 fn exp_stays_inside_the_certificate_over_the_domain() {
     // dense sweep + the boundary points; the bound is the emitted
     // over-bound plus the named oracle margin.
@@ -104,6 +112,12 @@ fn exp_stays_inside_the_certificate_over_the_domain() {
 }
 
 #[test]
+// Same miri law as the exp sweep above: 120k float-oracle points, no
+// unsafe, no pointer work - the native lane owns the sweep.
+#[cfg_attr(
+    miri,
+    ignore = "120k-point float sweeps: no UB surface, the native lane owns them"
+)]
 fn ln_sin_cos_tan_stay_inside_their_certificates() {
     // The oracle margin scales with the RESULT magnitude: the f64
     // libm's own error is one ulp of the VALUE (its |ln(1e-9)| ~ 20.7
@@ -149,6 +163,11 @@ fn ln_sin_cos_tan_stay_inside_their_certificates() {
 }
 
 #[test]
+// Same miri law as the exp sweep above.
+#[cfg_attr(
+    miri,
+    ignore = "60k-point float sweeps: no UB surface, the native lane owns them"
+)]
 fn f32_anchors_match_libm_inside_one_spacing_on_the_meaningful_band() {
     // The property the corpus rides: on the physically meaningful band
     // (|truth| >= 1e-6) the lane's f32 anchor equals the libm f64
@@ -205,6 +224,13 @@ fn f32_anchors_match_libm_inside_one_spacing_on_the_meaningful_band() {
 }
 
 #[test]
+// The boundary half is a single point; the pow half is an 8k powf
+// sweep - the interpreted libm calls are the runtime cost and the
+// float math is no UB surface, so the native lane owns it.
+#[cfg_attr(
+    miri,
+    ignore = "8k powf-oracle sweep: no UB surface, the native lane owns it"
+)]
 fn the_quadrant_boundary_and_pow_carry_their_own_certificates() {
     // RED_RHO's pin: at the exact quadrant boundary (cos of the rounded
     // pi/2) the reduction's clean-zero deviation from the truth is
