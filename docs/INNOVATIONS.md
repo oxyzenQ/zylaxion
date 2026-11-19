@@ -906,16 +906,20 @@ law single-sourced with the notice-drive lane). The golden contract
 is COMPILED — the tap's own semantics read off `ebpf/src/main.rs`:
 gate-off silence (zero records, zero counters), the keymap death,
 the autorepeat filter, the exact record order (press, release,
-burst), the ring saturation at capacity DERIVED from the kernel's
-own math (two metadata pages, the 8-byte record header, occupancy
-round_up(len, 8) + 8, against the size the KERNEL reports), the
-drop-on-full posture, and the counter law — stats count EVERY press
-because the fetch-add rides BEFORE the ring reservation, so a
-dropped event degrades the sound, never the telemetry. Timestamps
-are masked (the kernel clock is not behavior); the record shape
-mirrors the tap's 24-byte KeyRingEvent the way the pin paths are
-mirrored. A kernel or tap change that moves one tuple, one delta, or
-the capacity fails with the delta named. The lane needs NO attach
+burst), the ring saturation with the capacity MEASURED in-run
+against its byte ceiling (the first guest leg caught the derived
+constant guessing the kernel's usable-byte math wrong — 1792 pinned,
+2047 measured, against a 2048 ceiling: the tap was right, the golden
+constant was not — so the contract pins the BEHAVIOR: fill-until-full,
+drop-after, ring-recover, with the overflow guaranteed by arithmetic
+since 2203 x 32 bytes exceed the reported 65536 on any kernel), and
+the counter law — stats count EVERY press because the fetch-add
+rides BEFORE the ring reservation, so a dropped event degrades the
+sound, never the telemetry. Timestamps are masked (the kernel clock
+is not behavior); the record shape mirrors the tap's 24-byte
+KeyRingEvent the way the pin paths are mirrored. A kernel or tap
+change that moves one tuple or one delta fails with the delta named;
+a capacity move lands as the named measured row. The lane needs NO attach
 and leaves NO residue (fresh maps, the process exits, the kernel
 reaps them); it runs beside PROOF 7 in the e2e micro-VM guest and
 honestly skips elsewhere. Files of truth:

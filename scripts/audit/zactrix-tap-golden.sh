@@ -14,9 +14,9 @@
 # relocation, loads the kprobe body unattached as the syscall type,
 # and drives a scripted event sequence through BPF_PROG_TEST_RUN —
 # the gate-off silence, the keymap death, the autorepeat filter, the
-# exact record order, the ring saturation capacity (derived from the
-# kernel's own ringbuf math), the drop-on-full posture, and the
-# count-the-drops counter law — every record tuple and every stats
+# exact record order, the ring saturation (capacity measured in-run
+# against its byte ceiling; the behavior pinned: fill-until-full,
+# drop-after, ring-recover), and the count-the-drops counter law — every record tuple and every stats
 # delta compared against the compiled golden contract (timestamps
 # masked: the kernel clock is not behavior). Unlike PROOF 7, this
 # lane needs NO attach and NO pins: fresh maps only, the process

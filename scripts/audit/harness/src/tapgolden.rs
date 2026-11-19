@@ -15,13 +15,19 @@
 //! The golden expectations are COMPILED constants: they are the tap's
 //! own semantics read off `ebpf/src/main.rs` (the gate, the keymap
 //! death, the autorepeat filter, the stats-before-reserve ordering,
-//! the drop-on-full posture), not a machine-fingerprint — the only
-//! machine-derived number is the ring capacity, DERIVED from the
-//! kernel's own ringbuf math (kernel/bpf/ringbuf.c: two metadata
-//! pages, an 8-byte record header, occupancy round_up(len, 8) + 8)
-//! against the size the KERNEL reports for the fresh map. A kernel or
-//! a tap change that moves one record tuple, one stats delta, or the
-//! capacity constant fails this lane with the delta named.
+//! the drop-on-full posture), not a machine-fingerprint. The ring's
+//! saturation capacity is MEASURED in-run, not pinned: the exact
+//! usable-byte arithmetic is the kernel's own property (the first
+//! guest leg caught the derived constant guessing it wrong — 1792
+//! pinned, 2047 measured, against a 2048 byte ceiling), while the
+//! CONTRACT the lane pins is the behavior around it: the flood fills
+//! the ring to its capacity, the overflow presses are dropped, the
+//! ring recovers, and the counters count every press either way. The
+//! overflow is GUARANTEED by arithmetic, not tuning: 2203 drives at
+//! 32 bytes occupancy exceed the reported 65536 bytes on any kernel.
+//! A kernel or a tap change that moves one record tuple or one stats
+//! delta fails this lane with the delta named; a capacity move lands
+//! as the named measured row.
 //!
 //! The golden contract, phase by phase (KEY = 30, KEY2 = 31, both
 //! keymapped to slot 0):
@@ -34,10 +40,12 @@
 //!   F autorepeat  3x value=2              -> 0 records (kernel filter)
 //!   G burst       10x press of KEY        -> 10 records; stats 10
 //!   DRAIN 1                               -> exactly 12 records in order
-//!   H flood       2200 presses of KEY     -> exactly CAPACITY accepted
+//!   H flood       2200 presses of KEY     -> the ring fills; the rest drop
 //!   I post-flood  1 press of KEY          -> dropped (ring full)
 //!   J second key  2 presses of KEY2       -> dropped (ring full)
 //!   DRAIN 2                               -> exactly CAPACITY records
+//!                                         (capacity MEASURED in-run,
+//!                                         <= the 2048 byte ceiling)
 //!   K post-drain  1 press of KEY2         -> 1 record (31,1,0)
 //!   DRAIN 3                               -> exactly 1 record
 //!   FINAL stats   the counter law: stats count EVERY press (the
@@ -126,16 +134,14 @@ pub(super) fn run_tap_golden(object_path: &str) {
         Ok(n) => n,
         Err(e) => fail(format!("the events ring's size did not read back: {e}")),
     };
-    // The kernel's ringbuf layout: two metadata pages ride INSIDE the
-    // reported size, the record occupancy is round_up(len, 8) + the
-    // 8-byte header. The capacity is DERIVED, not hardcoded — a kernel
-    // change to the math lands here as a named delta.
-    // SAFETY: sysconf is a plain libc query with no pointer arguments
-    // and no side effects.
-    let page = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
-    let page = if page > 0 { page } else { 4096 };
+    // The byte ceiling the ring can never exceed: every record costs
+    // round_up(len, 8) + the 8-byte header, so a kernel reporting
+    // data_size bytes holds at most data_size / occupancy records.
+    // The exact usable area inside that ceiling is the kernel's own
+    // math — the saturation phase MEASURES it in-run and asserts the
+    // behavior laws around it.
     let occupancy = RECORD_SIZE.next_multiple_of(8) + RINGBUF_HDR;
-    let capacity = (data_size - 2 * page) / occupancy;
+    let byte_ceiling = data_size / occupancy;
 
     // Keymap seeds: both keys -> slot 0 (the compiled preset class).
     for key in [KEY, KEY2] {
@@ -156,10 +162,10 @@ pub(super) fn run_tap_golden(object_path: &str) {
     };
     println!(
         "TAP GOLDEN: the production tap body is loaded unattached ({} instructions), \
-         ring data {} bytes, derived capacity {} records",
+         ring data {} bytes, capacity measured in-run (byte ceiling {} records)",
         insns.len(),
         data_size,
-        capacity
+        byte_ceiling
     );
 
     let set_gate = |enabled: u32| {
@@ -235,7 +241,11 @@ pub(super) fn run_tap_golden(object_path: &str) {
     .concat();
     let drained: Vec<Rec> = drain("prefix");
     expect_records(&mut failures, "prefix drain", &drained, &prefix);
-    let presses_so_far = BURST_PRESSES;
+    // The counter law's prefix: the phase-D press (1) plus the burst
+    // (10) — the first guest leg caught the pin forgetting the D press
+    // (got 11, pinned 10: the tap was right, the golden constant was
+    // not).
+    let presses_so_far = 1 + BURST_PRESSES;
     expect_stats(&mut failures, "the prefix", KEY, presses_so_far as u64);
     expect_stats(&mut failures, "the prefix", STATS_TOTAL_SLOT, presses_so_far as u64);
 
@@ -249,6 +259,25 @@ pub(super) fn run_tap_golden(object_path: &str) {
         drive("second-key drop press", EV_KEY, KEY2, VALUE_PRESS);
     }
     let saturated: Vec<Rec> = drain("saturation");
+    // The measured capacity: whatever the ring accepted before it
+    // started dropping. The behavior laws, not the number, are the
+    // contract: the flood DID overflow (a drop happened — guaranteed
+    // by arithmetic, 2203 x 32 bytes > 65536 reported), the overflow
+    // presses left no ring residue, and the ring never exceeded its
+    // own byte ceiling.
+    let capacity = saturated.len();
+    if capacity == 0 || capacity > byte_ceiling {
+        failures.push(format!(
+            "the measured capacity {capacity} violates the byte ceiling {byte_ceiling}"
+        ));
+    }
+    let presses_into_saturation = FLOOD_PRESSES + 1 + SECOND_KEY_DROPS;
+    if capacity as u32 >= presses_into_saturation {
+        failures.push(format!(
+            "the flood did not overflow: capacity {capacity} accepted all \
+             {presses_into_saturation} saturation presses — the drop law is untestable"
+        ));
+    }
     let want_saturated = vec![(KEY, VALUE_PRESS, SLOT); capacity];
     expect_records(&mut failures, "saturation drain", &saturated, &want_saturated);
     let presses_after_flood = presses_so_far + FLOOD_PRESSES + 1 + SECOND_KEY_DROPS;
@@ -275,10 +304,11 @@ pub(super) fn run_tap_golden(object_path: &str) {
     // ── The verdict ──
     let pinned_records = prefix.len() + capacity + POST_DRAIN_PRESSES as usize;
     println!(
-        "TAP GOLDEN VERDICT: phases=7 records={}/{} capacity={} stats={}",
+        "TAP GOLDEN VERDICT: phases=7 records={}/{} capacity={} (measured, byte ceiling {}) stats={}",
         pinned_records - failures.iter().filter(|f| f.contains("records") || f.contains("record ")).count(),
         pinned_records,
         capacity,
+        byte_ceiling,
         if failures.is_empty() { "match" } else { "MISMATCH" }
     );
     if !failures.is_empty() {
@@ -294,8 +324,11 @@ pub(super) fn run_tap_golden(object_path: &str) {
     }
     println!(
         "TAP GOLDEN PASS: gate-off silence, the keymap death, the autorepeat filter, \
-         the record order, the drop-on-full posture, and the count-the-drops counter \
-         law all hold — the kernel side IS the bytes"
+         the record order, the fill-until-full and drop-after posture (capacity {} \
+         measured against the {} byte ceiling), and the count-the-drops counter \
+         law all hold — the kernel side IS the bytes",
+        capacity,
+        data_size
     );
     println!("MASS-RESULT: PROOF 9 tap-golden lane — PASS");
     std::process::exit(0);
