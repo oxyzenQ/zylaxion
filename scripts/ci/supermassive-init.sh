@@ -445,6 +445,32 @@ else
 	echo "MASS-RESULT: PROOF 7 prog-run lane — SKIP (no payload or no tap object staged)"
 fi
 
+# ── PROOF 9: the tap-behavior golden corpus (night-frontier-Z5) ──
+# Entry 40 pins the userspace render ("the sound IS the bytes"); this
+# lane pins the KERNEL half as bytes: the production tap object through
+# the PROOF 7 lane's own aya-obj parser, raw bpf() syscalls and
+# BPF_PROG_TEST_RUN, driven through a scripted event sequence — the
+# gate-off silence, the keymap death, the autorepeat filter, the
+# exact record order, the ring saturation capacity (DERIVED from the
+# kernel's own ringbuf math against the size the kernel reports), the
+# drop-on-full posture, and the count-the-drops counter law — every
+# record tuple and every stats delta compared against the compiled
+# golden contract, timestamps masked (the kernel clock is not
+# behavior). Fresh maps only, no attach needed, no state behind: the
+# process exits, the kernel reaps them. A kernel or tap change that
+# moves one tuple, one delta, or the capacity fails with the delta
+# named; a kernel that refuses the load is classified honestly as a
+# skip, never a fake row.
+if [ -x "$Z/zactrix-audit" ] && [ -r "$Z/ebpf-prebuilt/zylaxion-tap.o" ]; then
+	if "$Z/zactrix-audit" --tap-golden "$Z/ebpf-prebuilt/zylaxion-tap.o"; then
+		note "PROOF 9 tap-golden lane (the kernel side IS the bytes, or the lane is honestly classified)" PASS
+	else
+		note "PROOF 9 tap-golden lane" FAIL
+	fi
+else
+	echo "MASS-RESULT: PROOF 9 tap-golden lane — SKIP (no payload or no tap object staged)"
+fi
+
 # ── PROOF 8: the evented control plane (night-frontier-Z2 B1) ──
 # The whole loop a control change rides, on a real kernel with a real
 # player: verb → control map write → ONE TEST_RUN on the pinned relay

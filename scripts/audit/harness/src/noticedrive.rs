@@ -32,13 +32,13 @@
 
 use std::io;
 use std::os::fd::{AsRawFd as _, FromRawFd as _, OwnedFd};
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::AtomicU32;
 use std::time::Instant;
 
 use crate::progrun::{Attr, BPF_PROG_TEST_RUN, bpf};
+use crate::ringdrain::{drain_ring_records, ringbuf_data_size};
 
 const BPF_OBJ_GET: u64 = 7;
-const BPF_OBJ_GET_INFO_BY_FD: u64 = 15;
 
 /// The pinned notice plane (mirrors src/ebpf/pin.rs).
 const PIN_PROG_RELAY: &str = "/sys/fs/bpf/zylaxion/relay";
@@ -201,26 +201,23 @@ fn open_pinned(path: &str) -> io::Result<OwnedFd> {
     Ok(unsafe { OwnedFd::from_raw_fd(fd) })
 }
 
-/// The ring's data size from the kernel (BPF_OBJ_GET_INFO_BY_FD —
-/// bpf_map_info.max_entries at offset 16).
-fn ringbuf_data_size(map_fd: i32) -> io::Result<usize> {
-    let mut info = [0u8; 128];
-    let mut attr = Attr::new();
-    attr.put32(0, map_fd as u32);
-    attr.put32(4, info.len() as u32);
-    attr.put64(8, info.as_mut_ptr() as u64);
-    bpf(BPF_OBJ_GET_INFO_BY_FD, &attr).map_err(|e| io::Error::from_raw_os_error(e))?;
-    let max_entries = u32::from_le_bytes(
-        info[16..20]
-            .try_into()
-            .expect("the info buffer is fixed 128 bytes"),
-    );
-    if max_entries == 0 || !max_entries.is_power_of_two() {
-        return Err(io::Error::other(format!(
-            "the kernel reported a non-ringbuf-shaped size: {max_entries}"
-        )));
-    }
-    Ok(max_entries as usize)
+/// mmap-drain the notice ring as the consumer through the generic
+/// ringbuf lane (night-frontier-Z5: the kernel's mmap law lives in
+/// `ringdrain.rs`, shared with the tap-golden corpus) and decode the
+/// 16-byte notice records.
+fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
+    let records = drain_ring_records(map_fd, data_size, NOTICE_RECORD_SIZE)?;
+    Ok(records
+        .into_iter()
+        .map(|r| {
+            let b = &r.bytes;
+            ControlNotice {
+                ns: u64::from_le_bytes(b[0..8].try_into().expect("fixed record size")),
+                kind: u32::from_le_bytes(b[8..12].try_into().expect("fixed record size")),
+                value: u32::from_le_bytes(b[12..16].try_into().expect("fixed record size")),
+            }
+        })
+        .collect())
 }
 
 /// One TEST_RUN on the pinned relay with the frame floor the skb
@@ -282,153 +279,4 @@ fn poll_ring(map_fd: i32) -> io::Result<bool> {
         return Err(io::Error::last_os_error());
     }
     Ok(rc > 0 && fds[0].revents & libc::POLLIN != 0)
-}
-
-/// mmap-drain the ring as the consumer: producer page (read-only),
-/// consumer page (read-write — draining ADVANCES the consumer
-/// position, the contract every ringbuf consumer obeys), then the
-/// data pages. Returns every committed record found.
-fn drain_ring(map_fd: i32, data_size: usize) -> io::Result<Vec<ControlNotice>> {
-    use std::sync::atomic::AtomicU32;
-    const PAGE: usize = 4096;
-    // SAFETY: sysconf is a plain libc query with no pointer
-    // arguments and no side effects.
-    let page_size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
-    // The kernel maps pages, not byte counts: the data area spans
-    // ceil(data_size / page) pages plus the wrap page.
-    let data_pages = data_size.div_ceil(page_size) + 1;
-    // The kernel's ringbuf mmap layout (ringbuf_map_mmap_kern +
-    // remap_vmalloc_range(vm_pgoff + RINGBUF_PGOFF)): vm_pgoff 0 is
-    // the CONSUMER page (the ONE writable mapping — a writable
-    // mapping anywhere else answers EPERM, the Z2 CI guest named the
-    // first attempt), vm_pgoff 1 the producer page, vm_pgoff 2.. the
-    // data pages, all read-only — libbpf's own consumer rides the
-    // identical layout.
-    // SAFETY: the consumer-page mapping rides the kernel's ringbuf
-    // mmap law (writable only at pgoff 0, named in the comment
-    // above); the length is the one page the law grants.
-    let cons = unsafe {
-        libc::mmap(
-            std::ptr::null_mut(),
-            page_size,
-            libc::PROT_READ | libc::PROT_WRITE,
-            libc::MAP_SHARED,
-            map_fd,
-            0,
-        )
-    };
-    if cons == libc::MAP_FAILED {
-        return Err(io::Error::last_os_error());
-    }
-    // SAFETY: the producer-page mapping is PROT_READ at pgoff 1 —
-    // read-only mappings are legal at any offset of the ring's own
-    // mapping.
-    let prod = unsafe {
-        libc::mmap(
-            std::ptr::null_mut(),
-            page_size,
-            libc::PROT_READ,
-            libc::MAP_SHARED,
-            map_fd,
-            page_size as libc::off_t,
-        )
-    };
-    if prod == libc::MAP_FAILED {
-        // SAFETY: the producer mapping failed, so cons has no other
-        // owner — the failure path unmaps it exactly once.
-        unsafe { libc::munmap(cons, page_size) };
-        return Err(io::Error::last_os_error());
-    }
-    // The kernel's ringbuf mmap law (ringbuf_map_mmap): a WRITABLE
-    // mapping is granted for the CONSUMER page only; every other page
-    // (producer, data) refuses VM_WRITE with EPERM. The data area
-    // rides PROT_READ — the records are read, never written (libbpf's
-    // own consumer maps the data read-only; the Z2 CI guest named the
-    // writable attempt: 'the ring did not drain: os error 1').
-    // SAFETY: the data-area mapping is PROT_READ at pgoff 2.. — the
-    // ringbuf mmap law refuses VM_WRITE here and grants read-only at
-    // any offset.
-    let data = unsafe {
-        libc::mmap(
-            std::ptr::null_mut(),
-            data_pages * page_size,
-            libc::PROT_READ,
-            libc::MAP_SHARED,
-            map_fd,
-            2 * page_size as libc::off_t,
-        )
-    };
-    if data == libc::MAP_FAILED {
-        // SAFETY: the data mapping failed; cons has no other owner —
-        // the failure path unmaps it exactly once.
-        unsafe { libc::munmap(cons, page_size) };
-        // SAFETY: prod has no other owner (data failed before any
-        // consumer was built) — unmapped exactly once on this path.
-        unsafe { libc::munmap(prod, page_size) };
-        return Err(io::Error::last_os_error());
-    }
-
-    // Positions ride the atomic acquire/release discipline libbpf's
-    // consumer uses (the kernel publishes prod with a release store;
-    // the consumer publishes its drain with a release store back).
-    // SAFETY: the pages are MAP_SHARED mappings this function owns,
-    // the two position words are 4-byte aligned kernel-stored counters
-    // (the ringbuf contract), and the atomics only read them.
-    let prod_pos = unsafe { &*(prod as *const AtomicU32) };
-    // SAFETY: the consumer page is the writable mapping this function
-    // owns; the position word is the kernel's aligned u64 counter read
-    // through its low 32 bits (the consumer publishes its drain). The
-    // atomic writes follow libbpf's own release discipline.
-    let cons_pos = unsafe { &*(cons as *const AtomicU32) };
-    // SAFETY: from_raw_parts builds a read-only view over the data
-    // mapping this function owns; the length is the mapped length
-    // exactly, and nothing writes through it.
-    let data_bytes =
-        unsafe { std::slice::from_raw_parts(data as *const u8, data_pages * page_size) };
-
-    let mut records = Vec::new();
-    let start = prod_pos.load(Ordering::Acquire);
-    let mut pos = cons_pos.load(Ordering::Relaxed);
-    while pos != start {
-        let off = (pos as usize) & (data_size - 1);
-        let hdr = u64::from_le_bytes(
-            data_bytes[off..off + 8]
-                .try_into()
-                .expect("off is 8-aligned inside the ring"),
-        );
-        // The header is the uapi's struct bpf_ringbuf_hdr — TWO u32
-        // fields: len, then pg_off (the record's own page offset). The
-        // Z2 CI guest named the whole-u64 read: the slice end carried
-        // pg_off 3 into the length (range end 12884902008 on a 8192
-        // slice) and the lane panicked where a verdict belonged. The
-        // length rides the LOW word only; busy (bit 14) means the
-        // producer is mid-reserve — nothing to read yet; discard
-        // (bit 15) records are skipped.
-        const BUSY: u32 = 1 << 14;
-        const DISCARD: u32 = 1 << 15;
-        let len = ((hdr as u32) & !(BUSY | DISCARD)) as usize;
-        let committed = (hdr as u32) & BUSY == 0;
-        if committed && len >= NOTICE_RECORD_SIZE && off + 8 + len <= data_bytes.len() {
-            let body = &data_bytes[off + 8..off + 8 + len];
-            let ns = u64::from_le_bytes(body[0..8].try_into().expect("fixed"));
-            let kind = u32::from_le_bytes(body[8..12].try_into().expect("fixed"));
-            let value = u32::from_le_bytes(body[12..16].try_into().expect("fixed"));
-            records.push(ControlNotice { ns, kind, value });
-        }
-        pos = pos.wrapping_add((8 + len).max(8).next_multiple_of(8) as u32);
-    }
-    // The drain: publish the advanced consumer position.
-    cons_pos.store(pos, Ordering::Release);
-
-    // SAFETY: each mapping is unmapped exactly once on the success
-    // path this code closes — data, then cons, then prod, all owned
-    // by this function.
-    unsafe { libc::munmap(data, data_pages * page_size) };
-    // SAFETY: cons was mapped by this function and unmapped exactly
-    // once here (the data unmap above does not touch it).
-    unsafe { libc::munmap(cons, page_size) };
-    // SAFETY: prod was mapped by this function and unmapped exactly
-    // once here — the last teardown on this path.
-    unsafe { libc::munmap(prod, page_size) };
-    Ok(records)
 }

@@ -62,7 +62,7 @@ const KPROBE_PROGRAM: &str = "kprobe_input_event";
 /// load as a syscall program and the kernel's own selftest mechanism
 /// drives them with the synthetic context. Every at-floor kernel
 /// measures; nothing is skipped.
-const BPF_PROG_TYPE_SYSCALL: u32 = 31;
+pub(crate) const BPF_PROG_TYPE_SYSCALL: u32 = 31;
 /// The bpf() command numbers (uapi bpf.h, `enum bpf_cmd`).
 const BPF_MAP_CREATE: u64 = 0;
 const BPF_MAP_LOOKUP_ELEM: u64 = 1;
@@ -89,7 +89,7 @@ const EOPNOTSUPP: i32 = 95;
 /// the kernel's own field order: value@88 rcx, code@96 rdx,
 /// type@104 rsi, dev@112 rdi — dev is a marker pointer the tap never
 /// dereferences).
-fn pt_regs(type_: u32, code: u32, value: u32) -> Vec<u8> {
+pub(crate) fn pt_regs(type_: u32, code: u32, value: u32) -> Vec<u8> {
     // 4096: the test-run contract is ctx_size_in >= prog->aux->max_ctx_offset;
     // the round-10 refusal named the only remaining window, so the buffer
     // rides above any offset the verifier accepted at load.
@@ -143,7 +143,7 @@ pub(crate) fn bpf(cmd: u64, attr: &Attr) -> Result<i32, i32> {
     }
 }
 
-fn map_create(def: &aya_obj::maps::bpf_map_def) -> Result<i32, String> {
+pub(crate) fn map_create(def: &aya_obj::maps::bpf_map_def) -> Result<i32, String> {
     let mut attr = Attr::new();
     attr.put32(0, def.map_type);
     attr.put32(4, def.key_size);
@@ -158,7 +158,7 @@ fn map_create(def: &aya_obj::maps::bpf_map_def) -> Result<i32, String> {
     })
 }
 
-fn map_update(fd: i32, key: &[u8], value: &[u8]) -> Result<(), String> {
+pub(crate) fn map_update(fd: i32, key: &[u8], value: &[u8]) -> Result<(), String> {
     let mut attr = Attr::new();
     attr.put64(0, fd as u64);
     attr.put64(8, key.as_ptr() as u64);
@@ -169,7 +169,7 @@ fn map_update(fd: i32, key: &[u8], value: &[u8]) -> Result<(), String> {
         .map_err(|e| format!("map update refused: errno {e}"))
 }
 
-fn map_lookup(fd: i32, key: &[u8], value: &mut [u8]) -> Result<(), String> {
+pub(crate) fn map_lookup(fd: i32, key: &[u8], value: &mut [u8]) -> Result<(), String> {
     let mut attr = Attr::new();
     attr.put64(0, fd as u64);
     attr.put64(8, key.as_ptr() as u64);
@@ -197,7 +197,7 @@ fn hex16(insns: &[bpf_insn]) -> String {
         .join("")
 }
 
-fn prog_load(
+pub(crate) fn prog_load(
     prog_type: u32,
     insns: &[bpf_insn],
     license: &CString,
@@ -262,7 +262,7 @@ fn prog_load(
 /// words: "doesn't support data_in/out, ctx_out, duration, or repeat
 /// or flags"), so the timing loop below pays one bpf() round trip per
 /// run and the CLASSES' deltas carry the tap's own cost.
-fn prog_test_run(prog_fd: i32, ctx: &[u8]) -> Result<u32, String> {
+pub(crate) fn prog_test_run(prog_fd: i32, ctx: &[u8]) -> Result<u32, String> {
     let mut attr = Attr::new();
     attr.put32(0, prog_fd as u32);
     // The uapi field law (include/uapi/linux/bpf.h, the test struct —
@@ -285,10 +285,116 @@ fn prog_test_run(prog_fd: i32, ctx: &[u8]) -> Result<u32, String> {
         .map_err(|e| format!("test run refused: errno {e}"))
 }
 
-fn stats_total(stats_fd: i32) -> Option<u64> {
+pub(crate) fn stats_total(stats_fd: i32) -> Option<u64> {
     let mut value = [0u8; 8];
     map_lookup(stats_fd, &256u32.to_ne_bytes(), &mut value).ok()?;
     Some(u64::from_ne_bytes(value))
+}
+
+/// The prepared tap: the RELOCATED body bytes, the license, and the
+/// fresh map fds by name — everything both lanes (PROOF 7's
+/// measurement and the Z5 tap-golden corpus) drive afterward.
+pub(crate) struct PreparedTap {
+    pub(crate) insns: Vec<bpf_insn>,
+    pub(crate) license: CString,
+    pub(crate) fds: std::collections::HashMap<String, i32>,
+}
+
+fn fail_lane(lane: &str, why: String) -> ! {
+    println!("{lane}: FAIL — {why}");
+    std::process::exit(1);
+}
+
+/// night-frontier-Z5: the shared lane head — parse the production
+/// object through the loader's own aya-obj path, create real kernel
+/// maps from the parsed definitions, walk the loader's relocation
+/// order (maps, externs, calls), and snapshot the RELOCATED bytes.
+/// Fresh instances only: the process exits, the kernel reaps them —
+/// no pins, no residue, the attach chain's state untouched. The
+/// `lane` string names the consumer in every failure row ("PROOF 7" /
+/// "TAP GOLDEN").
+pub(crate) fn prepare_tap(object_path: &str, lane: &str) -> PreparedTap {
+    let object_bytes = std::fs::read(object_path).unwrap_or_else(|e| {
+        fail_lane(
+            lane,
+            format!("the production tap object is unreadable ({object_path}): {e}"),
+        )
+    });
+    let mut object = Object::parse(&object_bytes)
+        .unwrap_or_else(|e| fail_lane(lane, format!("the shipped tap object does not parse: {e}")));
+    let program = object
+        .programs
+        .get(KPROBE_PROGRAM)
+        .unwrap_or_else(|| fail_lane(lane, format!("the object does not carry {KPROBE_PROGRAM}")));
+    let function_key = program.function_key();
+    let license = program.license.clone();
+    if !matches!(program.section, ProgramSection::KProbe) {
+        fail_lane(
+            lane,
+            format!("{KPROBE_PROGRAM} is not a kprobe section: {:?}", program.section),
+        );
+    }
+    // night-strict-warnings-1: this is a presence check — the binding
+    // itself is never read, so the strict gate flags it; is_none()
+    // says exactly that without a discarded name.
+    if object.functions.get(&program.function_key()).is_none() {
+        fail_lane(lane, "the kprobe body's instructions are missing".to_string());
+    }
+
+    // Real maps from the parsed definitions — fresh instances, never
+    // the pinned ones; the process exits, the kernel reaps them.
+    let map_list: Vec<(String, aya_obj::Map)> = object
+        .maps
+        .iter()
+        .map(|(name, map)| (name.clone(), map.clone()))
+        .collect();
+    let mut created: Vec<(String, i32)> = Vec::new();
+    for (name, map) in &map_list {
+        let aya_obj::Map::Legacy(legacy) = map else {
+            fail_lane(
+                lane,
+                format!("{name} rides a BTF map definition; the legacy lane does not apply"),
+            );
+        };
+        let fd = map_create(&legacy.def).unwrap_or_else(|e| fail_lane(lane, format!("{e} ({name})")));
+        created.push((name.clone(), fd));
+    }
+
+    // The loader's own map-fd relocation: the program's map references
+    // are patched with the fresh fds, the exact step attach performs.
+    let text_sections: HashSet<usize> = object.functions.keys().map(|(s, _)| *s).collect();
+    let fds: std::collections::HashMap<String, i32> = created.iter().cloned().collect();
+    let maps_iter = map_list
+        .iter()
+        .map(|(name, map)| (name.as_str(), fds[name], map));
+    if let Err(e) = object.relocate_maps(maps_iter, &text_sections) {
+        fail_lane(lane, format!("the loader's map-fd relocation refused: {e}"));
+    }
+    // The helper calls ride EXTERNAL symbols (bpf_ktime_get_ns,
+    // bpf_ringbuf_reserve/submit, bpf_map_lookup_elem): without this
+    // pass the call immediates stay raw symbol offsets and the
+    // verifier refuses the program — the round-4 CI run named the
+    // refusal. The call pass follows (the loader's own order).
+    if let Err(e) = object.relocate_externs() {
+        fail_lane(lane, format!("the extern (helper) relocation refused: {e}"));
+    }
+    if let Err(e) = object.relocate_calls(&text_sections) {
+        fail_lane(lane, format!("the call relocation refused: {e}"));
+    }
+    // The loader's order completes BEFORE the snapshot: the load must
+    // carry the RELOCATED bytes (patched map fds, resolved helper
+    // calls), never a stale pre-relocation clone.
+    let insns: Vec<bpf_insn> = object
+        .functions
+        .get(&function_key)
+        .expect("the kprobe body survived the relocations")
+        .instructions
+        .clone();
+    PreparedTap {
+        insns,
+        license,
+        fds,
+    }
 }
 
 /// The PROOF 7 mode: parse, create, relocate, load, measure, verdict.
@@ -303,94 +409,11 @@ pub(super) fn run_prog_run(object_path: &str) {
         std::process::exit(0);
     }
 
-    let object_bytes = std::fs::read(object_path).unwrap_or_else(|e| {
-        println!("PROOF 7: FAIL — the production tap object is unreadable ({object_path}): {e}");
-        std::process::exit(1);
-    });
-    let mut object = Object::parse(&object_bytes).unwrap_or_else(|e| {
-        println!("PROOF 7: FAIL — the shipped tap object does not parse: {e}");
-        std::process::exit(1);
-    });
-    let program = object.programs.get(KPROBE_PROGRAM).unwrap_or_else(|| {
-        println!("PROOF 7: FAIL — the object does not carry {KPROBE_PROGRAM}");
-        std::process::exit(1);
-    });
-    let function_key = program.function_key();
-    let license = program.license.clone();
-    if !matches!(program.section, ProgramSection::KProbe) {
-        println!(
-            "PROOF 7: FAIL — {KPROBE_PROGRAM} is not a kprobe section: {:?}",
-            program.section
-        );
-        std::process::exit(1);
-    }
-    // night-strict-warnings-1: this is a presence check — the binding
-    // itself is never read, so the strict gate flags it; is_none()
-    // says exactly that without a discarded name.
-    if object
-        .functions
-        .get(&program.function_key())
-        .is_none()
-    {
-        println!("PROOF 7: FAIL — the kprobe body's instructions are missing");
-        std::process::exit(1);
-    }
-
-    // Real maps from the parsed definitions — fresh instances, never
-    // the pinned ones; the process exits, the kernel reaps them.
-    let map_list: Vec<(String, aya_obj::Map)> = object
-        .maps
-        .iter()
-        .map(|(name, map)| (name.clone(), map.clone()))
-        .collect();
-    let mut created: Vec<(String, i32)> = Vec::new();
-    for (name, map) in &map_list {
-        let aya_obj::Map::Legacy(legacy) = map else {
-            println!(
-                "PROOF 7: FAIL — {name} rides a BTF map definition; the legacy lane does not apply"
-            );
-            std::process::exit(1);
-        };
-        let fd = map_create(&legacy.def).unwrap_or_else(|e| {
-            println!("PROOF 7: FAIL — {e} ({name})");
-            std::process::exit(1);
-        });
-        created.push((name.clone(), fd));
-    }
-
-    // The loader's own map-fd relocation: the program's map references
-    // are patched with the fresh fds, the exact step attach performs.
-    let text_sections: HashSet<usize> = object.functions.keys().map(|(s, _)| *s).collect();
-    let fds: std::collections::HashMap<String, i32> = created.iter().cloned().collect();
-    let maps_iter = map_list
-        .iter()
-        .map(|(name, map)| (name.as_str(), fds[name], map));
-    if let Err(e) = object.relocate_maps(maps_iter, &text_sections) {
-        println!("PROOF 7: FAIL — the loader's map-fd relocation refused: {e}");
-        std::process::exit(1);
-    }
-    // The helper calls ride EXTERNAL symbols (bpf_ktime_get_ns,
-    // bpf_ringbuf_reserve/submit, bpf_map_lookup_elem): without this
-    // pass the call immediates stay raw symbol offsets and the
-    // verifier refuses the program — the round-4 CI run named the
-    // refusal. The call pass follows (the loader's own order).
-    if let Err(e) = object.relocate_externs() {
-        println!("PROOF 7: FAIL — the extern (helper) relocation refused: {e}");
-        std::process::exit(1);
-    }
-    if let Err(e) = object.relocate_calls(&text_sections) {
-        println!("PROOF 7: FAIL — the call relocation refused: {e}");
-        std::process::exit(1);
-    }
-    // The loader's order completes BEFORE the snapshot: the load must
-    // carry the RELOCATED bytes (patched map fds, resolved helper
-    // calls), never a stale pre-relocation clone.
-    let insns: Vec<bpf_insn> = object
-        .functions
-        .get(&function_key)
-        .expect("the kprobe body survived the relocations")
-        .instructions
-        .clone();
+    let PreparedTap {
+        insns,
+        license,
+        fds,
+    } = prepare_tap(object_path, "PROOF 7");
 
     // Control plane: enabled=0 (the gate-off class first), then 1.
     let control_fd = &fds["control"];

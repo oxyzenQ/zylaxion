@@ -70,9 +70,11 @@ mod progrun;
 mod proof;
 mod rates;
 mod reload;
+mod ringdrain;
 mod rt;
 mod soak;
 mod stability;
+mod tapgolden;
 
 use engine::VoicePool;
 use profiles::{KeyTrigger, MechanicalClick, registry_all};
@@ -179,6 +181,22 @@ fn main() {
             .get(pos + 1)
             .unwrap_or_else(|| panic!("--prog-run needs the tap object path"));
         progrun::run_prog_run(object);
+        return;
+    }
+
+    // night-frontier-Z5, PROOF 9: the tap-behavior golden corpus — the
+    // kernel side pinned as bytes. The production tap object through
+    // the PROOF 7 lane's own parser and raw syscalls, a scripted
+    // event sequence (gate-off, keymap death, autorepeat, the record
+    // order, the saturation capacity, the count-the-drops law), the
+    // events ring drained through the generic consumer lane, every
+    // tuple and every stats delta compared against the compiled
+    // golden contract. Runs beside PROOF 7 in the e2e micro-VM guest.
+    if let Some(pos) = args.iter().position(|a| a == "--tap-golden") {
+        let object = args
+            .get(pos + 1)
+            .unwrap_or_else(|| panic!("--tap-golden needs the tap object path"));
+        tapgolden::run_tap_golden(object);
         return;
     }
 
