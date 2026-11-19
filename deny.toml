@@ -1,0 +1,62 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# zylaxion supply-chain policy — the cargo-deny graph gate (the deny
+# law). The lesson this file encodes is the poisoned-patch class: a
+# compromised publisher ships a hostile release, and no advisory
+# database has an entry on day zero. cargo-audit (the [4/4] gate and
+# the Security Audit workflow) owns the advisory axis; this gate owns
+# the GRAPH SHAPE axis, so an injection lane fails the build loudly
+# instead of waiting for a CVE:
+#
+#   - every crate must come from crates.io (the [sources] gate);
+#   - a yanked release in the lockfile is an incident, not a nuisance;
+#   - wildcard requirements never re-enter a manifest;
+#   - git dependencies and foreign registries are named-or-refused.
+#
+# Enforcement lives in two lanes that run the same verdict:
+#   - .github/workflows/audit.yml (hard gate on every push);
+#   - scripts/build.sh check-all step [5/5] (advisory locally, the
+#     same soft-skip-when-absent contract as cargo-audit).
+
+[graph]
+# The full resolve graph is checked, cross-target: the Android-only
+# cpal chain (cpal -> ndk -> num_enum -> serde_core) stays visible in
+# the verdict, not filtered away — the serde exception is documented
+# in the README doctrine precisely because the graph keeps showing it.
+# Features follow the default resolve: the shipped Linux shape.
+
+[bans]
+# No crate is banned by name. The Android resolve carries serde_core
+# and serde_derive through cpal's ndk chain; a name ban would block
+# the lane this project ships (the documented README exception). The
+# enforcement axis here is WHERE a crate comes from, not WHICH crates
+# exist — see [sources].
+deny = []
+# Duplicate versions are visibility, not a verdict on this graph:
+# warnings keep them listed without blocking the Android chain.
+multiple-versions = "warn"
+# A wildcard requirement ("*") hands the version choice to the
+# registry at resolve time — exactly the choice the --locked
+# contract exists to remove. Refused everywhere.
+wildcards = "deny"
+
+[advisories]
+version = 2
+# A yanked release is a retracted release: the registry itself pulled
+# it (malicious, broken, or rights-cleaned). A lockfile riding a
+# yanked crate is a supply-chain incident in slow motion; the gate
+# fails until the weekly maintenance lane moves the graph off it.
+yanked = "deny"
+
+[sources]
+# THE gate: zylaxion's supply chain is crates.io and nothing else.
+# A git dependency is an unaudited moving target — a force-push can
+# rewrite the code the lockfile appears to pin. A foreign registry is
+# an unaudited index. Both are denied by default; adding either is a
+# deliberate, reviewed one-line decision under allow-git or
+# allow-registry below.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

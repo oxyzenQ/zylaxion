@@ -8,11 +8,14 @@
 #   ./scripts/build.sh check-all [-q]
 #   ./scripts/build.sh miri [--filter <pat>|--no-install|--full] [-q]
 #
-# check-all runs four checks in order:
+# check-all runs five checks in order:
 #   1. cargo fmt --check   — formatting must be clean.
 #   2. cargo clippy        — zero warnings allowed (-D warnings).
 #   3. cargo test          — all unit + doc tests must pass.
 #   4. cargo audit         — supply-chain CVE scan (v5.0.0+).
+#   5. cargo deny          — supply-chain graph gate: crates.io-only
+#                            sources, yanked entries denied, wildcards
+#                            refused (night-deny-law-1, deny.toml).
 #
 # miri dispatches the undefined-behavior runner (scripts/lib/miri.sh
 # owns the scope: the audited pure families, the admission law, and
@@ -28,6 +31,10 @@
 # the gatekeeper usable in fresh dev environments without forcing
 # everyone to install cargo-audit. To enable the audit gate, install
 # with:  cargo install cargo-audit
+#
+# The deny step ([5/5], night-deny-law-1) carries the same OPTIONAL
+# contract with cargo-deny: absent binary means a printed warning and
+# a pass. Enable it with:  cargo install cargo-deny
 
 set -euo pipefail
 
@@ -116,23 +123,23 @@ banner() {
     fi
 }
 
-banner "==> [1/4] cargo fmt --check"
+banner "==> [1/5] cargo fmt --check"
 cargo fmt --manifest-path "$MANIFEST" --all -- --check
 
-banner "==> [2/4] cargo clippy"
+banner "==> [2/5] cargo clippy"
 # --all-features matches ci.yml and maintenance.yml exactly: a
 # feature-gated warning must fail the local gate too, not only CI
 # (night-zen-lts-2).
 cargo clippy --manifest-path "$MANIFEST" --all-targets --all-features -- -D warnings
 
-banner "==> [3/4] cargo test"
+banner "==> [3/5] cargo test"
 if [ "$QUIET" -eq 1 ]; then
     cargo test --manifest-path "$MANIFEST" --quiet
 else
     cargo test --manifest-path "$MANIFEST"
 fi
 
-banner "==> [4/4] cargo audit (supply-chain CVE scan)"
+banner "==> [4/5] cargo audit (supply-chain CVE scan)"
 if command -v cargo-audit >/dev/null 2>&1; then
     # Run cargo-audit against the workspace's Cargo.lock.
     # `cargo audit` does NOT accept --manifest-path — it scans
@@ -152,6 +159,29 @@ if command -v cargo-audit >/dev/null 2>&1; then
 else
     echo "    WARNING  cargo-audit not installed, skipping security scan."
     echo "    Install with:  cargo install cargo-audit"
+    echo "    Then re-run:   ./scripts/build.sh check-all"
+fi
+
+banner "==> [5/5] cargo deny (supply-chain graph gate)"
+# night-deny-law-1: the graph-shape axis the CVE scan does not own.
+# deny.toml (workspace root) is the policy: crates.io-only sources,
+# yanked lockfile entries denied, wildcard requirements refused.
+# The hard verdict lives in the Security Audit workflow's deny job;
+# locally this step is advisory, the same soft-skip-when-absent
+# contract as cargo audit above.
+if command -v cargo-deny >/dev/null 2>&1; then
+    # cargo deny does NOT accept --manifest-path either — it reads
+    # deny.toml and Cargo.lock from the current directory, so the
+    # same cd-into-root contract applies.
+    #
+    # --locked is a global flag (before the subcommand): the gate
+    # reads the committed lockfile and never resolves a fresh one
+    # mid-verdict.
+    (cd "$WORKSPACE_ROOT" && cargo deny --locked check advisories bans sources)
+    echo "    OK  graph gate clean (sources, bans, advisories)."
+else
+    echo "    WARNING  cargo-deny not installed, skipping graph gate."
+    echo "    Install with:  cargo install cargo-deny"
     echo "    Then re-run:   ./scripts/build.sh check-all"
 fi
 

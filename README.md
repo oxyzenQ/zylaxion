@@ -92,7 +92,7 @@ facts about this tree, not aspirations.
 
 **Peak lean dependency.** The tool carries 11 portable direct
 dependencies plus one Linux-gated link (alsa-sys, the ALSA stderr
-guard) and 129 lockfile crates, features trimmed to what is used
+guard) and 132 lockfile crates, features trimmed to what is used
 (env_logger's timestamp and regex feature trees are gone — the build
 stamp is computed in `build.rs` via Hinnant's civil_from_days, so no
 time crate rides the tree; night-frontier-Z4 removed signal-hook
@@ -118,10 +118,23 @@ its own lockfile, and its resolve carries the identical pair through
 the identical chain (`cpal -> ndk -> num_enum -> num_enum_derive ->
 proc-macro-crate -> toml_edit -> toml_datetime -> serde_core`) with
 the same zero-on-Linux verdict — the exception covers both locks.
-A `deny.toml` ban is not enforced because it would block
-the Android lane this project ships: the exception is documented
+A `deny.toml` name-ban is not enforced for the pair because it would
+block the Android lane this project ships: the exception is documented
 rather than enforced, and the honest posture is "0 serde on Linux,
 inert transitive in the lockfile via Android."
+
+**The graph gate (night-deny-law-1).** The `deny.toml` at the repo
+root enforces the other axis — where every crate comes from, not
+which crates exist. The Security Audit workflow runs `cargo deny
+check advisories bans sources --locked` as a hard gate on every push
+(the local gatekeeper mirrors it as the advisory step [5/5]):
+crates.io is the only allowed source, git dependencies and foreign
+registries are denied by default — a git dep is one force-push away
+from rewriting the code the lockfile appears to pin, the
+poisoned-patch class no advisory database catches on day zero —
+yanked lockfile entries fail the gate, and wildcard requirements are
+refused. The serde name-ban above stays the documented exception; the
+source gate is where the supply chain actually closes.
 
 Verify the claim yourself:
 

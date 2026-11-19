@@ -22,6 +22,14 @@
 # this lane owns the hard verdict (cargo audit --deny warnings: any
 # advisory blocks).
 #
+# night-deny-law-1: the workflow now carries the second scanner, the
+# cargo-deny graph gate (deny.toml at the root). The poisoned-patch
+# class the CVE watch cannot catch on day zero — a hostile release
+# with no advisory entry yet — is answered on the graph-shape axis:
+# crates.io-only sources, yanked releases denied, wildcard
+# requirements refused. The local gatekeeper runs the same verdict as
+# its [5/5] advisory step.
+#
 # Weekly schedule: Sunday 03:00 UTC = 10:00 WIB (night-consistent-1) —
 # the same clock maintenance.yml already keeps (one schedule spelling
 # per estate).
@@ -71,3 +79,28 @@ jobs:
 
       - name: Run cargo audit
         run: cargo audit --deny warnings
+
+  # night-deny-law-1: the graph gate. Same scanner rule as the CVE
+  # job: this workflow carries the surface it scans (deny.toml rides
+  # the checkout), and the verdict is hard — any denied source, yanked
+  # lockfile entry, or wildcard requirement blocks the push.
+  deny:
+    name: Supply-chain graph gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
+        with:
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        run: rustup default stable
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+
+      - name: Run cargo deny
+        # --locked is a global flag on cargo-deny: the gate reads the
+        # committed lockfile and never resolves a fresh one mid-verdict.
+        run: cargo deny --locked check advisories bans sources
