@@ -68,8 +68,13 @@ jobs:
     runs-on: ubuntu-24.04
     # A cap, not a speed claim: the toolchain install and the crate build
     # dominate the wall clock; the proofs themselves are bounded by
-    # construction (the harnesses' own input domains).
-    timeout-minutes: 30
+    # construction (the harnesses' own input domains). Raised 30 -> 60
+    # after the night-frontier-Z7 verify watch measured the verifier
+    # action's own download stalling twice (runs 58 and 60, both killed
+    # mid-install against a 5-10 minute healthy baseline from runs 39-55
+    # the same day): the cap stays a stall detector, not a verdict on the
+    # proofs — the proofs are unchanged.
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
