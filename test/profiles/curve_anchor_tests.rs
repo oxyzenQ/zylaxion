@@ -8,6 +8,7 @@
 // through the tests module).
 
 use super::tests::model_at_default_profile;
+use crate::engine::detmath;
 use crate::profiles::{AcousticModel, KeyTrigger, SynthState};
 
 // ── night-frontier-3C: the f64 curve-anchor law ─────────────────────
@@ -52,39 +53,63 @@ fn night_frontier_3c_f64_anchor_is_correctly_rounded_on_every_family() {
     for sr in rates {
         let srf = f64::from(sr);
         // steps: the two time constants, plus a dense tau sweep.
+        // night-frontier-Z5: the shipped anchor values come from the
+        // certified lane (det_*), the f64 libm answers stay the truth
+        // reference — the 0.55-spacings ideal must hold THROUGH the lane.
         for i in 0..100 {
             let tau = (0.001_f64) * (0.5 + f64::from(i) / 99.0);
-            let v = f64::exp(-1.0 / (srf * tau)) as f32;
+            let v = detmath::det_exp(-1.0 / (srf * tau)) as f32;
             assert!(anchor_gap(v, f64::exp(-1.0 / (srf * tau))) <= 0.55);
             let tau = (0.005 / 3.0) * (0.5 + f64::from(i) / 99.0);
-            let v = f64::exp(-1.0 / (srf * tau)) as f32;
+            let v = detmath::det_exp(-1.0 / (srf * tau)) as f32;
             assert!(anchor_gap(v, f64::exp(-1.0 / (srf * tau))) <= 0.55);
         }
         // housing g: the shipped 100-1000 Hz band, dense.
         for i in 0..100 {
             let f = 100.0_f32 + i as f32 * 9.0;
-            let v = (std::f64::consts::PI * f64::from(f) / srf).tan() as f32;
+            let v = detmath::det_tan(std::f64::consts::PI * f64::from(f) / srf) as f32;
             assert!(anchor_gap(v, (std::f64::consts::PI * f64::from(f) / srf).tan()) <= 0.55);
         }
         // hp coefficient, release coefficient, decay norm.
         let w = 2.0 * std::f64::consts::PI * 2000.0 / srf;
-        let hp = ((1.0 - w.cos()) / (1.0 + w.cos())) as f32;
+        let hp = ((1.0 - detmath::det_cos(w)) / (1.0 + detmath::det_cos(w))) as f32;
         assert!(anchor_gap(hp, (1.0 - w.cos()) / (1.0 + w.cos())) <= 0.55);
-        let rel = 0.04_f64.powf(1.0 / (0.002 * srf)) as f32;
+        let rel = detmath::det_pow(0.04, 1.0 / (0.002 * srf)) as f32;
         assert!(anchor_gap(rel, 0.04_f64.powf(1.0 / (0.002 * srf))) <= 0.55);
-        let dec = f64::from(0.995_f32).powf(f64::from(crate::profiles::SAMPLE_RATE) / srf) as f32;
+        let dec = detmath::det_pow(
+            f64::from(0.995_f32),
+            f64::from(crate::profiles::SAMPLE_RATE) / srf,
+        ) as f32;
         assert!(
             anchor_gap(
                 dec,
                 f64::from(0.995_f32).powf(f64::from(crate::profiles::SAMPLE_RATE) / srf)
             ) <= 0.55
         );
-        // pan pair over the stereo band, dense.
+        // pan pair over the stereo band, dense. The quadrant boundary
+        // (theta = the rounded pi/2, the p=+1 extreme) is the documented
+        // absolute-bound case: the Cody-Waite reduction returns a clean
+        // zero where the truth is ~6.1e-17 — deterministic on every
+        // machine, ~140 dB under the -60 dB measurand floor — so the
+        // relative 0.55-spacings ideal asserts on the meaningful band
+        // and the emitted absolute certificate covers the boundary.
         for i in 0..100 {
             let p = -1.0_f32 + i as f32 / 49.5;
             let theta = (f64::from(p) + 1.0) * 0.5 * std::f64::consts::FRAC_PI_2;
-            assert!(anchor_gap(theta.cos() as f32, theta.cos()) <= 0.55);
-            assert!(anchor_gap(theta.sin() as f32, theta.sin()) <= 0.55);
+            let cos_truth = theta.cos();
+            let sin_truth = theta.sin();
+            let cos_det = detmath::det_cos(theta);
+            let sin_det = detmath::det_sin(theta);
+            if cos_truth.abs() >= 1e-6 {
+                assert!(anchor_gap(cos_det as f32, cos_truth) <= 0.55);
+            } else {
+                assert!((cos_det - cos_truth).abs() <= detmath::tables::COS_ABS_BOUND);
+            }
+            if sin_truth.abs() >= 1e-6 {
+                assert!(anchor_gap(sin_det as f32, sin_truth) <= 0.55);
+            } else {
+                assert!((sin_det - sin_truth).abs() <= detmath::tables::SIN_ABS_BOUND);
+            }
         }
     }
 }
@@ -161,22 +186,31 @@ fn night_frontier_3c_init_bakes_the_law_the_tests_measured() {
 
     let sr: u32 = 44_100;
     let srf = f64::from(sr);
+    // night-frontier-Z5: the binding law rides the certified lane — the
+    // test computes the same expressions through det_* and demands the
+    // state fields match bit for bit.
     assert_eq!(
         state.click_step.to_bits(),
-        (f64::exp(-1.0 / (srf * 0.001)) as f32).to_bits()
+        (detmath::det_exp(-1.0 / (srf * 0.001)) as f32).to_bits()
     );
     assert_eq!(
         state.spring_step.to_bits(),
-        (f64::exp(-1.0 / (srf * (0.005 / 3.0))) as f32).to_bits()
+        (detmath::det_exp(-1.0 / (srf * (0.005 / 3.0))) as f32).to_bits()
     );
     let w = 2.0 * std::f64::consts::PI * 2000.0 / srf;
     assert_eq!(
         state.ambient_hp_coeff.to_bits(),
-        (((1.0 - w.cos()) / (1.0 + w.cos())) as f32).to_bits()
+        (((1.0 - detmath::det_cos(w)) / (1.0 + detmath::det_cos(w))) as f32).to_bits()
     );
-    let rel = 0.04_f64.powf(1.0 / (0.002 * srf)).clamp(0.0, 0.9999);
+    let rel = detmath::det_pow(0.04, 1.0 / (0.002 * srf)).clamp(0.0, 0.9999);
     assert_eq!(state.release_coeff.to_bits(), (rel as f32).to_bits());
     let theta = (f64::from(0.375_f32) + 1.0) * 0.5 * std::f64::consts::FRAC_PI_2;
-    assert_eq!(state.pan_left.to_bits(), (theta.cos() as f32).to_bits());
-    assert_eq!(state.pan_right.to_bits(), (theta.sin() as f32).to_bits());
+    assert_eq!(
+        state.pan_left.to_bits(),
+        (detmath::det_cos(theta) as f32).to_bits()
+    );
+    assert_eq!(
+        state.pan_right.to_bits(),
+        (detmath::det_sin(theta) as f32).to_bits()
+    );
 }

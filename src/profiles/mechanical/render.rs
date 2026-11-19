@@ -9,6 +9,7 @@
 //! helpers are visible to this child module.
 use std::sync::atomic::Ordering;
 
+use crate::engine::detmath;
 use crate::profiles::{AcousticModel, KeyProfile, KeyTrigger, SynthState};
 
 use super::{ZactrixEngine, init, u32_to_signed_f32};
@@ -115,7 +116,10 @@ impl AcousticModel for ZactrixEngine {
             state.housing_noise_state = x;
             let noise = u32_to_signed_f32(x);
             let progress = state.sample_count as f32 / state.housing_excitation_samples as f32;
-            let fade = (-3.0_f32 * progress).exp();
+            // night-frontier-Z5: the fade rides the certified lane — the
+            // f32 argument math is unchanged, the transcendental is the
+            // deterministic det_exp (bits identical on every target).
+            let fade = detmath::det_exp(f64::from(-3.0_f32 * progress)) as f32;
             noise * fade
         } else {
             0.0
@@ -147,7 +151,11 @@ impl AcousticModel for ZactrixEngine {
             let fc =
                 (state.click_fc_end + state.click_fc_delta * state.click_e).clamp(20.0, 0.45 * sr);
             let k = (state.click_k + state.click_k_delta * state.click_e).clamp(0.1, 30.0);
-            let g = (std::f32::consts::PI * fc / sr).tan();
+            // night-frontier-Z5: the prewarp tan rides the certified lane
+            // — the f32 argument math is unchanged (the clamp law keeps it
+            // inside [pi*20/sr, 0.45*pi]), the transcendental is det_tan,
+            // bit-identical on every target.
+            let g = detmath::det_tan(f64::from(std::f32::consts::PI * fc / sr)) as f32;
             let a1 = 1.0 / (1.0 + g * (g + k));
             let a2 = g * a1;
             let a3 = g * g * a1;
@@ -202,7 +210,9 @@ impl AcousticModel for ZactrixEngine {
             let sfc = (state.spring_fc_end + state.spring_fc_delta * state.spring_e)
                 .clamp(20.0, 0.45 * sr);
             let sk = (state.spring_k + state.spring_k_delta * state.spring_e).clamp(0.1, 30.0);
-            let sg = (std::f32::consts::PI * sfc / sr).tan();
+            // night-frontier-Z5: the certified lane, same law as the click
+            // stage's prewarp above.
+            let sg = detmath::det_tan(f64::from(std::f32::consts::PI * sfc / sr)) as f32;
             let sa1 = 1.0 / (1.0 + sg * (sg + sk));
             let sa2 = sg * sa1;
             let sa3 = sg * sg * sa1;

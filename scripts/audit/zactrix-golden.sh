@@ -18,49 +18,32 @@
 #     MISSING  <preset> @ <rate>k
 #     ADDED    <preset> @ <rate>k
 #
-# Two gates, one honest contract:
-#
-#   default   — the STRUCTURAL gate always: a missing or added row
-#               fails (the measurand's shape is machine-independent),
-#               and every byte delta is named with its was/now pair
-#               while the run exits 0. The measured boundary lives in
-#               the init-time transcendental math (per-target libm and
-#               CPU dispatch), so the hash rows are machine
-#               fingerprints and a heterogeneous x86 fleet cannot hold
-#               a byte gate honestly — the claims lane runs this mode
-#               and the freeze stays VISIBLE, named, every run.
-#   --strict  — byte identity is ALSO gated (any changed row fails).
-#               For fleet-homogeneous lanes only: the arm64 native
-#               lane (one CPU family; its committed baseline holds
-#               byte-identically, as the parity lane in the same
-#               workflow proves) and the owner's A/B machine. A
-#               strict failure is a DOCUMENTED-CAUSE event: a
-#               re-baseline walks the rates-parity law (a logged run,
-#               the law moved first, the why in the ledger). The gate
-#               never stamps the baseline itself — stamping stays
-#               zactrix-rates-parity.sh's exclusive, logged-run
-#               contract.
+# night-frontier-Z5 upgraded the gate's class. Before the certified
+# transcendental lane the hash rows were machine fingerprints (the
+# init-time libm boundary) and only fleet-homogeneous lanes could run
+# --strict; the heterogeneous x86 claims lane recorded byte deltas
+# without gating them. The lane closed that boundary: the rendered
+# bytes no longer depend on the host's libm or CPU dispatch, so the
+# byte gate is the DEFAULT on every lane, every architecture — a
+# changed row FAILS, and its only legal cause is the documented-
+# cause re-baseline law (a logged run, the why in the ledger). The
+# gate never stamps the baseline itself — stamping stays
+# zactrix-rates-parity.sh's exclusive, logged-run contract.
 #
 # The engine is untouched by this script: it only renders and
 # compares. No audio device, no network, no eBPF attachment.
 #
 # Usage:
-#   scripts/audit/zactrix-golden.sh [--strict] [baseline-file]
+#   scripts/audit/zactrix-golden.sh [baseline-file]
 #
-# Exit code: 0 when the structural gate holds and (under --strict)
-# every row re-renders byte-identical; 1 otherwise (every delta named
-# in the output).
+# Exit code: 0 when the corpus shape holds and every row re-renders
+# byte-identical; 1 otherwise (every delta named in the output).
 
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 OUT=scripts/audit/out
 mkdir -p "$OUT"
 
-STRICT=0
-if [ "${1:-}" = "--strict" ]; then
-        STRICT=1
-        shift
-fi
 BASELINE="${1:-scripts/audit/rates-parity-baseline.txt}"
 
 cargo run --release -q --manifest-path scripts/audit/harness/Cargo.toml -- --rates \
@@ -70,7 +53,7 @@ grep '^| `' "$OUT/golden-run.txt" > "$OUT/golden-rows.txt"
 grep '^| `' "$BASELINE" > "$OUT/golden-baseline-rows.txt"
 
 echo "GOLDEN gate: the re-rendered corpus vs $BASELINE (one corpus, no duplicates)"
-python3 - "$OUT/golden-baseline-rows.txt" "$OUT/golden-rows.txt" "$STRICT" <<'PYEOF'
+python3 - "$OUT/golden-baseline-rows.txt" "$OUT/golden-rows.txt" <<'PYEOF'
 import sys
 
 
@@ -85,7 +68,6 @@ def rows(path):
 
 base = rows(sys.argv[1])
 live = rows(sys.argv[2])
-strict = sys.argv[3] == "1"
 changed = [k for k in base if k in live and base[k] != live[k]]
 missing = [k for k in base if k not in live]
 added = [k for k in live if k not in base]
@@ -104,27 +86,20 @@ for key in missing:
 for key in added:
     print(f"  ADDED    {key[0]} @ {key[1]}k")
 
-structural = bool(missing or added)
-if structural:
+if missing or added:
     print("GOLDEN FAIL: the corpus shape moved — a measurand row appeared or")
     print("vanished; the render audit's scope itself changed and must be")
     print("named in a re-baseline.")
     sys.exit(1)
-if strict and changed:
-    print("GOLDEN FAIL (strict): byte identity broke on a fleet-homogeneous")
-    print("lane — every delta is named above; a re-baseline needs the")
-    print("documented-cause law (a logged run, the why in the ledger).")
-    sys.exit(1)
 if changed:
-    print(
-        f"GOLDEN RECORD (not gated on this lane): {len(changed)} of "
-        f"{len(base)} rows carry the init-time transcendental boundary "
-        "(per-target libm/CPU dispatch) — named above, the same boundary "
-        "the rates-parity lane documents; the freeze stays visible."
-    )
-else:
-    print(
-        "GOLDEN PASS: every committed render row is byte-identical — "
-        "the sound IS the bytes"
-    )
+    print("GOLDEN FAIL (night-frontier-Z5): the rendered bytes moved against the")
+    print("committed corpus on this machine — under the certified transcendental")
+    print("lane there is no machine surface left, so a hash delta is either a")
+    print("non-deterministic float op back in the path or a re-baseline that")
+    print("must ride its documented cause (a logged run, the why in the ledger).")
+    sys.exit(1)
+print(
+    "GOLDEN PASS: every committed render row is byte-identical on this"
+    " machine — the sound IS the bytes, on every arch (night-frontier-Z5)"
+)
 PYEOF

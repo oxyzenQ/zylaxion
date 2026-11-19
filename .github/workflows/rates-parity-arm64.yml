@@ -4,21 +4,20 @@
 # DRAGON GUARD - CROSS-ARCH PARITY (arm64) — the byte-identity proof lane
 # =============================================================================
 #
-# night-depth-mariana-2: the lane that pins the cross-arch facts.
-# Two fatal gates run on the arm64 runner: the delta instrument (the
-# FZ pin read back from FPCR; the law's own delta gated at the -60 dB
-# measurand floor — the dust-confined claim, measured on THIS arch)
-# and the same-arch parity diff (this runner's rows against the
-# committed arm64 baseline — byte stability across machines of the
-# same architecture, fresh runners included). The CROSS-ARCH row diff
-# against the x86-64 baseline is RECORDED, never gated: the
-# attack-region fingerprints measured on both sides locate the
-# divergence in the init-time transcendental math (per-target libm),
-# before any render dust can exist — the boundary
-# docs/ZACTRIX_AUDIT.md names, closed later by the correctly-rounded
-# pure-Rust transcendental lane. The audit harness carries the render
-# trees and no eBPF build requirement, so no bootstrap is needed —
-# the measurand is the render.
+# night-depth-mariana-2 built this lane; night-frontier-Z5 completes
+# it. Two fatal gates run on the arm64 runner: the delta instrument
+# (the FZ pin read back from FPCR; the law's own delta gated at the
+# -60 dB measurand floor — the dust-confined claim, measured on THIS
+# arch) and the parity diff — which since the certified transcendental
+# lane is THE cross-arch proof: this runner's rows against the ONE
+# committed corpus (the x86-committed bytes) must be byte-identical,
+# because no libm transcendental is left in the audio path and the
+# rendered bytes carry no machine surface. The old lane carried two
+# baselines and recorded the cross-arch diff without gating it; the
+# boundary that forced that honesty (per-target libm,
+# docs/ZACTRIX_AUDIT.md) is closed. The audit harness carries the
+# render trees and no eBPF build requirement, so no bootstrap is
+# needed — the measurand is the render.
 #
 # The same blind posture every push-triggered lane in the estate
 # carries: no path filter, no branch filter — a filtered lane can be
@@ -108,7 +107,7 @@ jobs:
             echo "apt: landed on $landed"
           fi
 
-      - name: Cross-arch diagnostic + render parity (arm64 vs the committed baseline)
+      - name: Cross-arch diagnostic + render parity (arm64 vs the committed corpus)
         run: |
           # Fatal gate 1 — the delta instrument: the pin readback (is
           # FZ actually set on this runner), the law's own
@@ -117,21 +116,18 @@ jobs:
           # this arch), and the attack fingerprints (the columns the
           # boundary investigation reads).
           cargo run --release -q --manifest-path scripts/audit/harness/Cargo.toml -- --denormal-delta
-          # Fatal gate 2 — same-arch parity: this runner's rows
-          # against the committed arm64 baseline. Without the file
-          # the script stamps instead: it prints the full row table
-          # and fails with the instruction, so a baseline can only
-          # be born from a logged run.
-          ./scripts/audit/zactrix-rates-parity.sh \
-            scripts/audit/rates-parity-baseline-arm64.txt
+          # Fatal gate 2 — the machine-independence parity: this
+          # runner's rows against the ONE committed corpus (the
+          # x86-committed bytes). night-frontier-Z5: no libm left the
+          # path untouched — the bytes are arch-independent, so this
+          # diff IS the cross-arch proof, gated, not recorded.
+          ./scripts/audit/zactrix-rates-parity.sh
 
-      # night-frontier-Z1: the golden render corpus gate (A3), strict —
-      # this lane's runner fleet is one CPU family (the same fleet the
-      # parity step above proves byte-stable), so THIS is the honest
-      # seat for the freeze-as-a-byte-gate contract: every committed
+      # night-frontier-Z1: the golden render corpus gate (A3) — strict
+      # everywhere since night-frontier-Z5 (the byte gate is the
+      # default on every lane and every architecture): every committed
       # row re-renders byte-identical, or the delta is named with its
       # was/now pair and the lane fails into the documented-cause law.
       - name: The golden render corpus gate (strict byte identity)
         run: |
-          ./scripts/audit/zactrix-golden.sh --strict \
-            scripts/audit/rates-parity-baseline-arm64.txt
+          ./scripts/audit/zactrix-golden.sh

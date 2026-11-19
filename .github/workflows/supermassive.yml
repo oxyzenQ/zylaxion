@@ -954,8 +954,12 @@ jobs:
       # night-frontier-Z1: the golden render corpus gate (A3) — the
       # committed corpus re-rendered on THIS runner, every row keyed
       # and named; a clean verdict is the byte-level freeze proof
-      # ("the sound IS the bytes"). Headless, rootless, no audio
-      # device: the same standalone harness the audit suite rides.
+      # ("the sound IS the bytes"). night-frontier-Z5: the byte gate
+      # is the DEFAULT on every lane (the certified transcendental
+      # lane removed the libm machine surface, so a hash delta fails
+      # into the documented-cause law instead of being recorded).
+      # Headless, rootless, no audio device: the same standalone
+      # harness the audit suite rides.
       - name: The golden render corpus gate
         run: |
           set -o pipefail
