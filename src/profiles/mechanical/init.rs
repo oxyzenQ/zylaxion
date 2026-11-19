@@ -55,7 +55,7 @@ const CLICK_BREADTH: f64 = 2.5;
 /// sits at or closer to the f64 truth than the old f32 chain over the
 /// whole shipped-preset domain. night-frontier-Z5: the f64 answers
 /// themselves left libm — every transcendental below rides
-/// [`detmath`](crate::engine::detmath), the certified bounded-domain
+/// [`detmath`], the certified bounded-domain
 /// lane, so the f64 computation (and with it the f32 anchor) is
 /// bit-identical on every target: the cross-libm boundary the 3C law
 /// recorded is closed, and the anchor is the same bits everywhere.
