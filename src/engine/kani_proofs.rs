@@ -101,15 +101,13 @@ mod proofs {
     // add what a test cannot: the WHOLE input space of each law.
 
     use crate::commands::player::preset_by_index;
-    use crate::ebpf::attach_error::AttachError;
     use crate::profiles::{AcousticModel, KeyProfile, KeyTrigger, SynthState};
     use crate::session::orphan::{
-        LadderStep, PLAYER_ARG, cmdline_matches_player, ladder_next, pid_is_our_player,
+        LadderStep, cmdline_matches_player, ladder_next, pid_is_our_player,
     };
     use crate::session::privilege::{
         attach_requirement, detach_requirement, network_refusal, session_refusal,
     };
-    use std::os::unix::ffi::OsStrExt as _;
     use std::sync::atomic::Ordering;
 
     /// The orphan ladder's totality + escalation shape (entry 25): for
@@ -368,13 +366,20 @@ mod proofs {
             .store(VoicePool::volume_bits(gain), Ordering::Relaxed);
         let [left, right] = pool.process_sample(&ProofModel);
         for (name, value) in [("left", left), ("right", right)] {
+            // Explicit format args, not inline captures: the verifier
+            // lane's pinned nightly reads "{name}" as a literal string,
+            // which both lies in the message and leaves the binding
+            // unused under the lane's deny-warnings.
             assert!(
                 value.is_finite(),
-                "{name} escaped the net with a non-finite sample"
+                "{} escaped the net with a non-finite sample",
+                name
             );
             assert!(
                 (-1.0..=1.0).contains(&value),
-                "{name} escaped the clamp band: {value}"
+                "{} escaped the clamp band: {}",
+                name,
+                value
             );
         }
     }

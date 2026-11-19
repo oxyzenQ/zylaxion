@@ -985,7 +985,13 @@ became pure mul/add. The four dense-sweep detmath tests stay
 miri-gated and the harnesses stay cfg(kani)-invisible. Files of
 truth: `src/engine/kani_proofs.rs` (all sixteen harnesses), the
 widened `pub(crate)` helpers in `src/ebpf/attach_error.rs` (the
-errno text and the tail, proved through).
+errno text and the tail, proved through). The lane's compile gate
+caught its first toolchain skew on the first full CI verdict after
+Z6: the verifier's pinned nightly reads inline format captures as
+literal strings — which leaves the mix-net harness's channel binding
+unused under the lane's deny-warnings — so the harness's messages
+carry explicit format args and three dead imports left the module,
+with zero change to any harness's proof.
 
 **50. The C-state residency witness — the parked loop lets the core
 rest, and the rows say so (night-frontier-Z6).** Entry 46 (Z4) proved
