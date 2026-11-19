@@ -66,15 +66,13 @@ jobs:
   kani:
     name: Kani proof verification (the proven pure families)
     runs-on: ubuntu-24.04
-    # A cap, not a speed claim: the toolchain install and the crate build
-    # dominate the wall clock; the proofs themselves are bounded by
-    # construction (the harnesses' own input domains). Raised 30 -> 60
-    # after the night-frontier-Z7 verify watch measured the verifier
-    # action's own download stalling twice (runs 58 and 60, both killed
-    # mid-install against a 5-10 minute healthy baseline from runs 39-55
-    # the same day): the cap stays a stall detector, not a verdict on the
-    # proofs — the proofs are unchanged.
-    timeout-minutes: 60
+    # A cap, not a speed claim — and the owner's hard number: twelve
+    # minutes, no compromise. With the bundle cache above a healthy run
+    # is five to eight minutes; a cache miss that cannot land the
+    # download inside the cap is a fast honest red, not a parked job.
+    # The proofs themselves are bounded by construction (the harnesses'
+    # own input domains).
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
@@ -118,13 +116,33 @@ jobs:
           ./scripts/dev/bootstrap-ebpf.sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      # night-frontier-Z7 verify: the verifier's install is two network
+      # phases — the crates.io shim, then the bundle setup that fetches
+      # the toolchain into ~/.kani. The bundle phase is the one that
+      # stalled the lane twice (runs 58 and 60 sat past the old 30-minute
+      # cap mid-download), and re-paying it on every run is waste. Cache
+      # ~/.kani keyed on the pinned Kani version: the download happens
+      # once per version, and a hit makes the install a local no-op check
+      # (the setup skips an existing compatible bundle). Same cache idiom
+      # and SHA pin as the eBPF prerequisites above.
+      - name: Restore the Kani verifier cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ~/.kani
+          key: kani-verifier-0.68.0-${{ runner.os }}-${{ runner.arch }}
+
       # v1.1, night-depth-hardening-2 SHA pin (the line-length law keeps
       # the long-form comment above the use; the bare "# v1.1" token
       # rides the pin line itself so the actions-pin health sweep
       # enlists it — an untokened pin is permanently exempt, and an
-      # exempt pin is a contract nobody runs).
+      # exempt pin is a contract nobody runs). The version is pinned
+      # with the bundle cache above — 'latest' would float under a
+      # fixed cache key.
       - name: Install the Kani verifier
         uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f  # v1.1
+        with:
+          kani-version: '0.68.0'
 
       - name: Prove the pure laws over their whole input spaces
         run: |
