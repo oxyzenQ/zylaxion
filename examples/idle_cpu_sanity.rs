@@ -260,7 +260,7 @@ fn print_cpuidle_deltas(
     names.sort_unstable();
     names.dedup();
     for name in &names {
-        let bu: u64 = b
+        let used_before: u64 = b
             .iter()
             .filter(|(_, n, _, _)| n == name)
             .map(|(_, _, u, _)| u)
@@ -281,7 +281,7 @@ fn print_cpuidle_deltas(
             .map(|(_, _, _, t)| t)
             .sum();
         let d_time = at.saturating_sub(bt);
-        let d_use = au.saturating_sub(bu);
+        let d_use = au.saturating_sub(used_before);
         println!(
             "[idle_cpu_sanity] C-state residency: {name} +{d_use} entries, +{d_time} us over the silent window"
         );
