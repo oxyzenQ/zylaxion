@@ -78,8 +78,9 @@ const BPF_F_SLEEPABLE: u32 = 0x10;
 const ENOTSUPP: i32 = 524;
 /// Runs per measured class: one bpf() syscall executes the program
 /// ONCE (the syscall test run has no repeat), so the lane times
-/// RUNS_PER_CLASS round trips per class — enough for a stable
-/// ns/call row at microsecond scale, small enough to stay fast.
+/// RUNS_PER_CLASS round trips per class — stable at microsecond scale,
+/// fast, and the classes ride interleaved rounds so shared-runner drift
+/// lands on all lanes equally instead of on one lane mid-sequence.
 const RUNS_PER_CLASS: u64 = 20_000;
 /// `EOPNOTSUPP` — the libc-visible spelling some paths surface.
 const EOPNOTSUPP: i32 = 95;
@@ -463,7 +464,6 @@ pub(super) fn run_prog_run(object_path: &str) {
         insns.len()
     );
 
-    let repeat: u64 = RUNS_PER_CLASS as u64;
     let classes: [(&str, Vec<u8>); 5] = [
         ("press", pt_regs(1, 30, 1)),
         ("release", pt_regs(1, 30, 0)),
@@ -472,76 +472,79 @@ pub(super) fn run_prog_run(object_path: &str) {
         ("gate_off", pt_regs(1, 30, 1)),
     ];
 
-    let mut measured: Vec<(&str, u64)> = Vec::new();
+    // The probe: one un-timed call per class — the kernel's refusal is detected here.
     for (name, ctx) in &classes {
-        let enabled: u32 = if *name == "gate_off" { 0 } else { 1 };
-        set_gate(enabled);
-        let before = stats_total(stats_fd).unwrap_or(0);
-        match prog_test_run(prog_fd, ctx) {
-            Ok(_first_retval) => {
-                // The timing loop: N bpf() round trips, one execution
-                // each. The absolute ns/call names the syscall round
-                // trip included; the classes' relative deltas carry the
-                // tap's own per-path cost, which is what the gate reads.
-                let started = std::time::Instant::now();
-                let mut retval = _first_retval;
-                for _ in 1..RUNS_PER_CLASS {
-                    retval = match prog_test_run(prog_fd, ctx) {
-                        Ok(r) => r,
-                        Err(why) => {
-                            println!("PROOF 7: FAIL — {name}: {why}");
-                            std::process::exit(1);
-                        }
-                    };
-                }
-                let total_ns = started.elapsed().as_nanos() as u64;
-                let per_call = total_ns / RUNS_PER_CLASS as u64;
-                let after = stats_total(stats_fd).unwrap_or(0);
-                println!(
-                    "PROOF 7 RAW [{name}]: runs={RUNS_PER_CLASS} (one bpf() syscall each) \
-                     total={total_ns}ns ({} ns/call round trip), \
-                     last retval={retval}, stats delta={}",
-                    per_call,
-                    after - before
-                );
-                measured.push((name, per_call));
+        set_gate(if *name == "gate_off" { 0 } else { 1 });
+        if let Err(why) = prog_test_run(prog_fd, ctx) {
+            if why.contains("524") || why.contains("95") {
+                println!("PROOF 7: SKIP — the kernel refused the test run outright (ENOTSUPP-shaped: {why}); recorded, never faked");
+                std::process::exit(0);
             }
-            Err(why) => {
-                if why.contains("524") || why.contains("95") {
-                    println!(
-                        "PROOF 7: SKIP — the kernel refused the test run outright (ENOTSUPP-shaped: \
-                         {why}); recorded, never faked"
-                    );
-                    std::process::exit(0);
-                }
-                println!("PROOF 7: FAIL — {name}: {why}");
-                std::process::exit(1);
+            println!("PROOF 7: FAIL — {name}: {why}");
+            std::process::exit(1);
+        }
+    }
+
+    // The timing: interleaved rounds, not five sequential blocks — a
+    // shared runner's drift lands on whatever lane is being measured
+    // when it happens, and the sequential protocol attributed the
+    // whole drift to the later lanes (the e2e leg measured every
+    // early exit above the press path, physically impossible for
+    // this tap body). Each round walks every class, so the drift
+    // rides all lanes equally and the relative shape survives.
+    const ROUNDS: u64 = 10;
+    let subruns = RUNS_PER_CLASS / ROUNDS;
+    let mut totals: Vec<(&str, u64, u64, u32, u64)> =
+        classes.iter().map(|(n, _)| (*n, 0, 0, 0, 0)).collect();
+    for _ in 0..ROUNDS {
+        for (name, ctx) in &classes {
+            set_gate(if *name == "gate_off" { 0 } else { 1 });
+            let before = stats_total(stats_fd).unwrap_or(0);
+            let started = std::time::Instant::now();
+            let mut retval = 0;
+            for _ in 0..subruns {
+                retval = match prog_test_run(prog_fd, ctx) {
+                    Ok(r) => r,
+                    Err(why) => {
+                        println!("PROOF 7: FAIL — {name}: {why}");
+                        std::process::exit(1);
+                    }
+                };
             }
+            let round_ns = started.elapsed().as_nanos() as u64;
+            let after = stats_total(stats_fd).unwrap_or(0);
+            let slot = totals.iter_mut().find(|(n, ..)| *n == *name).expect("totals slot");
+            slot.1 += round_ns;
+            slot.2 += subruns;
+            slot.3 = retval;
+            slot.4 += after - before;
         }
     }
     set_gate(0);
+    for (name, ns, _, retval, delta) in &totals {
+        println!(
+            "PROOF 7 RAW [{name}]: runs={RUNS_PER_CLASS} (one bpf() syscall each, {ROUNDS} interleaved rounds) \
+             total={ns}ns ({} ns/call round trip), last retval={retval}, stats delta={delta}",
+            ns / RUNS_PER_CLASS
+        );
+    }
 
-    let get = |name: &str| measured.iter().find(|(n, _)| *n == name).map(|(_, d)| *d);
-    let press = get("press").expect("press measured");
-    let gate_off = get("gate_off").expect("gate_off measured");
-    let unmapped = get("unmapped").expect("unmapped measured");
-    let autorepeat = get("autorepeat").expect("autorepeat measured");
+    // totals keeps the classes' order: press, release, autorepeat, unmapped, gate_off.
+    let press = totals[0].1;
+    let gate_off = totals[4].1;
+    let unmapped = totals[3].1;
+    let autorepeat = totals[2].1;
 
     println!(
-        "PROOF 7 RECORD (repeat={repeat}, ns per call, this runner's CPU — a measurement, not a bound):"
+        "PROOF 7 RECORD (repeat={RUNS_PER_CLASS}, ns per call, this runner's CPU — a measurement, not a bound):"
     );
-    for (name, duration) in &measured {
-        println!("  {name:<12} {:.1} ns", *duration as f64 / repeat as f64);
+    for (name, ns, _, _, _) in &totals {
+        println!("  {name:<12} {:.1} ns", *ns as f64 / RUNS_PER_CLASS as f64 / RUNS_PER_CLASS as f64);
     }
 
     // The witness: the gate-off class must not move the counter; the
     // press class must (the fresh stats map starts at zero and only
     // the real render path increments it).
-    let gate_delta = measured
-        .iter()
-        .find(|(n, _)| *n == "gate_off")
-        .map(|_| stats_total(stats_fd).unwrap_or(0));
-    let _ = gate_delta;
     let total = stats_total(stats_fd).unwrap_or(0);
     if total > 0 {
         println!(
@@ -551,7 +554,7 @@ pub(super) fn run_prog_run(object_path: &str) {
     } else {
         println!(
             "PROOF 7 WITNESS: the press counter reads {total} — recorded (the ring's fullness bounds \
-             how many of the {repeat} repeats could submit; the counter contract stays pinned by the unit battery)"
+             how many of the {RUNS_PER_CLASS} repeats could submit; the counter contract stays pinned by the unit battery)"
         );
     }
 
