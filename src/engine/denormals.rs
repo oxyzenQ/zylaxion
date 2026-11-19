@@ -77,13 +77,16 @@
 //! Architectures other than the two shipped lanes are a documented
 //! no-op.
 //!
-//! # Under Miri
+//! # Under Miri and Kani
 //!
-//! The UB interpreter does not execute inline asm — the pin and the
-//! read-back compile to a documented no-op under `cfg(miri)`, and the
-//! policy tests that need real hardware guard themselves the same
-//! way. Miri audits the pure arithmetic families; the control
-//! register is hardware, not UB.
+//! The UB interpreter does not execute inline asm, and the bounded
+//! model checker does not interpret it either (`TerminatorKind::
+//! InlineAsm` is outside Kani's language) — the pin and the read-back
+//! compile to a documented no-op under `cfg(miri)` and `cfg(kani)`
+//! alike, and the policy tests that need real hardware guard
+//! themselves the same way. Miri audits the pure arithmetic families
+//! and Kani proves the integer laws; the control register is
+//! hardware, not model-checking material.
 
 /// Read the x86-64 SSE control word. `stmxcsr` takes a memory
 /// operand, so the pointer rides a general register; the asm! default
@@ -91,7 +94,7 @@
 /// compiler cannot cache or reorder the value across the barrier. The
 /// `_mm_getcsr` intrinsic is deprecated upstream with exactly this
 /// inline-asm shape named as the replacement.
-#[cfg(all(target_arch = "x86_64", not(miri)))]
+#[cfg(all(target_arch = "x86_64", not(any(miri, kani))))]
 #[inline]
 fn read_mxcsr() -> u32 {
     let mut mxcsr: u32 = 0;
@@ -111,7 +114,7 @@ fn read_mxcsr() -> u32 {
 
 /// Write the x86-64 SSE control word (`ldmxcsr`, memory operand —
 /// same barrier discipline as [`read_mxcsr`]).
-#[cfg(all(target_arch = "x86_64", not(miri)))]
+#[cfg(all(target_arch = "x86_64", not(any(miri, kani))))]
 #[inline]
 fn write_mxcsr(bits: u32) {
     // SAFETY: the asm only loads the FP control register from a
@@ -132,7 +135,7 @@ fn write_mxcsr(bits: u32) {
 /// byte-irrelevant and deliberately excluded — see the module doc.
 /// The AArch64 counterpart is one bit — FPCR bit 24 (FZ) — the
 /// output-flush contract in a single word.
-#[cfg(all(target_arch = "x86_64", not(miri)))]
+#[cfg(all(target_arch = "x86_64", not(any(miri, kani))))]
 const X86_LAW_BITS: u32 = 0x8000;
 
 /// Pin the render lane's floating-point policy on the calling thread.
@@ -145,14 +148,14 @@ const X86_LAW_BITS: u32 = 0x8000;
 /// for the measured why.
 #[inline]
 pub(crate) fn pin_render_lane() {
-    #[cfg(all(target_arch = "x86_64", not(miri)))]
+    #[cfg(all(target_arch = "x86_64", not(any(miri, kani))))]
     {
         // Read-modify-write preserves every other field (rounding
         // mode, exception masks and trap enables — all owner
         // defaults).
         write_mxcsr(read_mxcsr() | X86_LAW_BITS);
     }
-    #[cfg(all(target_arch = "aarch64", not(miri)))]
+    #[cfg(all(target_arch = "aarch64", not(any(miri, kani))))]
     {
         // FPCR bit 24 = FZ — flush-to-zero for denormalized outputs,
         // scalar and vector f32/f64. Read-modify-write preserves
@@ -187,11 +190,11 @@ pub(crate) fn pin_render_lane() {
 #[cfg(test)]
 #[inline]
 pub(crate) fn render_lane_policy_active() -> bool {
-    #[cfg(all(target_arch = "x86_64", not(miri)))]
+    #[cfg(all(target_arch = "x86_64", not(any(miri, kani))))]
     {
         read_mxcsr() & X86_LAW_BITS == X86_LAW_BITS
     }
-    #[cfg(all(target_arch = "aarch64", not(miri)))]
+    #[cfg(all(target_arch = "aarch64", not(any(miri, kani))))]
     {
         let fpcr: u64;
         // SAFETY: the asm only reads the FPCR into a register output —

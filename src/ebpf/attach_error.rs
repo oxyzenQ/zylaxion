@@ -314,7 +314,9 @@ fn is_permission(e: &std::io::Error) -> bool {
 /// with hundreds of state-dump lines whose wording and ordering are
 /// kernel-version-specific; the tail is the load-bearing, bounded half
 /// of the log — same input, same output, on every kernel shape.
-fn verifier_tail(log_text: &str, keep: usize) -> String {
+/// `pub(crate)`: the Kani lane proves the tail's bound law (night-
+/// frontier-Z6) — at most `keep` lines, each capped, over any input.
+pub(crate) fn verifier_tail(log_text: &str, keep: usize) -> String {
     let lines: Vec<&str> = log_text
         .lines()
         .map(str::trim)
@@ -338,8 +340,10 @@ fn verifier_tail(log_text: &str, keep: usize) -> String {
 /// errno -> the strerror text (the marker doctor line never sees this;
 /// the live attach log does). A tiny local table instead of
 /// `strerror_r` FFI — the errno set that can reach it is small and
-/// known, and std-only discipline holds.
-fn errno_text(errno: i32) -> &'static str {
+/// known, and std-only discipline holds. `pub(crate)`: the Kani lane
+/// proves the table's totality over the whole i32 errno domain
+/// (night-frontier-Z6).
+pub(crate) fn errno_text(errno: i32) -> &'static str {
     match errno {
         libc::EPERM => "operation not permitted",
         libc::EACCES => "permission denied",

@@ -39,6 +39,11 @@ pub use pool::VoicePool;
 // module (the volume cell) and across the crate's pure surfaces.
 #[cfg(kani)]
 mod kani_proofs;
+
+// night-frontier-Z6: the errno-table proof family (entry 49), split
+// from kani_proofs.rs under the 600-LOC law — the same verifier lane.
+#[cfg(kani)]
+mod kani_laws;
 pub use voice::Voice;
 
 #[cfg(test)]
