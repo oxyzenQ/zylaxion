@@ -624,13 +624,22 @@ official vectors. `provenance_view()` materializes the plaintext in
 ONE unmask pass per layer (the single-pass invariant: the displayed
 bytes are exactly the bytes the integrity folds); `-V` reports
 `status=verified` or `tampered` on the Depth-matrix line, and
-`zylaxion sig` walks the four verification depths (runtime identity,
+`zylaxion sig` walks the five verification depths (runtime identity,
 layer binding, anchor integrity, the running image's own self-hash
-fingerprint — a fingerprint by law, it cannot embed its own digest)
-and exits 2 on any tamper. Files of truth: `src/info/signature.rs`,
+fingerprint — a fingerprint by law, it cannot embed its own digest —
+and, since night-depth-hardening-Z1 D2, the tap-object row: the
+embedded eBPF object re-hashed against the build-time stamp
+`ZYLAXION_TAP_OBJECT_B3`, the ring-0 asset pulled inside the
+self-verification circle, a post-build patch refused by name with both
+digests; the zejtron night-frontier-Z5 shape) and exits 2 on any
+tamper. Files of truth: `src/info/signature.rs`,
 `src/commands/sig.rs`, and
-`scripts/release/generate-provenance-words.py`; pinned by
-`test/info/signature_tests.rs` and `test/commands/sig_tests.rs`.
+`scripts/release/generate-provenance-words.py`; the stamping lives in
+`build/tapstamp.rs`; pinned by
+`test/info/signature_tests.rs` and `test/commands/sig_tests.rs`, and
+proved end to end on a real patched binary by
+`scripts/audit/tamper-sig-probe.sh` (the CI check job's tamper-sig
+probe leg).
 night-depth-hardening-Z1 deepens the matrix with the process-identity
 depth (D4): the `Dragon Guard - Reproducible Release Chain` lane builds
 the static musl v3 shape on two independent hosts from one pinned

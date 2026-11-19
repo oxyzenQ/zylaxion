@@ -12,7 +12,8 @@ runtime records in CI. This audit records the method, the live
 evidence, the three defects the instruments caught (two mine, both
 named and fixed from evidence), and the honest boundaries. Head
 commit at audit time: `3186208` (v80.2.3 era, all ten Dragon Guard
-lanes green).
+lanes green). Task 3 (the D2 tap-object self-verification) joined the
+series later; its section at the end carries its own live evidence.
 
 ## Task 1: the D4 reproducible release chain
 
@@ -133,6 +134,58 @@ run for any push; each leg's kernel family witness is in the run log
 (the `MASS: init booted, kernel …, leg …` line). The alsa pin and the
 kernel pins verify with `sha256sum -c` against the tables in the
 script and the workflow.
+
+## Task 3: the D2 tap-object self-verification
+
+**What shipped.** The build stamps the staged object's blake3 as a
+compile-time env fact (`build/tapstamp.rs` stamps
+`ZYLAXION_TAP_OBJECT_B3` from BOTH staging lanes, the moment the
+object lands in OUT_DIR — the zejtron night-frontier-Z5 shape, ported
+to zylaxion's vocabulary), and `sig`'s new fifth depth row
+`D4 tap-object` re-hashes the bytes the binary actually carries
+(through the same `black_box` barrier the anchor recompute rides — a
+constant-folded recompute would verify a patched binary as happily as
+a pristine one) and compares them to the stamp. Three arms pinned in
+`test/info/signature_tests.rs` (the pristine self-check through the
+real stamp, the one-flip refuse naming both digests, the absent-stamp
+honest fail); the report shape pinned at 5/5 in
+`test/commands/sig_tests.rs`.
+
+**The instrument, end to end.** `scripts/audit/tamper-sig-probe.sh`
+(the Dragon Guard check job's tamper-sig leg, after cargo test):
+locates the staged object's byte-exact run inside the built binary,
+flips ONE byte in a patched copy, and demands the refusal by name
+beside a pristine control arm. Live evidence, debug binary at head
+`a6827a9-dirty`:
+
+- Control arm: pristine `sig` reads
+  `SIGNATURE: AUTHENTIC (5/5 depths verified)`, the D4 row green — and
+  its digest equals the `ebpf-prebuilt/manifest.toml` object pin
+  (`eca1b26b…c3470`): the binary proves its embedded camera IS the
+  manifest's object, the D2 task's own sentence.
+- Tamper arm: one flipped byte (offset 872700) →
+  `D4 tap-object  FAIL — the embedded tap object hashes to
+  b3:d2c76f3a…, the build stamped b3:eca1b26b… - the tap was patched
+  after the build`, verdict `SIGNATURE: TAMPERED (4/5 depths
+  verified)`, exit 2 — while D0-D2 stay green. The identity layers
+  were never touched by the patch; that is exactly the hole the new
+  depth closes (the attack story the task opened with: `-V` still
+  says verified, the camera was swapped).
+
+**Honest boundaries.** The row proves the embedded object is exactly
+what the build staged (and, on the registry lane, transitively what
+the manifest pins) — an attacker who fully understands the stamp can
+rebuild and re-stamp; the release checksums and the legal layer
+remain the outer circle. The `-V` Depth-matrix line is untouched (the
+storage-layer axis, the family contract). The verification runs on
+the `sig` surface; a live attach still trusts the image it runs from
+— extending the stamp check to the attach path is a deliberate
+non-goal here (the surface scripts can gate on is `sig`, and its exit
+code is the contract).
+
+Reproduction: build any checkout (`cargo build`), run
+`./scripts/audit/tamper-sig-probe.sh target/debug/zylaxion`; both
+arms green means the circle holds.
 
 <!-- ZYLAXION-DISCLAIMER -->
 <!--

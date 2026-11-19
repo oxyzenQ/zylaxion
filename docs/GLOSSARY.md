@@ -107,8 +107,10 @@ drifts between docs is a bug.
   opaque splitmix64-masked u64 words (no printable run of four or
   more bytes at rest), sealed by FNV-1a 64 fingerprints and a
   blake3 anchor over the framed payload. Materializes to plaintext
-  only on the `-V` surface; `zylaxion sig` renders the four-depth
-  verification ladder and exits 2 on any tamper.
+  only on the `-V` surface; `zylaxion sig` renders the five-depth
+  verification ladder (night-depth-hardening-Z1 D2 added the D4
+  tap-object row: the embedded eBPF object re-hashes against the
+  build-time stamp) and exits 2 on any tamper.
 - **word verdicts** — the doctor's PASS:/FAIL: lines through the
   green/red lanes. No glyph decorations anywhere in the tree.
 - **color gate** — color renders only on a TTY with `NO_COLOR`

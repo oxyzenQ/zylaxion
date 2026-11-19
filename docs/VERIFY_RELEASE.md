@@ -71,7 +71,7 @@ name's platform id:
 # Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026
 # Depth-matrix: ... status=verified ...       <- the provenance seal, green on a TTY
 ./zylaxion sig
-# verdict: SIGNATURE: AUTHENTIC (4/4 depths verified)  <- exit 2 on any tamper
+# verdict: SIGNATURE: AUTHENTIC (5/5 depths verified)  <- exit 2 on any tamper
 ```
 
 The ownership claim is embedded MASKED (night-signature-advanced-1):
@@ -81,6 +81,16 @@ line reports `status=verified` only when the masked layers, their
 fingerprints, the identity binding, and the blake3 anchor all
 recompute — `status=tampered` (or a nonzero `sig` exit) is the honest
 signal that the artifact was patched.
+
+The fifth depth (`tap-object`, night-depth-hardening-Z1 D2) goes one
+circle tighter: the embedded eBPF object — the one component that
+executes at ring 0 — re-hashes against the digest the build stamped
+over the staged object (`ZYLAXION_TAP_OBJECT_B3`). A binary whose
+embedded object was patched after the build reports AUTHENTIC identity
+layers and still exits 2 with the `D4 tap-object` row FAIL naming both
+digests. CI proves this end to end: the `Dragon Guard - CI` check job
+runs `scripts/audit/tamper-sig-probe.sh`, which patches one byte of a
+real built binary and demands the refusal by name.
 
 ### What the fp= token hashes (night-pro-1)
 
