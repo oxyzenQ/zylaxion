@@ -22,6 +22,15 @@ mod denormals;
 mod pool;
 mod voice;
 
+// night-frontier-Z5: the certified bounded-domain transcendental lane
+// — the pure-IEEE-arithmetic replacements for every libm
+// transcendental on the audio path. Its addition, and the init/render
+// call-site swap onto it, are the documented why this freeze pass
+// admits: a measured improvement proven by the audit harness (the
+// golden corpus becomes machine-independent; the certificate and the
+// vectors live in the module and its test tree).
+pub mod detmath;
+
 pub use pool::VoicePool;
 
 // night-depth-hardening-2, the proven datapath: the Kani bounded-model
@@ -35,6 +44,10 @@ pub use voice::Voice;
 #[cfg(test)]
 #[path = "../../test/engine/denormal_policy_tests.rs"]
 mod denormal_policy_tests;
+
+#[cfg(test)]
+#[path = "../../test/engine/detmath_tests.rs"]
+mod detmath_tests;
 
 // night-improve-21: the former convenience re-exports of SAMPLE_RATE
 // and MAX_POLYPHONY are retired with the unification — the profiles

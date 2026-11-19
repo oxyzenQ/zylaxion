@@ -14,6 +14,13 @@
 #[path = "../src/profiles/mod.rs"]
 mod profiles;
 
+// night-frontier-Z5: the profiles tree's init/render now rides the
+// certified transcendental lane, so the engine tree joins the include
+// set (the call sites import crate::engine::detmath).
+#[allow(unused_imports, dead_code)]
+#[path = "../src/engine/mod.rs"]
+mod engine;
+
 use profiles::{AcousticModel, HousingParams, KeyProfile, KeyTrigger, MechanicalClick, SynthState};
 
 fn render_energy(profile: KeyProfile, n: usize) -> f32 {
