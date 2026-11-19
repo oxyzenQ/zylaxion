@@ -186,6 +186,18 @@ jobs:
       - name: Run tests
         run: cargo test
 
+      # night-depth-hardening-Z1 D2: the tamper-sig probe - the CI leg
+      # that swaps one byte of the embedded tap object and demands the
+      # sig surface refuse it BY NAME (exit 2, the D4 tap-object row
+      # FAIL). The build.rs staging lane ran during the build and left
+      # the OUT_DIR object; the debug binary embeds those bytes, and
+      # the probe patches a copy (the original is never modified) to
+      # prove the runtime mechanism on a real artifact.
+      - name: Tamper-sig probe (D2 embedded-object self-check)
+        run: |
+          cargo build --locked
+          ./scripts/audit/tamper-sig-probe.sh target/debug/zylaxion
+
   # night-improve-24: the kernel-side lane. The tap is a detached
   # workspace on its own dated nightly (ebpf/rust-toolchain.toml),
   # cross-compiled to bpfel-unknown-none with -Z build-std=core and

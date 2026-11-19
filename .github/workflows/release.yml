@@ -335,8 +335,8 @@ jobs:
                 || { echo "::error::Expected materialized signature manifest in -V"; exit 1; }
               "${BIN}" -V | grep -F "status=verified" \
                 || { echo "::error::Expected Depth-matrix status=verified in -V"; exit 1; }
-              "${BIN}" sig | grep -F "SIGNATURE: AUTHENTIC (4/4 depths verified)" \
-                || { echo "::error::Expected sig verdict AUTHENTIC 4/4"; exit 1; }
+              "${BIN}" sig | grep -F "SIGNATURE: AUTHENTIC (5/5 depths verified)" \
+                || { echo "::error::Expected sig verdict AUTHENTIC 5/5"; exit 1; }
               ;;
           esac
           echo "=== ldd ==="
