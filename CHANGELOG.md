@@ -3025,3 +3025,70 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
+### Added
+
+- **night-frontier-Z5: the certified bounded-domain transcendental
+  lane (entry 47)** — every libm transcendental on the audio path
+  (the init anchors' tan, exp, powf, cos, and sin, the render
+  path's per-sample f32 tan, and the housing fade's per-sample
+  f32 exp) resolves through pure IEEE-754 f64 arithmetic in
+  `src/engine/detmath/`: Taylor polynomials on closed,
+  architecture-locked domains, evaluated by Horner in plain
+  mul/add that Rust never contracts into FMA, so the returned bits
+  are identical on x86-64-v3, x86-64-v4, arm64, and every glibc
+  version. The exact-Fraction certificates and the golden bit
+  vectors come from `scripts/engine/generate-detmath.py` and are
+  pinned bit for bit by `test/engine/detmath_tests.rs` and
+  `detmath_vectors.rs`. One golden corpus serves every
+  architecture: the byte gate is strict on every lane, and the
+  measurands are unchanged per row on the documented-cause
+  re-baseline.
+
+- **night-frontier-Z5: the tap-behavior golden corpus — the kernel
+  side IS the bytes (PROOF 9, entry 48)** — the production tap
+  object loads unattached through the loader's own head, a scripted
+  event sequence drives it via BPF_PROG_TEST_RUN, and the record
+  order, the stats deltas, and the ring-saturation posture (the
+  capacity measured in-run, 2047 against the 2048-record ceiling)
+  compare against a compiled golden contract in
+  `scripts/audit/harness/src/tapgolden.rs` (the host wrapper
+  `scripts/audit/zactrix-tap-golden.sh`, the guest wiring in
+  `scripts/ci/supermassive-init.sh`). A tap change that moves one
+  tuple or one delta fails with the delta named.
+
+- **night-frontier-Z6: the proven control plane (entry 49)** —
+  sixteen new Kani harnesses (`src/engine/kani_proofs.rs` and
+  `src/engine/kani_laws.rs`) prove the marker wire format over the
+  whole u32 space, the three errno classifiers over the whole i32
+  domain, the errno text table's totality, the verifier-log tail
+  bound, the orphan ladder's totality and collapse law, the
+  reaper's exact-match identity gate, the privilege table over its
+  whole fact space, the no-config preset resolution over the whole
+  u32 index domain, the pool's mix net end to end, and the envelope
+  decay chain's monotonicity and absorbing voice-off band —
+  quantified over the whole input space, not sampled.
+
+- **night-frontier-Z6: the C-state residency witness (entry 50)** —
+  the parked loop's silent window carries two idle witnesses: the
+  `/proc/stat` idle-time gate at 90 percent of the window in
+  `scripts/supermassive/sm_idle.py`, and the cpuidle residency rows
+  recorded per state where the sysfs exists (the guest's absent
+  deep C-states land as provenance notes, never as skips). The
+  owner-machine benchmark `examples/idle_cpu_sanity.rs` gained the
+  same witness in its phase-1 park. The claim the battery carries:
+  zylaxion's presence in a silent session is invisible to the
+  power profile.
+
+### Documentation
+
+- **night-frontier-Z7: the realism-lane deepeners filed as LEARN
+  verdicts (entries 51-52)** — the release-impact physics law (one
+  stage machine, two impacts) and the 1/f human-motor fluctuation
+  law (red noise at the envelope level, where every shipping tool
+  randomizes white) carry their formulations, honest world-states,
+  and execution paths in `docs/INNOVATIONS.md`. No instrument
+  ships by their own verdict: the frozen Zactrix engine, the
+  documented-cause re-baseline law, and the owner's ears stay the
+  gate, and the proof obligation arrives only if the realism lane
+  opens.
+
