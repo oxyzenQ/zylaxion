@@ -768,7 +768,9 @@ ringbuf crate (nothing of ours for a model to walk) and the one
 first-party lock-free surface is the single-atomic volume cell this
 lane already proves — a loom model over one atomic word would prove
 what the hardware contract already grants; a loom lane rides a
-first-party lock-free structure if one ever lands. Files of truth:
+first-party lock-free structure if one ever lands. night-frontier-Z6
+(entry 49) widened the proven surface to the control plane's integer
+laws this entry left measured. Files of truth:
 `src/engine/kani_proofs.rs` (the harnesses), `.github/workflows/
 kani.yml` (the lane, the action SHA-pinned), `Cargo.toml` (the cfg
 declaration).
@@ -928,6 +930,95 @@ honestly skips elsewhere. Files of truth:
 `scripts/audit/zactrix-tap-golden.sh` (the host wrapper), and the
 guest wiring in `scripts/ci/supermassive-init.sh`.
 
+**49. The proven control plane — the measured integer laws become
+proved (night-frontier-Z6).** Entry 44's verdict carried an honest
+remainder: the errno classification table (entry 28), the orphan
+decision ladder (entry 25), the privilege polarity table (entry 26),
+the no-config preset resolution (entry 27), the pool's NaN-silence
+mix net, and the envelope decay chain were pinned by tests — sampled,
+not quantified. This lane closes that gap under the same verifier
+(sixteen new harnesses in `src/engine/kani_proofs.rs`, the same
+`Dragon Guard - Kani` lane): the marker wire format round-trips
+inside the pinned 1..=9 band and refuses every code outside it, over
+the whole u32 space; the three errno classifiers classify the WHOLE
+i32 errno domain exactly per the kernel's own table (EPERM/EACCES
+privilege, ENOENT the missing symbol, EINVAL the refusal, everything
+else the honest Unknown); the errno text table is total and
+non-empty over i32; the verifier-log tail stays bounded (at most
+`keep` lines, each capped) over bounded symbolic logs; the orphan
+ladder is total and shape-true over all 256 stage values, every arm
+carries a reachability witness (no orphan decision), every stage at
+or above 2 collapses onto stage 2's behavior (a corrupted stage byte
+cannot invent a fourth step), and the reaper's identity gate breaks
+on ANY single flipped byte of a matching cmdline (a map-driven
+/proc retarget cannot mutate its way past the exact-match law) with
+unreadable shapes refusing by construction; the privilege table
+matches the audit over the whole fact space — root refused at the
+network and session surfaces, REQUIRED at attach (the mirror), detach
+refusing exactly when a non-root caller cannot complete either
+removal half, every fired wording non-empty and carrying the sudo
+tip; the no-config preset resolution is total over the whole u32
+index domain — in range it IS the registry entry, out of range every
+index collapses onto the one compiled default, the profile stays
+finite and inside the clamp bands, and the path never panics; the
+pool's mix net is proved END TO END through the real pool code: two
+live voices render stereo pairs from the render-reachable band into
+a gain from the volume cell's proven band, and the sample the user
+hears is always finite and always inside [-1, 1] — the worst the
+render can do is silence, held to the reachable space (the verifier
+refuses to reason through a NaN intermediate, so the net's branch
+for the impossible-under-the-clamp-laws states stays pinned by the
+pool test tree, named honestly in the harness); and the envelope
+decay chain is monotone
+non-increasing for every step below 1.0, strictly decreasing above
+the denormal-glue floor inside the certified device domain (the
+largest reachable renormalized coefficient is 0.9999 raised to the
+smallest rate ratio the documented device span allows, 44100/384000
+— a f32 constant with its derivation in the harness), and the
+voice-off band is ABSORBING: an envelope below the threshold can
+never resurrect through decay arithmetic. The honest SMT limit
+holds and is the reason the order mattered: functions whose behavior
+rides a transcendental stay outside the solver — and
+night-frontier-Z5 moved the transcendentals to certified
+build-time tables precisely so the decay chain THIS entry proves
+became pure mul/add. The four dense-sweep detmath tests stay
+miri-gated and the harnesses stay cfg(kani)-invisible. Files of
+truth: `src/engine/kani_proofs.rs` (all sixteen harnesses), the
+widened `pub(crate)` helpers in `src/ebpf/attach_error.rs` (the
+errno text and the tail, proved through).
+
+**50. The C-state residency witness — the parked loop lets the core
+rest, and the rows say so (night-frontier-Z6).** Entry 46 (Z4) proved
+the parked loop costs 0.004 percent of a core with ZERO timer
+wakeups; the physics half — the core actually FALLS into the
+machine's idle states and STAYS there — was the claim's unmeasured
+half. Two witnesses, one law, each on the stage that can honestly
+see it. The E2E guest battery (sm_idle) brackets its existing silent
+window with two snapshots: the kernel's own idle-time accounting
+(/proc/stat — always present) gates at 90 percent of the window (a
+spinning poll eats the delta and fails; the parked loop rests), and
+the cpuidle residency rows (per-state time deltas, aggregated across
+cpus) are RECORDED, never gated — a micro-VM guest exposes whatever
+idle states its kernel and machine model carry, and the host's real
+deep C-states live above the guest's view entirely, so the absent-
+sysfs case is an honest skip naming the host instrument. The host
+instrument (idle_cpu_sanity, the owner-machine benchmark) gained the
+same witness in its phase-1 park: cpuidle sysfs snapshots bracket the
+silent window and print per-state residency deltas — the measured
+first run read `haltpoll idle +3918 entries, +19672367 us` alongside
+`POLL +4741 entries, +149002 us` on the two-vCPU sandbox: both cores
+spent essentially the whole window in the halt state while the parked
+loop woke zero times. The claim the battery now carries: zylaxion's
+presence in a silent session is not merely cheap, it is INVISIBLE to
+the power profile — the cores rest in their idle states for the
+whole silence, witnessed by the kernel's own counters on both stages.
+The gate stays the CPU and wakeup bars (Z4's); the residency is the
+row, recorded where it can be honestly seen. Files of truth:
+`scripts/supermassive/sm_idle.py` (the guest witness: the idle-time
+gate and the residency rows riding the same silent window),
+`examples/idle_cpu_sanity.rs` (the host witness: the cpuidle
+snapshot, the delta rows, the honest skip).
+
 ## The test tree that pins the ledger
 
 The ledger is not honored by prose alone: 38 test files carrying 297
@@ -979,7 +1070,11 @@ render path; the saturation-boundary rows of entry 43 re-run with
 with `cargo test detmath` and regenerate through
 `scripts/engine/generate-detmath.py`; the tap-behavior corpus runs
 `scripts/audit/zactrix-tap-golden.sh` (root, beside PROOF 7 in the
-e2e guest); `zylaxion doctor` prints the kernel report the attach
+e2e guest); the proven control plane verifies with `cargo kani`
+(entry 49's sixteen harnesses, the verifier lane); the C-state
+witness rides the silent window of the parked-player battery
+(sm_idle) and the owner-machine benchmark (idle_cpu_sanity);
+`zylaxion doctor` prints the kernel report the attach
 gate consumes; `zylaxion status` reads the TAP_KIND slot the loader
 wrote; the proven-datapath harnesses of entry 44 verify under the
 Kani lane (`cargo kani` — the Monday 10:00 WIB schedule or a manual
