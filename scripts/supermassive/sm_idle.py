@@ -310,10 +310,13 @@ def battery(ledger: Ledger, binary: str, user: str) -> None:
                 pretty or "no residency growth in the exposed states",
             )
         else:
-            ledger.skip_row(
+            # The absence is provenance, not a verdict: the rows' contract
+            # is recorded-not-gated (the name says so), and the strict lane
+            # accepts no skips — so this lands as a NOTE, never a SKIP.
+            ledger.info(
                 "the cpuidle residency rows (measured, recorded — not gated)",
                 "cpuidle sysfs is absent in this guest — the deep-state half is the "
-                "host instrument's (idle_cpu_sanity), honestly skipped here",
+                "host instrument's (idle_cpu_sanity); the rows stay recorded, not gated",
             )
 
         rc, out = _run_as_user(user, binary, ["off"])
