@@ -64,14 +64,60 @@ env:
 
 jobs:
   kani:
-    name: Kani proof verification (the proven pure families)
+    name: prove ${{ matrix.family.name }}
     runs-on: ubuntu-24.04
+    # night-frontier-Z7 verify: the micro-matrix split. The lane ran
+    # all nineteen harnesses in ONE job — the only job in the estate
+    # that ever approached or passed the fifteen-minute wall (the
+    # owner's hard line: nothing waits that long), and the single-job
+    # shape turned the install stall into a total lane outage. Each
+    # family now rides its own runner, its own twelve-minute cap, and
+    # its own named verdict: six families cover the nineteen harnesses
+    # exactly once (fail-fast false, so one red family never hides the
+    # others), the heavy whole-domain classifier trio is isolated from
+    # the fast render laws, and the OOM-prone verifier-tail harness
+    # shares a family with its two siblings instead of failing nine
+    # other proofs with it. Healthy leg wall clock: four to eight
+    # minutes with a warm bundle cache; a cold-cache leg that cannot
+    # land the download inside the cap is a fast honest red.
+    strategy:
+      fail-fast: false
+      matrix:
+        family:
+          - name: render-laws (the entry 44 trio)
+            args: >-
+              --harness engine::kani_proofs::proofs::volume_bits_clamps_every_volume
+              --harness engine::kani_proofs::proofs::gain_from_percent_is_finite_and_monotone
+              --harness engine::kani_proofs::proofs::u32_to_signed_f32_stays_in_unit_range
+          - name: decision-ladder-and-pid
+            args: >-
+              --harness engine::kani_proofs::proofs::ladder_next_is_total_and_shape_true
+              --harness engine::kani_proofs::proofs::ladder_has_no_orphan_arm
+              --harness engine::kani_proofs::proofs::ladder_collapses_above_stage_two
+              --harness engine::kani_proofs::proofs::pid_identity_gate_refuses_unreadable_shapes
+          - name: privilege-preset-cmdline
+            args: >-
+              --harness engine::kani_proofs::proofs::privilege_table_matches_the_audit
+              --harness engine::kani_proofs::proofs::preset_by_index_is_total_and_valid
+              --harness engine::kani_proofs::proofs::cmdline_tamper_breaks_the_real_player_shape
+          - name: pool-envelope-tail
+            args: >-
+              --harness engine::kani_proofs::proofs::pool_mix_net_contains_every_voice_and_gain
+              --harness engine::kani_proofs::proofs::envelope_decay_is_monotone_and_off_is_absorbing
+              --harness engine::kani_laws::errno_proofs::verifier_tail_stays_bounded
+          - name: wire-and-errno-text
+            args: >-
+              --harness engine::kani_laws::errno_proofs::attach_error_codes_round_trip_inside_the_pinned_band
+              --harness engine::kani_laws::errno_proofs::attach_error_codes_refuse_outside_the_band
+              --harness engine::kani_laws::errno_proofs::errno_text_is_total_and_nonempty
+          - name: errno-classifiers (the whole-domain trio)
+            args: >-
+              --harness engine::kani_laws::errno_proofs::kprobe_open_classifies_the_whole_errno_domain
+              --harness engine::kani_laws::errno_proofs::fentry_link_classifies_the_whole_errno_domain
+              --harness engine::kani_laws::errno_proofs::link_create_classifies_the_whole_errno_domain
     # A cap, not a speed claim — and the owner's hard number: twelve
-    # minutes, no compromise. With the bundle cache above a healthy run
-    # is five to eight minutes; a cache miss that cannot land the
-    # download inside the cap is a fast honest red, not a parked job.
-    # The proofs themselves are bounded by construction (the harnesses'
-    # own input domains).
+    # minutes per leg, no compromise. The proofs themselves are bounded
+    # by construction (the harnesses' own input domains).
     timeout-minutes: 12
     steps:
       - name: Checkout
@@ -138,12 +184,13 @@ jobs:
       # enlists it — an untokened pin is permanently exempt, and an
       # exempt pin is a contract nobody runs). The version is pinned
       # with the bundle cache above — 'latest' would float under a
-      # fixed cache key.
-      - name: Install the Kani verifier
+      # fixed cache key. The args ride the matrix family: --exact plus
+      # the family's fully qualified harness names, so each leg proves
+      # exactly its own laws and nothing else (the multi-filter
+      # semantics are the verifier's own documented contract: one
+      # --harness flag per harness).
+      - name: Install the Kani verifier and prove the family
         uses: model-checking/kani-github-action@f838096619a707b0f6b2118cf435eaccfa33e51f  # v1.1
         with:
           kani-version: '0.68.0'
-
-      - name: Prove the pure laws over their whole input spaces
-        run: |
-          cargo kani --output-format terse
+          args: --output-format terse --exact ${{ matrix.family.args }}
