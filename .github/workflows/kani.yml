@@ -4,12 +4,14 @@
 #
 # Dragon Guard - Kani (night-depth-hardening-2/3): the proven datapath lane.
 # The bounded-model-checking verifier compiles the pure law harnesses in
-# src/engine/kani_proofs.rs and proves each invariant over the WHOLE
-# reachable input space — the volume clamp cell, the gain monotonicity, and
-# the noise mapping — not a sampled slice of it. Unit tests sample; this
-# lane quantifies. The solver time is bounded by the harnesses' own input
-# domains (u32 / f32 single values, no loops, no heap), so the lane stays
-# inside a CI-sized budget.
+# src/engine/kani_proofs.rs and src/engine/kani_laws.rs — nineteen of
+# them — and proves each invariant over the WHOLE reachable input
+# space, not a sampled slice of it. Unit tests sample; this lane
+# quantifies. Fourteen of the nineteen harnesses measure fast (the
+# push gate below: seven legs, every leg inside the twelve-minute
+# cap); five carry symbolic domains wide enough to outmeasure any
+# acceptable wall clock, and they ride the deep job at the bottom of
+# this file, gated off push and PR so nobody waits on them.
 #
 # night-depth-hardening-3 makes the lane a push net, not an absent one: the
 # push and pull_request triggers ride UNFILTERED (the owner's unfiltered-CI
@@ -70,16 +72,14 @@ jobs:
     # all nineteen harnesses in ONE job — the only job in the estate
     # that ever approached or passed the fifteen-minute wall (the
     # owner's hard line: nothing waits that long), and the single-job
-    # shape turned the install stall into a total lane outage. Each
-    # family now rides its own runner, its own twelve-minute cap, and
-    # its own named verdict: six families cover the nineteen harnesses
-    # exactly once (fail-fast false, so one red family never hides the
-    # others), the heavy whole-domain classifier trio is isolated from
-    # the fast render laws, and the OOM-prone verifier-tail harness
-    # shares a family with its two siblings instead of failing nine
-    # other proofs with it. Healthy leg wall clock: four to eight
-    # minutes with a warm bundle cache; a cold-cache leg that cannot
-    # land the download inside the cap is a fast honest red.
+    # shape turned the install stall into a total lane outage. The
+    # push gate now keeps only what measures fast: three families and
+    # four singles cover fourteen harnesses, each leg its own runner,
+    # its own twelve-minute cap, and its own named verdict (fail-fast
+    # false — one red leg never hides the others). Every leg measured
+    # 1.6 to 4.4 minutes on the first split run. The five atomic
+    # harnesses that outmeasure any acceptable wall clock ride the
+    # deep job below, gated off push and PR.
     strategy:
       fail-fast: false
       matrix:

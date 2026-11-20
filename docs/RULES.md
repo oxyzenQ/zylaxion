@@ -194,7 +194,7 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 - **Scanner rule:** a scanner workflow carries the surface it scans
   (the zelynic NIGHT-improve-11 law) — `Dragon Guard - Security
   Audit` (audit.yml, cargo-audit `--deny warnings`) scans on every
-  push and PR unfiltered, with the weekly Monday 03:00 UTC clock
+  push and PR unfiltered, with the weekly Sunday 03:00 UTC clock
   (10:00 WIB — night-consistent-1) as the between-pushes advisory-DB
   watch.
   It is the canonical CVE verdict; the local gate runs cargo audit
@@ -221,7 +221,7 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   (every tracked lock via `scripts/dev/update-deps.sh`, night-zen-1 — root,
   fuzz/, ebpf/, scripts/audit/harness/) and commits directly to `main`.
   NO PRs. NO branch spam.
-- **Maintenance schedule:** Weekly Monday 03:00 UTC = 10:00 WIB.
+- **Maintenance schedule:** Weekly Sunday 03:00 UTC = 10:00 WIB.
 - **Bot identity:** Commits as `github-actions[bot]`.
 - **Workflow titles:** the `Dragon Guard - <lane>` family, exactly as
   in the zelynic reference (CI, Supermassive, Supermassive E2E, Miri,
