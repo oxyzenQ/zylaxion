@@ -14,6 +14,7 @@
 // the pins hold in every lane: plain under the captured test harness,
 // the tier bytes wherever the gate paints.
 
+use std::io::IsTerminal;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
@@ -115,18 +116,33 @@ fn the_loading_line_rides_the_bracket_grammar() {
     );
 }
 
-/// The inert machine: the test lane runs piped, so arm() takes the
-/// gate's off arm — no thread, no width, and a finish that writes
-/// nothing. A piped `--check-update` pays one gate probe and
-/// nothing else, byte for byte.
+/// The gate's two arms, each pinned where it is deterministic. The
+/// piped arm (the native test lane's answer): no thread, no width,
+/// and a finish that writes nothing — a piped `--check-update` pays
+/// one gate probe and nothing else, byte for byte. The terminal arm
+/// (the Miri exception, night-dragon-maintenance-T1, the red-Miri
+/// incident): the interpreter's isatty answer for captured stdio is
+/// nightly-dependent, so where it reports a terminal, arm() takes the
+/// threaded arm honestly — the pin there is the spawn and the clean
+/// join, not the sink (the below-threshold byte silence stays pinned
+/// by the undrawn-machine test, whose construction cannot race a
+/// scheduler).
 #[test]
-fn the_inert_spinner_never_draws_and_never_spawns() {
+fn the_gate_off_arm_spawns_nothing_and_the_fast_path_is_silent() {
     test_clear_drawn();
     let spinner = Spinner::arm("checking for updates", Style::Helix);
-    assert!(spinner.handle.is_none());
-    assert_eq!(spinner.width, 0);
-    spinner.finish();
-    assert!(test_drawn_bytes().is_empty());
+    if std::io::stderr().is_terminal() {
+        assert!(
+            spinner.handle.is_some(),
+            "the terminal arm spawns the machine"
+        );
+        spinner.finish();
+    } else {
+        assert!(spinner.handle.is_none());
+        assert_eq!(spinner.width, 0);
+        spinner.finish();
+        assert!(test_drawn_bytes().is_empty());
+    }
 }
 
 /// The drawn machine's clear, byte-pinned: the drawn CELL width

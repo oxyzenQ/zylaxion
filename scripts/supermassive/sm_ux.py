@@ -281,11 +281,14 @@ def _loading_lane(ledger: Ledger, binary: str) -> None:
     """The loading lane (night-ux-orion-1): the spinner's real bytes.
 
     The fetch behind --check-update is the one indeterminate wait on a
-    drive-by surface. Three doors, all honest without the tap:
+    drive-by surface. Three doors, all honest without the tap, and the
+    lane skips NOTHING — both caller polarities carry their own rows:
 
     - the piped door: a captured stderr must NEVER see narration — the
       inert machine's byte silence (no frames, no clears, no carriage
-      returns anywhere);
+      returns anywhere). Under a root caller the contract is the
+      refusal: the privilege guard exits 1 before the machine can arm,
+      and the refusal rides a spinner-free stream;
     - the pty ASCII door: a real plain terminal draws the rotating dash
       if the fetch crossed the lazy threshold, or stays silent if it
       did not — both honest; the contract is the seat and the clear;
@@ -296,32 +299,33 @@ def _loading_lane(ledger: Ledger, binary: str) -> None:
     the style ladder's seat, and the LAST drawn frame must be followed
     by the full-width clear — the verdict never lands on a line the
     spinner left dirty. stdout must carry zero spinner bytes in every
-    door. A root caller never reaches the lane (the privilege guard
-    refuses before the arm), so the root lane skips the probe.
+    door and every polarity.
     """
     label_prefix = "[checking for updates... "
     with Step(ledger, "the loading lane — the wait narrates itself"):
-        # The piped door first: the inert machine's byte silence.
+        # The piped door first: byte silence on either polarity.
         rc, out = run_cli(binary, ["--check-update"], env_extra={"NO_COLOR": "1"})
-        if rc == 1 and "do not use sudo" in out:
-            ledger.skip_row(
-                "the loading lane stays off a piped stderr",
-                "root caller — the privilege guard owns the door",
+        clean = "\r" not in out and label_prefix not in out
+        if rc == 1 and "do not use sudo" in out and clean:
+            ledger.pass_row(
+                "the loading lane never arms under the root refusal (piped)",
+                "the guard exits 1 before the arm, the stream stays clean",
             )
-            return
-        if rc == 0 and "\r" not in out and label_prefix not in out:
+        elif rc == 0 and clean:
             ledger.pass_row(
                 "the loading lane stays off a piped stderr",
                 "byte-silent: no frames, no clears, no carriage returns",
             )
         else:
             ledger.fail_row(
-                "the loading lane stays off a piped stderr",
+                "the loading lane stays honest on a piped stderr",
                 f"rc={rc}: {out[:90]}",
             )
 
         # The pty doors. Frames drew or did not — both honest; the
-        # network's speed is not the contract.
+        # network's speed is not the contract. A root caller never
+        # reaches the lane (the guard refuses first), and that door is
+        # its own row, never a skip.
         legs = [
             (
                 "the ASCII floor draws the rotating dash on a plain pty",
@@ -338,17 +342,18 @@ def _loading_lane(ledger: Ledger, binary: str) -> None:
             rc, out_stdout, pty_text = _pty_stderr_run(
                 binary, ["--check-update"], env_extra=env_extra
             )
-            if rc == 1 and "do not use sudo" in out_stdout + pty_text:
-                ledger.skip_row(
-                    name, "root caller — the privilege guard owns the door"
-                )
-                continue
             plain = re.sub(r"\x1b\[[0-9;]*m", "", pty_text)
             starts = [
                 i
                 for i in range(len(plain))
                 if plain.startswith("\r" + label_prefix, i)
             ]
+            if rc == 1 and "do not use sudo" in out_stdout + plain and not starts:
+                ledger.pass_row(
+                    f"{name} — the root polarity",
+                    "the guard refuses before the lane arms, the pty stays frame-free",
+                )
+                continue
             stdout_clean = (
                 rc == 0 and "\r" not in out_stdout and label_prefix not in out_stdout
             )
