@@ -95,26 +95,39 @@ jobs:
               --harness engine::kani_proofs::proofs::ladder_has_no_orphan_arm
               --harness engine::kani_proofs::proofs::ladder_collapses_above_stage_two
               --harness engine::kani_proofs::proofs::pid_identity_gate_refuses_unreadable_shapes
-          - name: privilege-preset-cmdline
-            args: >-
-              --harness engine::kani_proofs::proofs::privilege_table_matches_the_audit
-              --harness engine::kani_proofs::proofs::preset_by_index_is_total_and_valid
-              --harness engine::kani_proofs::proofs::cmdline_tamper_breaks_the_real_player_shape
-          - name: pool-envelope-tail
-            args: >-
-              --harness engine::kani_proofs::proofs::pool_mix_net_contains_every_voice_and_gain
-              --harness engine::kani_proofs::proofs::envelope_decay_is_monotone_and_off_is_absorbing
-              --harness engine::kani_laws::errno_proofs::verifier_tail_stays_bounded
           - name: wire-and-errno-text
             args: >-
               --harness engine::kani_laws::errno_proofs::attach_error_codes_round_trip_inside_the_pinned_band
               --harness engine::kani_laws::errno_proofs::attach_error_codes_refuse_outside_the_band
               --harness engine::kani_laws::errno_proofs::errno_text_is_total_and_nonempty
-          - name: errno-classifiers (the whole-domain trio)
-            args: >-
-              --harness engine::kani_laws::errno_proofs::kprobe_open_classifies_the_whole_errno_domain
-              --harness engine::kani_laws::errno_proofs::fentry_link_classifies_the_whole_errno_domain
-              --harness engine::kani_laws::errno_proofs::link_create_classifies_the_whole_errno_domain
+          # The nine heavy singles: each of these harnesses carries a
+          # symbolic domain wide enough (whole-i32 classifiers, the
+          # whole-u32 preset index, the fmt-heavy constructions) that a
+          # multi-harness leg could not land inside the cap — the first
+          # matrix run measured the three-family shape cancelling at the
+          # cap while the grouped families proved in one to five
+          # minutes. One harness is the smallest honest split unit: one
+          # proof, one runner, one named verdict, and the fmt-heap-heavy
+          # verifier-tail proof rides the sixteen-gigabyte runner alone
+          # instead of failing its siblings with it.
+          - name: privilege-table (the audit polarity)
+            args: --harness engine::kani_proofs::proofs::privilege_table_matches_the_audit
+          - name: preset-by-index (the whole-u32 resolution)
+            args: --harness engine::kani_proofs::proofs::preset_by_index_is_total_and_valid
+          - name: cmdline-tamper (the matcher's five byte roles)
+            args: --harness engine::kani_proofs::proofs::cmdline_tamper_breaks_the_real_player_shape
+          - name: pool-mix-net (the NaN-silence law)
+            args: --harness engine::kani_proofs::proofs::pool_mix_net_contains_every_voice_and_gain
+          - name: envelope-decay (monotone, off absorbing)
+            args: --harness engine::kani_proofs::proofs::envelope_decay_is_monotone_and_off_is_absorbing
+          - name: verifier-tail (the log bound)
+            args: --harness engine::kani_laws::errno_proofs::verifier_tail_stays_bounded
+          - name: kprobe-open classifier (whole i32)
+            args: --harness engine::kani_laws::errno_proofs::kprobe_open_classifies_the_whole_errno_domain
+          - name: fentry-link classifier (whole i32)
+            args: --harness engine::kani_laws::errno_proofs::fentry_link_classifies_the_whole_errno_domain
+          - name: link-create classifier (whole i32)
+            args: --harness engine::kani_laws::errno_proofs::link_create_classifies_the_whole_errno_domain
     # A cap, not a speed claim — and the owner's hard number: twelve
     # minutes per leg, no compromise. The proofs themselves are bounded
     # by construction (the harnesses' own input domains).
