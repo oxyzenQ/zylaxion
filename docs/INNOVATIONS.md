@@ -1076,6 +1076,34 @@ change — but like entry 51 it touches the frozen engine and the
 re-baseline law, and the ears stay the judge; verdict LEARN, the
 ideal companion of entry 51 if the realism lane ever opens.
 
+**53. The lazy loading helix — the indeterminate wait narrates
+itself (night-ux-orion-1; `src/output/spinner.rs`, wired into
+`src/commands/update.rs`).** The hole: an indeterminate wait and a
+hang were indistinguishable — the update fetch blocks up to its 15 s
+curl ceiling with a silent terminal, and the Ctrl+C a frozen-looking
+terminal invites is a bug of perception. The close: a loading lane
+whose first frame lands only after the operation crosses 100 ms (a
+fast path never draws — silence stays byte-for-byte), then shows the
+DNA helix, two braille strands running the same ten-frame sweep in
+opposite directions — `HELIX[i]` pairs the sweep's `i`-th cell with
+its `(9-i)`-th, the strands never collide because `i = 9 - i` has no
+integer answer, and the two anti-parallel streams are the fetch
+itself: the request out, the answer back. The fallbacks are
+detection, never flags: a NO_COLOR terminal or a non-UTF-8 locale
+drops automatically to the rotating ASCII dash (`- \ | /`), the
+paint rides the calm-grey tier through the one-gate color law (the
+crate's documented truecolor-grey approximation, plain in Mono), and
+the line rides the family's bracket grammar with the \r clear
+contract, and a piped stderr stays silent — all pinned pure (frame
+tables, style ladder, lazy slot clock) in
+`test/output/spinner_tests.rs`. Zero new dependencies: std threads,
+two AtomicBools (the stop flag and the drawn flag the clear rides),
+and tables of literals. The live bytes are witnessed too: the
+`sm_ux.py` loading-lane probes run `--check-update` through a real
+pty on both seats (the plain dash floor and the braille helix), pin
+stdout spinner-free, and require the full-width clear after the last
+frame — the verdict never lands on a line the spinner left dirty.
+
 ## The test tree that pins the ledger
 
 The ledger is not honored by prose alone: 38 test files carrying 297

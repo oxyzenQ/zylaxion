@@ -60,6 +60,7 @@
 //! (the zelynic `eprintln_safe` semantic).
 
 pub(crate) mod journal;
+pub(crate) mod spinner;
 
 use std::io::{IsTerminal, Write};
 
@@ -121,6 +122,23 @@ pub(crate) fn print_stderr_render(rendered: &clap::builder::StyledStr) {
     };
     let mut err = std::io::stderr().lock();
     let _ = err.write_all(text.as_bytes());
+}
+
+/// The stderr lane's grammar seat (night-ux-orion-1, the loading
+/// lane's paint): calm grey where the stderr gate paints — the same
+/// value the clap surface paints its suggestion candidates with and
+/// the report lane's passive tier — plain where the gate lands Mono,
+/// byte-identical to the unpainted line. The waiting indicator is
+/// the stderr lane's first non-error seat: dimmer than every verdict
+/// byte it annotates, visible on dark and light backgrounds alike
+/// (a 16-color terminal approximates the RGB itself, the capability
+/// gate's documented approximation rule).
+pub(crate) fn grey_err(msg: &str) -> String {
+    if color_enabled() {
+        format!("{GREY_OPEN}{msg}{RESET}")
+    } else {
+        msg.to_string()
+    }
 }
 
 /// Print an error message to stderr in the standard format.

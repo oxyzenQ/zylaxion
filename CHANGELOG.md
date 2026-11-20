@@ -39,6 +39,44 @@ v80.0.0-beta.2
 v80.0.0-beta.1
 v80.0.0-alpha.1
 
+## [Unreleased]
+
+### Added
+
+- **night-ux-orion-1, the loading helix — the indeterminate wait
+  narrates itself.** A slow operation and a hung one were
+  indistinguishable: `--check-update` shells out to `curl` (up to a
+  15 s ceiling) and the terminal sat silent the whole time. The
+  loading lane arms a background redraw on stderr whose first frame
+  lands only after the operation crosses 100 ms — a fast path never
+  draws, a slow one shows the DNA helix: two braille strands running
+  the same ten-frame sweep in opposite directions (`⠋⠏ ⠙⠇ ⠹⠧ ...`),
+  the request out and the answer back. The fallbacks are detection,
+  never flags: a NO_COLOR terminal or one without a UTF-8 locale
+  drops automatically to the rotating ASCII dash (`- \ | /`), and the
+  paint rides the calm-grey tier (`#8B8B8B`) through the one-gate
+  color law — plain wherever the gate lands Mono, and the indicator
+  deliberately stays alive on a NO_COLOR terminal (as the unpainted
+  dash) because a hang looks like a hang with or without color. The
+  line uses the family's bracket grammar and is erased before the
+  verdict prints — and only when a frame actually landed: a fast
+  path's stderr stays byte-for-byte silent (no frame, no clear
+  bytes), the clear blanks the drawn CELL width (a braille strand is
+  three bytes per cell, and a byte-width clear would overshoot the
+  screen footprint), and the redraw thread sleeps in poll slices so
+  the finish join never adds a whole sleep leg to a fast verdict's
+  latency. A piped stderr stays byte-silent. Zero new dependencies
+  (std threads only), zero new CLI surface: the machine lives in
+  `src/output/spinner.rs` (the zejtron night-ux-orion-1 loading lane
+  ported beside the journal lane; the deltas are the documented,
+  deliberate ones — no countdown sibling lives in this crate, and the
+  paint rides this crate's one-gate law), wired into the one
+  indeterminate site (`src/commands/update.rs`), with the frame
+  tables, the style ladder, the lazy slot clock, and the clear
+  contract pinned in `test/output/spinner_tests.rs`, and the live
+  bytes — the piped silence plus both pty seats and their clears —
+  witnessed by the `sm_ux.py` loading-lane probes.
+
 ## [v80.3.0] — night-frontier-Z4: the last timer dies — the parked player and the evented stop — 2026-11-18
 
 ### Added

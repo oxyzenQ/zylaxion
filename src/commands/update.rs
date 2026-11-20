@@ -93,7 +93,20 @@ pub fn run_check_update() {
         std::process::exit(1);
     }
 
-    let output = Command::new("curl")
+    // The loading lane (night-ux-orion-1): the fetch is the one
+    // indeterminate wait on a drive-by surface, so it narrates — a
+    // helix on a capable terminal, the ASCII dash on a plain one,
+    // and nothing at all when the answer lands inside the lazy
+    // threshold (see crate::output::spinner). The machine finishes
+    // on every path before the verdict prints: the only slow step
+    // is the curl child below, so the arm/finish bracket wraps
+    // exactly that call and the remaining error paths are instant
+    // CPU work.
+    let indicator = crate::output::spinner::Spinner::arm(
+        "checking for updates",
+        crate::output::spinner::Style::Helix,
+    );
+    let fetched = Command::new("curl")
         .args([
             "--silent",
             "--max-time",
@@ -107,8 +120,9 @@ pub fn run_check_update() {
             GITHUB_API_URL,
         ])
         .output();
+    indicator.finish();
 
-    let output = match output {
+    let output = match fetched {
         Ok(o) => o,
         Err(e) => {
             if e.kind() == std::io::ErrorKind::NotFound {

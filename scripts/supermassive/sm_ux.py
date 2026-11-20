@@ -5,7 +5,8 @@
 The rootless-safe lane: every probe here exercises a surface that is
 honest without the tap attached — the identity render, the curated
 help, the discovery verbs, the parser's fatal-input refusals, the
-tap-less doors, and the root doors both polarities. This module runs
+loading lane's narration contract (night-ux-orion-1), the tap-less
+doors, and the root doors both polarities. This module runs
 in BOTH engine modes: --self-test rides it against a locally built
 binary (no root, no tap), --full rides it inside the micro-VM before
 the tap stages begin. A probe asserts the contract the source pins —
@@ -16,8 +17,11 @@ snapshot of prose that will drift.
 from __future__ import annotations
 
 import os
+import pty
+import re
 import subprocess
 import sys
+import time
 
 # The root-owned pycache guard (night-cafe-1, the same law the
 # supermassive-test entry and sm_static carry): a direct run of this
@@ -79,6 +83,7 @@ def battery(ledger: Ledger, binary: str, full_mode: bool) -> None:
     _identity(ledger, binary)
     _discovery(ledger, binary)
     _fatal_input(ledger, binary)
+    _loading_lane(ledger, binary)
     _tapless_doors(ledger, binary, full_mode)
     _root_doors(ledger, binary, full_mode)
 
@@ -208,6 +213,177 @@ def _fatal_input(ledger: Ledger, binary: str) -> None:
                 "on --preset without a value refused at parse",
                 f"rc={rc}: {out[:80]}",
             )
+
+
+def _pty_stderr_run(
+    binary: str,
+    args: list[str],
+    env_extra: dict[str, str] | None = None,
+    timeout: int = 45,
+) -> tuple[int, str, str]:
+    """One invocation with a REAL pty behind stderr; stdout captured.
+
+    The loading lane's pty door: the spinner narrates only on a
+    terminal, so the probe gives stderr a true one — the frames land
+    on the pty master while stdout (the verdict) rides a plain pipe,
+    exactly the two-stream split the contract pins. Returns
+    (rc, stdout_text, pty_text); the pty text carries the raw draw
+    bytes, ANSI escapes included.
+    """
+    env = {
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "LANG": "C.UTF-8",
+        "TERM": "dumb",
+    }
+    if env_extra:
+        env.update(env_extra)
+    master, slave = pty.openpty()
+    os.set_blocking(master, False)
+    try:
+        proc = subprocess.Popen(
+            [binary, *args],
+            stdout=subprocess.PIPE,
+            stderr=slave,
+            env=env,
+        )
+    finally:
+        os.close(slave)
+    chunks: list[bytes] = []
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            data = os.read(master, 65536)
+        except BlockingIOError:
+            data = None
+        except OSError:
+            break  # EIO on Linux: every slave fd closed — the EOF door
+        if data:
+            chunks.append(data)
+            continue
+        if time.monotonic() > deadline:
+            proc.kill()
+            proc.wait()
+            os.close(master)
+            return 124, "", ""
+        if proc.poll() is not None:
+            # Exited: the last writes may still sit in the pty buffer —
+            # one more pass drains them (or hits the EOF door).
+            time.sleep(0.02)
+            continue
+        time.sleep(0.01)
+    os.close(master)
+    stdout_text = proc.stdout.read().decode("utf-8", "replace")
+    rc = proc.wait()
+    return rc, stdout_text, b"".join(chunks).decode("utf-8", "replace")
+
+
+def _loading_lane(ledger: Ledger, binary: str) -> None:
+    """The loading lane (night-ux-orion-1): the spinner's real bytes.
+
+    The fetch behind --check-update is the one indeterminate wait on a
+    drive-by surface. Three doors, all honest without the tap:
+
+    - the piped door: a captured stderr must NEVER see narration — the
+      inert machine's byte silence (no frames, no clears, no carriage
+      returns anywhere);
+    - the pty ASCII door: a real plain terminal draws the rotating dash
+      if the fetch crossed the lazy threshold, or stays silent if it
+      did not — both honest; the contract is the seat and the clear;
+    - the pty helix door: a color-capable UTF-8 terminal draws the
+      braille strands under the same terms.
+
+    The seat and the clear are the pins: every drawn frame must match
+    the style ladder's seat, and the LAST drawn frame must be followed
+    by the full-width clear — the verdict never lands on a line the
+    spinner left dirty. stdout must carry zero spinner bytes in every
+    door. A root caller never reaches the lane (the privilege guard
+    refuses before the arm), so the root lane skips the probe.
+    """
+    label_prefix = "[checking for updates... "
+    with Step(ledger, "the loading lane — the wait narrates itself"):
+        # The piped door first: the inert machine's byte silence.
+        rc, out = run_cli(binary, ["--check-update"], env_extra={"NO_COLOR": "1"})
+        if rc == 1 and "do not use sudo" in out:
+            ledger.skip_row(
+                "the loading lane stays off a piped stderr",
+                "root caller — the privilege guard owns the door",
+            )
+            return
+        if rc == 0 and "\r" not in out and label_prefix not in out:
+            ledger.pass_row(
+                "the loading lane stays off a piped stderr",
+                "byte-silent: no frames, no clears, no carriage returns",
+            )
+        else:
+            ledger.fail_row(
+                "the loading lane stays off a piped stderr",
+                f"rc={rc}: {out[:90]}",
+            )
+
+        # The pty doors. Frames drew or did not — both honest; the
+        # network's speed is not the contract.
+        legs = [
+            (
+                "the ASCII floor draws the rotating dash on a plain pty",
+                {"TERM": "dumb", "LANG": "C", "NO_COLOR": "1"},
+                "-",
+            ),
+            (
+                "the helix draws braille strands on a capable pty",
+                {"TERM": "xterm-256color", "LANG": "C.UTF-8"},
+                "braille",
+            ),
+        ]
+        for name, env_extra, seat in legs:
+            rc, out_stdout, pty_text = _pty_stderr_run(
+                binary, ["--check-update"], env_extra=env_extra
+            )
+            if rc == 1 and "do not use sudo" in out_stdout + pty_text:
+                ledger.skip_row(
+                    name, "root caller — the privilege guard owns the door"
+                )
+                continue
+            plain = re.sub(r"\x1b\[[0-9;]*m", "", pty_text)
+            starts = [
+                i
+                for i in range(len(plain))
+                if plain.startswith("\r" + label_prefix, i)
+            ]
+            stdout_clean = (
+                rc == 0 and "\r" not in out_stdout and label_prefix not in out_stdout
+            )
+            seat_ok = True
+            clear_ok = True
+            if starts:
+                draw_head = len("\r" + label_prefix)
+                frames: list[str] = []
+                for i in starts:
+                    close = plain.find("]", i + draw_head)
+                    if close == -1:
+                        seat_ok = False
+                        break
+                    frames.append(plain[i + draw_head : close])
+                if seat == "-":
+                    seat_ok = seat_ok and bool(frames) and all(
+                        ch in "-\\|/" for frame in frames for ch in frame
+                    )
+                    # The drawn line's cells: the bracket prefix, the
+                    # frame's one cell, the closing bracket.
+                    clear_width = len(label_prefix) + 1 + 1
+                else:
+                    seat_ok = seat_ok and bool(frames) and all(
+                        0x2800 <= ord(ch) <= 0x28FF
+                        for frame in frames
+                        for ch in frame
+                    )
+                    clear_width = len(label_prefix) + 2 + 1
+                clear = "\r" + " " * clear_width + "\r"
+                clear_ok = clear in plain[starts[-1] :]
+            verdict = f"frames={len(starts)}, seat={'ok' if seat_ok else 'drift'}, clear={'ok' if clear_ok else 'MISSING'}"
+            if stdout_clean and seat_ok and clear_ok:
+                ledger.pass_row(name, verdict)
+            else:
+                ledger.fail_row(name, f"rc={rc}: {verdict}: {plain[:90]!r}")
 
 
 def _tapless_doors(ledger: Ledger, binary: str, full_mode: bool) -> None:
