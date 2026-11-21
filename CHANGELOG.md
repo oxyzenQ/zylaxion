@@ -43,6 +43,182 @@ v80.0.0-beta.2
 v80.0.0-beta.1
 v80.0.0-alpha.1
 
+## [v80.5.2-night.1] — focus and be honest — 2026-11-21
+
+### Changed
+
+- **night-fly-1, the stale verification prose — the release notes
+  answer with the live UID reality.** The verification block every
+  release page prints (`### GPG signature`, emitted by
+  `scripts/release/generate-release-notes.sh`) still told verifiers
+  to expect `Good signature from "Rezky Cahya Sahputra (cosmic
+  dragon)"` — a shape gpg stopped printing once the proton UID
+  became the signing key's primary: a live `gpg --verify` against a
+  real v80.5.1 artifact answers `Good signature from "rezky_nightky
+  (oxyzenQ) <oxyzenQ@proton.me>" [ultimate]` with the noreply
+  identity as the `aka` line, so the expected verdict the notes
+  taught was stale. The generator now emits that live reality (the
+  proton-primary Expected line with the aka noreply identity), and
+  the 19 published release pages that carried the stale line were
+  patched in place by exact-string replace (nothing else touched; a
+  full re-fetch of all 37 releases re-verified zero residual). The
+  depth audit found nothing else stale: the tree carries no legacy
+  contact-address variant anywhere (plain or obfuscated), the other
+  contact surfaces (SECURITY, CLA, NOTICE, QA, CONTRIBUTING) name
+  the proton or noreply identity only, and the fingerprint claims in
+  docs/VERIFY_RELEASE.md were recomputed and all three match their
+  layers (manifest `247d2835ac8bde6a` byte-proved on a live `-V`,
+  proton authors `66771e5f273b9cae`, retired authors
+  `c97b13f816035d55`). VERIFY_RELEASE.md's GPG lane — which named
+  no fingerprint and no expected verdict at all — now carries the
+  keyserver import line, the out-of-band fingerprint, and the same
+  expected verdict the release notes print. Verified live: the
+  generator's emitted block byte-matches the owner's actual gpg
+  output; the identity surfaces byte-proved on a source-built eBPF
+  build (`Signature: Pure eBPF builtin — Official Build by
+  rezky_nightky (oxyzenQ)` year-free, `sig` five-depth AUTHENTIC,
+  contact proton); full test suite 308/308 green.
+- **night-fly-1, the fifteen-minute wall and the two-layer
+  fingerprint — the estate's CI clocks come down and the verification
+  prose answers the signing subkey.** Two owner laws landed together:
+  no auto-triggered CI may run past fifteen minutes, and no test lane
+  keeps a schedule — every test wakes on a commit to main alone, and
+  only the maintenance and publish contracts keep their clocks. The
+  close retires the four Sunday schedules (audit, fuzz, kani, miri;
+  the header and inline comments re-taught to the live posture),
+  returns the five atomic Kani proofs to the on-demand lane with the
+  fifteen-minute cap replacing the ninety-minute one (the fast
+  fourteen ride every push under their measured twelve-minute caps),
+  moves the fuzz deep session onto the manual dispatch at 300s per
+  target (the 900s weekly shape overran the job's own ten-minute cap
+  — the scheduled session could never have completed honestly), and
+  retires the claims lane's twenty-minute cap whose
+  night-frontier-2B justification lives in other lanes now. The docs
+  follow the law (RULES.md's CI contract and INNOVATIONS.md's two
+  cadence phrases re-taught), and the verification prose gains its
+  second fingerprint: the release signature is made by the primary's
+  active signing subkey, so `gpg --verify` prints `using EDDSA key
+  3EE4A49C78630A16E176DB2B3C9EB25BF0407781` while the primary
+  `F5324E0967F104D58CE025F347A50AEF4B65AAC2` stays the import and
+  trust anchor — VERIFY_RELEASE.md, the release-notes generator, and
+  the published release pages now carry both roles (the generator
+  self-test pins the subkey line), and a verifier greping the live
+  output byte for byte answers everywhere. Verified: keyserver
+  fetches by both fingerprints return the same keyblock (the primary
+  ed25519 [SC] certificate with the proton and cosmic-dragon UIDs and
+  the 3EE4A49C signing subkey), the generator self-test is green, and
+  every auto-triggered job in the estate parses at or under fifteen
+  minutes with the schedule grep answering maintenance.yml alone.
+
+- **night-solid-defense-1, AXP1-ZnQ — the Sunday security sweep gets
+  its sentinel name and the owner's red button.** The owner sleeps
+  through the Sunday 10:00 WIB run, so the weekly dependency sweep now
+  carries a supply-chain sentinel instead of a bare updater:
+  `scripts/dev/security-sweep.py` audits every tracked lockfile with
+  `cargo audit --format json` twice — once before the update (the HEAD
+  snapshot) and once after — and classifies the diff into the two
+  scenarios that matter. An advisory an in-range bump clears is
+  reported in the job summary as an urgent auto-update (the tree was
+  exposed before the sweep, it is clean now) and the run stays GREEN,
+  with the update commit body carrying the sentinel's note; a finding
+  nothing in the current requirement set can reach keeps the run RED
+  after the update commit lands — the summary says CALL THE OWNER and
+  names the reason per finding (a patched release exists but no
+  requirement reaches it, so the manifest must move deliberately; or
+  no patched release is published, so the dependency wants watching or
+  replacing), with the CVE alias rendered beside the RustSec id when
+  the advisory carries one. Identity (night-solid-defense-1, the
+  zejtron shape ported whole): the verdict speaks under the owner's
+  sentinel name — every banner, GitHub annotation (`::error::` /
+  `::warning::`) and summary signs as AXP1-ZnQ, so a red Sunday names
+  its watcher and the run list reads like a sentinel on watch. The
+  scan-only dispatch rides the same port (`scan_only`, the zejtron
+  night-supply-1 red button): one dispatch, the advisory state of
+  every tracked lockfile, ship nothing — no update, no checks, no
+  commit. One deliberate divergence from the reference: zejtron's
+  verdict gates the commit lane and ships nothing while red; this
+  tree lands the fixable bumps first and raises the red after (the
+  owner's explicit contract here). The final verdict step is the
+  job's only exit-1 point (`if: always()`, a missing verdict file is
+  RED), so fixable bumps always land before the red is raised;
+  remaining unmaintained, unsound and yanked warnings fail the run
+  exactly the way `--deny warnings` fails them in the canonical lane;
+  and a scanner that cannot run is a RED verdict, never a silent
+  green. The closure rode two holes on the way through: cargo-audit
+  0.23.0
+  replaced the old bare `--json` flag with `--format json` and
+  reshaped the report schema (vulnerabilities top-level, warnings as a
+  per-kind map) — the parser was trained on the real 0.23.0 output and
+  the scanner install is now pinned (`--version 0.23.0`, both lanes)
+  because a scanner bump is a deliberate move, the same law the
+  actionlint pin keeps; and the canonical lane's root-only scan left
+  fuzz/, ebpf/ and scripts/audit/harness/ unaudited on every push —
+  audit.yml and the local gatekeeper's [4/5] step now scan all four
+  locks (the same surface the sweep classifies), so no two lanes can
+  split a verdict on a sibling lock. maintenance.yml's job clock moves
+  10 → 15 minutes for the measured additions (the cargo-audit install
+  plus eight advisory invocations), inside the fifteen-minute
+  auto-trigger ceiling. Verified: the parser answered real 0.23.0
+  captures (a real vulnerable lock — time 0.1.45, RUSTSEC-2020-0071 /
+  CVE-2020-26235, patched >=0.2.23; a real warnings-only lock — atty
+  0.2.14, unmaintained + unsound; the repo's own four clean locks); a
+  harness (unit + a fake-cargo end-to-end over the red call-owner
+  scenario with a landed fix, an unreachable patch and an
+  owner-review warning, the green-after-fix scenario with the commit
+  note, the scan-error red, and the missing-verdict-file red) ran all
+  green; the canonical verdict (`cargo audit --deny warnings`) over
+  all four tracked locks exits 0 on the current tree; yamllint and
+  actionlint 1.7.7 parse both touched workflows; the full
+  gate-keepers run answers green; the naming commit's ten-lane
+  battery answered all green (the Security Audit lane running the
+  sentinel's four-lock loop twice, once per commit); and the red
+  button was exercised LIVE on the real runner — the scan_only
+  dispatch (maintenance run 44935331012, on the naming commit) shows
+  the ship lane skipped at every step (no update, no eBPF bootstrap,
+  no checks, no commit) while the sentinel's logs read
+  `AXP1-ZnQ pre-pass` over the four lockfiles one by one and answer
+  `AXP1-ZnQ: verdict: GREEN` — the first watch of the sentinel,
+  real, not claimed.
+
+- **night-remake-1, the estate email sweep — the proton address is
+  the only address the tree names.** The owner's OPSEC close: every
+  trace of the retired provider address (and its obfuscated
+  spellings — the dot-separated prose form and its partials) is
+  hunted out of the estate end to end, the contact surface naming
+  `oxyzenQ@proton.me` only. The sweep is verification-led because
+  the migration already landed in stages: the masked authors layer
+  (the previous night-remake-1), the `Cargo.toml` authors row, the
+  `-V`/`sig` runtime surfaces, and every doc contact row
+  (`COMMERCIAL_LICENSE.md`'s three licensing rows, `README.md`,
+  `docs/BRANDING.md`, `docs/RULES.md`, `AI_AGENTS_READ_THIS.md`)
+  already carry the proton address, so a case-insensitive sweep of
+  the tracked and hidden files for the retired address, its
+  obfuscated spellings, and the old provider's name returns only two
+  historical prose notes naming the provider's NAME without the
+  address — the fp= provenance note in `src/info/signature.rs` and
+  the same note in `docs/VERIFY_RELEASE.md` — and both are reworded
+  to the neutral "estate-wide retired address form", so the tree now
+  carries zero provider residue at all (this entry deliberately does
+  not quote the retired address either: a sweep note that carried it
+  would re-contaminate the tree it closes out). The audit goes past
+  the working tree: the repository is unshallowed and all 642
+  commits are swept both by commit metadata (every author and
+  committer email is the noreply GitHub identity, the oxchin
+  collaborator identity, or the actions bot — no provider address
+  anywhere) and by a per-commit blob grep across every revision —
+  zero hits, the retired address never rested in any blob in the
+  repository's history, so no history rewrite and no force-push is
+  needed. The GPG verification path stays untouched by design: the
+  release-notes generator's
+  `recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2` instruction
+  pins the fingerprint, which is unchanged by the UID email update
+  (the same key now carries the proton UID). Verified on the real
+  artifact: the release binary's `-V`/`sig` render the proton
+  contact, a strings(1) sweep over the binary finds zero retired
+  provider bytes at rest (the contact materializes only at runtime,
+  from the masked authors layer), and the full local gate (fmt,
+  clippy, 308 tests, gate-keepers) is green.
+
 ## [v80.5.1] — the release gate learns the year-free claim — 2026-11-21
 
 ### Added
@@ -3308,176 +3484,3 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
-### Changed
-
-- **night-fly-1, the stale verification prose — the release notes
-  answer with the live UID reality.** The verification block every
-  release page prints (`### GPG signature`, emitted by
-  `scripts/release/generate-release-notes.sh`) still told verifiers
-  to expect `Good signature from "Rezky Cahya Sahputra (cosmic
-  dragon)"` — a shape gpg stopped printing once the proton UID
-  became the signing key's primary: a live `gpg --verify` against a
-  real v80.5.1 artifact answers `Good signature from "rezky_nightky
-  (oxyzenQ) <oxyzenQ@proton.me>" [ultimate]` with the noreply
-  identity as the `aka` line, so the expected verdict the notes
-  taught was stale. The generator now emits that live reality (the
-  proton-primary Expected line with the aka noreply identity), and
-  the 19 published release pages that carried the stale line were
-  patched in place by exact-string replace (nothing else touched; a
-  full re-fetch of all 37 releases re-verified zero residual). The
-  depth audit found nothing else stale: the tree carries no legacy
-  contact-address variant anywhere (plain or obfuscated), the other
-  contact surfaces (SECURITY, CLA, NOTICE, QA, CONTRIBUTING) name
-  the proton or noreply identity only, and the fingerprint claims in
-  docs/VERIFY_RELEASE.md were recomputed and all three match their
-  layers (manifest `247d2835ac8bde6a` byte-proved on a live `-V`,
-  proton authors `66771e5f273b9cae`, retired authors
-  `c97b13f816035d55`). VERIFY_RELEASE.md's GPG lane — which named
-  no fingerprint and no expected verdict at all — now carries the
-  keyserver import line, the out-of-band fingerprint, and the same
-  expected verdict the release notes print. Verified live: the
-  generator's emitted block byte-matches the owner's actual gpg
-  output; the identity surfaces byte-proved on a source-built eBPF
-  build (`Signature: Pure eBPF builtin — Official Build by
-  rezky_nightky (oxyzenQ)` year-free, `sig` five-depth AUTHENTIC,
-  contact proton); full test suite 308/308 green.
-- **night-fly-1, the fifteen-minute wall and the two-layer
-  fingerprint — the estate's CI clocks come down and the verification
-  prose answers the signing subkey.** Two owner laws landed together:
-  no auto-triggered CI may run past fifteen minutes, and no test lane
-  keeps a schedule — every test wakes on a commit to main alone, and
-  only the maintenance and publish contracts keep their clocks. The
-  close retires the four Sunday schedules (audit, fuzz, kani, miri;
-  the header and inline comments re-taught to the live posture),
-  returns the five atomic Kani proofs to the on-demand lane with the
-  fifteen-minute cap replacing the ninety-minute one (the fast
-  fourteen ride every push under their measured twelve-minute caps),
-  moves the fuzz deep session onto the manual dispatch at 300s per
-  target (the 900s weekly shape overran the job's own ten-minute cap
-  — the scheduled session could never have completed honestly), and
-  retires the claims lane's twenty-minute cap whose
-  night-frontier-2B justification lives in other lanes now. The docs
-  follow the law (RULES.md's CI contract and INNOVATIONS.md's two
-  cadence phrases re-taught), and the verification prose gains its
-  second fingerprint: the release signature is made by the primary's
-  active signing subkey, so `gpg --verify` prints `using EDDSA key
-  3EE4A49C78630A16E176DB2B3C9EB25BF0407781` while the primary
-  `F5324E0967F104D58CE025F347A50AEF4B65AAC2` stays the import and
-  trust anchor — VERIFY_RELEASE.md, the release-notes generator, and
-  the published release pages now carry both roles (the generator
-  self-test pins the subkey line), and a verifier greping the live
-  output byte for byte answers everywhere. Verified: keyserver
-  fetches by both fingerprints return the same keyblock (the primary
-  ed25519 [SC] certificate with the proton and cosmic-dragon UIDs and
-  the 3EE4A49C signing subkey), the generator self-test is green, and
-  every auto-triggered job in the estate parses at or under fifteen
-  minutes with the schedule grep answering maintenance.yml alone.
-
-- **night-solid-defense-1, AXP1-ZnQ — the Sunday security sweep gets
-  its sentinel name and the owner's red button.** The owner sleeps
-  through the Sunday 10:00 WIB run, so the weekly dependency sweep now
-  carries a supply-chain sentinel instead of a bare updater:
-  `scripts/dev/security-sweep.py` audits every tracked lockfile with
-  `cargo audit --format json` twice — once before the update (the HEAD
-  snapshot) and once after — and classifies the diff into the two
-  scenarios that matter. An advisory an in-range bump clears is
-  reported in the job summary as an urgent auto-update (the tree was
-  exposed before the sweep, it is clean now) and the run stays GREEN,
-  with the update commit body carrying the sentinel's note; a finding
-  nothing in the current requirement set can reach keeps the run RED
-  after the update commit lands — the summary says CALL THE OWNER and
-  names the reason per finding (a patched release exists but no
-  requirement reaches it, so the manifest must move deliberately; or
-  no patched release is published, so the dependency wants watching or
-  replacing), with the CVE alias rendered beside the RustSec id when
-  the advisory carries one. Identity (night-solid-defense-1, the
-  zejtron shape ported whole): the verdict speaks under the owner's
-  sentinel name — every banner, GitHub annotation (`::error::` /
-  `::warning::`) and summary signs as AXP1-ZnQ, so a red Sunday names
-  its watcher and the run list reads like a sentinel on watch. The
-  scan-only dispatch rides the same port (`scan_only`, the zejtron
-  night-supply-1 red button): one dispatch, the advisory state of
-  every tracked lockfile, ship nothing — no update, no checks, no
-  commit. One deliberate divergence from the reference: zejtron's
-  verdict gates the commit lane and ships nothing while red; this
-  tree lands the fixable bumps first and raises the red after (the
-  owner's explicit contract here). The final verdict step is the
-  job's only exit-1 point (`if: always()`, a missing verdict file is
-  RED), so fixable bumps always land before the red is raised;
-  remaining unmaintained, unsound and yanked warnings fail the run
-  exactly the way `--deny warnings` fails them in the canonical lane;
-  and a scanner that cannot run is a RED verdict, never a silent
-  green. The closure rode two holes on the way through: cargo-audit
-  0.23.0
-  replaced the old bare `--json` flag with `--format json` and
-  reshaped the report schema (vulnerabilities top-level, warnings as a
-  per-kind map) — the parser was trained on the real 0.23.0 output and
-  the scanner install is now pinned (`--version 0.23.0`, both lanes)
-  because a scanner bump is a deliberate move, the same law the
-  actionlint pin keeps; and the canonical lane's root-only scan left
-  fuzz/, ebpf/ and scripts/audit/harness/ unaudited on every push —
-  audit.yml and the local gatekeeper's [4/5] step now scan all four
-  locks (the same surface the sweep classifies), so no two lanes can
-  split a verdict on a sibling lock. maintenance.yml's job clock moves
-  10 → 15 minutes for the measured additions (the cargo-audit install
-  plus eight advisory invocations), inside the fifteen-minute
-  auto-trigger ceiling. Verified: the parser answered real 0.23.0
-  captures (a real vulnerable lock — time 0.1.45, RUSTSEC-2020-0071 /
-  CVE-2020-26235, patched >=0.2.23; a real warnings-only lock — atty
-  0.2.14, unmaintained + unsound; the repo's own four clean locks); a
-  harness (unit + a fake-cargo end-to-end over the red call-owner
-  scenario with a landed fix, an unreachable patch and an
-  owner-review warning, the green-after-fix scenario with the commit
-  note, the scan-error red, and the missing-verdict-file red) ran all
-  green; the canonical verdict (`cargo audit --deny warnings`) over
-  all four tracked locks exits 0 on the current tree; yamllint and
-  actionlint 1.7.7 parse both touched workflows; the full
-  gate-keepers run answers green; the naming commit's ten-lane
-  battery answered all green (the Security Audit lane running the
-  sentinel's four-lock loop twice, once per commit); and the red
-  button was exercised LIVE on the real runner — the scan_only
-  dispatch (maintenance run 44935331012, on the naming commit) shows
-  the ship lane skipped at every step (no update, no eBPF bootstrap,
-  no checks, no commit) while the sentinel's logs read
-  `AXP1-ZnQ pre-pass` over the four lockfiles one by one and answer
-  `AXP1-ZnQ: verdict: GREEN` — the first watch of the sentinel,
-  real, not claimed.
-
-- **night-remake-1, the estate email sweep — the proton address is
-  the only address the tree names.** The owner's OPSEC close: every
-  trace of the retired provider address (and its obfuscated
-  spellings — the dot-separated prose form and its partials) is
-  hunted out of the estate end to end, the contact surface naming
-  `oxyzenQ@proton.me` only. The sweep is verification-led because
-  the migration already landed in stages: the masked authors layer
-  (the previous night-remake-1), the `Cargo.toml` authors row, the
-  `-V`/`sig` runtime surfaces, and every doc contact row
-  (`COMMERCIAL_LICENSE.md`'s three licensing rows, `README.md`,
-  `docs/BRANDING.md`, `docs/RULES.md`, `AI_AGENTS_READ_THIS.md`)
-  already carry the proton address, so a case-insensitive sweep of
-  the tracked and hidden files for the retired address, its
-  obfuscated spellings, and the old provider's name returns only two
-  historical prose notes naming the provider's NAME without the
-  address — the fp= provenance note in `src/info/signature.rs` and
-  the same note in `docs/VERIFY_RELEASE.md` — and both are reworded
-  to the neutral "estate-wide retired address form", so the tree now
-  carries zero provider residue at all (this entry deliberately does
-  not quote the retired address either: a sweep note that carried it
-  would re-contaminate the tree it closes out). The audit goes past
-  the working tree: the repository is unshallowed and all 642
-  commits are swept both by commit metadata (every author and
-  committer email is the noreply GitHub identity, the oxchin
-  collaborator identity, or the actions bot — no provider address
-  anywhere) and by a per-commit blob grep across every revision —
-  zero hits, the retired address never rested in any blob in the
-  repository's history, so no history rewrite and no force-push is
-  needed. The GPG verification path stays untouched by design: the
-  release-notes generator's
-  `recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2` instruction
-  pins the fingerprint, which is unchanged by the UID email update
-  (the same key now carries the proton UID). Verified on the real
-  artifact: the release binary's `-V`/`sig` render the proton
-  contact, a strings(1) sweep over the binary finds zero retired
-  provider bytes at rest (the contact materializes only at runtime,
-  from the masked authors layer), and the full local gate (fmt,
-  clippy, 308 tests, gate-keepers) is green.
