@@ -18,6 +18,18 @@ use super::{
 };
 
 /// Handle `zylaxion on [preset]` — enable the sound.
+/// The settle wait's three exits (night-ux-orion-2): the loop inside
+/// the loading bracket cannot print or exit — the verdict lands after
+/// the machine finishes, so a drawn line is erased before the first
+/// error byte. The three arms carry exactly the verdicts the inline
+/// exits carried; nothing about the report changes, only the order
+/// (finish, then verdict).
+enum SettleVerdict {
+    Running,
+    ExitedDuringStartup,
+    BudgetExceeded,
+}
+
 pub fn cmd_on(cli_preset: Option<String>) {
     // The privilege verdict (night-improve-26): the parent owns the
     // door — a root `on` refuses before it resolves paths, opens maps,
@@ -257,9 +269,41 @@ pub fn cmd_on(cli_preset: Option<String>) {
     }
 
     // Wait for the player to report running (or die trying).
+    //
+    // The loading lane (night-ux-orion-2): the settle wait is the
+    // verb's large-data load — the detached player boots its engine,
+    // opens the audio server and voices the preset while this loop
+    // polls the control map, and on a slow device or a busy audio
+    // server the wait crosses the lazy threshold with the terminal
+    // sitting silent, a frozen-looking shell inviting the Ctrl+C that
+    // kills a healthy spawn. The helix narrates the wait; the
+    // arm/finish bracket wraps exactly the settle loop, and a fast
+    // boot never draws — the fast path's stderr stays byte for byte
+    // silent. The loop's exits land as a [`SettleVerdict`] instead of
+    // printing or exiting inside the bracket, so the machine finishes
+    // (and erases its drawn line) before any verdict byte prints —
+    // the orion-1 law the update fetch already rides.
+    let indicator = crate::output::spinner::Spinner::arm(
+        "starting the sound engine",
+        crate::output::spinner::Style::Helix,
+    );
     let started = Instant::now();
-    loop {
+    let settled = 'settle: loop {
         if child.try_wait().map(|s| s.is_some()).unwrap_or(true) {
+            break 'settle SettleVerdict::ExitedDuringStartup;
+        }
+        if control.get(&STATE_SLOT, 0).unwrap_or(0) == STATE_RUNNING {
+            break 'settle SettleVerdict::Running;
+        }
+        if started.elapsed() >= PLAYER_SETTLE_BUDGET {
+            break 'settle SettleVerdict::BudgetExceeded;
+        }
+        std::thread::sleep(SETTLE_STEP);
+    };
+    indicator.finish();
+    let child_pid = match settled {
+        SettleVerdict::Running => child.id(),
+        SettleVerdict::ExitedDuringStartup => {
             crate::output::error(
                 "the player exited during startup\nrun `zylaxion doctor` for the \
                  environment verdicts, or run `zylaxion _play` in a terminal to \
@@ -268,10 +312,7 @@ pub fn cmd_on(cli_preset: Option<String>) {
             let _ = control.set(ENABLED_SLOT, &0, 0);
             process::exit(1);
         }
-        if control.get(&STATE_SLOT, 0).unwrap_or(0) == STATE_RUNNING {
-            break;
-        }
-        if started.elapsed() >= PLAYER_SETTLE_BUDGET {
+        SettleVerdict::BudgetExceeded => {
             crate::output::error(
                 "the player did not reach the running state in time\nrun \
                  `zylaxion doctor` for the environment verdicts, or run \
@@ -281,9 +322,7 @@ pub fn cmd_on(cli_preset: Option<String>) {
             let _ = control.set(ENABLED_SLOT, &0, 0);
             process::exit(1);
         }
-        std::thread::sleep(SETTLE_STEP);
-    }
-    let child_pid = child.id();
+    };
     drop(child);
 
     // night-dragon-maintenance-4: the spawn confirmation rides the
@@ -436,7 +475,23 @@ pub fn cmd_off() {
     // The identity check is re-read every poll step: if the player dies
     // mid-wait and the kernel recycles the pid, the loop must follow the
     // REGISTRATION (now stale), not the recycled process.
+    //
+    // The loading lane (night-ux-orion-2): the stop wait is the same
+    // silent shape the spawn wait was — the gate is cleared, the
+    // player's watcher sees it within its cadence, fades out and
+    // unregisters, and until it does the terminal sits quiet while
+    // the fade runs its course. The helix narrates the wait; the
+    // arm/finish bracket wraps exactly the poll loop, and a fast stop
+    // never draws — the fast path's stderr stays byte for byte
+    // silent. The budget verdict breaks out as a flag instead of
+    // returning inside the bracket, so the machine finishes and
+    // erases its drawn line before either verdict prints.
+    let indicator = crate::output::spinner::Spinner::arm(
+        "stopping the sound engine",
+        crate::output::spinner::Style::Helix,
+    );
     let started = Instant::now();
+    let mut wedged = false;
     while pid_alive(pid as i32) && {
         let cmdline = std::fs::read(format!("/proc/{pid}/cmdline")).ok();
         let exe = std::env::current_exe().ok();
@@ -446,18 +501,23 @@ pub fn cmd_off() {
         )
     } {
         if started.elapsed() >= PLAYER_SETTLE_BUDGET {
-            // The player ignored the gate (wedged audio thread?): the
-            // honest report, with the manual escape hatch.
-            crate::output::warning(format!(
-                "the player (pid {pid}) is still alive after the stop budget — \
-                 kill -TERM {pid} if it stays wedged"
-            ));
-            // night-dragon-maintenance-4: a wedged stop is a caution
-            // the reader must not miss — the warning yellow tier.
-            println!("{}", crate::output::warn_line("sound off (stop pending)"));
-            return;
+            wedged = true;
+            break;
         }
         std::thread::sleep(SETTLE_STEP);
+    }
+    indicator.finish();
+    if wedged {
+        // The player ignored the gate (wedged audio thread?): the
+        // honest report, with the manual escape hatch.
+        crate::output::warning(format!(
+            "the player (pid {pid}) is still alive after the stop budget — \
+             kill -TERM {pid} if it stays wedged"
+        ));
+        // night-dragon-maintenance-4: a wedged stop is a caution
+        // the reader must not miss — the warning yellow tier.
+        println!("{}", crate::output::warn_line("sound off (stop pending)"));
+        return;
     }
     // night-dragon-maintenance-4: the clean-stop completion is the
     // verb's affirmative verdict — the status-green tier.

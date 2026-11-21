@@ -1104,6 +1104,36 @@ pty on both seats (the plain dash floor and the braille helix), pin
 stdout spinner-free, and require the full-width clear after the last
 frame — the verdict never lands on a line the spinner left dirty.
 
+**54. The loading helix's estate — the local large-data loads
+narrate themselves (night-ux-orion-2;
+`src/commands/sound/lifecycle.rs`, `src/commands/info/doctor.rs`).**
+The hole: orion-1 closed the perception bug on the one networked
+wait, but the estate's three local waits stayed silent — `on`'s
+settle loop polls the control map while the detached player boots
+its engine, opens the audio server and voices the preset; `off`'s
+stop loop waits out the fade the player's watcher runs after the
+gate clears; the doctor's audio probe rides the device open and the
+audio server's own handshake. On a slow device, a busy host or a
+wedged audio server each crosses the 100 ms lazy threshold and the
+terminal sat frozen-looking — the Ctrl+C a silent shell invites
+kills a healthy spawn, a clean fade, a running diagnosis. The close
+rides the SAME machine, byte for byte: the same Spinner, the same
+HELIX table, the same lazy threshold, the same style ladder and
+clear contract — the helix seat on all three (`starting the sound
+engine`, `stopping the sound engine`, `probing the audio device`), a
+fast path never drawing. The one structural law the estate adds:
+the arm/finish bracket wraps EXACTLY the wait, and no exit lane may
+print or leave from inside the bracket — the settle loop lands its
+three exits as a verdict enum, the stop loop's budget verdict breaks
+out as a flag, the doctor collects the probe into a value first —
+so the machine finishes and erases its drawn line before the first
+verdict byte prints. Zero new dependencies, zero new CLI surface,
+zero new machinery. The live bytes are witnessed by the
+`sm_ux.py` loading-estate probes: the piped byte-silence law on all
+three seats, and the pty contract (frame legality against the helix
+seat, the full-width clear, the clean stdout) — frames drew or did
+not, both green wherever the suite runs.
+
 ## The test tree that pins the ledger
 
 The ledger is not honored by prose alone: 38 test files carrying 297

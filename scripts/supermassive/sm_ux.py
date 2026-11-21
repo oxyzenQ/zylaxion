@@ -84,6 +84,7 @@ def battery(ledger: Ledger, binary: str, full_mode: bool) -> None:
     _discovery(ledger, binary)
     _fatal_input(ledger, binary)
     _loading_lane(ledger, binary)
+    _loading_estate(ledger, binary)
     _tapless_doors(ledger, binary, full_mode)
     _root_doors(ledger, binary, full_mode)
 
@@ -95,6 +96,26 @@ def _identity(ledger: Ledger, binary: str) -> None:
             ledger.pass_row("-V prints the build identity", out.splitlines()[0][:70])
         else:
             ledger.fail_row("-V prints the build identity", f"rc={rc}: {out[:90]}")
+
+        # The masterclass disclosure (night-ux-orion-2): the -V report
+        # names both license doors in one contiguous line and carries
+        # the owner's masterclass Copyright form — no colon after the
+        # word, the year range, the holder — each exactly once.
+        copyright_line = "Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)"
+        license_line = "License: AGPL-3.0-only OR Commercial"
+        lines = out.splitlines()
+        copy_rows = [line for line in lines if line.startswith("Copyright")]
+        lic_rows = [line for line in lines if line == license_line]
+        if rc == 0 and copy_rows == [copyright_line] and lic_rows == [license_line]:
+            ledger.pass_row(
+                "-V carries the masterclass disclosure (night-ux-orion-2)",
+                "Copyright without the colon, both license doors in one line",
+            )
+        else:
+            ledger.fail_row(
+                "-V carries the masterclass disclosure (night-ux-orion-2)",
+                f"copyright={copy_rows[:1]}, license rows={len(lic_rows)}",
+            )
 
         rc, out = run_cli(binary, [])
         if rc == 0 and out:
@@ -389,6 +410,102 @@ def _loading_lane(ledger: Ledger, binary: str) -> None:
                 ledger.pass_row(name, verdict)
             else:
                 ledger.fail_row(name, f"rc={rc}: {verdict}: {plain[:90]!r}")
+
+
+def _loading_estate(ledger: Ledger, binary: str) -> None:
+    """The loading estate (night-ux-orion-2): the local waits narrate
+    themselves.
+
+    orion-1 wired the networked wait; orion-2 grows the estate to the
+    local surfaces: the doctor's audio probe (the report's one slow
+    local read, a device open that rides the audio server's own
+    handshake) and the on/off engine waits (the settle loops that poll
+    the control map while the detached player boots or fades). The
+    same doors apply, all honest without the tap:
+
+    - the piped door: a captured stream must NEVER see narration on
+      any seat — the inert machine's byte silence, whatever verdict
+      the environment honestly hands back;
+    - the pty door: a real terminal draws only if the seat crossed
+      the lazy threshold — frames drew or did not, both honest — and
+      every drawn frame rides the helix seat's grammar and is erased
+      before the verdict; stdout carries zero spinner bytes in every
+      arm.
+    """
+    seats = [
+        ("doctor", "probing the audio device"),
+        ("on", "starting the sound engine"),
+        ("off", "stopping the sound engine"),
+    ]
+    with Step(ledger, "the loading estate — the local waits narrate themselves"):
+        # The piped door: byte silence on every seat, whatever the
+        # environment's honest verdict is.
+        for verb, seat in seats:
+            label_prefix = f"[{seat}... "
+            rc, out = run_cli(binary, [verb])
+            if "\r" not in out and label_prefix not in out:
+                ledger.pass_row(
+                    f"the loading estate never arms on a piped stderr ({verb})",
+                    "byte-silent: no frames, no clears, no carriage returns",
+                )
+            else:
+                ledger.fail_row(
+                    f"the loading estate never arms on a piped stderr ({verb})",
+                    f"rc={rc}: {out[:90]}",
+                )
+
+        # The pty door: frames drew or did not — both honest (the
+        # environment's speed is not the contract); the seat, the
+        # clear, and the clean stdout are.
+        for verb, seat in seats:
+            label_prefix = f"[{seat}... "
+            rc, out_stdout, pty_text = _pty_stderr_run(binary, [verb])
+            plain = re.sub(r"\x1b\[[0-9;]*m", "", pty_text)
+            starts = [
+                i
+                for i in range(len(plain))
+                if plain.startswith("\r" + label_prefix, i)
+            ]
+            stdout_clean = (
+                "\r" not in out_stdout and label_prefix not in out_stdout
+            )
+            seat_ok = True
+            clear_ok = True
+            if starts:
+                draw_head = len("\r" + label_prefix)
+                frames: list[str] = []
+                for i in starts:
+                    close = plain.find("]", i + draw_head)
+                    if close == -1:
+                        seat_ok = False
+                        break
+                    frames.append(plain[i + draw_head : close])
+                # The helix seat: every frame is two braille cells
+                # (the UTF-8 door's table; a strand is three bytes per
+                # cell, so the drawn CELL width is two cells).
+                seat_ok = seat_ok and bool(frames) and all(
+                    0x2800 <= ord(ch) <= 0x28FF
+                    for frame in frames
+                    for ch in frame
+                )
+                clear_width = len(label_prefix) + 2 + 1
+                clear = "\r" + " " * clear_width + "\r"
+                clear_ok = clear in plain[starts[-1] :]
+            verdict = (
+                f"rc={rc}, frames={len(starts)}, "
+                f"seat={'ok' if seat_ok else 'drift'}, "
+                f"clear={'ok' if clear_ok else 'MISSING'}"
+            )
+            if stdout_clean and seat_ok and clear_ok:
+                ledger.pass_row(
+                    f"the loading estate obeys the lane contract under a pty ({verb})",
+                    verdict,
+                )
+            else:
+                ledger.fail_row(
+                    f"the loading estate obeys the lane contract under a pty ({verb})",
+                    verdict,
+                )
 
 
 def _tapless_doors(ledger: Ledger, binary: str, full_mode: bool) -> None:

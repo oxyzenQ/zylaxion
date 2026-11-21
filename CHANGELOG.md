@@ -110,6 +110,37 @@ v80.0.0-alpha.1
   version-report row carry the same shape, so the docs cannot teach
   the old grammar.
 
+- **night-ux-orion-2, the loading helix grows its estate — the local
+  large-data loads narrate themselves.** The estate's three local
+  waits were silent loads: `on`'s settle loop polls the control map
+  while the detached player boots its engine, opens the audio server
+  and voices the preset; `off`'s stop loop waits out the fade the
+  player's watcher runs after the gate clears; the doctor's audio
+  probe rides the device open and the audio server's own handshake.
+  On a slow device, a busy host or a wedged audio server each
+  crosses the 100 ms lazy threshold and the terminal sat
+  frozen-looking — the same perception bug orion-1 closed for the
+  update fetch, still open on the three local surfaces. The close
+  rides the SAME machine, byte for byte: the same Spinner, the same
+  HELIX table, the same lazy threshold, the same style ladder and
+  clear contract — the helix seat on all three (`starting the sound
+  engine`, `stopping the sound engine`, `probing the audio device`),
+  a fast path never drawing (byte for byte silent stderr, piped and
+  pty alike). The two lifecycle loops restructured their exits so
+  the bracket wraps exactly the wait: the settle loop lands its
+  three exits as a verdict enum (the loop cannot print or exit
+  inside the bracket), the stop loop's budget verdict breaks out as
+  a flag — the machine finishes and erases its drawn line before
+  either verdict prints, the orion-1 law; the doctor collects the
+  probe into a value first (the station's rows print after the
+  finish, so no stdout print rides inside the bracket). Zero new
+  dependencies, zero new CLI surface, zero new machinery. Pinned by
+  the supermassive suite's loading-estate surface (`sm_ux.py`): the
+  piped byte-silence law on all three seats, the pty draw's frame
+  legality against the helix seat, the full-width clear contract,
+  and the clean-stdout law — frames drew or did not, both green
+  wherever the suite runs.
+
 ## [v80.3.0] — night-frontier-Z4: the last timer dies — the parked player and the evented stop — 2026-11-18
 
 ### Added

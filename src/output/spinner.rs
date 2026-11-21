@@ -91,10 +91,11 @@ const SWEEP: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧
 const HELIX: [&str; 10] = ["⠋⠏", "⠙⠇", "⠹⠧", "⠸⠦", "⠼⠴", "⠴⠼", "⠦⠸", "⠧⠹", "⠇⠙", "⠏⠋"];
 
 /// The wave (one strand, the linear shape): the bare sweep. Kept
-/// for the estate's next linear site — the loading lane's one
-/// current site (the update fetch) arms the helix, whose two
-/// anti-parallel strands ARE the fetch: the request out, the answer
-/// back.
+/// for the estate's next linear site — the loading lane's current
+/// sites (the update fetch, the on/off engine waits, the doctor's
+/// audio probe) arm the helix, whose two anti-parallel strands ARE
+/// the operation: the request out and the answer back, the spawn and
+/// the settle, the stop and the fade.
 const WAVE: [&str; 10] = SWEEP;
 
 /// The ASCII floor: the rotating dash. NO_COLOR terminals and

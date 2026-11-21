@@ -216,7 +216,23 @@ pub fn cmd_doctor() {
     println!();
     #[cfg(target_os = "linux")]
     let _quiet = QuietAlsa::new();
-    match cpal::default_host().default_output_device().map(|d| {
+    // The loading lane (night-ux-orion-2): the audio probe is the
+    // doctor's one slow local read — the device open rides the audio
+    // server's own handshake, and on a wedged or loaded server it
+    // crosses the lazy threshold with the report parked mid-render, a
+    // frozen-looking terminal inviting the Ctrl+C that kills the
+    // diagnosis. The helix narrates the probe; the arm/finish bracket
+    // wraps exactly the probe call — the station's rows print after
+    // the finish, so no stdout print rides inside the bracket — and a
+    // fast probe never draws: the fast path's stderr stays byte for
+    // byte silent. The verdict is collected into a value first, so
+    // the machine finishes (and erases its drawn line) before any
+    // report byte prints.
+    let indicator = crate::output::spinner::Spinner::arm(
+        "probing the audio device",
+        crate::output::spinner::Style::Helix,
+    );
+    let probe = cpal::default_host().default_output_device().map(|d| {
         // night-dinner-10: DeviceTrait::name() became description() in
         // cpal 0.18 (a DeviceDescription with a stable id); render the
         // same bare name the CLI contract always shown, same fallback.
@@ -225,7 +241,9 @@ pub fn cmd_doctor() {
             .map(|desc| desc.name().to_owned())
             .unwrap_or_else(|_| "<unknown>".into());
         (name, d.default_output_config())
-    }) {
+    });
+    indicator.finish();
+    match probe {
         Some((name, Ok(config))) => {
             println!(
                 "{}",
