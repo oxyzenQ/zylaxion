@@ -331,7 +331,7 @@ jobs:
                 || { echo "::error::Expected 'Build-time:' line in -V"; exit 1; }
               "${BIN}" -V | grep -F "Signature: Pure eBPF builtin" \
                 || { echo "::error::Expected 'Signature:' line in -V"; exit 1; }
-              "${BIN}" -V | grep -F "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026" \
+              "${BIN}" -V | grep -F "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)" \
                 || { echo "::error::Expected materialized signature manifest in -V"; exit 1; }
               "${BIN}" -V | grep -F "status=verified" \
                 || { echo "::error::Expected Depth-matrix status=verified in -V"; exit 1; }

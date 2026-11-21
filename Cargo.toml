@@ -20,7 +20,7 @@
 
 [package]
 name = "zylaxion"
-version = "80.5.0"
+version = "80.5.1"
 # night-improve-4: edition 2024 across the whole tree so the repo speaks
 # one edition (the zelynic lineage). The 2024 floor is Rust 1.85; the
 # pinned toolchain below (1.98.1) rides far above it.
@@ -30,12 +30,17 @@ edition = "2024"
 # pair is a two-file change: this field and that channel — never one
 # alone, or the declared floor and the tested floor drift apart.
 rust-version = "1.98.1"
-# night-ux-orion-2: the dual-license SPDX OR expression, the masterclass
-# disclosure — the manifest names both doors in the same field a
-# `cargo search` and every corporate scanner read: AGPL-3.0-only, or
-# the Commercial License for closed-source use. The `-V` report's
-# License line carries the same expression verbatim.
-license = "AGPL-3.0-only OR Commercial"
+# night-ux-orion-2 named both doors in this field; the first crates.io
+# publish taught the registry law: the field accepts SPDX identifiers
+# only, and "Commercial" is not one — the server answered 400 "unknown
+# or invalid license expression" and v80.5.0 never landed. The manifest
+# now names the copyleft door in SPDX (the term the code is actually
+# available under); the commercial door stays documented in
+# COMMERCIAL_LICENSE.md, which ships inside the crate package, and the
+# `-V` report's License line still carries the dual expression verbatim
+# (the line is its own const — src/cli/mod.rs LICENSE_LINE — not this
+# field).
+license = "AGPL-3.0-only"
 # night-ux-orion-2: the estate's masterclass author row - the holder
 # name and contact exactly as the sibling manifests carry them, the
 # same identity the -V report's Copyright line names.
