@@ -315,6 +315,34 @@ done
 # /dev/input/event* node and the real-user law reads a false SKIP.
 # Load the split modules when the workflow staged them; the kernels
 # that build them in stage nothing, which is the honest no-op shape.
+# night-runner-2, the split follows the artifact: a kernel that ships
+# the controller as a module splits its dependency half out too —
+# i8042.ko carries unknown symbols until its own chain (serio, then
+# libps2) sits in the kernel, the law plain insmod has always had.
+# The loader walks the chain in dependency order; a half the artifact
+# builds in is not staged, which is the honest no-op shape, and each
+# staged half keeps its own honest PASS/FAIL row — a failure is still
+# a failure, only the dependency order is new.
+SERIO_KO=$(find "$MODDIR" -name "serio.ko*" 2>/dev/null | head -1)
+if [ -n "$SERIO_KO" ]; then
+        if insmod "$SERIO_KO" 2>/dev/null || grep -q serio /proc/modules; then
+                note "module serio loaded (the input split's core, the chain root)" PASS
+        else
+                note "module serio (insmod $(basename "$SERIO_KO"))" FAIL
+        fi
+else
+        echo "MASS: no serio.ko staged (this kernel builds the serio core in)"
+fi
+LIBPS2_KO=$(find "$MODDIR" -name "libps2.ko*" 2>/dev/null | head -1)
+if [ -n "$LIBPS2_KO" ]; then
+        if insmod "$LIBPS2_KO" 2>/dev/null || grep -q libps2 /proc/modules; then
+                note "module libps2 loaded (the input split's protocol helper)" PASS
+        else
+                note "module libps2 (insmod $(basename "$LIBPS2_KO"))" FAIL
+        fi
+else
+        echo "MASS: no libps2.ko staged (this kernel builds the protocol helper in)"
+fi
 I8042_KO=$(find "$MODDIR" -name "i8042.ko*" 2>/dev/null | head -1)
 if [ -n "$I8042_KO" ]; then
         if insmod "$I8042_KO" 2>/dev/null || grep -q i8042 /proc/modules; then

@@ -630,6 +630,30 @@ jobs:
             # and the real-user law reads a false SKIP. Stage the split
             # modules when the artifact carries them (jammy, noble and
             # Arch build evdev in, so nothing is staged there).
+            # night-runner-2, the split follows the artifact: the Arch
+            # 6.6 pocket that landed 2026-11-21 ships the controller as
+            # a MODULE for the first time in this lane's history, and a
+            # module the kernel splits out carries its own dependency
+            # half (serio, libps2) — a bare insmod of i8042.ko alone
+            # dies on unknown symbols, the same law insmod has always
+            # had. Stage the whole shipped chain in dependency order;
+            # the guest loader (supermassive-init.sh) insmods it in the
+            # same order, each half its own honest PASS/FAIL row, and
+            # the no-op shape stays whatever the artifact builds in.
+            SERIO_KO=$(find pkg -path '*lib/modules*' -name 'serio.ko*' | head -1)
+            if [ -n "$SERIO_KO" ]; then
+              cp "$SERIO_KO" /tmp/kfloor/stage/mods/
+              echo "serio: staged (this kernel ships the serio core as a module)"
+            else
+              echo "serio: not shipped by this artifact (the serio core is built in)"
+            fi
+            LIBPS2_KO=$(find pkg -path '*lib/modules*' -name 'libps2.ko*' | head -1)
+            if [ -n "$LIBPS2_KO" ]; then
+              cp "$LIBPS2_KO" /tmp/kfloor/stage/mods/
+              echo "libps2: staged (this kernel ships the protocol helper as a module)"
+            else
+              echo "libps2: not shipped by this artifact (the protocol helper is built in)"
+            fi
             I8042_KO=$(find pkg -path '*lib/modules*' -name 'i8042.ko*' | head -1)
             if [ -n "$I8042_KO" ]; then
               cp "$I8042_KO" /tmp/kfloor/stage/mods/
