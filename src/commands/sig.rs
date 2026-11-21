@@ -149,6 +149,16 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     // bytes that execute at ring 0, not only the identity claim.
     let tap_object = crate::info::signature::tap_object_digest_check();
 
+    // night-ux-orion-2 (the owner's masterclass form): the holder
+    // renders WITHOUT the claim year — the year rides the masked
+    // manifest where the fingerprints pin it, never the D0 row detail
+    // or the field block. A tampered manifest that lost the suffix
+    // renders verbatim instead: the honest evidence stays visible.
+    let identity_clean = identity
+        .strip_suffix(" 2026")
+        .unwrap_or(identity.as_str())
+        .to_string();
+
     let rows = [
         DepthRow {
             name: "runtime-identity",
@@ -159,7 +169,7 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
             detail: if identity.is_empty() {
                 "the manifest identity did not materialize".to_string()
             } else {
-                identity.clone()
+                identity_clean.clone()
             },
         },
         DepthRow {
@@ -210,15 +220,28 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
         ));
     }
     text.push('\n');
-    // night-depth-infra-1: an identity that did not materialize renders
-    // as "unknown" (the commit field's fallback shape) — an empty value
-    // would leave four trailing spaces on the identity line.
+    // night-ux-orion-2: the field block carries the holder (the year-
+    // free claim above) and the contact line extracted from the
+    // materialized authors layer's bracketed address. The extraction
+    // fails soft and honestly: a tampered authors layer renders
+    // "unknown" or omits the contact line, and the depth rows above
+    // already name the failure. The address exists at rest only as
+    // masked u64 words (night-remake-1), so the artifact's strings(1)
+    // sweep still finds no claim to strip.
     let identity_display = if identity.is_empty() {
-        "unknown"
+        "unknown".to_string()
     } else {
-        identity.as_str()
+        identity_clean
     };
     text.push_str(&format!("identity    {identity_display}\n"));
+    let contact = view
+        .authors
+        .split_once('<')
+        .and_then(|(_, tail)| tail.strip_suffix('>'))
+        .unwrap_or_default();
+    if !contact.is_empty() {
+        text.push_str(&format!("contact     {contact}\n"));
+    }
     text.push_str(&format!(
         "fingerprint fp={:016x} (fnv1a64, dual-layer)\n",
         super::super::info::signature::manifest_fingerprint()
