@@ -177,6 +177,37 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-fly-1, the stale verification prose — the release notes
+  answer with the live UID reality.** The verification block every
+  release page prints (`### GPG signature`, emitted by
+  `scripts/release/generate-release-notes.sh`) still told verifiers
+  to expect `Good signature from "Rezky Cahya Sahputra (cosmic
+  dragon)"` — a shape gpg stopped printing once the proton UID
+  became the signing key's primary: a live `gpg --verify` against a
+  real v80.5.1 artifact answers `Good signature from "rezky_nightky
+  (oxyzenQ) <oxyzenQ@proton.me>" [ultimate]` with the noreply
+  identity as the `aka` line, so the expected verdict the notes
+  taught was stale. The generator now emits that live reality (the
+  proton-primary Expected line with the aka noreply identity), and
+  the 19 published release pages that carried the stale line were
+  patched in place by exact-string replace (nothing else touched; a
+  full re-fetch of all 37 releases re-verified zero residual). The
+  depth audit found nothing else stale: the tree carries no legacy
+  contact-address variant anywhere (plain or obfuscated), the other
+  contact surfaces (SECURITY, CLA, NOTICE, QA, CONTRIBUTING) name
+  the proton or noreply identity only, and the fingerprint claims in
+  docs/VERIFY_RELEASE.md were recomputed and all three match their
+  layers (manifest `247d2835ac8bde6a` byte-proved on a live `-V`,
+  proton authors `66771e5f273b9cae`, retired authors
+  `c97b13f816035d55`). VERIFY_RELEASE.md's GPG lane — which named
+  no fingerprint and no expected verdict at all — now carries the
+  keyserver import line, the out-of-band fingerprint, and the same
+  expected verdict the release notes print. Verified live: the
+  generator's emitted block byte-matches the owner's actual gpg
+  output; the identity surfaces byte-proved on a source-built eBPF
+  build (`Signature: Pure eBPF builtin — Official Build by
+  rezky_nightky (oxyzenQ)` year-free, `sig` five-depth AUTHENTIC,
+  contact proton); full test suite 308/308 green.
 - **the v80.5.1 release close — the release gate learns the year-free
   claim, and the manifest license speaks SPDX.** The v80.5.0 tag's
   release CI failed on two gates, both taught by the tag push that

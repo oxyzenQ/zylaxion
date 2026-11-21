@@ -51,11 +51,20 @@ EXPECTED=$(awk '{print $1}' "$PKG.shake256")
 [ "$COMPUTED" = "$EXPECTED" ] && echo "$PKG: OK" || echo "FAILED"
 
 # GPG detached signature (when the release carries .asc files)
+gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
 gpg --verify zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.asc \
   zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz
-# Import the owner's public key once, from the repository's release
-# page or a keyserver, and check the fingerprint out of band.
+# Fingerprint to check out of band:
+#   F532 4E09 67F1 04D5 8CE0  25F3 47A5 0AEF 4B65 AAC2
 ```
+
+The expected verdict is `Good signature from "rezky_nightky (oxyzenQ)
+<oxyzenQ@proton.me>"` (aka `Rezky Cahya Sahputra (cosmic dragon)
+<130107241+oxyzenQ@users.noreply.github.com>`) — the primary contact
+UID answers first, and a `WARNING: This key is not certified with a
+trusted signature` notice is normal for first-time imports as long as
+the fingerprint matches. The keyserver always carries the live UID
+set — trust it over this page after a rotation.
 
 Swap the platform label (`-v4-gnu`) for the artifact you actually
 downloaded — the label set lives in the release page's table.

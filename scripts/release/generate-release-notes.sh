@@ -388,7 +388,7 @@ verification_section() {
 	echo "gpg --verify zylaxion-${tag}-linux-amd64-v3-gnu.tar.gz.asc"
 	echo '```'
 	echo ""
-	echo "Expected: \`Good signature from \"Rezky Cahya Sahputra (cosmic dragon)\"\`"
+	echo "Expected: \`Good signature from \"rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>\"\` (aka \`Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>\`)"
 	echo ""
 	echo "Full verification instructions: [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md)"
 }
