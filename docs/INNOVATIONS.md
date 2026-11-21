@@ -1137,7 +1137,7 @@ not, both green wherever the suite runs.
 
 ## The test tree that pins the ledger
 
-The ledger is not honored by prose alone: 38 test files carrying 297
+The ledger is not honored by prose alone: 39 test files carrying 308
 test functions pin the entries above, wired into the crate through
 `#[path]` modules. The family map, so an auditor can walk it in one
 pass:
