@@ -46,10 +46,13 @@ Usage:
 # The provenance truths. Byte-level truth: UTF-8 (the em dash is three
 # bytes, E2 80 94, and every layer below operates on bytes, not chars).
 # The manifest is the full Signature-line claim: the static brand prose
-# plus the identity and the year. The authors string is the Copyright
-# line's identity, which must start with the manifest's identity core
-# (everything after "Official Build by ", minus the year suffix).
-MANIFEST = "Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026"
+# plus the identity (night-ux-orion-3: the claim no longer carries a
+# trailing year — the holder renders without a claim year, and a year
+# belongs to the front of the Copyright line, never as a suffix after
+# the identity). The authors string is the Copyright line's identity,
+# which must start with the manifest's identity core (everything after
+# "Official Build by ").
+MANIFEST = "Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)"
 AUTHORS = "rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>"
 
 # Per-layer seeds. Decoys with no external meaning; rotating them is a

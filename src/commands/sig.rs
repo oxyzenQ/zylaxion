@@ -131,11 +131,13 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     let d0_shape_ok = !identity.is_empty();
 
     // D1: the authors layer materialized and binds to the identity.
+    // night-ux-orion-3: the manifest is year-free, so the identity
+    // core is the tail verbatim — the old `" 2026"` strip would read
+    // the new shape as a tampering signal.
     let binding_ok = view
         .manifest
         .split_once("Official Build by ")
-        .and_then(|(_, tail)| tail.strip_suffix(" 2026"))
-        .is_some_and(|core| view.authors.starts_with(core));
+        .is_some_and(|(_, core)| view.authors.starts_with(core));
 
     // D2: the cryptographic anchor (already recomputed in the same
     // single pass that produced the display bytes).
@@ -149,15 +151,13 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     // bytes that execute at ring 0, not only the identity claim.
     let tap_object = crate::info::signature::tap_object_digest_check();
 
-    // night-ux-orion-2 (the owner's masterclass form): the holder
-    // renders WITHOUT the claim year — the year rides the masked
-    // manifest where the fingerprints pin it, never the D0 row detail
-    // or the field block. A tampered manifest that lost the suffix
-    // renders verbatim instead: the honest evidence stays visible.
-    let identity_clean = identity
-        .strip_suffix(" 2026")
-        .unwrap_or(identity.as_str())
-        .to_string();
+    // night-ux-orion-3 (completing the night-ux-orion-2 form): the
+    // manifest itself no longer carries the claim year, so the holder
+    // renders year-free verbatim — a year belongs to the front of the
+    // Copyright line, never as a suffix after the identity. A tampered
+    // manifest renders whatever it materializes: the honest evidence
+    // stays visible.
+    let identity_clean = identity.clone();
 
     let rows = [
         DepthRow {

@@ -173,6 +173,50 @@ v80.0.0-alpha.1
   the anti-rebind machinery is not part of a header sweep), and the
   frozen CHANGELOG.md record keeps its exclusion.
 
+### Changed
+
+- **night-ux-orion-3, the claim loses its year — the holder renders
+  without a claim year.** The Signature line ended with a year
+  suffix (`... rezky_nightky (oxyzenQ) 2026`), a shape the owner
+  ruled wrong: a year belongs to the front of a Copyright line,
+  never as a suffix trailing the identity, and the masked manifest
+  now carries the identity alone. The close is one generator truth
+  edit and a re-run: `scripts/release/generate-provenance-words.py`
+  drops the `" 2026"` tail from the `MANIFEST` truth string, the
+  re-run emits the new 63-byte, 8-word masked layer (the at-rest
+  invisibility assert still holds — no printable run of four or
+  more bytes in the masked words), the fresh manifest fingerprint
+  (`247d2835ac8bde6a`) and the fresh blake3 depth anchor
+  (`b3:0f4a2f66ed24b96421509ec4f5e3b4f5688d984e8d6aacdfede18a27db451b0e`)
+  are pasted into `src/info/signature.rs` (the authors layer keeps
+  its night-remake-1 words untouched — the dual-layer fingerprints
+  stay independent). The identity-binding machinery follows the
+  manifest: `identity_core()` extracts the tail after the
+  `"Official Build by "` marker verbatim (the old year-strip would
+  have read the year-free shape as a tampering signal, and so would
+  the `sig` report's D1 row — both are simplified to the marker
+  split, and the retired year-suffix shape now fails the binding
+  test by name). The output contract the user sees is the point of
+  the task: `-V/--version` renders
+  `Signature: Pure eBPF builtin — Official Build by rezky_nightky
+  (oxyzenQ)` with no year suffix, the `sig` depth matrix renders
+  `identity    rezky_nightky (oxyzenQ)` the same way, and the
+  year-front `Copyright (c) 2025-2026` line is the only year the
+  report carries. The pins follow the bytes:
+  `test/info/signature_tests.rs` (the oracle literals, the framing
+  offsets at the 63-byte manifest, the retired-shape tamper case),
+  `test/cli/version_report_tests.rs` and `test/commands/sig_tests.rs`
+  (negative pins: no `(oxyzenQ) 2026` anywhere on the rendered
+  surfaces), the doc samples in `QA.md`, `docs/RULES.md`,
+  `docs/VERIFY_RELEASE.md` and `docs/INNOVATIONS.md`, and the fp=
+  provenance note (zelynic still carries the retired year form until
+  its own remake lands, so the sibling `fp=` values differ by
+  design). Verified on the real artifact: the release binary's
+  `-V` renders the year-free line with `status=verified`, `sig`
+  reports AUTHENTIC 5/5 with the fresh anchor and self-hash, and a
+  strings(1) sweep over the artifact finds zero year-suffixed claim
+  bytes.
+
 ## [v80.3.0] — night-frontier-Z4: the last timer dies — the parked player and the evented stop — 2026-11-18
 
 ### Added

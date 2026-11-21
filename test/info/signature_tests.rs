@@ -14,18 +14,18 @@ use super::*;
 /// that cannot name its expected output proves nothing. The release
 /// artifact contains none of them (cfg(test) is stripped from the
 /// binary).
-const MANIFEST_ORACLE: &str = "Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026";
+const MANIFEST_ORACLE: &str = "Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)";
 const AUTHORS_ORACLE: &str = "rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>";
 /// Generator cross-check values (scripts/release/
 /// generate-provenance-words.py prints them). If these diverge from the
 /// const eval, the generator and the Rust mirror have drifted.
-const MANIFEST_FINGERPRINT_ORACLE: u64 = 0xA60D_FB6A_3974_5F34;
+const MANIFEST_FINGERPRINT_ORACLE: u64 = 0x247D_2835_AC8B_DE6A;
 const AUTHORS_FINGERPRINT_ORACLE: u64 = 0x6677_1E5F_273B_9CAE;
 /// Generator's printed anchor cross-check (blake3 over the framed
 /// payload). The Python mirror and the Rust crate were proven
 /// byte-identical on the pinned vectors at integration time.
 const DEPTH_ANCHOR_HEX_ORACLE: &str =
-    "2dabe332360e8c2f733fb21bf5fa420d28749c3d169fd985ffa0de7a0a0c0aa8";
+    "0f4a2f66ed24b96421509ec4f5e3b4f5688d984e8d6aacdfede18a27db451b0e";
 
 #[test]
 fn layers_materialize_to_oracles() {
@@ -104,16 +104,16 @@ fn depth_anchor_matches_runtime_blake3() {
 fn anchor_payload_framing_is_exact() {
     // Domain tag, then length-prefixed layers: byte-exact mirror of the
     // generator's anchor_payload. Pinned against the real layer lengths
-    // (68 manifest + 43 authors over the 24-byte domain tag).
+    // (63 manifest + 43 authors over the 24-byte domain tag).
     let manifest = unmask_to_bytes(&MASKED_MANIFEST_WORDS, MANIFEST_SEED, MANIFEST_BYTE_LEN);
     let authors = unmask_to_bytes(&MASKED_AUTHORS_WORDS, AUTHORS_SEED, AUTHORS_BYTE_LEN);
     let payload = anchor_payload(&manifest, &authors);
     assert!(payload.starts_with(b"zylaxion/depth-matrix/v1"));
-    assert_eq!(&payload[24..32], &68u64.to_le_bytes());
-    assert_eq!(&payload[32..100], manifest.as_slice());
-    assert_eq!(&payload[100..108], &43u64.to_le_bytes());
-    assert_eq!(&payload[108..151], authors.as_slice());
-    assert_eq!(payload.len(), 151);
+    assert_eq!(&payload[24..32], &63u64.to_le_bytes());
+    assert_eq!(&payload[32..95], manifest.as_slice());
+    assert_eq!(&payload[95..103], &43u64.to_le_bytes());
+    assert_eq!(&payload[103..146], authors.as_slice());
+    assert_eq!(payload.len(), 146);
 }
 
 #[test]
@@ -163,12 +163,17 @@ fn identity_core_extraction_and_binding() {
     assert!(AUTHORS_ORACLE.starts_with(core), "layers bind coherently");
     // A rebranded manifest (different identity) breaks the binding: the
     // authors string no longer starts with the extracted core.
-    let forged = "Pure eBPF builtin — Official Build by someone_else 2026";
+    let forged = "Pure eBPF builtin — Official Build by someone_else";
     let forged_core = identity_core(forged).expect("marker present");
     assert!(!AUTHORS_ORACLE.starts_with(forged_core));
-    // Missing marker or missing year are tampering signals.
+    // The retired year-suffix shape (night-ux-orion-3 dropped it) no
+    // longer binds either: the core is the tail verbatim, so the year
+    // rides inside the core and the authors prefix check rejects it.
+    let retired = "Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026";
+    let retired_core = identity_core(retired).expect("marker present");
+    assert!(!AUTHORS_ORACLE.starts_with(retired_core));
+    // A missing marker is the tampering signal.
     assert!(identity_core("Pure eBPF builtin").is_none());
-    assert!(identity_core("Official Build by rezky_nightky").is_none());
 }
 
 #[test]
@@ -180,8 +185,12 @@ fn provenance_view_shape_is_stable() {
         view.manifest
     );
     assert!(
-        view.manifest.ends_with("rezky_nightky (oxyzenQ) 2026"),
-        "manifest ends with the owner identity"
+        view.manifest.ends_with("rezky_nightky (oxyzenQ)"),
+        "manifest ends with the owner identity, year-free"
+    );
+    assert!(
+        !view.manifest.ends_with("2026"),
+        "night-ux-orion-3: the claim carries no year suffix"
     );
     let depth = &view.depth_line;
     assert!(depth.starts_with("Depth-matrix: fp="), "depth line shape");

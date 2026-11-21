@@ -39,7 +39,7 @@ fn strip_brand_spans(line: &str) -> String {
 fn version_report_carries_the_zelynic_line_contract() {
     let body = version_body();
     for line in [
-        "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026",
+        "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)",
         "Depth-matrix: fp=",
         "layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor",
         "Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)",
@@ -115,10 +115,12 @@ fn copyright_line_is_the_masterclass_form() {
 fn signature_surface_materializes_the_masked_layers() {
     let body = version_body();
     assert!(
-        body.contains(
-            "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026"
-        ),
+        body.contains("Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)"),
         "the materialized manifest renders after the Signature: prefix"
+    );
+    assert!(
+        !body.contains(" (oxyzenQ) 2026"),
+        "night-ux-orion-3: no claim year suffix anywhere on the -V body"
     );
     assert!(
         body.contains(" status=verified "),

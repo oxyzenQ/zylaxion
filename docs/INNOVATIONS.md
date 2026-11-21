@@ -611,7 +611,7 @@ before any network I/O. Files of truth: `src/commands/update.rs` and
 **38. The provenance depth matrix — the masked ownership seal.** The
 rebrand threat it kills: a thief greps the artifact with `strings(1)`
 or `rg`, finds the plaintext identity, and patches it out. The claim
-"rezky_nightky (oxyzenQ) 2026" ships only as splitmix64-XOR-masked
+"rezky_nightky (oxyzenQ)" ships only as splitmix64-XOR-masked
 little-endian u64 words — two independent layers, the Signature
 manifest and the Copyright authors — with FNV-1a 64-bit fingerprints
 const-evaluated from the masked words at compile time and recomputed

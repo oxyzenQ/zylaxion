@@ -38,16 +38,16 @@ fn pristine_build_reports_authentic_five_of_five() {
 )]
 fn report_names_the_owner_identity() {
     let (text, _) = sig_report();
-    // night-ux-orion-2: the field block carries the holder only — the
-    // claim year stays in the masked manifest — and the contact line
+    // night-ux-orion-3: the manifest itself is year-free, so the
+    // identity renders year-free verbatim and the contact line
     // materializes the authors layer's bracketed address.
     assert!(
         text.contains("identity    rezky_nightky (oxyzenQ)"),
         "identity field must materialize the masked layers without the claim year:\n{text}"
     );
     assert!(
-        !text.contains("(oxyzenQ) 2026\n"),
-        "the identity line must not carry the claim year:\n{text}"
+        !text.contains("(oxyzenQ) 2026"),
+        "no line of the report may carry the claim year suffix:\n{text}"
     );
     assert!(
         text.contains("contact     oxyzenQ@proton.me"),
