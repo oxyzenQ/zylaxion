@@ -207,7 +207,7 @@ def parse_sweep(lockfile: str, doc: dict) -> LockSweep:
 def audit_lock(lockfile: str) -> LockSweep:
     """One cargo-audit pass on one lockfile. Exit 1 means findings (data,
     not a verdict here); anything else - broken tool, dead fetch, timeout,
-    unparseable output - is a scan error, and a scan error is a RED
+    unparsable output - is a scan error, and a scan error is a RED
     verdict downstream, never a silent pass. The flag is --format json
     (cargo-audit 0.23 replaced the old bare --json with it) and the
     workflow pins the scanner version to keep this contract still."""
@@ -227,7 +227,7 @@ def audit_lock(lockfile: str) -> LockSweep:
     try:
         doc = json.loads(proc.stdout)
     except json.JSONDecodeError as exc:
-        return LockSweep(lockfile, [], [], error=f"cargo audit printed unparseable JSON: {exc}")
+        return LockSweep(lockfile, [], [], error=f"cargo audit printed unparsable JSON: {exc}")
     return parse_sweep(lockfile, doc)
 
 
