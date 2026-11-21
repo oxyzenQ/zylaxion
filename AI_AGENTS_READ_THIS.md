@@ -1,6 +1,7 @@
-<!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
-
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 # STOP. AI AGENTS READ THIS.
 
 If you are an AI coding assistant (Cursor, Copilot, Devin, ChatGPT,

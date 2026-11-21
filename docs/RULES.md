@@ -1,6 +1,7 @@
-<!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
-
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 # zylaxion Project Rules
 
 Absolute source of truth for maintaining consistency, efficiency, and quality.
@@ -256,13 +257,17 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 - **Project name:** `zylaxion` (lowercase). Never capitalized in any
   context — machine-enforced by `scripts/gates/check-name-case.py`.
 - **Badges:** ONLY Ko-fi (`ko-fi/rezky`).
-- **License:** AGPL-3.0-only.
+- **License:** AGPL-3.0-only OR Commercial (the dual-license
+  SPDX OR expression, night-ux-orion-2 - AGPL-3.0-only, or the
+  Commercial License for closed-source use).
 - **Trademark:** See `TRADEMARK.md` (the repo root — the
   `docs/trademark.md` path this row used to name does not exist).
-- **File headers:** All `.rs`, `.sh`, `.yml` files MUST carry:
+- **File headers:** All code, config and doc files MUST carry the
+  masterclass SPDX form (night-ux-orion-2, enforced by
+  `scripts/gates/check-headers.sh`):
   ```
-  Copyright (C) 2026 rezky_nightky
-  SPDX-License-Identifier: AGPL-3.0-only
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
   ```
 
 ## Git & Repo Hygiene

@@ -1,6 +1,7 @@
-<!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
-
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 # zylaxion Design Philosophy
 
 > zylaxion is "the boring and stealth" — a real-time mechanical keyboard
@@ -114,7 +115,8 @@ trust.
 
 zylaxion is the exclusive work of rezky_nightky (oxyzenQ). Versions
 are cut by the owner, the name and marks are governed by
-TRADEMARK.md, the license is AGPL-3.0-only everywhere, and no
+TRADEMARK.md, the license is AGPL-3.0-only OR Commercial
+everywhere (night-ux-orion-2), and no
 contribution may rebrand, relicense, or soften the privacy posture.
 This philosophy is descriptive, not negotiable: code that contradicts
 it does not merge, no matter how clever the diff looks.

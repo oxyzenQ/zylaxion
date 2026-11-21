@@ -1,6 +1,7 @@
-<!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
-
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 # Contributing to zylaxion
 
 Thank you for your interest in contributing to zylaxion! This document
@@ -84,7 +85,9 @@ push:
    and directories 755. `scripts/gates/check-permissions.sh --fix`
    repairs a drifted worktree.
 4. **Header parity.** Every source file opens with the copyright line
-   and the `SPDX-License-Identifier: AGPL-3.0-only` tag.
+   and the `SPDX-License-Identifier: AGPL-3.0-only OR Commercial`
+   tag (night-ux-orion-2, the masterclass disclosure — see
+   `docs/RULES.md` for the full form).
 5. **No version drift.** Version fields, changelog release dates, and
    tags move only by the Owner's hand (`scripts/dev/version-to.sh` is
    the single sanctioned tool, run by the Owner).

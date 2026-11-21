@@ -1,6 +1,7 @@
-<!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
-
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 # The night-dragon-maintenance-X1 end-to-end audit (2026-11-02)
 
 Four task IDs, one tree: the asset signature ledger, the serde ban's

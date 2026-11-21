@@ -1,5 +1,5 @@
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 #
 # zylaxion prebuilt eBPF object manifest (night-improve-23, the
 # zelynic NIGHT-ask-2 shape; schema 2 since night-dragon-maintenance-0
@@ -19,10 +19,10 @@
 # bytes a registry-install build embeds.
 
 schema = 2
-generated = "2026-11-18T20:38:55Z"
+generated = "2026-11-21T08:34:47Z"
 toolchain = "nightly-2026-09-18"
 bpf_linker = "0.11.1"
-ebpf_tree_blake3 = "a7b614fb14a146db579d1546bcef963591f11d410e86f8f292b47c89f7e5b8cd"
+ebpf_tree_blake3 = "1f31b3e82c47ae22d236e9185c8930e3b7bc57beddd2297c2165c527c0efde94"
 built_by = "oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
 [[object]]

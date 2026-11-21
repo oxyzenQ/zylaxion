@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 //! PROOF 2 — the sample-rate span (night-private-research-2xblade-3).
 //! One keystroke per preset at 44.1 / 48 / 88.2 / 96 / 192 kHz, through

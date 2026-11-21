@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 // ring_lanes_tests.rs — the SPSC ring's interleaving pins
 // (night-frontier-Z1, the A2 remainder: the loom-style pin the

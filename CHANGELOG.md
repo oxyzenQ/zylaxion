@@ -141,6 +141,38 @@ v80.0.0-alpha.1
   and the clean-stdout law — frames drew or did not, both green
   wherever the suite runs.
 
+- **night-ux-orion-2, the estate standardization — every file carries
+  the masterclass SPDX disclosure.** The tree's headers were the one
+  place the dual-license truth stayed machine-unreadable: 265 files
+  carried the legacy house form (`Copyright (C) 2026 rezky_nightky`
+  + `SPDX-License-Identifier: AGPL-3.0-only`), a form no corporate
+  scanner resolves to a holder and none names the Commercial door
+  the tree ships. The close is the zejtron night-ux-orion-2 header
+  standardization ported tree-wide: every code, config and doc file
+  now opens with the masterclass SPDX form —
+  `SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)` (the
+  ISO-recognized holder line, the year range naming the first and
+  the current year of the claim) over
+  `SPDX-License-Identifier: AGPL-3.0-only OR Commercial` (the
+  machine-readable OR expression — AGPL-3.0-only, or the Commercial
+  License for closed-source use) — with the Markdown files carrying
+  it as the four-line HTML-comment block and the shell scripts
+  keeping their OS line. The gate that enforces the shape
+  (`scripts/gates/check-headers.sh`) now accepts only the canonical
+  form, so a legacy header cannot re-enter the tree through an
+  unnoticed edit. The manifest's author row joins the masterclass
+  posture (the holder name and contact exactly as the sibling
+  manifests carry them), and the generators whose templates emit
+  file headers (`scripts/engine/generate-detmath.py`'s HEADER, the
+  prebuilt-manifest heredoc in
+  `scripts/dev/regenerate-ebpf-prebuilt.sh`) emit the same form, so
+  a regeneration cannot resurrect the legacy bytes. The RULES.md,
+  BRANDING.md and CONTRIBUTING.md header templates and license rows
+  teach the same shape, the masked provenance layers stay untouched
+  (the D1 authors oracle still binds the claim it always bound —
+  the anti-rebind machinery is not part of a header sweep), and the
+  frozen CHANGELOG.md record keeps its exclusion.
+
 ## [v80.3.0] — night-frontier-Z4: the last timer dies — the parked player and the evented stop — 2026-11-18
 
 ### Added

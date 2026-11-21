@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 //! The tap object's build-time digest stamp (night-depth-hardening-Z1
 //! D2), split out of build/ebpf.rs per the 600-LOC no-mercy cap (the

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 """night-frontier-Z5: the certified bounded-domain transcendental generator.
 
 Generates the coefficient tables, the certified error bounds, and the
@@ -390,8 +390,8 @@ def main():
 # ── emitters ─────────────────────────────────────────────────────────
 
 HEADER = """\
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 // GENERATED FILE -- do not edit by hand. Regenerate with:
 //   python3 scripts/engine/generate-detmath.py

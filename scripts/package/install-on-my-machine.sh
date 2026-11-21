@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # OS: Linux only - zylaxion is a Linux keyboard-sound tool; no other OS is supported.
-# Copyright (C) 2026 rezky_nightky
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 #
 # Fast one-command machine setup (night-master-2): detect the CPU's
 # x86-64 microarchitecture level, build the matching release shape

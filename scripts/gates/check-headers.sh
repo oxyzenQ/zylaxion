@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # OS: Linux only — zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 #
 # ZYLAXION SPDX HEADER CHECK
@@ -9,11 +9,18 @@
 # header. Fails if any included file is missing the header or carries
 # the wrong license identifier.
 #
-# Required (both lines, within the first 10 lines of the file):
-#   Copyright (C) 2026 rezky_nightky
-#   SPDX-License-Identifier: AGPL-3.0-only
+# Required (within the first 10 lines of the file):
+#   SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+#   plus a copyright line carrying the year range and the author - the
+#   owner's masterclass SPDX form (night-ux-orion-2, the ecosystem
+#   standardization):
+#     SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+#   The legacy house forms (Copyright (C) ...) without the holder
+#   suffix were normalized to the SPDX-FileCopyrightText form in the
+#   same change; the gate now accepts only the canonical form.
 # Rejected: any other SPDX-License-Identifier value (the project is
-# AGPL-3.0-only licensed).
+# dual-licensed AGPL-3.0-only OR Commercial - the SPDX OR expression
+# is the machine-readable disclosure every corporate scanner reads).
 #
 # Every *.sh ADDITIONALLY requires the OS line within the first 10
 # lines — `# OS: Linux only` — the owner's rule, enforced as a failure
@@ -24,11 +31,12 @@
 #   .gitignore), so a new source file missing its header fails the check
 #   BEFORE it can be committed (pre-commit proxy parity).
 # Excluded: CHANGELOG.md — a frozen historical record, never rewritten
-#   (the same exclusion policy as every other gate).
+#   (the same exclusion policy as every other gate). The archived era
+#   records (docs/archive/CHANGELOG-*) stay IN scope on this tree:
+#   unlike the sibling, zylaxion's archive files carry maintained
+#   headers and the gate checks them.
 #
 # Usage: bash scripts/gates/check-headers.sh
-#
-# Platform: UNIX-only (uses `git`, `head`, `grep`). Not for Windows cmd.exe.
 
 set -euo pipefail
 
@@ -44,8 +52,8 @@ MISSING=0
 WRONG=0
 CHECKED=0
 
-EXPECTED_COPYRIGHT="Copyright (C) 2026 rezky_nightky"
-EXPECTED_LICENSE_NAME="AGPL-3.0-only"
+EXPECTED_COPYRIGHT="2025-2026 rezky_nightky (oxyzenQ)"
+EXPECTED_LICENSE_NAME="AGPL-3.0-only OR Commercial"
 
 while IFS= read -r -d '' file; do
 	CHECKED=$((CHECKED + 1))

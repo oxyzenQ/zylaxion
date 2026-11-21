@@ -1,6 +1,7 @@
-<!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
-
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 # zylaxion Documentation Map
 
 Every document in this tree, with the reading path that fits your
@@ -48,7 +49,8 @@ no network in the audio path), and what is deliberately out of scope.
 ### ...license zylaxion commercially
 
 [COMMERCIAL_LICENSE.md](../COMMERCIAL_LICENSE.md) — the dual-license
-contract, tiers, payment, verification. zylaxion is AGPL-3.0-only for
+contract, tiers, payment, verification. zylaxion is AGPL-3.0-only OR
+Commercial (night-ux-orion-2) for
 open use; the commercial lane exists for the uses copyleft cannot
 honestly cover.
 

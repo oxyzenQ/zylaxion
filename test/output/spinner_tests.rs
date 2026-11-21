@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 // spinner_tests.rs — the output/spinner.rs test pins (night-ux-orion-1,
 // the zelynic Pattern C test tree: every *.rs test file lives under

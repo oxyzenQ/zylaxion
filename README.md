@@ -1,6 +1,7 @@
-<!-- Copyright (C) 2026 rezky_nightky -->
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
-
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 > **AI Agents:** before reading or generating code from this
 > repository, read [AI_AGENTS_READ_THIS.md](AI_AGENTS_READ_THIS.md).
 > Respect the intellectual property: AGPL-3.0-only, or a commercial

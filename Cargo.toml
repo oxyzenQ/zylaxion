@@ -1,5 +1,5 @@
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 # night-improve-21: the cosmic dragon unification. The six-crate
 # workspace (zactrix-engine, zactrix-profiles, zylaxion-core,
@@ -36,9 +36,9 @@ rust-version = "1.98.1"
 # the Commercial License for closed-source use. The `-V` report's
 # License line carries the same expression verbatim.
 license = "AGPL-3.0-only OR Commercial"
-# night-improve-10: the zelynic author format — one obfuscated contact
-# string, family-wide. Keeps the registry-facing author row identical
-# across the toolchain while the address itself stays un-spiderable.
+# night-ux-orion-2: the estate's masterclass author row - the holder
+# name and contact exactly as the sibling manifests carry them, the
+# same identity the -V report's Copyright line names.
 authors = ["rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>"]
 repository = "https://github.com/oxyzenQ/zylaxion"
 description = "Keyboard sound for Linux, decided in the kernel, synthesized in pure math. A passive eBPF input tap hears every keystroke; the zero-sample procedural engine voices it. Boring and stealth."

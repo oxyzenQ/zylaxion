@@ -1,6 +1,7 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-only -->
-<!-- Copyright (C) 2026 rezky_nightky (oxyzenQ) -->
-
+<!--
+  SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+  SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+-->
 # The Security Audit — night-private-research-2xblade-3.6X (the hardening pass)
 
 The follow-up the 3.6 record pre-named. One question, answered with

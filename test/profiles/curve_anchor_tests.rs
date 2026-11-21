@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 // curve_anchor_tests.rs — the night-frontier-3C f64 curve-anchor law
 // pins, split from mechanical_tests.rs under the 600-line no-mercy

@@ -1,6 +1,6 @@
 # shellcheck shell=bash
-# Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: AGPL-3.0-only
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # OS: Linux only — zylaxion is a Linux keyboard-sound tool; no other OS is supported.
 #
 # The shell brand palette — the bash twin of src/output/mod.rs

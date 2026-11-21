@@ -1,5 +1,5 @@
-// Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: AGPL-3.0-only
+// SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+// SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
 //! The relay drive lane (night-frontier-Z2 B1): the raw-syscall half
 //! of the evented control plane — one `BPF_PROG_TEST_RUN` on the
