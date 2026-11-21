@@ -20,12 +20,12 @@ const AUTHORS_ORACLE: &str = "rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>";
 /// generate-provenance-words.py prints them). If these diverge from the
 /// const eval, the generator and the Rust mirror have drifted.
 const MANIFEST_FINGERPRINT_ORACLE: u64 = 0xA60D_FB6A_3974_5F34;
-const AUTHORS_FINGERPRINT_ORACLE: u64 = 0xC97B_13F8_1603_5D55;
+const AUTHORS_FINGERPRINT_ORACLE: u64 = 0x6677_1E5F_273B_9CAE;
 /// Generator's printed anchor cross-check (blake3 over the framed
 /// payload). The Python mirror and the Rust crate were proven
 /// byte-identical on the pinned vectors at integration time.
 const DEPTH_ANCHOR_HEX_ORACLE: &str =
-    "e9a0cd3c16cc1c54bfb5112033163498a1d0c5711bee1556002335345eeda539";
+    "2dabe332360e8c2f733fb21bf5fa420d28749c3d169fd985ffa0de7a0a0c0aa8";
 
 #[test]
 fn layers_materialize_to_oracles() {
@@ -104,16 +104,16 @@ fn depth_anchor_matches_runtime_blake3() {
 fn anchor_payload_framing_is_exact() {
     // Domain tag, then length-prefixed layers: byte-exact mirror of the
     // generator's anchor_payload. Pinned against the real layer lengths
-    // (68 manifest + 57 authors over the 24-byte domain tag).
+    // (68 manifest + 43 authors over the 24-byte domain tag).
     let manifest = unmask_to_bytes(&MASKED_MANIFEST_WORDS, MANIFEST_SEED, MANIFEST_BYTE_LEN);
     let authors = unmask_to_bytes(&MASKED_AUTHORS_WORDS, AUTHORS_SEED, AUTHORS_BYTE_LEN);
     let payload = anchor_payload(&manifest, &authors);
     assert!(payload.starts_with(b"zylaxion/depth-matrix/v1"));
     assert_eq!(&payload[24..32], &68u64.to_le_bytes());
     assert_eq!(&payload[32..100], manifest.as_slice());
-    assert_eq!(&payload[100..108], &57u64.to_le_bytes());
-    assert_eq!(&payload[108..165], authors.as_slice());
-    assert_eq!(payload.len(), 165);
+    assert_eq!(&payload[100..108], &43u64.to_le_bytes());
+    assert_eq!(&payload[108..151], authors.as_slice());
+    assert_eq!(payload.len(), 151);
 }
 
 #[test]

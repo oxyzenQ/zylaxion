@@ -165,9 +165,12 @@ const MASKED_MANIFEST_WORDS: [u64; 9] = [
 /// the family voice is a separate claim const there) and cosmostrix's
 /// carries the "Cosmic Dragon" voice (64 bytes), so their digests
 /// differ (9174e0ce08feccba, fe0d7239f86e7c1b) — differently framed
-/// claims, not a derivation bug. The authors layer is byte-identical
-/// estate-wide (57 bytes), so the `sig` report's authors fingerprint
-/// (c97b13f816035d55) is one shared value. Artifact identity stays
+/// claims, not a derivation bug. The authors layer carried the
+/// estate-wide gmail form (57 bytes, fingerprint c97b13f816035d55)
+/// until the night-remake-1 proton migration: zylaxion now carries
+/// the proton address (43 bytes, fingerprint 66771e5f273b9cae), and
+/// the sibling artifacts keep the retired layer until their own
+/// remake lands. Artifact identity stays
 /// the D3 anchor's job (and the `sig` report's binary self-hash pins
 /// the bytes on disk).
 const MANIFEST_FINGERPRINT: u64 =
@@ -181,16 +184,14 @@ const MANIFEST_FINGERPRINT: u64 =
 // inside the same artifact.
 
 pub(crate) const AUTHORS_SEED: u64 = 0x4E7B2C918A5FD370;
-pub(crate) const AUTHORS_BYTE_LEN: usize = 57; // 8 words
-const MASKED_AUTHORS_WORDS: [u64; 8] = [
+pub(crate) const AUTHORS_BYTE_LEN: usize = 43; // 6 words
+const MASKED_AUTHORS_WORDS: [u64; 6] = [
     0x8D46F60D64B9AF89,
     0x439697486CCF461C,
     0x495DA21A908AF0AB,
-    0x64C0B1434096AFE5,
-    0xA6F86A0C45E48BA2,
-    0x324D73EF5170C229,
-    0x1E843DA60B32F6D0,
-    0xD396CEEB8565C876,
+    0x5ACAF4514D87B7E5,
+    0xA8EF6E024FE4DB96,
+    0x5E241282366ED325,
 ];
 
 /// D2 digest over the clear authors bytes (same law as D0).
@@ -212,10 +213,10 @@ const AUTHORS_FINGERPRINT: u64 =
 /// and must be done together with a generator re-run.
 const ANCHOR_DOMAIN: &[u8] = b"zylaxion/depth-matrix/v1";
 
-/// The embedded anchor (generator output, night-pro-1 authors regen).
+/// The embedded anchor (generator output, night-remake-1 authors regen).
 pub(crate) const DEPTH_ANCHOR: [u8; 32] = [
-    0xE9, 0xA0, 0xCD, 0x3C, 0x16, 0xCC, 0x1C, 0x54, 0xBF, 0xB5, 0x11, 0x20, 0x33, 0x16, 0x34, 0x98,
-    0xA1, 0xD0, 0xC5, 0x71, 0x1B, 0xEE, 0x15, 0x56, 0x00, 0x23, 0x35, 0x34, 0x5E, 0xED, 0xA5, 0x39,
+    0x2D, 0xAB, 0xE3, 0x32, 0x36, 0x0E, 0x8C, 0x2F, 0x73, 0x3F, 0xB2, 0x1B, 0xF5, 0xFA, 0x42, 0x0D,
+    0x28, 0x74, 0x9C, 0x3D, 0x16, 0x9F, 0xD9, 0x85, 0xFF, 0xA0, 0xDE, 0x7A, 0x0A, 0x0C, 0x0A, 0xA8,
 ];
 
 // --- Compile-time fold ------------------------------------------------
