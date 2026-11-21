@@ -141,10 +141,13 @@ fi
 
 banner "==> [4/5] cargo audit (supply-chain CVE scan)"
 if command -v cargo-audit >/dev/null 2>&1; then
-    # Run cargo-audit against the workspace's Cargo.lock.
-    # `cargo audit` does NOT accept --manifest-path — it scans
-    # the Cargo.lock in the current directory. So we cd into
-    # the workspace root first.
+    # Run cargo-audit against EVERY tracked Cargo.lock (the four-lock
+    # estate, night-zen-1: root, fuzz/, ebpf/, scripts/audit/harness/)
+    # — the same surface the Security Audit workflow verifies and the
+    # Sunday security sweep classifies, so the local gate can never
+    # certify a tree a sibling lock is poisoning.
+    # `cargo audit` does NOT accept --manifest-path — the --file flag
+    # names each lock from the workspace root.
     #
     # `--ignore RUSTSEC-xxxx-xxxx` can be added here for
     # acknowledged-but-unfixable advisories (none currently).
@@ -152,9 +155,14 @@ if command -v cargo-audit >/dev/null 2>&1; then
     # `--no-fetch` is NOT used — we want fresh advisory DB
     # updates every run so we catch newly-disclosed CVEs.
     #
-    # Exit code 0 = no vulnerabilities. Non-zero = at least
-    # one vulnerability found; the build fails.
-    (cd "$WORKSPACE_ROOT" && cargo audit)
+    # The list is null-delimited end to end (night-zen-2). Exit code
+    # 0 = no vulnerabilities. Non-zero = at least one vulnerability
+    # found; the first red lock fails the build (set -euo pipefail)
+    # with the lockfile named in the echo right above it.
+    while IFS= read -r -d '' lock; do
+        echo "    auditing ${lock}"
+        (cd "$WORKSPACE_ROOT" && cargo audit --file "$lock")
+    done < <(git -C "$WORKSPACE_ROOT" ls-files -z -- '*Cargo.lock')
     echo "    OK  no vulnerabilities found."
 else
     echo "    WARNING  cargo-audit not installed, skipping security scan."

@@ -16,13 +16,21 @@
 # no-schedule law: every test lane wakes on commit alone) — cargo-audit
 # fetches the advisory database fresh on every run, so the verdict is
 # always as current as the last commit; maintenance.yml keeps the
-# estate's only remaining clock.
+# estate's only remaining clock, and the Sunday security sweep riding
+# that clock (scripts/dev/security-sweep.py) is the between-pushes CVE
+# watch by proxy: a pre/post diff over the same scanner, green when the
+# in-range auto-update cleared what the update exposed, red CALL THE
+# OWNER when a finding survives the updater's best effort. This lane
+# stays the canonical per-push hard verdict.
 #
 # This is the canonical source for vulnerability scanning — the local
-# gatekeeper (build.sh check-all) runs cargo audit as its [4/4] step
+# gatekeeper (build.sh check-all) runs cargo audit as its [4/5] step
 # too, but as an advisory pass (a soft skip when the binary is absent);
 # this lane owns the hard verdict (cargo audit --deny warnings: any
-# advisory blocks).
+# advisory blocks). The scan surface is every tracked lockfile (the
+# four-lock estate: root, fuzz/, ebpf/, scripts/audit/harness/) — the
+# same surface the maintenance sweep classifies, so the two lanes can
+# never split their verdict on a sibling lock.
 #
 # night-deny-law-1: the workflow now carries the second scanner, the
 # cargo-deny graph gate (deny.toml at the root). The poisoned-patch
@@ -74,10 +82,26 @@ jobs:
         run: rustup default stable
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        # Pinned: the scanner is part of the verdict, and its CLI is a
+        # contract (--deny warnings; 0.23 reshaped the flags once
+        # already) — a bump is deliberate, the same law the actionlint
+        # pin and the Sunday sweep's --format json parse keep.
+        run: cargo install cargo-audit --locked --version 0.23.0
 
       - name: Run cargo audit
-        run: cargo audit --deny warnings
+        # The four-lock estate (night-zen-1): a root-only scan left
+        # fuzz/, ebpf/ and scripts/audit/harness/ unaudited on the
+        # canonical lane — the Sunday security sweep classifies all of
+        # them in the maintenance lane, so the hard verdict covers the
+        # same surface and the lanes cannot split. The list is
+        # null-delimited end to end (night-zen-2), and the verdict is
+        # fail-fast: the first red lock stops the step with the
+        # lockfile named in the echo right above it.
+        run: |
+          while IFS= read -r -d '' lock; do
+            echo "cargo audit: ${lock}"
+            cargo audit --deny warnings --file "${lock}"
+          done < <(git ls-files -z -- '*Cargo.lock')
 
   # night-deny-law-1: the graph gate. Same scanner rule as the CVE
   # job: this workflow carries the surface it scans (deny.toml rides

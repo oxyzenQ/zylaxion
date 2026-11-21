@@ -30,7 +30,16 @@ jobs:
     runs-on: ubuntu-24.04
     # night-dragon-lts: bounded patience + the write scope lives HERE,
     # on the one job that pushes — the top level stays read-only.
-    timeout-minutes: 10
+    # Sized above the floor to this lane's measured cold record once
+    # the Sunday security sweep rides it (the cargo-audit install plus
+    # eight advisory invocations on top of the update lane's cold run):
+    # at the fifteen-minute auto-trigger ceiling, not past it (RULES).
+    timeout-minutes: 15
+    env:
+      # The Sunday security sweep's snapshot directory — one job-level
+      # home shared by the pre step, the post step, the commit step
+      # (reading the security note) and the final verdict step.
+      ZYLAXION_SWEEP_DIR: /tmp/zylaxion-security-sweep
     permissions:
       contents: write
     steps:
@@ -46,6 +55,15 @@ jobs:
 
       - name: Install Rust toolchain
         run: rustup default stable
+
+      # The Sunday security sweep runs the same scanner the canonical
+      # lane (audit.yml) runs, over the same four-lock surface
+      # (night-zen-1). The scanner version is pinned to the exact CLI
+      # contract the sweep parses (--format json; 0.23 replaced the old
+      # bare --json) — a scanner bump is a deliberate move, never an
+      # automatic ride, the same law the actionlint pin keeps.
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked --version 0.23.0
 
       # night-badas-1: the ebpf feature went default in night-improve-23,
       # so the clippy/test steps below build the root crate and
@@ -74,8 +92,32 @@ jobs:
       # writer so the parity pin never ships stale. The bootstrap step
       # above provides the regen prerequisites (nightly pin, bpf-linker,
       # b3sum).
+      # The Sunday security sweep (scripts/dev/security-sweep.py): the
+      # pre step snapshots the HEAD tree's advisories BEFORE the update,
+      # so the post step can diff and tell the owner what was exposed
+      # and what the auto-update cleared. The pre step never exits 1 on
+      # findings — findings are data here; the final verdict step owns
+      # the red.
+      - name: Security sweep (pre-update snapshot)
+        run: python3 scripts/dev/security-sweep.py pre
+
       - name: Update dependencies
         run: ./scripts/dev/update-deps.sh
+
+      # The post step re-sweeps the updated tree, classifies it against
+      # the snapshot and writes the job summary. An advisory an in-range
+      # bump cleared is reported as an urgent auto-update (the run stays
+      # green — the tree was exposed before the sweep, it is clean now);
+      # a finding nothing in the requirement set can reach is named CALL
+      # THE OWNER with its reason (a patched release exists but is
+      # unreachable, or no patched release is published at all). The bar
+      # is the canonical lane's bar: remaining warnings (unmaintained,
+      # unsound, yanked) count exactly the way --deny warnings counts
+      # them in audit.yml, and a scanner that cannot run is a red
+      # verdict, never a silent green. This step always exits 0 so the
+      # fixable bumps still land below; the verdict step owns the red.
+      - name: Security sweep (post-update classification)
+        run: python3 scripts/dev/security-sweep.py post
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -89,11 +131,29 @@ jobs:
       - name: Run tests
         run: cargo test
 
+      # The verdict lands AFTER the commit: fixable bumps ride the
+      # weekly commit even when unfixable findings keep the run red
+      # (the owner's contract — commit what can be fixed, then fail
+      # hard). When the sweep auto-fixed advisories, the commit body
+      # carries the security note the sweep wrote.
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet || \
-            git commit -m "chore: weekly dependency update"
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          message="chore: weekly dependency update"
+          if [ -f "${ZYLAXION_SWEEP_DIR}/commit-note.txt" ]; then
+            message="${message}"$'\n\n'"$(cat "${ZYLAXION_SWEEP_DIR}/commit-note.txt")"
+          fi
+          git commit -m "${message}"
           git push
+
+      # The only exit-1 point of the sweep, `if: always()` so it fires
+      # even when clippy or the tests failed above: a missing verdict
+      # file (the sweep never ran to completion) is RED, never green.
+      - name: Security sweep (final verdict)
+        if: always()
+        run: python3 scripts/dev/security-sweep.py verdict

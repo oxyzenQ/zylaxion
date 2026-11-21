@@ -148,6 +148,29 @@ rewritten manifest ride the same maintenance commit, so
 already bootstraps the ebpf prerequisites before the update step,
 which is what the regen path requires.
 
+The same lane carries the Sunday security sweep
+(`scripts/dev/security-sweep.py`), the supply-chain bot that turns the
+weekly run into a security verdict the sleeping owner can trust. It
+audits every tracked lockfile with `cargo audit --json` twice — once
+before the update (the HEAD tree snapshot) and once after — and
+classifies the diff into the two scenarios that matter: an advisory an
+in-range bump clears is reported in the job summary as an urgent
+auto-update and the run stays green (the tree was exposed before the
+sweep, it is clean now, and the update commit body carries the security
+note); a finding nothing in the current requirement set can reach keeps
+the run RED after the update commit lands — the summary says CALL THE
+OWNER and names the reason per finding (a patched release exists but no
+requirement reaches it, so the manifest must move deliberately, or no
+patched release is published at all, so the dependency wants replacing).
+The bar is the canonical lane's bar: remaining unmaintained, unsound and
+yanked warnings fail the run the same way `--deny warnings` fails them
+in `audit.yml`, a scanner that cannot run is a red verdict (never a
+silent green), and the final verdict step is the job's only exit-1
+point so fixable bumps always land before the red is raised. The
+canonical push lane (`audit.yml`) and the local gatekeeper
+(`scripts/build.sh check-all`) scan the same four-lock surface, so no
+lane can certify a tree a sibling lock is poisoning.
+
 ## The root-owned pycache trap (the zelynic incident, documented)
 
 Anatomy of the incident (observed on the zelynic sibling, recorded

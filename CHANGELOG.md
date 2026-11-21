@@ -239,6 +239,54 @@ v80.0.0-alpha.1
   the 3EE4A49C signing subkey), the generator self-test is green, and
   every auto-triggered job in the estate parses at or under fifteen
   minutes with the schedule grep answering maintenance.yml alone.
+- **the Sunday security sweep — the maintenance lane learns to tell
+  the owner what it fixed and what needs them.** The owner sleeps
+  through the Sunday 10:00 WIB run, so the weekly dependency sweep now
+  carries a supply-chain bot instead of a bare updater:
+  `scripts/dev/security-sweep.py` audits every tracked lockfile with
+  `cargo audit --format json` twice — once before the update (the HEAD
+  snapshot) and once after — and classifies the diff into the two
+  scenarios that matter. An advisory an in-range bump clears is
+  reported in the job summary as an urgent auto-update (the tree was
+  exposed before the sweep, it is clean now) and the run stays GREEN,
+  with the update commit body carrying the security note; a finding
+  nothing in the current requirement set can reach keeps the run RED
+  after the update commit lands — the summary says CALL THE OWNER and
+  names the reason per finding (a patched release exists but no
+  requirement reaches it, so the manifest must move deliberately; or
+  no patched release is published, so the dependency wants watching or
+  replacing), with the CVE alias rendered beside the RustSec id when
+  the advisory carries one. The final verdict step is the job's only
+  exit-1 point (`if: always()`, a missing verdict file is RED), so
+  fixable bumps always land before the red is raised; remaining
+  unmaintained, unsound and yanked warnings fail the run exactly the
+  way `--deny warnings` fails them in the canonical lane; and a
+  scanner that cannot run is a RED verdict, never a silent green. The
+  closure rode two holes on the way through: cargo-audit 0.23.0
+  replaced the old bare `--json` flag with `--format json` and
+  reshaped the report schema (vulnerabilities top-level, warnings as a
+  per-kind map) — the parser was trained on the real 0.23.0 output and
+  the scanner install is now pinned (`--version 0.23.0`, both lanes)
+  because a scanner bump is a deliberate move, the same law the
+  actionlint pin keeps; and the canonical lane's root-only scan left
+  fuzz/, ebpf/ and scripts/audit/harness/ unaudited on every push —
+  audit.yml and the local gatekeeper's [4/5] step now scan all four
+  locks (the same surface the sweep classifies), so no two lanes can
+  split a verdict on a sibling lock. maintenance.yml's job clock moves
+  10 → 15 minutes for the measured additions (the cargo-audit install
+  plus eight advisory invocations), inside the fifteen-minute
+  auto-trigger ceiling. Verified: the parser answered real 0.23.0
+  captures (a real vulnerable lock — time 0.1.45, RUSTSEC-2020-0071 /
+  CVE-2020-26235, patched >=0.2.23; a real warnings-only lock — atty
+  0.2.14, unmaintained + unsound; the repo's own four clean locks); a
+  harness (unit + a fake-cargo end-to-end over the red call-owner
+  scenario with a landed fix, an unreachable patch and an
+  owner-review warning, the green-after-fix scenario with the commit
+  note, the scan-error red, and the missing-verdict-file red) ran all
+  green; the canonical verdict (`cargo audit --deny warnings`) over
+  all four tracked locks exits 0 on the current tree; yamllint and
+  actionlint 1.7.7 parse both touched workflows; the full
+  gate-keepers run answers green.
 - **the v80.5.1 release close — the release gate learns the year-free
   claim, and the manifest license speaks SPDX.** The v80.5.0 tag's
   release CI failed on two gates, both taught by the tag push that
