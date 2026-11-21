@@ -41,8 +41,10 @@
 # simplification — no path filter, no branch filter, the same blind
 # posture every push-triggered lane in the estate now carries; the
 # surface globs' sync tax cost more than the runner minutes they
-# saved), the Sunday sweep (03:00 UTC / 10:00 WIB) keeps the weekly
-# full-net tick, and workflow_dispatch is the on-demand deep check.
+# saved), and workflow_dispatch is the on-demand deep check
+# (night-fly-1 retired the Sunday sweep — the estate's no-schedule
+# law: every test lane wakes on commit alone, and the audited
+# families already ride every push).
 #
 # night-strict-warnings-1 (owner call, overriding the old "two
 # unrelated policies" scoping): the miri build JOINs the zero-warning
@@ -57,11 +59,6 @@ name: Dragon Guard - Miri
 on:
   push:
   pull_request:
-  schedule:
-    # Sunday 03:00 UTC = 10:00 WIB (night-consistent-1) — picks up the
-    # week's commits in one shot, the zelynic cadence, one clock across
-    # the estate.
-    - cron: "0 3 * * 0"
   # Manual trigger from the Actions tab.
   workflow_dispatch:
 

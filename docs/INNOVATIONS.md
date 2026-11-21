@@ -753,8 +753,9 @@ mode shares.
 laws (night-depth-hardening-2).** Unit tests sample; this lane
 quantifies. Three pure law functions prove over their WHOLE
 reachable input spaces under Kani (bounded model checking — the
-verifier lane `Dragon Guard - Kani`, the estate's 10:00 WIB clock,
-Sunday plus manual dispatch): the volume clamp cell, where every f32
+verifier lane `Dragon Guard - Kani`, every push in the micro-matrix
+plus the manual dispatch for the deep proofs): the volume clamp
+cell, where every f32
 the domain can name either clamps into [-100, 100] exactly with a
 lossless bit round-trip or, non-finite, falls back to the compiled
 default; the gain law, where the untrusted control-map percent — the
@@ -1193,8 +1194,8 @@ witness rides the silent window of the parked-player battery
 `zylaxion doctor` prints the kernel report the attach
 gate consumes; `zylaxion status` reads the TAP_KIND slot the loader
 wrote; the proven-datapath harnesses of entry 44 verify under the
-Kani lane (`cargo kani` — the Sunday 10:00 WIB schedule or a manual
-dispatch from the Actions tab); the unsafe audit's score law of
+Kani lane (`cargo kani` — the push micro-matrix, or a manual
+dispatch from the Actions tab for the deep proofs); the unsafe audit's score law of
 entry 45 is `cargo clippy --all-targets -- -D warnings` itself; the
 parked-player law of entry 46 is `cargo run --release --example
 idle_cpu_sanity` (phase 1 prints the /proc wake count — the zero —

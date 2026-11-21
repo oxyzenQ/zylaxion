@@ -195,15 +195,30 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 - **Scanner rule:** a scanner workflow carries the surface it scans
   (the zelynic NIGHT-improve-11 law) — `Dragon Guard - Security
   Audit` (audit.yml, cargo-audit `--deny warnings`) scans on every
-  push and PR unfiltered, with the weekly Sunday 03:00 UTC clock
-  (10:00 WIB — night-consistent-1) as the between-pushes advisory-DB
-  watch.
+  push and PR unfiltered (night-fly-1 retired the weekly Sunday
+  clock — the no-schedule law: every test lane wakes on commit
+  alone, and cargo-audit fetches the advisory DB fresh each run).
   It is the canonical CVE verdict; the local gate runs cargo audit
   only when the tool is installed (the optional-if-uninstalled lane).
-- **Every CI job runs under the ten-minute cap:** every
-  `timeout-minutes:` line in `.github/workflows/` is `10` — a job
-  that cannot finish inside ten minutes is mis-sized and gets fixed,
-  not promoted.
+- **No schedule on the test lanes (night-fly-1):** the test lanes —
+  CI, Supermassive, Supermassive E2E, Miri, Kani, Fuzz, Security
+  Audit, Gate-keepers, Reproducible, rates-parity — wake on push and
+  PR alone; no `schedule:` block rides any of them. The clocked
+  lanes are the maintenance and publish contracts: `maintenance.yml`
+  keeps the weekly Sunday 03:00 UTC dependency sweep, and
+  `crates-io.yml` / `release.yml` wake on tags only.
+- **Every CI job runs under the fifteen-minute wall (night-fly-1):**
+  no auto-triggered job may carry a `timeout-minutes` above 15 — a
+  run that hangs dies at its cap instead of burning 30-60 unattended
+  minutes. The floor stays the ten-minute budget (night-zen-2): a
+  job that cannot finish inside ten is mis-sized and gets fixed, not
+  promoted; the Kani fast legs sit at their measured 12.
+- **Atomic proofs that cannot fit the wall ride the on-demand lane:**
+  the Kani deep five (one harness = one SAT instance; no split
+  shrinks an atomic proof) are `workflow_dispatch`-only with the
+  fifteen-minute cap — the fast fourteen ride every push, and a deep
+  leg that outmeasures the cap goes red as the honest signal that
+  its filed reshaping must land.
 - **Publish lanes are the ONE gated exception:** `crates-io.yml` and
   `release.yml` wake ONLY on a pushed `v*` tag (the tag-means-publish
   contract, the zelynic NIGHT-ask-1 shape) — never blind-triggered by
@@ -213,9 +228,9 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   job. A lane may be sized above the floor to its measured cold
   record (the fail-fast doctrine, not a speed claim), but no job may
   sit below it: a cold-cache miss is allowed to buy its compile
-  honestly, and the measured cold records on the deep lanes reach
-  16-17 minutes — a sub-10-minute ceiling would kill exactly those
-  runs.
+  honestly — and night-fly-1 caps the sizing at the fifteen-minute
+  wall for every auto-triggered lane (the publish lanes are the
+  carve-out).
 - **Node.js:** `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` in all workflow env.
 - **Dependabot:** REMOVED. Do not use Dependabot.
 - **Dependency updates:** Custom `maintenance.yml` workflow auto-updates deps

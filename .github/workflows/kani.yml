@@ -11,17 +11,19 @@
 # push gate below: seven legs, every leg inside the twelve-minute
 # cap); five carry symbolic domains wide enough that their SAT
 # instances need their own wall clock, and they ride the deep job at
-# the bottom of this file. The owner unified the net (the
-# night-full-net-1 call): the deep job rides push and pull_request
-# too — every commit carries all nineteen proofs, and the Sunday
-# schedule stays the no-commit week's tick.
+# the bottom of this file. night-fly-1 puts the owner's fifteen-minute
+# wall under the whole estate and retires the test-lane schedules:
+# the fourteen fast harnesses ride every push, and the five atomic
+# proofs return to the on-demand lane (workflow_dispatch only) until
+# the reshaping filed with the deep job lands — no test lane keeps a
+# clock, and no job outmeasures the wall.
 #
 # night-depth-hardening-3 makes the lane a push net, not an absent one: the
 # push and pull_request triggers ride UNFILTERED (the owner's unfiltered-CI
 # simplification — no path filter, no branch filter, the same blind posture
 # ci.yml and miri.yml carry — the surface globs' sync tax cost more than the
-# runner minutes they saved), the Sunday sweep stays the no-commit
-# week's tick, and workflow_dispatch is the on-demand full run. The build
+# runner minutes they saved), and workflow_dispatch is the on-demand
+# full run (night-fly-1: no schedule rides the test lanes). The build
 # prerequisites ride the same pair every other root-crate lane carries
 # (ci.yml, miri.yml, maintenance.yml): the apt install feeds alsa-sys's
 # pkg-config probe, and the bootstrap provides the dated nightly pin and
@@ -43,11 +45,8 @@ name: Dragon Guard - Kani
 on:
   push:
   pull_request:
-  # Weekly schedule: Sunday 03:00 UTC = 10:00 WIB (night-consistent-1) —
-  # one schedule clock across the estate.
-  schedule:
-    - cron: "0 3 * * 0"
-  # Manual trigger from the Actions tab.
+  # Manual trigger from the Actions tab — the deep proofs' only door
+  # (night-fly-1: no schedule rides the test lanes).
   workflow_dispatch:
 
 # Least privilege: the job only reads the repo.
@@ -204,23 +203,25 @@ jobs:
   # comments record. No split shrinks an atomic proof - one harness
   # is one SAT instance, and this tree's own docs name the cause (the
   # errno text carried through format! under a symbolic i32: the SAT
-  # encoding's death valley, the same valley the privilege-table
-  # harness was shaped to avoid). So the five ride their own job with
-  # their own wall clock. The owner's night-full-net-1 call lifts the
-  # schedule-only gate: the deep job now rides every push and
-  # pull_request like the fast lane, and the Sunday sweep keeps its
-  # seat as the no-commit week's tick. The ninety-minute cap stays a
-  # stall detector. The first push that carries this job is also the
-  # first time these five legs ever execute (the schedule fires were
-  # zero before it), so their verdict ledger starts being written BY
-  # CI instead of about CI: if a leg outmeasures the cap, the honest
-  # next move is the reshaping already filed below - a lazy detail
-  # text on AttachError, or a stubbed errno_text under the verifier's
-  # own stubbing contract - the owner's call, kept here with the
-  # evidence.
+# encoding's death valley, the same valley the privilege-table
+# harness was shaped to avoid). So the five ride their own job with
+# their own wall clock. night-fly-1 returns them to the on-demand
+# lane (the job-level gate below — the workflow still wakes on every
+# push for the fast lane, the deep job rides workflow_dispatch only):
+# the owner's fifteen-minute wall outlaws a ninety-minute push job,
+# and no schedule may keep the lane awake. The cap is fifteen minutes
+# now — a leg that outmeasures it goes red instead of hanging, the
+# honest signal that the reshaping filed below must land: a lazy
+# detail text on AttachError, or a stubbed errno_text under the
+# verifier's own stubbing contract — the owner's call, kept here with
+# the evidence.
   deep:
     name: deep proof ${{ matrix.harness.name }}
     runs-on: ubuntu-24.04
+    # night-fly-1: the deep legs ride the manual dispatch only — the
+    # push and PR runs show this job as skipped by design, and the
+    # fifteen-minute cap below is the wall every estate job answers to.
+    if: github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -235,7 +236,7 @@ jobs:
             args: --harness engine::kani_laws::errno_proofs::fentry_link_classifies_the_whole_errno_domain
           - name: link-create classifier (whole i32)
             args: --harness engine::kani_laws::errno_proofs::link_create_classifies_the_whole_errno_domain
-    timeout-minutes: 90
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin

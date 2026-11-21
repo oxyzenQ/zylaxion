@@ -800,11 +800,13 @@ jobs:
   claims:
     name: supermassive lane - the claims (rootless)
     runs-on: ubuntu-24.04
-    # night-frontier-2B: the lane now carries the depth verification
-    # legs (the reproducible-build attestation compiles the tree twice;
-    # the kernel matrix fetches three sha256-pinned kernel images on a
-    # cold cache) — the ten-minute cap could not hold the honest run.
-    timeout-minutes: 20
+    # night-fly-1: the depth legs that once inflated this cap live in
+    # their own lanes now — the reproducible-build attestation in
+    # reproducible.yml, the kernel matrix fetch in the E2E VM job — so
+    # the lane rides the ten-minute floor with its siblings, and
+    # night-frontier-2B's twenty-minute sizing retired with the legs
+    # that justified it.
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, night-improve-8 SHA pin
