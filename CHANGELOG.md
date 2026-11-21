@@ -298,7 +298,16 @@ v80.0.0-alpha.1
   green; the canonical verdict (`cargo audit --deny warnings`) over
   all four tracked locks exits 0 on the current tree; yamllint and
   actionlint 1.7.7 parse both touched workflows; the full
-  gate-keepers run answers green.
+  gate-keepers run answers green; the naming commit's ten-lane
+  battery answered all green (the Security Audit lane running the
+  sentinel's four-lock loop twice, once per commit); and the red
+  button was exercised LIVE on the real runner — the scan_only
+  dispatch (maintenance run 44935331012, on the naming commit) shows
+  the ship lane skipped at every step (no update, no eBPF bootstrap,
+  no checks, no commit) while the sentinel's logs read
+  `AXP1-ZnQ pre-pass` over the four lockfiles one by one and answer
+  `AXP1-ZnQ: verdict: GREEN` — the first watch of the sentinel,
+  real, not claimed.
 - **the v80.5.1 release close — the release gate learns the year-free
   claim, and the manifest license speaks SPDX.** The v80.5.0 tag's
   release CI failed on two gates, both taught by the tag push that
