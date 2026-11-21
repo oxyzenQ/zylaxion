@@ -208,11 +208,12 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   PR alone; no `schedule:` block rides any of them. The clocked
   lanes are the maintenance and publish contracts: `maintenance.yml`
   keeps the weekly Sunday 03:00 UTC dependency sweep and the Sunday
-  security sweep riding it (scripts/dev/security-sweep.py — the
-  supply-chain bot: a pre/post advisory diff over every tracked
-  lockfile; an advisory the in-range auto-update clears is reported
-  and the run stays green, a finding nothing in the requirement set
-  can reach fails the run — call the owner), and
+  security sweep riding it (AXP1-ZnQ, night-solid-defense-1 — the
+  owner's supply-chain sentinel, `scripts/dev/security-sweep.py`: a
+  pre/post advisory diff over every tracked lockfile; an advisory the
+  in-range auto-update clears is reported and the run stays green, a
+  finding nothing in the requirement set can reach fails the run —
+  call the owner), and
   `crates-io.yml` / `release.yml` wake on tags only.
 - **Every CI job runs under the fifteen-minute wall (night-fly-1):**
   no auto-triggered job may carry a `timeout-minutes` above 15 — a
@@ -243,13 +244,17 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 - **Dependency updates:** Custom `maintenance.yml` workflow auto-updates deps
   (every tracked lock via `scripts/dev/update-deps.sh`, night-zen-1 — root,
   fuzz/, ebpf/, scripts/audit/harness/) and commits directly to `main`.
-  NO PRs. NO branch spam. The same lane runs the Sunday security sweep
-  (`scripts/dev/security-sweep.py`, cargo audit `--json` over every tracked
-  lock before and after the update): fixable advisories land as the
-  auto-update commit (the body carries the security note), unfixable ones
-  fail the run AFTER the commit lands — call the owner; the verdict is the
-  job's only exit-1 point and a scanner that cannot run is red, never
-  green.
+  NO PRs. NO branch spam. The same lane runs AXP1-ZnQ (night-solid-defense-1,
+  the owner's supply-chain sentinel — every banner, annotation, and summary
+  signs as AXP1-ZnQ so a red Sunday names its watcher; the zejtron shape
+  ported whole), `scripts/dev/security-sweep.py`, cargo audit `--format json`
+  over every tracked lock before and after the update: fixable advisories
+  land as the auto-update commit (the body carries the sentinel's note),
+  unfixable ones fail the run AFTER the commit lands — call the owner; the
+  verdict is the job's only exit-1 point and a scanner that cannot run is
+  red, never green. The scan-only dispatch (`scan_only`, the zejtron
+  night-supply-1 red button) runs the whole verdict on the committed tree
+  any day of the week and ships nothing.
 - **Maintenance schedule:** Weekly Sunday 03:00 UTC = 10:00 WIB.
 - **Bot identity:** Commits as `github-actions[bot]`.
 - **Workflow titles:** the `Dragon Guard - <lane>` family, exactly as

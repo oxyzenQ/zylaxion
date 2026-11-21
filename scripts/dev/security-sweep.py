@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # PLATFORM: UNIX-only (Linux). zylaxion is a Linux-only tool.
 #
-# ZYLAXION SECURITY SWEEP - the Sunday supply-chain bot
+# ZYLAXION SECURITY SWEEP - AXP1-ZnQ, the owner's supply-chain sentinel
 #
 """The maintenance lane's security classification pass (Dragon Guard
 - Dependency Maintenance).
@@ -25,15 +25,24 @@ that matter to a high-value tree whose owner is asleep at run time:
      requirements deliberately), or no patched release is published
      at all (watch upstream, or remove/replace the dependency).
 
-The mechanism is a pre/post diff over `cargo audit --json --file` on
-every tracked lockfile: `pre` snapshots the HEAD tree before the
-update, `post` re-sweeps after it, classifies, writes the job summary
-(GITHUB_STEP_SUMMARY) and the verdict file, and always exits 0 - the
-`verdict` subcommand owns the only exit-1 point, run from the final
-step of the job (`if: always()`), so the commit step keeps its chance
-to land the fixable bumps even when unfixable findings remain. A
-scanner that cannot run is a RED verdict, never a silent green: a
-sweep that cannot see the tree must not certify it.
+Identity (night-solid-defense-1): the verdict speaks under the
+owner's sentinel name - AXP1-ZnQ. The banners, the annotations, and
+the step summary all sign as AXP1-ZnQ, so a red Sunday names its
+watcher and the run list reads like a sentinel on watch (the zejtron
+night-solid-defense-1 shape, ported whole). One deliberate divergence
+from the zejtron reference: their verdict gates the commit lane and
+ships nothing while red; this tree lands the fixable bumps first and
+raises the red after - the owner's explicit contract here.
+
+The mechanism is a pre/post diff over `cargo audit --format json
+--file` on every tracked lockfile: `pre` snapshots the HEAD tree
+before the update, `post` re-sweeps after it, classifies, writes the
+job summary (GITHUB_STEP_SUMMARY) and the verdict file, and always
+exits 0 - the `verdict` subcommand owns the only exit-1 point, run
+from the final step of the job (`if: always()`), so the commit step
+keeps its chance to land the fixable bumps even when unfixable
+findings remain. A scanner that cannot run is a RED verdict, never a
+silent green: a sweep that cannot see the tree must not certify it.
 
 The bar is the canonical lane's bar (audit.yml, `--deny warnings`):
 remaining WARNINGS (unmaintained, unsound, yanked) fail the run the
@@ -69,7 +78,7 @@ VERDICT_FILE = SWEEP_DIR / "verdict"
 COMMIT_NOTE_FILE = SWEEP_DIR / "commit-note.txt"
 AUDIT_TIMEOUT_SECONDS = 180
 
-ECHO = "security-sweep:"
+ECHO = "AXP1-ZnQ:"
 
 
 @dataclass(frozen=True)
@@ -480,7 +489,7 @@ def cmd_post() -> int:
     VERDICT_FILE.write_text("red" if red else "green", encoding="utf-8")
 
     if fixed:
-        note_lines = [f"security sweep: {len(fixed)} urgent dependency fix(es) landed:"]
+        note_lines = [f"AXP1-ZnQ: {len(fixed)} urgent dependency fix(es) landed:"]
         note_lines += [
             f"- {f.lockfile}: {f.package} {f.old_version} -> {f.new_version} cleared {f.advisory_id}"
             for f in fixed
@@ -490,6 +499,28 @@ def cmd_post() -> int:
         COMMIT_NOTE_FILE.unlink(missing_ok=True)
 
     write_summary(build_report(locks, pre, post_list, fixed, red))
+    # The loud layer (the zejtron shape): GitHub annotations - the run's
+    # summary page and the workflow graph name the watcher inline.
+    for finding in fixed:
+        print(
+            f"::warning title=AXP1-ZnQ notice::{finding.lockfile} "
+            f"{advisory_label(finding.advisory_id, finding.aliases)} "
+            f"({finding.package} {finding.old_version}) was present and the sweep "
+            "cleared it - the fix ships in this run; without the weekly lane the "
+            "tree would have carried the advisory for a week"
+        )
+    for vuln in post_vulns:
+        print(
+            f"::error::AXP1-ZnQ: {vuln.lockfile} "
+            f"{advisory_label(vuln.advisory_id, vuln.aliases)} "
+            f"({vuln.package} {vuln.version}) survives the sweep "
+            f"({stuck_reason(vuln)}) - dangerous dep, cannot be auto-updated; CALL OWNER"
+        )
+    for sweep in post_errors:
+        print(
+            f"::error::AXP1-ZnQ: {sweep.lockfile} - {sweep.error} - "
+            "a scanner that cannot run fails the lane, never passes it"
+        )
     print(f"{ECHO} fixed this run: {len(fixed)}; remaining findings: "
           f"{len(post_vulns)} vulnerability(ies), {len(post_warnings)} warning(s), "
           f"{len(post_errors)} scan error(s)")
@@ -505,7 +536,7 @@ def build_report(
     red: bool,
 ) -> str:
     lines: list[str] = []
-    lines.append("## Security sweep - the Sunday supply-chain bot")
+    lines.append("## AXP1-ZnQ - the Sunday supply-chain sentinel (night-solid-defense-1)")
     lines.append("")
     lines.append(
         f"Swept {len(locks)} tracked lockfile(s): {', '.join(f'`{lock}`' for lock in locks)}."
@@ -609,11 +640,18 @@ def build_report(
             "the updater's best effort. The update commit (if any) already landed; finish the "
             "rest deliberately. Details above."
         )
+        lines.append("")
+        lines.append(
+            "AXP1-ZNQ HOLDS THE LANE: the dependencies above are dangerous and "
+            "cannot be auto-updated. CALL THE OWNER - the fixable bumps shipped "
+            "in this run's commit; what remains wants a deliberate hand."
+        )
     elif fixed:
         lines.append(
             f"**Verdict: GREEN** - the tree was exposed before the sweep ({pre_vulns} vulnerable "
             f"package(s) on the pre-update tree), and the urgent auto-update(s) above cleared "
-            "every one of them. No finding remains."
+            "every one of them; without this lane the tree would have carried the advisory "
+            "for a week. No finding remains."
         )
     else:
         lines.append("**Verdict: GREEN** - no advisory on any tracked lockfile.")

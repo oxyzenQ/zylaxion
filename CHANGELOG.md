@@ -239,30 +239,42 @@ v80.0.0-alpha.1
   the 3EE4A49C signing subkey), the generator self-test is green, and
   every auto-triggered job in the estate parses at or under fifteen
   minutes with the schedule grep answering maintenance.yml alone.
-- **the Sunday security sweep — the maintenance lane learns to tell
-  the owner what it fixed and what needs them.** The owner sleeps
+- **night-solid-defense-1, AXP1-ZnQ — the Sunday security sweep gets
+  its sentinel name and the owner's red button.** The owner sleeps
   through the Sunday 10:00 WIB run, so the weekly dependency sweep now
-  carries a supply-chain bot instead of a bare updater:
+  carries a supply-chain sentinel instead of a bare updater:
   `scripts/dev/security-sweep.py` audits every tracked lockfile with
   `cargo audit --format json` twice — once before the update (the HEAD
   snapshot) and once after — and classifies the diff into the two
   scenarios that matter. An advisory an in-range bump clears is
   reported in the job summary as an urgent auto-update (the tree was
   exposed before the sweep, it is clean now) and the run stays GREEN,
-  with the update commit body carrying the security note; a finding
+  with the update commit body carrying the sentinel's note; a finding
   nothing in the current requirement set can reach keeps the run RED
   after the update commit lands — the summary says CALL THE OWNER and
   names the reason per finding (a patched release exists but no
   requirement reaches it, so the manifest must move deliberately; or
   no patched release is published, so the dependency wants watching or
   replacing), with the CVE alias rendered beside the RustSec id when
-  the advisory carries one. The final verdict step is the job's only
-  exit-1 point (`if: always()`, a missing verdict file is RED), so
-  fixable bumps always land before the red is raised; remaining
-  unmaintained, unsound and yanked warnings fail the run exactly the
-  way `--deny warnings` fails them in the canonical lane; and a
-  scanner that cannot run is a RED verdict, never a silent green. The
-  closure rode two holes on the way through: cargo-audit 0.23.0
+  the advisory carries one. Identity (night-solid-defense-1, the
+  zejtron shape ported whole): the verdict speaks under the owner's
+  sentinel name — every banner, GitHub annotation (`::error::` /
+  `::warning::`) and summary signs as AXP1-ZnQ, so a red Sunday names
+  its watcher and the run list reads like a sentinel on watch. The
+  scan-only dispatch rides the same port (`scan_only`, the zejtron
+  night-supply-1 red button): one dispatch, the advisory state of
+  every tracked lockfile, ship nothing — no update, no checks, no
+  commit. One deliberate divergence from the reference: zejtron's
+  verdict gates the commit lane and ships nothing while red; this
+  tree lands the fixable bumps first and raises the red after (the
+  owner's explicit contract here). The final verdict step is the
+  job's only exit-1 point (`if: always()`, a missing verdict file is
+  RED), so fixable bumps always land before the red is raised;
+  remaining unmaintained, unsound and yanked warnings fail the run
+  exactly the way `--deny warnings` fails them in the canonical lane;
+  and a scanner that cannot run is a RED verdict, never a silent
+  green. The closure rode two holes on the way through: cargo-audit
+  0.23.0
   replaced the old bare `--json` flag with `--format json` and
   reshaped the report schema (vulnerabilities top-level, warnings as a
   per-kind map) — the parser was trained on the real 0.23.0 output and

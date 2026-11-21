@@ -136,6 +136,13 @@ release that fixed them. Historical audit evidence lives under
 `docs/` (the `audit-*` files); future audit rounds append there
 rather than rewriting history.
 
+The weekly supply-chain watch (AXP1-ZnQ, night-solid-defense-1) rides
+the Sunday maintenance lane: every tracked lockfile is audited against
+the RustSec advisory database twice (before and after the dependency
+sweep), an advisory the sweep cannot clear fails the run hard — CALL
+THE OWNER — and the scan-only dispatch answers the advisory state of
+the whole tree any day of the week, shipping nothing.
+
 <!-- ZYLAXION-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
