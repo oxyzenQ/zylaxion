@@ -9,16 +9,19 @@
 # space, not a sampled slice of it. Unit tests sample; this lane
 # quantifies. Fourteen of the nineteen harnesses measure fast (the
 # push gate below: seven legs, every leg inside the twelve-minute
-# cap); five carry symbolic domains wide enough to outmeasure any
-# acceptable wall clock, and they ride the deep job at the bottom of
-# this file, gated off push and PR so nobody waits on them.
+# cap); five carry symbolic domains wide enough that their SAT
+# instances need their own wall clock, and they ride the deep job at
+# the bottom of this file. The owner unified the net (the
+# night-full-net-1 call): the deep job rides push and pull_request
+# too — every commit carries all nineteen proofs, and the Sunday
+# schedule stays the no-commit week's tick.
 #
 # night-depth-hardening-3 makes the lane a push net, not an absent one: the
 # push and pull_request triggers ride UNFILTERED (the owner's unfiltered-CI
 # simplification — no path filter, no branch filter, the same blind posture
 # ci.yml and miri.yml carry — the surface globs' sync tax cost more than the
-# runner minutes they saved), the Sunday sweep stays the weekly full-net
-# tick, and workflow_dispatch is the on-demand deep check. The build
+# runner minutes they saved), the Sunday sweep stays the no-commit
+# week's tick, and workflow_dispatch is the on-demand full run. The build
 # prerequisites ride the same pair every other root-crate lane carries
 # (ci.yml, miri.yml, maintenance.yml): the apt install feeds alsa-sys's
 # pkg-config probe, and the bootstrap provides the dated nightly pin and
@@ -193,30 +196,31 @@ jobs:
 
   # night-frontier-Z7 verify: the atomic five. The first matrix run
   # proved fourteen of the nineteen harnesses inside minutes and
-  # measured the remaining five as atomic proofs that exceed every
-  # acceptable wall clock: each whole-i32 classifier ran past the
-  # twelve-minute cap alone, the verifier-log tail bound ran out of
-  # memory at the four-gigabyte mark, and the cmdline matcher's five
-  # byte roles still outweigh the cap after the in-tree reshaping its
-  # own comments record. No split shrinks an atomic proof - one
-  # harness is one SAT instance, and this tree's own docs name the
-  # cause (the errno text carried through format! under a symbolic
-  # i32: the SAT encoding's death valley, the same valley the
-  # privilege-table harness was shaped to avoid). So the five ride
-  # their own job, gated OFF the push and pull_request events: the
-  # owner never waits on them, and the Sunday sweep plus a manual
-  # dispatch carry the deep full net (the schedule's own documented
-  # purpose). The ninety-minute cap is a stall detector, not the
-  # owner's wall clock - nobody watches this job run. The honest
-  # ledger note stands: these five harnesses have never carried a CI
-  # proof verdict (compile yes, solve no); their reshaping - a lazy
-  # detail text on AttachError, or a stubbed errno_text under the
-  # verifier's own stubbing contract - is the owner's call, filed
-  # here so the next session starts with the evidence.
+  # measured the remaining five as atomic proofs that exceed the
+  # twelve-minute push gate: each whole-i32 classifier ran past that
+  # cap alone, the verifier-log tail bound ran out of memory at the
+  # four-gigabyte mark, and the cmdline matcher's five byte roles
+  # still outweigh the cap after the in-tree reshaping its own
+  # comments record. No split shrinks an atomic proof - one harness
+  # is one SAT instance, and this tree's own docs name the cause (the
+  # errno text carried through format! under a symbolic i32: the SAT
+  # encoding's death valley, the same valley the privilege-table
+  # harness was shaped to avoid). So the five ride their own job with
+  # their own wall clock. The owner's night-full-net-1 call lifts the
+  # schedule-only gate: the deep job now rides every push and
+  # pull_request like the fast lane, and the Sunday sweep keeps its
+  # seat as the no-commit week's tick. The ninety-minute cap stays a
+  # stall detector. The first push that carries this job is also the
+  # first time these five legs ever execute (the schedule fires were
+  # zero before it), so their verdict ledger starts being written BY
+  # CI instead of about CI: if a leg outmeasures the cap, the honest
+  # next move is the reshaping already filed below - a lazy detail
+  # text on AttachError, or a stubbed errno_text under the verifier's
+  # own stubbing contract - the owner's call, kept here with the
+  # evidence.
   deep:
-    name: deep proof ${{ matrix.harness.name }} (scheduled, unwatched)
+    name: deep proof ${{ matrix.harness.name }}
     runs-on: ubuntu-24.04
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     strategy:
       fail-fast: false
       matrix:
