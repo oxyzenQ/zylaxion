@@ -54,8 +54,13 @@ EXPECTED=$(awk '{print $1}' "$PKG.shake256")
 gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
 gpg --verify zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz.asc \
   zylaxion-vX.Y.Z-linux-amd64-v3-gnu.tar.gz
-# Fingerprint to check out of band:
-#   F532 4E09 67F1 04D5 8CE0  25F3 47A5 0AEF 4B65 AAC2
+# Two fingerprints, two roles - check both out of band:
+#   the PRIMARY key (the import and trust anchor, the keyserver's
+#   keyblock certificate):
+#     F532 4E09 67F1 04D5 8CE0  25F3 47A5 0AEF 4B65 AAC2
+#   the SIGNING SUBKEY the release signature is made with - the
+#   fingerprint `gpg --verify` itself prints ("using EDDSA key ..."):
+#     3EE4 A49C 7863 0A16 E176  DB2B 3C9E B25B F040 7781
 ```
 
 The expected verdict is `Good signature from "rezky_nightky (oxyzenQ)
@@ -63,8 +68,15 @@ The expected verdict is `Good signature from "rezky_nightky (oxyzenQ)
 <130107241+oxyzenQ@users.noreply.github.com>`) — the primary contact
 UID answers first, and a `WARNING: This key is not certified with a
 trusted signature` notice is normal for first-time imports as long as
-the fingerprint matches. The keyserver always carries the live UID
-set — trust it over this page after a rotation.
+the fingerprint matches. The signature itself is made by the
+primary's active signing subkey, so the verify output names the
+subkey: `using EDDSA key
+3EE4A49C78630A16E176DB2B3C9EB25BF0407781` — a verifier who greps the
+output for the primary fingerprint alone sees the subkey instead and
+calls a good signature a mismatch; expect both lines, each in its
+role. The primary fingerprint is the anchor that outlives subkey
+rotations; the keyserver always carries the live UID and subkey set —
+trust it over this page after a rotation.
 
 Swap the platform label (`-v4-gnu`) for the artifact you actually
 downloaded — the label set lives in the release page's table.

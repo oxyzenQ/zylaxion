@@ -390,6 +390,8 @@ verification_section() {
 	echo ""
 	echo "Expected: \`Good signature from \"rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>\"\` (aka \`Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>\`)"
 	echo ""
+	echo "GPG reports the signing subkey: \`using EDDSA key 3EE4A49C78630A16E176DB2B3C9EB25BF0407781\` (the primary \`F5324E0967F104D58CE025F347A50AEF4B65AAC2\` anchors the import and outlives subkey rotations)."
+	echo ""
 	echo "Full verification instructions: [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md)"
 }
 
@@ -443,7 +445,7 @@ self_test() {
 	local out
 	out="$(render_body "" "" "" "" "")"
 	local want
-	for want in "> [!TIP]" "Initial release." "## Verification" "recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2"; do
+	for want in "> [!TIP]" "Initial release." "## Verification" "recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2" "using EDDSA key 3EE4A49C78630A16E176DB2B3C9EB25BF0407781"; do
 		if ! printf '%s' "$out" | grep -qF "$want"; then
 			echo "  FAIL shape: body render is missing '$want'" >&2
 			failures=$((failures + 1))
@@ -515,7 +517,7 @@ self_test() {
 		echo "  FAIL budget: rendered body ${z11_len} bytes exceeds the ${MAX_BODY_CHARS}-byte budget" >&2
 		failures=$((failures + 1))
 	fi
-	for want in "## Verification" "recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2" "listing trimmed to fit the release-body cap"; do
+	for want in "## Verification" "recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2" "using EDDSA key 3EE4A49C78630A16E176DB2B3C9EB25BF0407781" "listing trimmed to fit the release-body cap"; do
 		if ! printf '%s' "$z11_out" | grep -qF "$want"; then
 			echo "  FAIL budget: over-cap render is missing '$want'" >&2
 			failures=$((failures + 1))

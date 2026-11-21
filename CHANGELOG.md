@@ -208,6 +208,37 @@ v80.0.0-alpha.1
   build (`Signature: Pure eBPF builtin — Official Build by
   rezky_nightky (oxyzenQ)` year-free, `sig` five-depth AUTHENTIC,
   contact proton); full test suite 308/308 green.
+- **night-fly-1, the fifteen-minute wall and the two-layer
+  fingerprint — the estate's CI clocks come down and the verification
+  prose answers the signing subkey.** Two owner laws landed together:
+  no auto-triggered CI may run past fifteen minutes, and no test lane
+  keeps a schedule — every test wakes on a commit to main alone, and
+  only the maintenance and publish contracts keep their clocks. The
+  close retires the four Sunday schedules (audit, fuzz, kani, miri;
+  the header and inline comments re-taught to the live posture),
+  returns the five atomic Kani proofs to the on-demand lane with the
+  fifteen-minute cap replacing the ninety-minute one (the fast
+  fourteen ride every push under their measured twelve-minute caps),
+  moves the fuzz deep session onto the manual dispatch at 300s per
+  target (the 900s weekly shape overran the job's own ten-minute cap
+  — the scheduled session could never have completed honestly), and
+  retires the claims lane's twenty-minute cap whose
+  night-frontier-2B justification lives in other lanes now. The docs
+  follow the law (RULES.md's CI contract and INNOVATIONS.md's two
+  cadence phrases re-taught), and the verification prose gains its
+  second fingerprint: the release signature is made by the primary's
+  active signing subkey, so `gpg --verify` prints `using EDDSA key
+  3EE4A49C78630A16E176DB2B3C9EB25BF0407781` while the primary
+  `F5324E0967F104D58CE025F347A50AEF4B65AAC2` stays the import and
+  trust anchor — VERIFY_RELEASE.md, the release-notes generator, and
+  the published release pages now carry both roles (the generator
+  self-test pins the subkey line), and a verifier greping the live
+  output byte for byte answers everywhere. Verified: keyserver
+  fetches by both fingerprints return the same keyblock (the primary
+  ed25519 [SC] certificate with the proton and cosmic-dragon UIDs and
+  the 3EE4A49C signing subkey), the generator self-test is green, and
+  every auto-triggered job in the estate parses at or under fifteen
+  minutes with the schedule grep answering maintenance.yml alone.
 - **the v80.5.1 release close — the release gate learns the year-free
   claim, and the manifest license speaks SPDX.** The v80.5.0 tag's
   release CI failed on two gates, both taught by the tag push that
