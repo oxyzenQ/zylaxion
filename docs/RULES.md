@@ -44,8 +44,8 @@ All `-V` / `--version` output MUST follow this exact format:
 
 ```
 zylaxion: v<version>
-Real-time mechanical keyboard acoustic synthesizer for Linux
-Build: linux-amd64-gnu (<short-sha>)
+Keyboard sound for Linux, decided in the kernel, synthesized in pure math. A passive eBPF input tap hears every keystroke; the zero-sample procedural engine voices it. Boring and stealth.
+Build: local-linux-amd64-gnu (<short-sha or unknown>)
 Build-time: YYYY-MM-DD HH:MMZ
 Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
 Depth-matrix: fp=<16-hex> status=verified anchor=b3:<64-hex> layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor
@@ -259,7 +259,8 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 - **Bot identity:** Commits as `github-actions[bot]`.
 - **Workflow titles:** the `Dragon Guard - <lane>` family, exactly as
   in the zelynic reference (CI, Supermassive, Supermassive E2E, Miri,
-  Release, Dependency Maintenance, crates.io publish, Gate-keepers,
+  Release, Reproducible Release Chain, Cross-Arch Parity (arm64),
+  Dependency Maintenance, crates.io publish, Gate-keepers,
   Security Audit, Fuzz, Kani) — one family, one grep surface (docs/GLOSSARY.md,
   "Dragon Guard").
 - **Supermassive lane names:** the hosted deep battery runs as many

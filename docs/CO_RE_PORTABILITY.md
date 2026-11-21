@@ -14,7 +14,7 @@ the one property that would change it.
 ## The verdict
 
 The premise is inverted for this codebase: the shipped tap already IS
-a compile-once object. One 2960-byte `zylaxion-tap.o` is built by the
+a compile-once object. One 3528-byte `zylaxion-tap.o` is built by the
 prebuilt lane, embedded into the binary, and loads on every supported
 kernel without a per-kernel recompile — the property CO-RE is famous
 for is already the shipping posture. What the tap does not use is

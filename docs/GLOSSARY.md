@@ -21,8 +21,9 @@ drifts between docs is a bug.
 ## The build
 
 - **Dragon Guard** — the CI workflow family name (ci, maintenance,
-  supermassive, supermassive e2e, release, miri, audit, fuzz,
-  gate-keepers, kani). One family, one grep surface.
+  supermassive, supermassive e2e, release, reproducible,
+  rates-parity-arm64, miri, audit, fuzz, gate-keepers, crates-io,
+  kani). One family, one grep surface.
 - **gate-keepers** — `scripts/gate-keepers.sh`, the orchestrator of
   the hard gates (permissions, headers, LOC caps, language, emoji,
   pins health, release parity). Every warning is a failure.

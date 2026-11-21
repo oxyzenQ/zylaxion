@@ -63,6 +63,10 @@ run_bump() { # run_bump <fixture-file> <version> [tagline]
 # versioned sections above it and SEEDS a known body under the live
 # ## [Unreleased] heading, so the carry fires deterministically on every
 # cycle state — the script under test still meets the real file's shape.
+# The bump rides 99.0.0 - a version the live ledger will not record in
+# this file's era: a recorded version no-ops (the F4 law) and the carry
+# would never fire (the v80.3.0-era constants went stale the day the
+# ledger outgrew them - night-depth-cleanup-2 retires the drift).
 if ! grep -q '^## \[Unreleased\]$' "${SCRIPT_DIR}/CHANGELOG.md"; then
     echo "FATAL: the live CHANGELOG.md carries no ## [Unreleased] anchor — the F1 fixture cannot seed it" >&2
     exit 2
@@ -81,29 +85,29 @@ fi
 } > "${WORK}/f1"
 
 echo "F1: real shape - ledger line, carry into own section, Unreleased emptied"
-run_bump "${WORK}/f1" "80.3.0" "growth naturally"
-check "F1 ledger line on top" "v80.3.0" \
+run_bump "${WORK}/f1" "99.0.0" "growth naturally"
+check "F1 ledger line on top" "v99.0.0" \
     "$(awk '/^## \[Released\]$/{getline; getline; print; exit}' "${WORK}/CHANGELOG.md")"
 check "F1 unreleased emptied" "1" \
     "$(awk '/^## \[Unreleased\]$/{f=1;next} f&&/^## /{exit} f{c++} END{print c+0}' "${WORK}/CHANGELOG.md")"
 check "F1 section heading shape" "1" \
-    "$(grep -c '^## \[v80.3.0\] — growth naturally — [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$' "${WORK}/CHANGELOG.md")"
-check "F1 section order" "## [Released]|## [v80.3.0] — growth naturally" \
+    "$(grep -c '^## \[v99.0.0\] — growth naturally — [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$' "${WORK}/CHANGELOG.md")"
+check "F1 section order" "## [Released]|## [v99.0.0] — growth naturally" \
     "$(grep -m2 '^## \[' "${WORK}/CHANGELOG.md" | sed 's/ — [0-9-]*$//' | paste -sd'|')"
 F1_UNREL_LINE="$(grep -n '^## \[Unreleased\]$' "${WORK}/CHANGELOG.md" | cut -d: -f1)"
-F1_SEC_LINE="$(grep -n '^## \[v80.3.0\]' "${WORK}/CHANGELOG.md" | cut -d: -f1)"
+F1_SEC_LINE="$(grep -n '^## \[v99.0.0\]' "${WORK}/CHANGELOG.md" | cut -d: -f1)"
 if [ "${F1_SEC_LINE:-99999}" -lt "${F1_UNREL_LINE:-0}" ]; then ok "F1 carried above unreleased"; else bad "F1 carried above unreleased" "section line < unreleased line" "${F1_SEC_LINE:-?} vs ${F1_UNREL_LINE:-?}"; fi
 F1_MARKER="$(awk '/^## \[Unreleased\]$/{f=1;next} f&&/^## /{exit} f&&NF&&!/^### /{print; exit}' "${WORK}/f1")"
 check "F1 first bullet carried" "1" \
-    "$(awk '/^## \[v80.3.0\]/{f=1;next} f&&/^## /{exit} f{print}' "${WORK}/CHANGELOG.md" | grep -cF -- "${F1_MARKER}")"
+    "$(awk '/^## \[v99.0.0\]/{f=1;next} f&&/^## /{exit} f{print}' "${WORK}/CHANGELOG.md" | grep -cF -- "${F1_MARKER}")"
 check "F1 last released intact" "1" \
     "$(grep -c '^## \[v80.0.2\] — be honest — 2026-10-31$' "${WORK}/CHANGELOG.md")"
 cp "${WORK}/CHANGELOG.md" "${WORK}/f1.result"
 
 echo "F2: no tagline - minimal heading"
-run_bump "${WORK}/f1" "80.3.1"
+run_bump "${WORK}/f1" "99.0.1"
 check "F2 heading without tagline" "1" \
-    "$(grep -c '^## \[v80.3.1\] — [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$' "${WORK}/CHANGELOG.md")"
+    "$(grep -c '^## \[v99.0.1\] — [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$' "${WORK}/CHANGELOG.md")"
 
 echo "F3: empty unreleased body - nothing to carry, ledger line only"
 printf '# Changelog\n\n## [Released]\n\nv80.2.1\n\n## [Unreleased]\n\n' > "${WORK}/f3"
@@ -120,13 +124,13 @@ if diff -q "${WORK}/f4.before" "${WORK}/CHANGELOG.md" > /dev/null; then ok "F4 n
 echo "F5: no anchors at all - warn, write nothing"
 printf '# Changelog\n\nJust prose.\n' > "${WORK}/f5"
 cp "${WORK}/f5" "${WORK}/f5.before"
-run_bump "${WORK}/f5" "80.3.0"
+run_bump "${WORK}/f5" "99.0.0"
 if diff -q "${WORK}/f5.before" "${WORK}/CHANGELOG.md" > /dev/null; then ok "F5 untouched"; else bad "F5 untouched" "identical" "changed"; fi
 
 echo "F6: unexpected Released shape - warn, skip line AND carry"
 printf '# Changelog\n\n## [Released]\nv80.2.1\n\n## [Unreleased]\n\n### Added\n\n- one\n' > "${WORK}/f6"
 cp "${WORK}/f6" "${WORK}/f6.before"
-run_bump "${WORK}/f6" "80.3.0"
+run_bump "${WORK}/f6" "99.0.0"
 if diff -q "${WORK}/f6.before" "${WORK}/CHANGELOG.md" > /dev/null; then ok "F6 untouched"; else bad "F6 untouched" "identical" "changed"; fi
 
 echo "F7: unreleased is the last section - carried under the Released ledger"
@@ -142,7 +146,7 @@ echo "F8: carried body is byte-verbatim"
 awk '/^## \[Unreleased\]$/{f=1;next} f&&/^## /{exit} f{print}' "${WORK}/f1" |
     awk 'NF && !s { s = NR } NF { e = NR } { l[NR] = $0 } END { for (i = s; i <= e; i++) print l[i] }' \
     > "${WORK}/f8.expected"
-awk '/^## \[v80.3.0\]/{f=1;next} f&&/^## /{exit} f{print}' "${WORK}/f1.result" |
+awk '/^## \[v99.0.0\]/{f=1;next} f&&/^## /{exit} f{print}' "${WORK}/f1.result" |
     awk 'NF && !s { s = NR } NF { e = NR } { l[NR] = $0 } END { for (i = s; i <= e; i++) print l[i] }' \
     > "${WORK}/f8.actual"
 if diff -q "${WORK}/f8.expected" "${WORK}/f8.actual" > /dev/null; then ok "F8 body verbatim"; else bad "F8 body verbatim" "byte-identical" "drifted"; fi

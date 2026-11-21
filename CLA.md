@@ -69,9 +69,10 @@ Contributions land through the same gates the Owner's own work does:
 - **English-only tree** — comments, docs, script text, and string
   literals alike. Chat with the Owner may be mixed-language; committed
   artifacts never are.
-- **The 600-line law** — every `.rs` file stays under 600 lines
-  (scripts under `scripts/` carry a 1000-line cap). Over the cap means
-  split, not exempt.
+- **The 600-line law** — every `.rs` file stays under 600 lines;
+  scripts under `scripts/` carry a 1000-line cap with the
+  `# LOC_EXEMPT:` self-declaration mechanism for tracked migration
+  debt. Over the Rust cap means split, not exempt.
 - **Gate-keepers green** — `./scripts/build.sh check-all -q` and
   `./scripts/gate-keepers.sh` must pass on every commit you propose.
 - **Commit shape** — micro commits, one purpose each, pure English,

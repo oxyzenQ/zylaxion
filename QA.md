@@ -7,7 +7,7 @@
 Owner QA rounds and ask-mode sessions: the owner asks, the answer is
 researched against the source tree before it is written. Every claim
 below was verified against the code at the time of writing (the
-night-improve-13 session, commit 0fd7cc4), and each answer names the
+night-improve-13 session), and each answer names the
 file it came from — this record is evidence, not opinion. Questions
 arrive in the owner's own words (translated; the repo is
 English-only) and are kept focused: one question, one honest answer,
@@ -17,8 +17,8 @@ no padding.
 
 ## Q1 — How big is the dependency tree, and what is the no-bloat policy?
 
-The package resolves to **136 lockfile crates** (`Cargo.lock`
-count, re-measured at the night-signature-advanced-1 pass; the
+The package resolves to **132 lockfile crates** (`Cargo.lock`
+external count, re-measured at the night-signature-advanced-1 pass; the
 67-package
 `cargo tree --workspace` count was taken at commit 39586b4, right
 after night-improve-21 collapsed the six-crate workspace), and
@@ -36,9 +36,10 @@ that every one of them earns its place:
   went with the same change; RUST_LOG keeps the standard
   comma-separated directive syntax, which was always the documented
   surface.
-- **No mock, no async runtime, no HTTP framework.** The player is
-  threads + a Unix socket; the update check is the one deliberate
-  network surface.
+- **No mock, no async runtime, no HTTP framework — and no socket.**
+  The control plane has no protocol at all (night-improve-23): the
+  pinned BPF maps are the only control surface; the update check is
+  the one deliberate network surface.
 
 When a dependency cannot avoid being pulled (a transitive requirement
 of a hardware lane), the honest move is to shrink the feature set
@@ -51,8 +52,8 @@ The zelynic reference contract
 
 ```
 zylaxion: v<version>
-Real-time mechanical keyboard acoustic synthesizer for Linux
-Build: linux-amd64-gnu (<short-sha>)
+Keyboard sound for Linux, decided in the kernel, synthesized in pure math. A passive eBPF input tap hears every keystroke; the zero-sample procedural engine voices it. Boring and stealth.
+Build: local-linux-amd64-gnu (<short-sha or unknown>)
 Build-time: YYYY-MM-DD HH:MMZ
 Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
 Depth-matrix: fp=<16-hex> status=verified anchor=b3:<64-hex> layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor
@@ -63,8 +64,10 @@ Source: https://github.com/oxyzenQ/zylaxion
 
 - The `Build:` label comes from the canonical label chain
   (`src/info/build.rs`): the `ZYLAXION_BUILD` env
-  stamp when a release lane exports one, else the compile-time
-  arch+libc detection.
+  stamp when a release lane exports one (`pro-<shape>` for a
+  downloaded release, `local-pro-<shape>` for an alias build), else
+  the compile-time arch+libc detection under the `local-` marker
+  (`local-linux-amd64-gnu` for a plain build).
 - The `Build-time:` stamp is computed in `build.rs` by the Hinnant
   algorithm — UTC-only, no timezone database in the binary, identical
   across build hosts.
@@ -84,8 +87,10 @@ Source: https://github.com/oxyzenQ/zylaxion
    reports the BTF/tracing posture, the bpffs pin state, and the
    input-tap verdict; a hostile or missing kernel surface fails the
    station with the exact fix.
-3. **`XDG_RUNTIME_DIR`** — the IPC socket and lock file land here;
-   missing or unwritable is a failure with the export fix.
+3. **`XDG_RUNTIME_DIR`** — the audio server's socket directory is
+   resolved here; missing or unwritable is a failure with the export
+   fix. zylaxion itself writes no socket or lock file anywhere (the
+   no-IPC law, night-improve-23).
 4. **Audio server** — probe of the default output device through
    cpal; the doctor opens the device, so a dead audio server fails
    the report.
@@ -102,9 +107,12 @@ The doctor speaks in word verdicts (green/red lanes through
 `scripts/gates/check-scripts-loc.sh` enforces 1000 lines for every
 script under `scripts/`. The no-mercy era (night-improve-18) closed
 the debt ledger: the six pre-gate files that carried the
-`// LOC_EXEMPT:` marker are split, the marker is retired, and the
-gate honors no exemption — over the cap means SPLIT, the same hour,
-a pure move with gates green in between. The same gate enforces the
+`// LOC_EXEMPT:` marker are split, and the Rust gate honors no
+marker — over the cap means SPLIT, the same hour, a pure move with
+gates green in between. The scripts cap is the deliberate exception:
+its gate honors the `# LOC_EXEMPT:` self-declaration marker for
+tracked migration debt (`scripts/gates/check-scripts-loc.sh`; no
+file carries the marker today). The same gate enforces the
 layout law beside the cap: the package's src/ root holds only its
 entry file (main.rs / lib.rs), and every *.rs test file lives under
 the package's test/ tree (the Pattern C #[path] wiring), counted
