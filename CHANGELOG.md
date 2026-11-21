@@ -217,6 +217,45 @@ v80.0.0-alpha.1
   strings(1) sweep over the artifact finds zero year-suffixed claim
   bytes.
 
+- **night-remake-1, the estate email sweep — the proton address is
+  the only address the tree names.** The owner's OPSEC close: every
+  trace of the retired provider address (and its obfuscated
+  spellings — the dot-separated prose form and its partials) is
+  hunted out of the estate end to end, the contact surface naming
+  `oxyzenQ@proton.me` only. The sweep is verification-led because
+  the migration already landed in stages: the masked authors layer
+  (the previous night-remake-1), the `Cargo.toml` authors row, the
+  `-V`/`sig` runtime surfaces, and every doc contact row
+  (`COMMERCIAL_LICENSE.md`'s three licensing rows, `README.md`,
+  `docs/BRANDING.md`, `docs/RULES.md`, `AI_AGENTS_READ_THIS.md`)
+  already carry the proton address, so a case-insensitive sweep of
+  the tracked and hidden files for the retired address, its
+  obfuscated spellings, and the old provider's name returns only two
+  historical prose notes naming the provider's NAME without the
+  address — the fp= provenance note in `src/info/signature.rs` and
+  the same note in `docs/VERIFY_RELEASE.md` — and both are reworded
+  to the neutral "estate-wide retired address form", so the tree now
+  carries zero provider residue at all (this entry deliberately does
+  not quote the retired address either: a sweep note that carried it
+  would re-contaminate the tree it closes out). The audit goes past
+  the working tree: the repository is unshallowed and all 642
+  commits are swept both by commit metadata (every author and
+  committer email is the noreply GitHub identity, the oxchin
+  collaborator identity, or the actions bot — no provider address
+  anywhere) and by a per-commit blob grep across every revision —
+  zero hits, the retired address never rested in any blob in the
+  repository's history, so no history rewrite and no force-push is
+  needed. The GPG verification path stays untouched by design: the
+  release-notes generator's
+  `recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2` instruction
+  pins the fingerprint, which is unchanged by the UID email update
+  (the same key now carries the proton UID). Verified on the real
+  artifact: the release binary's `-V`/`sig` render the proton
+  contact, a strings(1) sweep over the binary finds zero retired
+  provider bytes at rest (the contact materializes only at runtime,
+  from the masked authors layer), and the full local gate (fmt,
+  clippy, 308 tests, gate-keepers) is green.
+
 ## [v80.3.0] — night-frontier-Z4: the last timer dies — the parked player and the evented stop — 2026-11-18
 
 ### Added

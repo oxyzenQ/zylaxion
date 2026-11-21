@@ -109,10 +109,10 @@ clause only (46 bytes, `9174e0ce08feccba` — the family voice is a
 separate claim const there) and cosmostrix's carries the "Cosmic
 Dragon" voice (64 bytes, `fe0d7239f86e7c1b`) — differently framed
 claims hash differently by design. The authors layer carried the
-estate-wide gmail form (57 bytes, `c97b13f816035d55`) until the
-night-remake-1 proton migration: zylaxion now carries the proton
-address (43 bytes, `66771e5f273b9cae`), and the sibling artifacts
-keep the retired layer until their own remake lands.
+estate-wide retired address form (57 bytes, `c97b13f816035d55`)
+until the night-remake-1 proton migration: zylaxion now carries the
+proton address (43 bytes, `66771e5f273b9cae`), and the sibling
+artifacts keep the retired layer until their own remake lands.
 
 ## Verifying an older release (pre-BLAKE3 archives)
 

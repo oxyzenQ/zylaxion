@@ -169,11 +169,11 @@ const MASKED_MANIFEST_WORDS: [u64; 8] = [
 /// carries the "Cosmic Dragon" voice (64 bytes), so their digests
 /// differ (9174e0ce08feccba, fe0d7239f86e7c1b) — differently framed
 /// claims, not a derivation bug. The authors layer carried the
-/// estate-wide gmail form (57 bytes, fingerprint c97b13f816035d55)
-/// until the night-remake-1 proton migration: zylaxion now carries
-/// the proton address (43 bytes, fingerprint 66771e5f273b9cae), and
-/// the sibling artifacts keep the retired layer until their own
-/// remake lands. Artifact identity stays
+/// estate-wide retired address form (57 bytes, fingerprint
+/// c97b13f816035d55) until the night-remake-1 proton migration:
+/// zylaxion now carries the proton address (43 bytes, fingerprint
+/// 66771e5f273b9cae), and the sibling artifacts keep the retired
+/// layer until their own remake lands. Artifact identity stays
 /// the D3 anchor's job (and the `sig` report's binary self-hash pins
 /// the bytes on disk).
 const MANIFEST_FINGERPRINT: u64 =
