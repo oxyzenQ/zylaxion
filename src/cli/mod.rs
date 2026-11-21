@@ -7,11 +7,13 @@
 //! contract: brand header (`zylaxion: v<ver>` + the one-line tagline,
 //! each line its own brand-purple wrap on a TTY), then the plain
 //! build-facts body — `Build:`, `Build-time:`, `Signature:`,
-//! `Depth-matrix:`, `Copyright:`, `License:`, `Source:`. The build
+//! `Depth-matrix:`, `Copyright`, `License:`, `Source:`. The build
 //! facts come from [`crate::info::build`] (the Hinnant clock stamps
-//! them, no time crate) and the Signature/Depth-matrix/Copyright
-//! identity lines materialize from [`crate::info::signature`], the
-//! masked provenance depth matrix (night-signature-advanced-1). Two
+//! them, no time crate) and the Signature/Depth-matrix identity lines
+//! materialize from [`crate::info::signature`], the masked provenance
+//! depth matrix (night-signature-advanced-1); the Copyright and
+//! License lines are the masterclass literals [`COPYRIGHT_LINE`] and
+//! [`LICENSE_LINE`] (night-ux-orion-2). Two
 //! surfaces share ONE body so they cannot drift:
 //! `-V` / `--version` intercepted in `main.rs` renders the brand header
 //! in purple on a TTY via [`print_version_report`], and clap's own
@@ -43,6 +45,33 @@ pub mod ux;
 /// the registry-facing description a `cargo search` shows.
 pub(crate) const ABOUT: &str = env!("CARGO_PKG_DESCRIPTION");
 
+/// The `License:` line as ONE contiguous literal (night-ux-orion-2,
+/// the masterclass disclosure). Release lanes verify artifacts WITHOUT
+/// executing them by grepping `strings` output, so a line the
+/// pipeline greps must never ride a format! inline capture — the
+/// template would keep the prefix and the bare id would land
+/// elsewhere in rodata. This const IS the whole line, so the bytes
+/// stay contiguous by construction. The dual-license SPDX OR
+/// expression names both doors in the same bytes: AGPL-3.0-only, or
+/// the Commercial License for closed-source use — the exact string
+/// the manifest's license field and every file header carry.
+const LICENSE_LINE: &str = "License: AGPL-3.0-only OR Commercial";
+
+/// The `Copyright` line as ONE contiguous literal (night-ux-orion-2,
+/// the owner's masterclass form): no colon after the Copyright word
+/// (the Linux kernel and Rust compiler convention — the universal
+/// shape every auditor recognizes), the year range naming the first
+/// and the current year of the holder's claim, and the holder the
+/// Signature manifest names. One place to update: the trailing year
+/// moves when a release lands in a new calendar year (2025-2027 for a
+/// 2027 release) and freezes the day the claim changes hands — the
+/// range never loses its first year. The owner's name rides plain
+/// here by the sibling's precedent: every source header already
+/// carries it, and the masking law (night-signature-advanced-1)
+/// protects the Signature manifest's claim wording, not the owner
+/// credit.
+const COPYRIGHT_LINE: &str = "Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)";
+
 /// The plain-text body of the version report (everything after the
 /// brand header). Separated from [`long_version`] /
 /// [`print_version_report`] so tests can assert the full line set
@@ -53,16 +82,17 @@ pub(crate) const ABOUT: &str = env!("CARGO_PKG_DESCRIPTION");
 /// night-pro-1, the estate-wide format) — so no time
 /// crate is needed anywhere in the dependency tree (night-improve-13).
 ///
-/// The `Signature:` line, the `Depth-matrix:` line, and the
-/// `Copyright:` identity all come from [`crate::info::signature`] —
-/// the masked provenance depth matrix (night-signature-advanced-1).
-/// The ownership claim does NOT exist as plaintext in the binary: it
-/// rides masked u64 words and materializes at runtime, so a thief's
-/// `strings(1)`/`rg` sweep over the artifact finds nothing to strip.
-/// The line label `Signature:` stays a static prefix so scripts keep
-/// their grep handle (`zylaxion -V | grep Signature`); the release
-/// verification legs grep the materialized `-V` output, not the
-/// artifact bytes (see release.yml).
+/// The `Signature:` line and the `Depth-matrix:` line come from
+/// [`crate::info::signature`] — the masked provenance depth matrix
+/// (night-signature-advanced-1). The ownership claim does NOT exist
+/// as plaintext in the binary: it rides masked u64 words and
+/// materializes at runtime, so a thief's `strings(1)`/`rg` sweep over
+/// the artifact finds nothing to strip. The line label `Signature:`
+/// stays a static prefix so scripts keep their grep handle
+/// (`zylaxion -V | grep Signature`); the release verification legs
+/// grep the materialized `-V` output, not the artifact bytes (see
+/// release.yml). The `Copyright` and `License:` lines are the
+/// masterclass literals above (night-ux-orion-2).
 fn version_body() -> String {
     let provenance = crate::info::signature::provenance_view();
     format!(
@@ -70,15 +100,14 @@ fn version_body() -> String {
          Build-time: {}\n\
          Signature: {}\n\
          {}\n\
-         Copyright: (c) 2026 {}\n\
-         License: AGPL-3.0-only\n\
+         {COPYRIGHT_LINE}\n\
+         {LICENSE_LINE}\n\
          Source: https://github.com/oxyzenQ/zylaxion",
         crate::info::build::build_label(),
         crate::info::build::build_hash(),
         crate::info::build::build_time(),
         provenance.manifest,
         provenance.depth_line,
-        provenance.authors,
     )
 }
 

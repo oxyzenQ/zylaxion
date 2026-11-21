@@ -99,8 +99,10 @@ drifts between docs is a bug.
 
 - **version report** — the `-V`/`--version` output: brand header
   (name + version + tagline, one brand wrap per line), then `Build:` /
-  `Build-time:` / `Signature:` / `Depth-matrix:` / `Copyright:` /
-  `License:` / `Source:`. Two surfaces (the first-arg intercept and
+  `Build-time:` / `Signature:` / `Depth-matrix:` / `Copyright` /
+  `License:` / `Source:` (night-ux-orion-2: the masterclass form — no
+  colon after the Copyright word, the dual-license OR expression on
+  the License line). Two surfaces (the first-arg intercept and
   clap's own path) share one body.
 - **depth matrix** — the masked provenance signature
   (night-signature-advanced-1): the ownership claim embedded as

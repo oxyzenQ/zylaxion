@@ -77,6 +77,39 @@ v80.0.0-alpha.1
   bytes — the piped silence plus both pty seats and their clears —
   witnessed by the `sm_ux.py` loading-lane probes.
 
+- **night-ux-orion-2, the masterclass disclosure — the `-V` report
+  names both doors.** The version report's ownership block was the
+  one surface an auditor's scanner reads where the estate's
+  dual-license truth was half-told: the report carried
+  `License: AGPL-3.0-only` (the manifest's own field said the same)
+  while the Commercial License shipped in the tree next to it, and
+  the `Copyright:` row broke two conventions at once — a colon after
+  the Copyright word where the Linux kernel, the Rust compiler and
+  the rest of the family put none, and a materialized contact string
+  where the masterclass form wants one universal line. The close is
+  the zejtron night-ux-orion-2 disclosure ported byte for byte: the
+  report renders `Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)`
+  (no colon, the year range naming the first and the current year of
+  the holder's claim — the trailing year moves when a release lands
+  in a new calendar year and freezes the day the claim changes
+  hands) and `License: AGPL-3.0-only OR Commercial` (the dual-license
+  SPDX OR expression, the exact string the manifest's license field
+  now carries too, so `cargo search` and every corporate scanner see
+  both doors in one field and one line). Both lines are ONE
+  contiguous literal each (`src/cli/mod.rs`'s `LICENSE_LINE` /
+  `COPYRIGHT_LINE`) — a line the release lane greps out of `strings`
+  output must never ride a format! inline capture, so the bytes stay
+  contiguous by construction and the verbatim pins
+  (`test/cli/version_report_tests.rs`) fail in the unit run on any
+  drift. The masked provenance law is untouched: the Signature
+  manifest and the Depth-matrix still materialize from the masked
+  layers (night-signature-advanced-1), the obfuscated author contact
+  stays the family-wide registry posture (night-improve-10), and the
+  owner credit rides plain exactly where every source header already
+  carries it. The RULES.md and QA.md `-V` blocks and the GLOSSARY
+  version-report row carry the same shape, so the docs cannot teach
+  the old grammar.
+
 ## [v80.3.0] — night-frontier-Z4: the last timer dies — the parked player and the evented stop — 2026-11-18
 
 ### Added

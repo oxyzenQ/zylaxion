@@ -32,7 +32,9 @@ fn strip_brand_spans(line: &str) -> String {
 /// documented line exactly once, in the zelynic reference order —
 /// Build, then Build-time directly after it, then the Signature, then
 /// the Depth-matrix (night-signature-advanced-1), then Copyright,
-/// License, Source.
+/// License, Source. The Copyright and License lines are the
+/// masterclass literals (night-ux-orion-2): no colon after the
+/// Copyright word, the dual-license OR expression on the License line.
 #[test]
 fn version_report_carries_the_zelynic_line_contract() {
     let body = version_body();
@@ -40,8 +42,8 @@ fn version_report_carries_the_zelynic_line_contract() {
         "Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ) 2026",
         "Depth-matrix: fp=",
         "layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor",
-        "Copyright: (c) 2026 rezky_nightky (oxyzenQ) <oxyzenQ@proton.me>",
-        "License: AGPL-3.0-only",
+        "Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)",
+        "License: AGPL-3.0-only OR Commercial",
         "Source: https://github.com/oxyzenQ/zylaxion",
     ] {
         let count = body.lines().filter(|l| l.contains(line)).count();
@@ -69,8 +71,35 @@ fn version_report_carries_the_zelynic_line_contract() {
         "Depth-matrix must directly follow Signature: {lines:?}"
     );
     assert!(
-        lines[build_idx + 4].starts_with("Copyright: "),
+        lines[build_idx + 4].starts_with("Copyright (c) "),
         "Copyright must directly follow Depth-matrix: {lines:?}"
+    );
+}
+
+/// night-ux-orion-2: the license line exists as ONE contiguous
+/// literal (LICENSE_LINE) — the release lane greps exactly those
+/// bytes out of `strings` on shipped artifacts, so the literal is
+/// pinned verbatim here and a drift (a split format! capture, a
+/// dropped door) fails in the unit run, not on a release day.
+#[test]
+fn license_line_is_the_contiguous_bytes_the_release_probe_greps() {
+    assert_eq!(LICENSE_LINE, "License: AGPL-3.0-only OR Commercial");
+}
+
+/// night-ux-orion-2: the copyright line is the owner's masterclass
+/// form — ONE contiguous literal, no colon after the Copyright word
+/// (the Linux kernel / Rust compiler convention), the year range
+/// 2025-2026, the holder the manifest names. Pinned verbatim so a
+/// drift (a reintroduced colon, a year drop) fails in the unit run.
+#[test]
+fn copyright_line_is_the_masterclass_form() {
+    assert_eq!(
+        COPYRIGHT_LINE,
+        "Copyright (c) 2025-2026 rezky_nightky (oxyzenQ)"
+    );
+    assert!(
+        !COPYRIGHT_LINE.starts_with("Copyright:"),
+        "the masterclass form carries no colon after the Copyright word"
     );
 }
 
@@ -102,8 +131,8 @@ fn signature_surface_materializes_the_masked_layers() {
         "the layers token describes the masked + anchored scheme"
     );
     assert!(
-        body.contains("License: AGPL-3.0-only"),
-        "the release probe's license bytes stay contiguous"
+        body.contains("License: AGPL-3.0-only OR Commercial"),
+        "the release probe's license bytes stay contiguous (both doors, one line)"
     );
 }
 
