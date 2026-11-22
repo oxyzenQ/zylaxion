@@ -166,7 +166,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, the zelynic estate SHA
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # v1, @stable, the zelynic estate SHA
         with:
           toolchain: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.target }}

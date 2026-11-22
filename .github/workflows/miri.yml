@@ -101,7 +101,7 @@ jobs:
       # rust-toolchain.toml stable pin stays the shipping contract and
       # is NOT overridden for the normal lanes.
       - name: Install nightly + miri
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # @stable, the zelynic estate SHA pin
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # v1, @stable, the zelynic estate SHA pin
         with:
           toolchain: nightly
           components: miri
