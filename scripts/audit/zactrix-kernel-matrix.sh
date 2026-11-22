@@ -10,7 +10,14 @@
 #
 #   5.15 — Ubuntu jammy, linux-image-unsigned-5.15.0-97-generic
 #   6.1  — Debian bookworm, linux-image-6.1.0-50-amd64-unsigned
-#   6.6  — Arch Linux LTS, linux-lts 6.6.72-1
+#   6.6  — Ubuntu mainline, linux-image-unsigned-6.6.162-0606162-generic
+#          (night-depth-cleanup-1A: re-pinned off the Arch linux-lts
+#          6.6.72-1 package with a documented cause — the
+#          archive.archlinux.org host chronically blackholes CI
+#          connections and is the only host carrying superseded Arch
+#          packages; the mainline archive keeps every published build
+#          frozen forever, with the embedded .BTF verified live on the
+#          replacement artifact)
 #
 # Every artifact rides a sha256 pin (the tree's supply-chain law);
 # the pin table lives below and is the ONLY legal way the artifacts
@@ -40,7 +47,7 @@ mkdir -p "$OUT"
 PINS=(
     "https://archive.ubuntu.com/ubuntu/pool/main/l/linux/linux-image-unsigned-5.15.0-97-generic_5.15.0-97.107_amd64.deb|0f9a0d59436e6227c4b604708d6928ccad25020b89aaca1bc289dc558f12795b|jammy-5.15.0-97.deb|boot/vmlinuz-5.15.0-97-generic|5.15.0-97-generic"
     "https://deb.debian.org/debian/pool/main/l/linux/linux-image-6.1.0-50-amd64-unsigned_6.1.176-1_amd64.deb|439422e41d2dbb840b60b81e3bf5e5955bfa56b7a8c268aec83c9ff882d421e6|bookworm-6.1.0-50-amd64.deb|boot/vmlinuz-6.1.0-50-amd64|6.1.0-50-amd64"
-    "https://archive.archlinux.org/packages/l/linux-lts/linux-lts-6.6.72-1-x86_64.pkg.tar.zst|a527cb8907781c2110d6b1bebb3340689c46a73ff4ad7de1a387946c44907a14|arch-6.6.72-1-lts.pkg.tar.zst|usr/lib/modules/6.6.72-1-lts/vmlinuz|6.6.72-1-lts"
+    "https://kernel.ubuntu.com/mainline/v6.6.162/amd64/linux-image-unsigned-6.6.162-0606162-generic_6.6.162-0606162.202611062058_amd64.deb|27cfdb026649c460f12da23d7835da65b73dae95b0141bf17b3f6af93fb2bfc9|mainline-6.6.162-image.deb|boot/vmlinuz-6.6.162-0606162-generic|6.6.162-0606162-generic"
 )
 
 # One-time tools check, named (the run must fail with the fix, not a
@@ -87,7 +94,9 @@ for pin in "${PINS[@]}"; do
     btf="$OUT/btf-$label.bin"
     if [ ! -f "$image" ]; then
         echo "KERNEL-MATRIX [$label] downloading $(basename "$url")"
-        curl -fsSL --retry 5 --retry-all-errors -o "$image" "$url"
+        curl -fsSL --retry 5 --retry-all-errors \
+          --connect-timeout 30 --max-time 300 \
+          -o "$image" "$url"
     fi
     echo "$sha256  $image" | sha256sum -c - || {
         echo "KERNEL-MATRIX FAIL [$label]: sha256 pin mismatch - the artifact moved; a re-pin needs a documented cause"

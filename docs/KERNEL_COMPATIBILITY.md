@@ -151,7 +151,7 @@ parse, the CO-RE posture measured (the shipped object carries no
 |---|---|---|
 | 5.15 LTS | Ubuntu jammy `5.15.0-97-generic` (11.6 MB image, BTF 5,193,059 B) | PASS |
 | 6.1 LTS | Debian bookworm `6.1.0-50-amd64` (8.2 MB image, BTF 4,351,479 B) | PASS |
-| 6.6 LTS | Arch Linux LTS `6.6.72-1-lts` (13.1 MB image, BTF 5,296,425 B) | PASS |
+| 6.6 LTS | Ubuntu mainline `6.6.162-0606162-generic` (13.8 MB image, BTF 5,864,995 B) | PASS |
 
 Honesty notes, recorded not hidden: the BTF row proves the
 load-time facts (parse, relocations, the fentry id) — the runtime
@@ -174,7 +174,7 @@ evented control plane, the engine's full chaos):
 |---|---|---|
 | 5.15 (the floor) | jammy main GA pocket, frozen | exact 5.15.* family |
 | 6.1 LTS | Debian bookworm `6.1.0-50-amd64`, sha256-pinned deb | exact 6.1.* family |
-| 6.6 LTS | Arch Linux LTS `6.6.72-1-lts`, sha256-pinned package | exact 6.6.* family |
+| 6.6 LTS | Ubuntu mainline `6.6.162-0606162-generic`, sha256-pinned image + modules debs | exact 6.6.* family |
 | 6.8 | noble main GA pocket (6.8.0-31), frozen | exact 6.8.* family |
 | newest served | the archive's head (dynamic doctrine) | at-or-above-floor |
 | 5.4 (below the floor) | focal main GA pocket, frozen | refusal walk |
@@ -206,6 +206,17 @@ now, and the probe reads its lawful PASS. The floor seat's one
 PROOF 7 relative-gate trip (`412` vs `382`, cleared by the rerun) is
 recorded as a measurement-noise flake, not a kernel fact; the full
 chain sits in `docs/audit-night-depth-hardening-Z1.md`.
+
+Pin provenance note (night-depth-cleanup-1A, 2026-11-22): the 6.6
+seat's artifact was re-pinned off the Arch `6.6.72-1-lts` package
+(the run `3186208` evidence above rides that artifact) to the Ubuntu
+mainline frozen `6.6.162-0606162-generic` image + modules debs — the
+documented cause is the chronically stalling `archive.archlinux.org`
+host (the only host carrying superseded Arch packages), the
+replacement's embedded `.BTF` was verified live before the pin
+landed, and the pin tables in
+`.github/workflows/supermassive-e2e.yml` and
+`scripts/audit/zactrix-kernel-matrix.sh` carry the sha256s.
 
 <!-- ZYLAXION-DISCLAIMER -->
 <!--

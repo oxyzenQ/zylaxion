@@ -31,7 +31,7 @@
 # (night-dragon-maintenance-4): below the floor, the focal 5.4 refusal
 # witness; the documented 5.15 floor, jammy's 5.15.0 line; the newest
 # kernel the archive serves. night-runner-1 adds the LTS-span witness
-# seats beside them — 6.1 (Debian bookworm), 6.6 (Arch LTS), 6.8 (the
+# seats beside them — 6.1 (Debian bookworm), 6.6 (Ubuntu mainline), 6.8 (the
 # noble GA kernel) — each a sha256-pinned foreign-distro artifact or a
 # frozen GA pocket, so the pending runtime records live in CI instead
 # of a doc claim. The verdict relay is the zelynic sentinel
@@ -252,7 +252,7 @@ jobs:
         # documented floor) proving the refusal walk. Each spec tier is
         # one gnu leg — glibc is the only libc the matrix ships.
         # night-runner-1 adds the LTS-span witness seats beside them:
-        # the 6.1 (Debian bookworm) / 6.6 (Arch LTS) / 6.8 (noble GA)
+        # the 6.1 (Debian bookworm) / 6.6 (Ubuntu mainline) / 6.8 (noble GA)
         # runtime records the kernel checklist left pending, each
         # booting the FULL battery on its pinned artifact.
         leg:
@@ -264,7 +264,7 @@ jobs:
             pocket: below-floor
           - title: supermassive e2e - LTS span (the 6.1 bookworm witness)
             pocket: lts-6.1
-          - title: supermassive e2e - LTS span (the 6.6 Arch witness)
+          - title: supermassive e2e - LTS span (the 6.6 mainline witness)
             pocket: lts-6.6
           - title: supermassive e2e - LTS span (the 6.8 noble GA witness)
             pocket: lts-6.8
@@ -328,9 +328,11 @@ jobs:
           # and earns the update lane — three named attempts, each
           # inside its own kill timer. cpio is preinstalled; the fetch
           # is qemu-system-x86's. zstd (night-runner-1) decompresses the
-          # Arch LTS leg's per-module .ko.zst files for the guest's
-          # plain-insmod staging, and the .pkg.tar.zst extraction rides
-          # tar --zstd.
+          # pinned legs' per-module .ko.zst files (the 6.6 Ubuntu
+          # mainline debs ship them, the same shape the Arch package
+          # had) for the guest's plain-insmod staging; the .pkg.tar.zst
+          # case below stays a defensive extraction shape for a future
+          # re-pin.
           APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
           if sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y \
               --no-install-recommends qemu-system-x86 cpio zstd; then
@@ -413,8 +415,17 @@ jobs:
             echo "kver=${IMG#linux-image-unsigned-}" >> "$GITHUB_OUTPUT"
           else
             # The frozen GA pockets: one constant sentinel, one
-            # stable cache key per pocket.
-            echo "kver=frozen" >> "$GITHUB_OUTPUT"
+            # stable cache key per pocket. The lts-6.6 sentinel
+            # carries a revision suffix: night-depth-cleanup-1A
+            # re-pinned that seat's artifact, and the staging law
+            # change must invalidate the old stage cache (a warm hit
+            # on the stale Arch stage would silently skip the new
+            # pin's fetch and verification).
+            if [ "${{ matrix.leg.pocket }}" = "lts-6.6" ]; then
+              echo "kver=frozen-r2" >> "$GITHUB_OUTPUT"
+            else
+              echo "kver=frozen" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Restore the guest kernel staging cache
@@ -424,7 +435,7 @@ jobs:
           path: /tmp/kfloor/stage
           key: kfloor-${{ matrix.leg.pocket }}-${{ steps.kver.outputs.kver }}
           restore-keys: |
-            kfloor-${{ matrix.leg.pocket }}-
+            kfloor-${{ matrix.leg.pocket }}-${{ steps.kver.outputs.kver }}-
 
       - name: Fetch and stage the guest kernel (${{ matrix.leg.pocket }})
         if: steps.kfloor-cache.outputs.cache-hit != 'true'
@@ -453,28 +464,63 @@ jobs:
           # table below is the ONLY legal way the artifacts change (the
           # tree's supply-chain law). Each pin was verified live against
           # the artifact it stages (the 6.1 deb carries the full module
-          # tree, Debian has no modules split; the 6.6 Arch package
-          # carries usr/lib/modules with per-module .ko.zst).
+          # tree, Debian has no modules split; the 6.6 seat rides the
+          # Ubuntu mainline image deb plus its modules deb, split the
+          # same way the GA pockets split them).
+          # night-depth-cleanup-1A: the lts-6.6 pin moved off
+          # archive.archlinux.org (the pinned linux-lts 6.6.72-1
+          # package) with a documented cause — the archive host
+          # chronically blackholes new connections from the CI network
+          # (five consecutive 132 s curl connect-timeouts, run
+          # 40317928997, 2026-11-22), and it is the only host carrying
+          # superseded Arch packages, so no mirror fallback exists.
+          # The replacement is the Ubuntu mainline frozen artifact
+          # (kernel.ubuntu.com/mainline keeps every published build
+          # forever, dl-cdn-class stability, the same 6.6 LTS family):
+          # kernel 6.6.162, embedded .BTF verified live (5,864,995 B
+          # carved), the sound chain shipped as per-module .ko.zst, the
+          # input chain built into vmlinuz (modules.builtin) — the
+          # shapes the staging below already handles.
           PIN_URL=""
+          PIN_MURL=""
           if [ "${{ matrix.leg.pocket }}" = "lts-6.1" ]; then
             PIN_URL="https://deb.debian.org/debian/pool/main/l/linux/linux-image-6.1.0-50-amd64-unsigned_6.1.176-1_amd64.deb"
             PIN_SHA="439422e41d2dbb840b60b81e3bf5e5955bfa56b7a8c268aec83c9ff882d421e6"
             PIN_NAME="bookworm-6.1.0-50-amd64.deb"
           elif [ "${{ matrix.leg.pocket }}" = "lts-6.6" ]; then
-            PIN_URL="https://archive.archlinux.org/packages/l/linux-lts/linux-lts-6.6.72-1-x86_64.pkg.tar.zst"
-            PIN_SHA="a527cb8907781c2110d6b1bebb3340689c46a73ff4ad7de1a387946c44907a14"
-            PIN_NAME="arch-6.6.72-1-lts.pkg.tar.zst"
+            PIN_URL="https://kernel.ubuntu.com/mainline/v6.6.162/amd64/linux-image-unsigned-6.6.162-0606162-generic_6.6.162-0606162.202611062058_amd64.deb"
+            PIN_SHA="27cfdb026649c460f12da23d7835da65b73dae95b0141bf17b3f6af93fb2bfc9"
+            PIN_NAME="mainline-6.6.162-image.deb"
+            PIN_MURL="https://kernel.ubuntu.com/mainline/v6.6.162/amd64/linux-modules-6.6.162-0606162-generic_6.6.162-0606162.202611062058_amd64.deb"
+            PIN_MSHA="8f897923673feec6dd7ea20ea0febc881d8cc71cd3986359c40522dd574a1601"
+            PIN_MNAME="mainline-6.6.162-modules.deb"
           fi
           if [ -n "$PIN_URL" ]; then
+            # The fetch rides the bounded belt (--connect-timeout and
+            # --max-time per attempt): a blackholed host dies inside
+            # its own budget with the failure named, instead of five
+            # unbounded connect stalls burning the job window.
             ARTIFACT="/tmp/kfloor/$PIN_NAME"
-            curl -fsSL --retry 5 --retry-all-errors -o "$ARTIFACT" "$PIN_URL"
+            curl -fsSL --retry 5 --retry-all-errors \
+              --connect-timeout 30 --max-time 300 \
+              -o "$ARTIFACT" "$PIN_URL"
             echo "$PIN_SHA  $ARTIFACT" | sha256sum -c -
+            if [ -n "$PIN_MURL" ]; then
+              MODART="/tmp/kfloor/$PIN_MNAME"
+              curl -fsSL --retry 5 --retry-all-errors \
+                --connect-timeout 30 --max-time 300 \
+                -o "$MODART" "$PIN_MURL"
+              echo "$PIN_MSHA  $MODART" | sha256sum -c -
+            fi
             mkdir -p pkg
             case "$ARTIFACT" in
               *.deb) dpkg-deb -x "$ARTIFACT" pkg ;;
               *.pkg.tar.zst) tar --zstd -xf "$ARTIFACT" -C pkg ;;
               *) echo "FAIL: unknown pinned artifact shape"; exit 1 ;;
             esac
+            if [ -n "$PIN_MURL" ]; then
+              dpkg-deb -x "$MODART" pkg
+            fi
             echo "pinned artifact: $PIN_NAME (sha256 verified)"
           elif [ "${{ matrix.leg.pocket }}" = "floor" ]; then
             # jammy main ONLY — the GA suite, frozen by archive
@@ -587,8 +633,9 @@ jobs:
           done
           fi
           # The generalized vmlinuz discovery (night-runner-1): Debian
-          # puts the image in boot/, Arch in usr/lib/modules/<ver>/ —
-          # one find serves both shapes, the ubuntu pockets unchanged.
+          # and Ubuntu mainline put the image in boot/, Arch kept it in
+          # usr/lib/modules/<ver>/ — one find serves every shape, the
+          # ubuntu pockets unchanged.
           VMLINUZ=$(find pkg -type f \( -name 'vmlinuz-*' -o -name 'vmlinuz' \) | head -1)
           test -n "$VMLINUZ" || {
             echo "FAIL: no vmlinuz in the staged kernel artifacts"
@@ -599,13 +646,14 @@ jobs:
           # The staged battery chain rides the SAME kernel's module tree
           # (same-suite vermagic by construction): the sound core chain
           # (snd-dummy is the PCM witness's card). uinput is staged when
-          # the artifact ships it (Debian 6.1 and Arch 6.6 both do —
-          # verified live); the ubuntu GA kernels build uinput INTO
-          # vmlinuz (modules.builtin carries it, no .ko ships in any
-          # deb) — a missing uinput.ko is the expected shape there, the
-          # guest init accepts the built-in. The finds are generalized
-          # (night-runner-1): Debian stages lib/modules/, Arch
-          # usr/lib/modules/ — one glob serves both.
+          # the artifact ships it (Debian 6.1 ships it — verified
+          # live); the ubuntu GA kernels and the 6.6 mainline artifact
+          # build uinput INTO vmlinuz (modules.builtin carries it) — a
+          # missing uinput.ko is the expected shape there, the guest
+          # init accepts the built-in. The finds are generalized
+          # (night-runner-1): Debian and Ubuntu mainline stage
+          # lib/modules/, Arch kept usr/lib/modules/ — one glob serves
+          # every shape.
           if [ "${{ matrix.leg.pocket }}" != "below-floor" ]; then
             for ko in soundcore snd snd-timer snd-pcm snd-dummy; do
               SRC=$(find pkg -path '*lib/modules*' -name "${ko}.ko*" | head -1)
@@ -628,18 +676,20 @@ jobs:
             # i8042, libps2, atkbd) INTO vmlinuz but ships evdev as a
             # MODULE — without it no /dev/input/event* node ever exists
             # and the real-user law reads a false SKIP. Stage the split
-            # modules when the artifact carries them (jammy, noble and
-            # Arch build evdev in, so nothing is staged there).
-            # night-runner-2, the split follows the artifact: the Arch
-            # 6.6 pocket that landed 2026-11-21 ships the controller as
-            # a MODULE for the first time in this lane's history, and a
-            # module the kernel splits out carries its own dependency
-            # half (serio, libps2) — a bare insmod of i8042.ko alone
-            # dies on unknown symbols, the same law insmod has always
-            # had. Stage the whole shipped chain in dependency order;
-            # the guest loader (supermassive-init.sh) insmods it in the
-            # same order, each half its own honest PASS/FAIL row, and
-            # the no-op shape stays whatever the artifact builds in.
+            # modules when the artifact carries them (jammy, noble, the
+            # 6.1 bookworm deb and the 6.6 mainline artifact all build
+            # the controller in, so nothing is staged there).
+            # night-runner-2, the split follows the artifact: the pinned
+            # 6.6 artifact that landed 2026-11-21 (then the Arch
+            # package) shipped the controller as a MODULE for the first
+            # time in this lane's history, and a module the kernel
+            # splits out carries its own dependency half (serio, libps2)
+            # — a bare insmod of i8042.ko alone dies on unknown symbols,
+            # the same law insmod has always had. Stage the whole
+            # shipped chain in dependency order; the guest loader
+            # (supermassive-init.sh) insmods it in the same order, each
+            # half its own honest PASS/FAIL row, and the no-op shape
+            # stays whatever the artifact builds in.
             SERIO_KO=$(find pkg -path '*lib/modules*' -name 'serio.ko*' | head -1)
             if [ -n "$SERIO_KO" ]; then
               cp "$SERIO_KO" /tmp/kfloor/stage/mods/
@@ -668,9 +718,11 @@ jobs:
             else
               echo "evdev: not shipped by this artifact (the event interface is built in)"
             fi
-            # night-runner-1: Arch compresses each module individually
-            # (.ko.zst) and the guest's insmod speaks plain .ko — the
-            # staged set decompresses here, loudly on any zstd failure.
+            # night-runner-1: the pinned artifacts compress each module
+            # individually (.ko.zst — the Arch package before it, the
+            # Ubuntu mainline debs now) and the guest's insmod speaks
+            # plain .ko — the staged set decompresses here, loudly on
+            # any zstd failure.
             for z in /tmp/kfloor/stage/mods/*.ko.zst; do
               [ -e "$z" ] || continue
               zstd -d -q "$z"

@@ -653,7 +653,8 @@ identity the matrix seals is also the identity the PROCESS produces.
 claimed.** The floor question: the tap's kernel contract (the fentry
 `attach_btf_id` resolved at load time from the target kernel's own
 BTF) was verified against real BTF snapshots of the three LTS lines —
-Ubuntu jammy 5.15.0-97, Debian bookworm 6.1.0-50, Arch LTS 6.6.72-1 —
+Ubuntu jammy 5.15.0-97, Debian bookworm 6.1.0-50, Ubuntu mainline
+6.6.162 —
 each extracted from a sha256-pinned distro kernel image (the pin
 table is the only legal way the artifacts change), decompressed to
 the vmlinux ELF with the kernel's own extract-vmlinux shape, carved
@@ -675,7 +676,7 @@ floor, never counted. Files of truth:
 recorded in `docs/KERNEL_COMPATIBILITY.md` and
 `docs/CO_RE_PORTABILITY.md`. night-runner-1 completes the same law on
 the runtime half: the Supermassive E2E KVM matrix grew the LTS-span
-witness seats (the 6.1 Debian bookworm and 6.6 Arch LTS pinned
+witness seats (the 6.1 Debian bookworm and 6.6 Ubuntu mainline pinned
 artifacts, the 6.8 noble GA frozen pocket) beside the 5.15 floor and
 the archive head, each booting the real kernel family and running the
 whole battery with the exact-family witness — the pending runtime

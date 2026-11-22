@@ -126,7 +126,9 @@ echo "127.0.0.1 zylaxion-vm" >> /etc/hosts 2>/dev/null || true
 # testing the wrong kernel):
 #   lts-6.1     - the Debian bookworm 6.1.0-50 family (the pinned
 #                 artifact the BTF matrix already rides);
-#   lts-6.6     - the Arch LTS 6.6.72-1 family (the second pin);
+#   lts-6.6     - the Ubuntu mainline 6.6.162 family (the second pin;
+#                 night-depth-cleanup-1A re-pinned the seat off the
+#                 stalled archive.archlinux.org host)
 #   lts-6.8     - the noble GA 6.8.0-31 family (the frozen pocket).
 kver=$(uname -r)
 major=${kver%%.*}
@@ -163,7 +165,7 @@ lts-6.1)
         ;;
 lts-6.6)
         if [ "$at_or_above_floor" = true ] && [ "${kver#6.6.}" != "$kver" ]; then
-                note "kernel $kver (the 6.6 LTS family, the Arch LTS witness)" PASS
+                note "kernel $kver (the 6.6 LTS family, the Ubuntu mainline witness)" PASS
         elif [ "$at_or_above_floor" = true ]; then
                 note "kernel (uname -r = $kver, above the floor but NOT the 6.6 family — the leg's staging drifted)" FAIL
         else
