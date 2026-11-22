@@ -77,6 +77,16 @@ kernel's unprivileged-bpf shutdown measured against the tree: what
 the sysctl gates per kernel era, why the attach-once / pinned-consumer
 design survives it, and the posture-law follow-up the evidence asks
 for.
+[CO_RE_PORTABILITY.md](CO_RE_PORTABILITY.md) — the CO-RE question
+answered with forensics: why the shipped object targets a single
+kernel build, what an aya migration would buy, and the one property
+that would reopen the case.
+[ZACTRIX_AUDIT.md](ZACTRIX_AUDIT.md),
+[ZACTRIX_LTS.md](ZACTRIX_LTS.md) and
+[ZACTRIX_SECURITY.md](ZACTRIX_SECURITY.md) — the Zactrix engine's
+evidence shelf: the headless before/after render audit, the
+six-proof stability and resource oven record, and the hardening pass
+that closed every named residual.
 [BRANDING.md](BRANDING.md) — the palette contract (brand purple
 `#A855F7`, the CLI color tiers). [QA.md](../QA.md) — verified answers,
 one question one honest answer. [GLOSSARY.md](GLOSSARY.md) — the
