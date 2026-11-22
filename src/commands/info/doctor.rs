@@ -130,10 +130,11 @@ pub fn cmd_doctor() {
                         "{}",
                         crate::output::kv(
                             "XDG dir:",
-                            &crate::output::ok_line(&format!(
-                                "sudo user '{user}' has {dir} — the desktop session \
-                                 checks out (root's shell has none of its own)"
-                            ))
+                            &crate::output::ok_line(
+                                "the sudo user's runtime dir (/run/user/<uid>) exists — \
+                                 the desktop session checks out (root's shell has none of \
+                                 its own)"
+                            )
                         )
                     );
                 } else {
@@ -141,10 +142,11 @@ pub fn cmd_doctor() {
                         "{}",
                         crate::output::kv(
                             "XDG dir:",
-                            &crate::output::warn_line(&format!(
-                                "sudo user '{user}' has no {dir} — their desktop session \
-                                 is missing the runtime dir the player opens"
-                            ))
+                            &crate::output::warn_line(
+                                "the sudo user's runtime dir (/run/user/<uid>) is missing — \
+                                 their desktop session is missing the runtime dir the \
+                                 player opens"
+                            )
                         )
                     );
                 }

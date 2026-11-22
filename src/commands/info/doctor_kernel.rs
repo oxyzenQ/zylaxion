@@ -132,7 +132,12 @@ pub(super) fn kernel_station(root: bool) -> bool {
             // and still blocks every walk to them, so "All checks
             // passed" used to be a lie the first `zylaxion on`
             // refuted. Doctor stats the walk AS the identity that
-            // runs the verbs.
+            // runs the verbs. The rows name that identity by ROLE
+            // ("the running identity"), never by its number: under
+            // sudo the number arrives from the environment (SUDO_UID),
+            // and an env-sourced value does not ride the report rows
+            // (the cleartext-logging law — the mode bits carry the
+            // diagnosis).
             let (uid, gid) = reach_identity();
             let reach = crate::session::kernel::bpffs_reach(uid, gid);
             if !reach.root_traversable {
@@ -141,8 +146,8 @@ pub(super) fn kernel_station(root: bool) -> bool {
                     crate::output::kv(
                         "pin reach:",
                         &crate::output::fail_line(&format!(
-                            "uid {uid} cannot walk to the pins (mount mode {:o}) — a \
-                             mode-0700 bpffs mount, the Debian 13 default",
+                            "the running identity cannot walk to the pins (mount mode \
+                             {:o}) — a mode-0700 bpffs mount, the Debian 13 default",
                             reach.root_mode
                         ))
                     )
@@ -164,8 +169,8 @@ pub(super) fn kernel_station(root: bool) -> bool {
                     crate::output::kv(
                         "pin reach:",
                         &crate::output::fail_line(&format!(
-                            "uid {uid} walks the mount but /sys/fs/bpf/zylaxion denies the \
-                             walk (mode {:o})",
+                            "the running identity walks the mount but /sys/fs/bpf/zylaxion \
+                             denies the walk (mode {:o})",
                             reach.root_mode
                         ))
                     )
@@ -187,7 +192,7 @@ pub(super) fn kernel_station(root: bool) -> bool {
                     crate::output::kv(
                         "pin reach:",
                         &crate::output::ok_line(&format!(
-                            "uid {uid} walks to the pins (mount mode {:o})",
+                            "the running identity walks to the pins (mount mode {:o})",
                             reach.root_mode
                         ))
                     )
@@ -209,9 +214,7 @@ pub(super) fn kernel_station(root: bool) -> bool {
                             "{}",
                             crate::output::kv(
                                 "ownership:",
-                                &crate::output::ok_line(&format!(
-                                    "the control map is yours (uid {uid})"
-                                ))
+                                &crate::output::ok_line("the control map is yours")
                             )
                         );
                     } else {
@@ -219,10 +222,10 @@ pub(super) fn kernel_station(root: bool) -> bool {
                             "{}",
                             crate::output::kv(
                                 "ownership:",
-                                &crate::output::fail_line(&format!(
-                                    "the control map is owned by uid {owner}, not you \
-                                     (uid {uid}) — the boot attach ran before your login"
-                                ))
+                                &crate::output::fail_line(
+                                    "the control map is owned by another uid, not yours — \
+                                     the boot attach ran before your login",
+                                )
                             )
                         );
                         println!(
@@ -254,8 +257,9 @@ pub(super) fn kernel_station(root: bool) -> bool {
                     crate::output::kv(
                         "pin reach:",
                         &crate::output::ok_line(&format!(
-                            "no pins planted — the mount is walkable by uid {uid} (mount \
-                             mode {:o}); the next attach decides the pins' reach",
+                            "no pins planted — the mount is walkable by the running \
+                             identity (mount mode {:o}); the next attach decides the \
+                             pins' reach",
                             reach.root_mode
                         ))
                     )

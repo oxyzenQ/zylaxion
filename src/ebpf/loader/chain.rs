@@ -322,6 +322,10 @@ fn pin_kprobe_program(bpf: &mut Ebpf) -> Result<(), AttachError> {
 /// hand-over units fire at the first login. A `$SUDO_USER` that is
 /// set but unresolvable does NOT fall through: the invoking identity
 /// was named and lost, and hiding that behind a scan would be a lie.
+/// The notes and logs name the recipient by role, never by cleartext
+/// name: the invoking identity comes from the environment, and an
+/// env-sourced value does not ride the summary or the log lanes (the
+/// cleartext-logging law).
 /// With no recipient at all the pins stay root-owned and nothing is
 /// relaxed — honest about that in the summary.
 pub(super) fn hand_pins_to_desktop_user() -> String {
@@ -330,12 +334,14 @@ pub(super) fn hand_pins_to_desktop_user() -> String {
         && user != "root"
     {
         return match nix::unistd::User::from_name(&user).ok().flatten() {
-            Some(entry) => hand_pins_to(&user, &entry, ""),
-            None => format!(" (sudo user '{user}' not resolvable — pins stay root-owned)"),
+            Some(entry) => hand_pins_to(&entry, ""),
+            None => {
+                " (the invoking sudo user is not resolvable — pins stay root-owned)".to_string()
+            }
         };
     }
     match first_desktop_runtime_user() {
-        Some((user, entry)) => hand_pins_to(&user, &entry, " — resolved from /run/user"),
+        Some((_, entry)) => hand_pins_to(&entry, " — resolved from /run/user"),
         None => " (no desktop user to receive the pins — they stay root-owned; \
                   after logging in, `sudo zylaxion attach` hands them over, or the \
                   hand-over unit fires at the first login)"
@@ -347,7 +353,7 @@ pub(super) fn hand_pins_to_desktop_user() -> String {
 /// hand every present pin to `entry`, then — when that owner cannot
 /// walk the bpffs mount — relax the front door by the one bit. `lane`
 /// annotates the summary note with where the recipient came from.
-fn hand_pins_to(user: &str, entry: &nix::unistd::User, lane: &str) -> String {
+fn hand_pins_to(entry: &nix::unistd::User, lane: &str) -> String {
     let mut handed = 0usize;
     // The pin directory FIRST (night-total-lts-2): unlink permission
     // lives on the containing directory, so a hand-over that stopped at
@@ -379,23 +385,25 @@ fn hand_pins_to(user: &str, entry: &nix::unistd::User, lane: &str) -> String {
     if handed == 0 {
         return " (pin ownership unchanged — unprivileged surfaces may not open them)".to_string();
     }
-    let mut note = format!(" (pins owned by '{user}'{lane} — unprivileged surfaces can open them)");
+    let mut note = format!(
+        " (pins owned by the hand-over recipient{lane} — unprivileged surfaces can open them)"
+    );
     let reach = crate::session::kernel::bpffs_reach(u32::from(entry.uid), u32::from(entry.gid));
     if !reach.root_traversable {
         match relax_bpffs_traversal() {
             Ok(old) => {
                 log::info!(
-                    "bpffs front door: /sys/fs/bpf was mode {old:o} — set o+x so '{user}' \
-                     reaches the pins (undo: sudo chmod o-x /sys/fs/bpf)"
+                    "bpffs front door: /sys/fs/bpf was mode {old:o} — set o+x so the \
+                     recipient reaches the pins (undo: sudo chmod o-x /sys/fs/bpf)"
                 );
                 note.push_str(&format!(
-                    " — bpffs mount relaxed o+x for '{user}' (was mode {old:o})"
+                    " — bpffs mount relaxed o+x for the recipient (was mode {old:o})"
                 ));
             }
             Err(e) => {
                 log::warn!(
                     "bpffs front door stayed shut: /sys/fs/bpf is not traversable for \
-                     '{user}' and the chmod failed: {e} — the unprivileged verbs will \
+                     the recipient and the chmod failed: {e} — the unprivileged verbs will \
                      refuse; fix by hand: sudo chmod o+x /sys/fs/bpf"
                 );
             }
