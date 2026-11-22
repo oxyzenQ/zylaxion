@@ -1,0 +1,172 @@
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+# =============================================================================
+# CodeQL security analysis — Dragon Guard - CodeQL
+# =============================================================================
+#
+# The security-scanning lane, shaped after the zelynic estate's mature
+# CodeQL workflow (the same owner, the same design language). The
+# analysis is pinned to `rust`: zylaxion's security surface is Rust end
+# to end — the binary the users run, the aya-ebpf tap under ebpf/ (its
+# object is source-built by the root crate's build.rs and embedded), and
+# the audit harness under scripts/audit/harness. The tap compiles on its
+# dated nightly pin through the bootstrap pair below; the nightly rustc
+# invocation rides inside the same build the autobuild traces, and the
+# stable-toolchain root-crate analysis is what this lane reports on.
+# The Python and shell tooling under scripts/ stays outside CodeQL's
+# languages and keeps its own verdicts: the gate-keepers job runs the
+# language-discipline and shell gates on every push, unfiltered.
+#
+# Unfiltered triggers (night-dragon-maintenance-2, the owner's
+# unfiltered-CI simplification): every push and every pull request gets
+# the scan — the same blind posture every push-triggered lane carries —
+# plus a manual dispatch for one-off audits. The scan rides the commits
+# it scans; no schedule on top of that.
+#
+# github/codeql-action is the ONE action deliberately left on a moving
+# tag (the zelynic estate's law): its value is tracking the current
+# analyzers and query packs — SHA-pinning it would freeze the security
+# scanner itself. Every other action here rides the estate's SHA pins
+# with their version tokens, the same shape every other workflow carries
+# (the actions-pin health gate sweeps them on every push).
+#
+# The build prerequisites mirror the compile lanes (night-badas-4:
+# cpal's alsa-sys resolves alsa.pc via pkg-config; the build.rs tap
+# lane hard-requires the bootstrap pair before any compile time is
+# spent), so the autobuild sees the same build the rest of the estate
+# sees instead of a crippled half-build.
+
+name: Dragon Guard - CodeQL
+
+'on':
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+# One per-ref group across all three triggers: the same scan on the
+# same ref cancels and replaces itself, and a tag push next to a branch
+# push lands in a DIFFERENT group by construction (github.ref differs),
+# so a commit+tag combined push can never cancel or duplicate the
+# other's analysis (the stability shape every push workflow carries).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+  # night-strict-warnings-1: the zero-warning contract is estate-wide —
+  # this job compiles the crate, so it compiles under the same law.
+  ZYLAXION_STRICT_WARNINGS: "1"
+
+jobs:
+  analyze:
+    name: Dragon Guard - CodeQL Analyze
+    # The estate's pinned runner label (never a floating
+    # ubuntu-latest): OS upgrades here stay deliberate, matrix-tested
+    # changes, the same law the rest of the estate carries.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, the zelynic estate SHA pin
+        with:
+          # GITHUB_TOKEN hardening: never persists into .git/config.
+          persist-credentials: false
+
+      - name: Harden DNS (the poisoned-resolver defense)
+        run: |
+          # The same guard the compile lanes carry: the runner's Azure
+          # resolver serves dead ubuntu.com zones on a bad day, and the
+          # apt step below rides on a healthy resolver.
+          {
+            printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n'
+            sudo cat /etc/resolv.conf
+          } | sudo tee /etc/resolv.conf > /dev/null
+
+      - name: Install system dependencies
+        run: |
+          # The apt stall class, named by the zejtron night evidence
+          # (three layers, all live during the 43048319555 outage): the
+          # fast path bails in 90 seconds, the fallback repoints the
+          # deb822 sources at archive.ubuntu.com (Fastly), and only a
+          # failed install earns the update lane — three named
+          # attempts, each inside its own kill timer.
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 90 apt-get "${APT_OPTS[@]}" install -y -qq \
+              libasound2-dev pkg-config; then
+            echo "apt: the fast path landed (the image's lists held)"
+          else
+            echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
+            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list 2>/dev/null || true
+            landed=""
+            for attempt in 1 2 3; do
+              echo "--- apt attempt $attempt: update + install ---"
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq \
+                     libasound2-dev pkg-config; then
+                landed="attempt $attempt"
+                break
+              fi
+              if [ "$attempt" = 3 ]; then
+                echo "::error::apt stalled on all three named attempts"
+                exit 1
+              fi
+              sleep 20
+            done
+            echo "apt: landed on $landed"
+          fi
+
+      - name: Install Rust toolchain
+        run: rustup default stable
+
+      - name: Restore the eBPF build prerequisites cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ebpf/target
+          key: ebpf-build-${{ runner.os }}-${{ hashFiles('ebpf/rust-toolchain.toml', 'scripts/dev/bootstrap-ebpf.sh') }}
+          restore-keys: |
+            ebpf-build-${{ runner.os }}-
+
+      - name: Install the eBPF build prerequisites
+        run: |
+          ./scripts/dev/bootstrap-ebpf.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # The moving-tag exception (the header carries the law): the
+      # analyzers and query packs track current, everything else in
+      # this file is SHA-pinned.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: rust
+
+      - name: Build (autobuild)
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /rust
+          upload: true
