@@ -14,10 +14,17 @@
 //! variant, the same discipline the night-badas-1 privilege gate
 //! added for its polarity.
 //!
-//! The variant set is closed on purpose (the owner's spec): nine
-//! ways, no more. A failure that does not fit one of them is
-//! [`AttachError::Unknown`] with its detail — honest about being
-//! unclassified, never pretending to a cause it cannot prove.
+//! The classified set is closed on purpose (the owner's spec): nine
+//! ways, no more. A failure that does not fit one of them is honest
+//! about being unclassified, never pretending to a cause it cannot
+//! prove — free-form failures through [`AttachError::Unknown`] with
+//! their detail, and the classifier fallthroughs through
+//! [`AttachError::UnknownErrno`], which carries the raw errno
+//! STRUCTURED and renders its strerror text only when the sentence
+//! prints (night-depth-hardening-4: the eager `format!` over a
+//! symbolic errno was the verifier's SAT death valley — the deep
+//! proof lane measured it). Both ride the same wire code 9, so an
+//! old marker file keeps reading as the same failure.
 //!
 //! The marker lane: a failed attach plants a one-entry array map on
 //! bpffs (see `plant_error_marker` in [`crate::ebpf::bpf_syscall`])
@@ -27,6 +34,22 @@
 //! never renumbered.
 
 use std::fmt;
+
+/// The attach lane whose raw errno reached a classifier's honest
+/// fallthrough — the context the lazy render speaks with.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ErrnoLane {
+    /// perf_event_open registering a kprobe on the named symbol.
+    KprobeOpen {
+        /// The symbol the registration asked for.
+        symbol: String,
+    },
+    /// The BTF tracing link syscall (the fentry lane's link step).
+    FentryLink,
+    /// BPF_LINK_CREATE on the perf-event-backed link (the kprobe
+    /// lane's link step).
+    LinkCreate,
+}
 
 /// The classified way an attach failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,6 +116,21 @@ pub enum AttachError {
         /// The unclassified failure's own words.
         detail: String,
     },
+    /// The classifier's honest fallthrough: the raw errno did not fit
+    /// the lane's classified table. The errno rides STRUCTURED and the
+    /// strerror text renders only when the sentence prints (night-
+    /// depth-hardening-4): under the verifier's whole-i32 proofs the
+    /// constructors stay string-machinery-free — the eager `format!`
+    /// over a symbolic errno was the SAT death valley the deep proof
+    /// lane measured — and the doctor's sentence loses nothing, the
+    /// render produces the same bytes the eager form did (pinned by
+    /// tests).
+    UnknownErrno {
+        /// The lane whose classified table the errno did not fit.
+        lane: ErrnoLane,
+        /// The raw errno the syscall answered with.
+        errno: i32,
+    },
 }
 
 impl fmt::Display for AttachError {
@@ -151,6 +189,26 @@ impl fmt::Display for AttachError {
                     detail.trim_end()
                 )
             }
+            AttachError::UnknownErrno { lane, errno } => {
+                // The lazy render (night-depth-hardening-4): the errno
+                // text resolves here, on the concrete print path, never
+                // inside the constructors the whole-i32 proofs drive.
+                // The bytes match the eager form this lane replaced,
+                // pinned by tests.
+                let text = errno_text(*errno);
+                let detail = match lane {
+                    ErrnoLane::KprobeOpen { symbol } => format!(
+                        "perf_event_open on kprobe:{symbol} failed with errno {errno} ({text})"
+                    ),
+                    ErrnoLane::FentryLink => format!(
+                        "the fentry tracing link syscall failed with errno {errno} ({text})"
+                    ),
+                    ErrnoLane::LinkCreate => {
+                        format!("BPF_LINK_CREATE failed with errno {errno} ({text})")
+                    }
+                };
+                format!("the operation failed for an unclassified reason: {detail}.")
+            }
         };
         f.write_str(&s)
     }
@@ -174,6 +232,11 @@ impl AttachError {
             AttachError::LockdownActive => 8,
             AttachError::ObjectUnsealed { .. } => 10,
             AttachError::Unknown { .. } => 9,
+            // The structured errno fallthrough shares Unknown's wire
+            // code: the marker band stays the pinned 1..=10 space and
+            // an old marker file keeps reading as the same honest
+            // unclassified failure.
+            AttachError::UnknownErrno { .. } => 9,
         }
     }
 
@@ -222,14 +285,12 @@ impl AttachError {
             libc::EPERM | libc::EACCES => AttachError::PermissionDenied,
             libc::ENOENT => AttachError::SymbolMissing,
             libc::EINVAL => AttachError::KprobeBlacklisted,
-            other => {
-                let text = errno_text(other);
-                AttachError::Unknown {
-                    detail: format!(
-                        "perf_event_open on kprobe:{symbol} failed with errno {other} ({text})"
-                    ),
-                }
-            }
+            other => AttachError::UnknownErrno {
+                lane: ErrnoLane::KprobeOpen {
+                    symbol: symbol.to_string(),
+                },
+                errno: other,
+            },
         }
     }
 
@@ -245,14 +306,10 @@ impl AttachError {
             libc::EINVAL => AttachError::FentryUnavailable {
                 reason: "the kernel refused the BTF tracing link".to_string(),
             },
-            other => {
-                let text = errno_text(other);
-                AttachError::Unknown {
-                    detail: format!(
-                        "the fentry tracing link syscall failed with errno {other} ({text})"
-                    ),
-                }
-            }
+            other => AttachError::UnknownErrno {
+                lane: ErrnoLane::FentryLink,
+                errno: other,
+            },
         }
     }
 
@@ -266,12 +323,10 @@ impl AttachError {
                          support bpf_perf_link — 5.10+ required, inside the 5.15 floor)"
                     .to_string(),
             },
-            other => {
-                let text = errno_text(other);
-                AttachError::Unknown {
-                    detail: format!("BPF_LINK_CREATE failed with errno {other} ({text})"),
-                }
-            }
+            other => AttachError::UnknownErrno {
+                lane: ErrnoLane::LinkCreate,
+                errno: other,
+            },
         }
     }
 
@@ -342,25 +397,67 @@ fn is_permission(e: &std::io::Error) -> bool {
 /// of the log — same input, same output, on every kernel shape.
 /// `pub(crate)`: the Kani lane proves the tail's bound law (night-
 /// frontier-Z6) — at most `keep` lines, each capped, over any input.
+///
+/// night-depth-hardening-4 reshaped the body as an assume-guarantee
+/// decomposition with a byte-identical contract (the unit tree pins
+/// the exact render): the deep lane measured the former single-body
+/// form — iterator-adapter chain first, plain loops with preallocated
+/// staging after — running the verifier out of memory either way, and
+/// the probe ladder isolated the cause. One SAT instance carrying BOTH
+/// a loop over a heap `Vec` (a symbolic trip count, unrolled to the
+/// unwind bound) AND heap `String` growth multiplies the memory model
+/// into a bomb; the same bodies over concrete trip counts verify in
+/// seconds. So the two stages prove in their OWN instances —
+/// [`Self::keep_last_lines`] whole-domain over the line-count axis,
+/// [`Self::cap_and_join`] at the cap's exact boundary — and the
+/// composition here (slice, call) is pinned byte-exact by the unit
+/// tree. No behavior moved: same lines, same filter, same cap, same
+/// separator, same empty-log verdict.
 pub(crate) fn verifier_tail(log_text: &str, keep: usize) -> String {
-    let lines: Vec<&str> = log_text
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .collect();
+    cap_and_join(&keep_last_lines(log_text, keep))
+}
+
+/// The tail's stage one: every non-empty trimmed line of `log_text`,
+/// cut to the last `keep` of them. `pub(crate)`: the Kani lane proves
+/// the keep bound over this stage's whole (bounded) line-count domain
+/// — the harness rides a symbolic selector over concrete logs, whose
+/// trip counts stay small enough for the verifier's memory ceiling
+/// (the decomposition note on [`Self::verifier_tail`] carries the
+/// measurement).
+pub(crate) fn keep_last_lines(log_text: &str, keep: usize) -> Vec<&str> {
+    let mut lines: Vec<&str> = Vec::with_capacity(16);
+    for line in log_text.lines() {
+        let trimmed = line.trim();
+        if !trimmed.is_empty() {
+            lines.push(trimmed);
+        }
+    }
     let start = lines.len().saturating_sub(keep);
-    lines[start..]
-        .iter()
-        .map(|line| {
-            if line.chars().count() > 120 {
-                let capped: String = line.chars().take(120).collect();
-                format!("{capped}...")
-            } else {
-                (*line).to_string()
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" | ")
+    lines[start..].to_vec()
+}
+
+/// The tail's stage two: each line capped at 120 characters plus the
+/// ellipsis, joined with " | ". `pub(crate)`: the Kani lane proves the
+/// cap law over concrete array probes at the exact boundary (a
+/// 121-character line cuts to 120 plus the ellipsis; shorter lines
+/// ride through whole, joined) — concrete trip counts, the same
+/// memory shape the decomposition note on [`Self::verifier_tail`]
+/// records.
+pub(crate) fn cap_and_join(lines: &[&str]) -> String {
+    let mut tail = String::with_capacity(64);
+    for (index, line) in lines.iter().enumerate() {
+        if index > 0 {
+            tail.push_str(" | ");
+        }
+        if line.chars().count() > 120 {
+            let capped: String = line.chars().take(120).collect();
+            tail.push_str(&capped);
+            tail.push_str("...");
+        } else {
+            tail.push_str(line);
+        }
+    }
+    tail
 }
 
 /// errno -> the strerror text (the marker doctor line never sees this;

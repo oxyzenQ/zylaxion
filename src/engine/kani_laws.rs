@@ -26,6 +26,11 @@ mod errno_proofs {
             AttachError::PinFailed { .. } => 7,
             AttachError::LockdownActive => 8,
             AttachError::Unknown { .. } => 9,
+            // night-depth-hardening-4: the structured errno fallthrough
+            // shares Unknown's wire code — the same honest-unclassified
+            // kind, so the pinned 1..=10 band and every old marker file
+            // keep their meaning.
+            AttachError::UnknownErrno { .. } => 9,
             AttachError::ObjectUnsealed { .. } => 10,
         }
     }
@@ -63,7 +68,13 @@ mod errno_proofs {
     /// errno domain: the kernel's own classifications are the law —
     /// EPERM/EACCES are privilege, ENOENT is the missing symbol,
     /// EINVAL is the kprobe refusal, and every other errno lands in
-    /// the honest Unknown, never a pretend cause.
+    /// the honest structured fallthrough (`UnknownErrno`), never a
+    /// pretend cause. night-depth-hardening-4 is what keeps this
+    /// proof inside the wall: the eager `format!` + strerror render
+    /// left the constructor for `Display` — the constructor stays
+    /// string-machinery-free, and the whole-i32 domain verifies in
+    /// seconds where the eager form ran past the twelve-minute cap
+    /// alone (measured, not guessed).
     #[kani::proof]
     fn kprobe_open_classifies_the_whole_errno_domain() {
         let errno: i32 = kani::any();
@@ -125,69 +136,88 @@ mod errno_proofs {
         );
     }
 
-    /// The verifier-log tail's bound law: at most `keep` lines survive,
-    /// each capped at 120 characters plus the ellipsis, whatever the
-    /// log's shape — the same input, the same output shape, on every
-    /// kernel's log style.
+    /// The verifier-log tail's KEEP law (night-depth-hardening-4
+    /// splits the former combined harness into its two laws, each on
+    /// its own measured wall): at most `keep` lines survive, whatever
+    /// the log's line count, the empty-line filter included, and the
+    /// empty log keeps nothing. Asserted against the keep stage
+    /// ([`crate::ebpf::attach_error::keep_last_lines`]) — the
+    /// assume-guarantee decomposition the deep lane measured: one SAT
+    /// instance carrying a heap-Vec loop AND heap-String growth is a
+    /// memory bomb, the same bodies split into per-stage instances
+    /// verify in seconds, and the composition is pinned byte-exact by
+    /// the unit tree.
+    ///
+    /// The quantifier shape: the count axis rides a symbolic selector
+    /// over seven CONCRETE static logs — every distinct behavior of
+    /// the keep bound is a branch (the empty log, the below-bound
+    /// ramp, the exact-bound case, and the clamp plateau), every byte
+    /// the stage machinery touches is concrete, and only the selection
+    /// is symbolic.
     #[kani::proof]
     #[kani::unwind(64)]
-    fn verifier_tail_stays_bounded() {
-        // The string machinery is the SAT budget's enemy (a 400-unwind
-        // encode of byte loops crashed CBMC on this container — meas-
-        // ured, not guessed), so the harness carries the bound law in
-        // two cheap halves: the CAP law on a CONCRETE over-long log
-        // (the 120-character cap and the keep=3 line bound, exercised
-        // for real), and the SHAPE law over short symbolic lengths.
-        const LONG: &str = "x130xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
-xxxxxxxxxxxxxxx";
-        let long_log = format!("{LONG}\n{LONG}\n{LONG}\n{LONG}");
-        let long_tail = crate::ebpf::attach_error::verifier_tail(long_log.as_str(), 3);
-        let long_parts: Vec<&str> = long_tail.split(" | ").collect();
-        assert_eq!(
-            long_parts.len(),
-            3,
-            "the concrete cap kept the wrong line count"
-        );
-        for part in &long_parts {
-            assert!(
-                part.chars().count() <= 123,
-                "a tail line escaped the 120-character cap"
-            );
-        }
-
-        // The symbolic axis is the LINE COUNT only (three bits): every
-        // count from 0 to 6 rides one concrete eight-character line
-        // shape plus an empty line for the filter, so the keep-bound
-        // and the empty-line filter verify over their whole space
-        // without one symbolic byte of string machinery.
-        const SHORT: &str = "xxxxxxxx";
-        let count: u32 = kani::any();
-        kani::assume(count <= 6);
-        let mut log = String::with_capacity(72);
-        log.push('\n');
-        for _ in 0..count {
-            log.push_str(SHORT);
-            log.push('\n');
-        }
-        let tail = crate::ebpf::attach_error::verifier_tail(&log, 3);
-        let parts: Vec<&str> = tail.split(" | ").collect();
-        let want: usize = if count == 0 {
-            0
+    fn verifier_tail_keeps_at_most_the_keep_bound() {
+        const LOGS: [&str; 7] = [
+            "\n",
+            "\nxxxxxxxx\n",
+            "\nxxxxxxxx\nxxxxxxxx\n",
+            "\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\n",
+            "\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\n",
+            "\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\n",
+            "\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\n",
+        ];
+        let count: usize = kani::any();
+        kani::assume(count < LOGS.len());
+        let kept = crate::ebpf::attach_error::keep_last_lines(LOGS[count], 3);
+        if count == 0 {
+            assert!(kept.is_empty(), "the empty log must keep nothing");
         } else {
-            (count as usize).min(3)
-        };
-        assert_eq!(
-            parts.len(),
-            want,
-            "the tail kept {} lines against the bound 3 for count {count}",
-            parts.len()
-        );
-        for part in &parts {
-            assert!(
-                part.chars().count() <= 123,
-                "a tail line escaped the 120-character cap"
+            // The count law only, asserted machinery-free: the kept
+            // length against the bound. The per-line content (lines
+            // ride through trimmed-whole, in order) is the byte-exact
+            // composition the unit tree pins — a heap-Vec element loop
+            // here would re-pay the memory bomb the decomposition
+            // shed (symbolic trip count, unrolled to the bound).
+            assert_eq!(
+                kept.len(),
+                count.min(3),
+                "the tail kept the wrong line count against the bound 3"
             );
         }
+    }
+
+    /// The verifier-log tail's CAP law: a line over the 120-character
+    /// bound is cut to 120 characters plus the ellipsis, shorter lines
+    /// ride through whole, and adjacent kept lines join with the
+    /// separator. Asserted against the join stage
+    /// ([`crate::ebpf::attach_error::cap_and_join`]) over CONCRETE
+    /// array probes at the exact boundary — the decomposition shape
+    /// the deep lane measured (concrete trip counts verify in seconds;
+    /// a symbolic trip count over the same body is the memory bomb).
+    #[kani::proof]
+    #[kani::unwind(128)]
+    fn verifier_tail_caps_every_line_at_the_bound() {
+        // One static line just over the bound: 121 x's. A literal, not
+        // a runtime push loop — the harness adds zero machinery of its
+        // own. The cut is byte-exact: 120 characters plus the ellipsis.
+        const LONG: &str = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
+xxxxxxxxxxxxxxxxxxxxxxx";
+        const CAPPED: &str = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
+xxxxxxxxxxxxxxxxxxxx...";
+        assert_eq!(LONG.chars().count(), 121, "the probe line is over the cap");
+        let capped = crate::ebpf::attach_error::cap_and_join(&[LONG]);
+        assert_eq!(
+            capped, CAPPED,
+            "the capped render drifted off the 120-character bound"
+        );
+        // The pass-through and separator arms over the same concrete
+        // machinery: shorter lines ride through whole, joined once.
+        let joined = crate::ebpf::attach_error::cap_and_join(&["xxxxxxxx", "second line"]);
+        assert_eq!(
+            joined, "xxxxxxxx | second line",
+            "the pass-through join drifted off the separator law"
+        );
     }
 }

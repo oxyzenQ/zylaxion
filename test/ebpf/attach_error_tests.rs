@@ -36,18 +36,29 @@ fn kprobe_registration_classification_is_the_kernel_s_own() {
         AttachError::from_kprobe_open("input_handle_event", libc::ENOENT),
         AttachError::SymbolMissing
     );
-    // An unclassified errno stays honest: Unknown, carrying the
-    // symbol and the errno in its detail.
+    // An unclassified errno stays honest and STRUCTURED (night-
+    // depth-hardening-4): the errno rides the variant, the strerror
+    // text renders only when the sentence prints.
     let e = AttachError::from_kprobe_open("input_event", libc::ENOMEM);
     assert_eq!(
         e,
-        AttachError::Unknown {
-            detail: format!(
-                "perf_event_open on kprobe:input_event failed with errno {} ({})",
-                libc::ENOMEM,
-                "out of memory"
-            ),
+        AttachError::UnknownErrno {
+            lane: ErrnoLane::KprobeOpen {
+                symbol: "input_event".to_string(),
+            },
+            errno: libc::ENOMEM,
         }
+    );
+    // The lazy render is byte-identical to the eager form it replaced
+    // (the doctor's sentence loses nothing).
+    assert_eq!(
+        e.to_string(),
+        format!(
+            "the operation failed for an unclassified reason: \
+             perf_event_open on kprobe:input_event failed with errno {} ({}).",
+            libc::ENOMEM,
+            "out of memory"
+        ),
     );
 }
 
@@ -72,10 +83,12 @@ fn fentry_link_classification() {
         }
     );
     let e = AttachError::from_fentry_link(libc::EBUSY);
-    let AttachError::Unknown { detail } = e else {
-        panic!("unclassified errno must map to Unknown");
+    assert!(e.to_string().contains("fentry"), "{e}");
+    let AttachError::UnknownErrno { lane, errno } = e else {
+        panic!("unclassified errno must map to the structured UnknownErrno");
     };
-    assert!(detail.contains("fentry"), "{detail}");
+    assert_eq!(errno, libc::EBUSY);
+    assert_eq!(lane, ErrnoLane::FentryLink);
 }
 
 #[test]
@@ -89,6 +102,15 @@ fn link_create_classification() {
     };
     assert!(detail.contains("BPF_LINK_CREATE"), "{detail}");
     assert!(detail.contains("bpf_perf_link"), "{detail}");
+    // The fallthrough (an errno outside the two classified arms) is
+    // the structured honest lane, pinned like the other two lanes.
+    let e = AttachError::from_link_create(libc::EBUSY);
+    assert!(e.to_string().contains("BPF_LINK_CREATE"), "{e}");
+    let AttachError::UnknownErrno { lane, errno } = e else {
+        panic!("the link-create fallthrough must map to the structured UnknownErrno");
+    };
+    assert_eq!(errno, libc::EBUSY);
+    assert_eq!(lane, ErrnoLane::LinkCreate);
 }
 
 #[test]
@@ -144,6 +166,16 @@ fn marker_codes_round_trip_the_wire_format() {
     };
     assert_eq!(unsealed.code(), 10);
     assert_eq!(AttachError::from_code(10).map(|e| e.code()), Some(10));
+    // night-depth-hardening-4: the structured errno fallthrough shares
+    // Unknown's wire code — the marker band stays the pinned 1..=10
+    // space, and an old marker file keeps reading as the same honest
+    // unclassified failure.
+    let unknown_errno = AttachError::UnknownErrno {
+        lane: ErrnoLane::LinkCreate,
+        errno: libc::EBUSY,
+    };
+    assert_eq!(unknown_errno.code(), 9);
+    assert_eq!(AttachError::from_code(9).map(|e| e.code()), Some(9));
     assert_eq!(AttachError::from_code(0), None);
     assert_eq!(AttachError::from_code(11), None);
     assert_eq!(AttachError::from_code(u32::MAX), None);
@@ -171,6 +203,12 @@ fn every_variant_renders_a_complete_sentence() {
         AttachError::LockdownActive,
         AttachError::Unknown {
             detail: "a mystery the chain could not classify from the kernel's answer".to_string(),
+        },
+        AttachError::UnknownErrno {
+            lane: ErrnoLane::KprobeOpen {
+                symbol: "input_event".to_string(),
+            },
+            errno: libc::ENOMEM,
         },
     ];
     for e in &samples {
@@ -259,11 +297,13 @@ fn verifier_tail_caps_line_length_and_handles_short_logs() {
 /// syscall lanes (plus 0 and the negatives a mis-wired caller could
 /// pass). The law: EPERM and EACCES are ALWAYS the privilege verdict;
 /// ENOENT is ALWAYS the missing-symbol verdict on the kprobe and
-/// fentry lanes and honest-Unknown on the link-create lane; EINVAL is
-/// the kernel's own per-lane refusal; EVERY other value lands in
-/// Unknown with the errno number in its detail — never folded into a
-/// classified cause. The example pins above name the wordings; this
-/// sweep pins the POLARITY over the whole input domain.
+/// fentry lanes and honest-unclassified on the link-create lane;
+/// EINVAL is the kernel's own per-lane refusal; EVERY other value
+/// lands in the structured fallthrough (`UnknownErrno`, night-
+/// depth-hardening-4) carrying the raw errno — never folded into a
+/// classified cause — and the render still names the errno number.
+/// The example pins above name the wordings; this sweep pins the
+/// POLARITY over the whole input domain.
 #[test]
 fn every_errno_classifies_by_the_shared_law() {
     for errno in -2i32..=133 {
@@ -280,8 +320,8 @@ fn every_errno_classifies_by_the_shared_law() {
                 assert_eq!(kprobe, AttachError::SymbolMissing);
                 assert_eq!(fentry, AttachError::SymbolMissing);
                 assert!(
-                    matches!(link, AttachError::Unknown { .. }),
-                    "link create errno {errno} must stay Unknown"
+                    matches!(link, AttachError::UnknownErrno { errno: e, .. } if e == errno),
+                    "link create errno {errno} must stay honestly unclassified"
                 );
             }
             libc::EINVAL => {
@@ -297,16 +337,21 @@ fn every_errno_classifies_by_the_shared_law() {
             }
             other => {
                 for (lane, e) in [("kprobe", &kprobe), ("fentry", &fentry), ("link", &link)] {
-                    assert!(
-                        matches!(e, AttachError::Unknown { .. }),
-                        "{lane}: errno {other} must stay Unknown, got {e:?}"
-                    );
-                    if let AttachError::Unknown { detail } = e {
-                        assert!(
-                            detail.contains(&other.to_string()),
-                            "{lane}: errno {other} must appear in the detail: {detail}"
+                    let AttachError::UnknownErrno { errno: carried, .. } = e else {
+                        panic!(
+                            "{lane}: errno {other} must stay in the structured fallthrough, \
+                             got {e:?}"
                         );
-                    }
+                    };
+                    assert_eq!(
+                        *carried, other,
+                        "{lane}: the fallthrough must carry the raw errno"
+                    );
+                    let rendered = e.to_string();
+                    assert!(
+                        rendered.contains(&other.to_string()),
+                        "{lane}: errno {other} must appear in the render: {rendered}"
+                    );
                 }
             }
         }

@@ -228,8 +228,10 @@ jobs:
         harness:
           - name: cmdline-tamper (the matcher's five byte roles)
             args: --harness engine::kani_proofs::proofs::cmdline_tamper_breaks_the_real_player_shape
-          - name: verifier-tail (the log bound)
-            args: --harness engine::kani_laws::errno_proofs::verifier_tail_stays_bounded
+          - name: verifier-tail keep bound (the line count)
+            args: --harness engine::kani_laws::errno_proofs::verifier_tail_keeps_at_most_the_keep_bound
+          - name: verifier-tail cap boundary (the 120-character cut)
+            args: --harness engine::kani_laws::errno_proofs::verifier_tail_caps_every_line_at_the_bound
           - name: kprobe-open classifier (whole i32)
             args: --harness engine::kani_laws::errno_proofs::kprobe_open_classifies_the_whole_errno_domain
           - name: fentry-link classifier (whole i32)

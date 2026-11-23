@@ -168,42 +168,47 @@ mod proofs {
     /// quantifier shape is honest about the verifier's reach: string
     /// machinery over symbolic bytes is SAT poison (the solver burns
     /// minutes the lane's cap does not have — measured, not guessed),
-    /// so the harness pins the REAL player shape with the five
-    /// semantically distinct byte slots — path start, path end, the
-    /// separator NUL, the argument's first byte, the trailing NUL —
-    /// each flipped to an arbitrary other byte, and the every-shape
-    /// generality stays with the unit tests, which enumerate the
-    /// refusal shapes (near-misses, extra tokens, empty cmdlines)
-    /// concretely in test/session/orphan_tests.rs.
+    /// so the harness carries the law in ONE matcher call: the slot
+    /// itself is symbolic, which puts every one of the cmdline's byte
+    /// positions — not the five semantic roles the earlier unroll
+    /// sampled — inside the same formula, each flipped to an arbitrary
+    /// other byte. The every-shape generality stays with the unit
+    /// tests, which enumerate the refusal shapes (near-misses, extra
+    /// tokens, empty cmdlines) concretely in
+    /// test/session/orphan_tests.rs. (night-depth-hardening-4: the
+    /// earlier five-call unroll measured 679 s and an unwind refusal
+    /// on the deep lane — the one-call slot form carries the whole law
+    /// at a second-scale wall, the probe's one-second matcher plus the
+    /// slot arithmetic.)
     #[kani::proof]
-    #[kani::unwind(64)]
+    #[kani::unwind(32)]
     fn cmdline_tamper_breaks_the_real_player_shape() {
         // The concrete matching cmdline: this binary's path shape
         // followed by the player verb — the exact bytes the sweep
-        // would match in production.
-        const BASE: &[u8] = b"/usr/bin/zylaxion\0_play\0";
+        // would match in production. A stack array — the harness adds
+        // zero allocation machinery of its own.
+        const BASE: [u8; 24] = *b"/usr/bin/zylaxion\0_play\0";
         let exe = std::ffi::OsStr::new("/usr/bin/zylaxion");
         assert!(
-            cmdline_matches_player(BASE, exe),
+            cmdline_matches_player(&BASE, exe),
             "the representative shape must match"
         );
-        // The SEMANTIC slots only: path start, path end, the separator
-        // NUL, the argument's first byte, and the trailing NUL — the
-        // five byte roles the exact-match law distinguishes, each
-        // flipped to an arbitrary other byte in its own unrolled
-        // assertion. One matcher call per assertion keeps the formula
-        // linear (a 24-position loop multiplies the iterator machinery
-        // into an hour-long SAT encode; the probe proved the matcher
-        // itself verifies in one second).
-        let mut tampered = BASE.to_vec();
-        for slot in [0_usize, 15, 16, 17, 23] {
-            let value: u8 = kani::any();
-            kani::assume(value != BASE[slot]);
-            tampered[slot] = value;
-            let ok = cmdline_matches_player(&tampered, exe);
-            tampered[slot] = BASE[slot];
-            assert!(!ok, "slot {slot} mutated and the matcher still accepted");
-        }
+        // The symbolic slot and the symbolic flip value: every
+        // position is the tampered one in some branch of the formula,
+        // every wrong byte is the replacement in some branch, and the
+        // assertion pins the refusal for the WHOLE single-byte tamper
+        // space. Static assert message — the panic payload never
+        // formats a symbolic value (the privilege-table note's law).
+        let slot: usize = kani::any();
+        kani::assume(slot < BASE.len());
+        let value: u8 = kani::any();
+        kani::assume(value != BASE[slot]);
+        let mut tampered = BASE;
+        tampered[slot] = value;
+        assert!(
+            !cmdline_matches_player(&tampered, exe),
+            "a tampered cmdline matched the player shape"
+        );
     }
 
     /// The gate's refusal-by-construction: an unreadable cmdline or a
