@@ -132,3 +132,50 @@ fn report_shape_is_stable() {
         SigVerdict::Authentic | SigVerdict::Tampered
     ));
 }
+
+/// night-netrunner-Z1: the attest-log field line's three render
+/// shapes, pinned over constructed verdicts (the pure renderer, no
+/// log file needed at the root-owned path).
+#[test]
+fn attest_log_line_renders_its_three_honest_shapes() {
+    use crate::ebpf::attest::log::ChainVerdict;
+    // Absent: the honest "attach has not run on this host".
+    let absent = ChainVerdict {
+        records: 0,
+        head: "0".repeat(64),
+        intact: true,
+        break_line: None,
+        reason: "no attestation log on this host (attach has not run)".to_string(),
+    };
+    let line = attest_log_line(&absent);
+    assert!(
+        line.starts_with("attest-log  absent — "),
+        "the absent shape:\n{line}"
+    );
+    // Intact: records, head, the reason.
+    let intact = ChainVerdict {
+        records: 3,
+        head: "a".repeat(64),
+        intact: true,
+        break_line: None,
+        reason: "chain intact".to_string(),
+    };
+    let line = attest_log_line(&intact);
+    assert!(
+        line.contains("3 records") && line.contains("chain intact"),
+        "the intact shape:\n{line}"
+    );
+    // Broken: the tamper named by line number.
+    let broken = ChainVerdict {
+        records: 2,
+        head: "b".repeat(64),
+        intact: false,
+        break_line: Some(3),
+        reason: "chain broken at line 3: the record's digest does not recompute".to_string(),
+    };
+    let line = attest_log_line(&broken);
+    assert!(
+        line.contains("TAMPERED HISTORY at line 3"),
+        "the broken shape names the line:\n{line}"
+    );
+}

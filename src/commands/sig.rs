@@ -105,6 +105,32 @@ struct DepthRow {
     detail: String,
 }
 
+/// The transparency log's field line (night-netrunner-Z1), as a pure
+/// function over the replay verdict so all three shapes are pinnable
+/// without a log file at the root-owned path: absent (the honest
+/// "attach has not run here"), tampered history (the break named by
+/// line), and the intact chain with its head. Host state, not
+/// artifact integrity — the field block carries it, never the
+/// ladder.
+fn attest_log_line(verdict: &crate::ebpf::attest::log::ChainVerdict) -> String {
+    if verdict.records == 0 {
+        format!("attest-log  absent — {}\n", verdict.reason)
+    } else if !verdict.intact {
+        format!(
+            "attest-log  {} records, head b3:{} — TAMPERED HISTORY at line {}: {}\n",
+            verdict.records,
+            verdict.head,
+            verdict.break_line.unwrap_or(0),
+            verdict.reason
+        )
+    } else {
+        format!(
+            "attest-log  {} records, head b3:{} — {}\n",
+            verdict.records, verdict.head, verdict.reason
+        )
+    }
+}
+
 /// blake3 over the running executable image, read in chunks (the
 /// release artifact is megabytes; streaming keeps the allocation flat).
 /// `Err` names the failure honestly (unreadable image, mid-read error)
@@ -306,6 +332,15 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
         "build-time  {}\n",
         crate::info::build::build_time()
     ));
+    // night-netrunner-Z1: the transparency log's replay verdict —
+    // HOST state, not artifact integrity, so it rides the field
+    // block instead of the ladder (an absent log is the honest
+    // "attach has not run on this host", never a failed depth; a
+    // BROKEN chain is named by line — someone edited the history).
+    let chain = crate::ebpf::attest::log::verify_chain(std::path::Path::new(
+        crate::ebpf::attest::log::ATTEST_LOG_PATH,
+    ));
+    text.push_str(&attest_log_line(&chain));
     text.push('\n');
     text.push_str(&format!(
         "verdict: SIGNATURE: {} ({depths_passed}/{} depths verified)\n",

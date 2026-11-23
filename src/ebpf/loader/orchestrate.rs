@@ -206,6 +206,32 @@ pub fn attach() -> Result<String, AttachError> {
             //    session, night-dinner-19) so the unprivileged player
             //    and CLI can open them afterwards.
             let ownership = hand_pins_to_desktop_user();
+            // 9. THE TRANSPARENCY RECORD (night-netrunner-Z1): what
+            //    loaded, when, from which commit, under whose
+            //    signature, on which chain step — appended to the
+            //    local hash-chained attestation log
+            //    (/var/lib/zylaxion/attestation.log). Fail-OPEN by
+            //    design: the log is evidence, not a gate — an
+            //    unwritable state directory (a read-only host, a
+            //    stripped container) warns and the attach stands; the
+            //    kernel state remains the tap's truth. Only a SUCCESS
+            //    writes: the log records what actually loaded, never
+            //    an attempt (failures carry the marker map lane).
+            let record = crate::ebpf::attest::log::AttestRecord {
+                timestamp: crate::info::clock::iso_utc_millis(),
+                commit: crate::info::build::build_hash().to_string(),
+                tap_b3: crate::ebpf::attest::tap_object_digest_hex(),
+                sig_state: crate::info::build::vcs_commit_sig().to_string(),
+                chain_step: kind.label().to_string(),
+            };
+            let log_path = std::path::Path::new(crate::ebpf::attest::log::ATTEST_LOG_PATH);
+            if let Err(e) = crate::ebpf::attest::log::append(log_path, &record) {
+                log::warn!(
+                    "could not append the attestation record to {}: {e} — the attach stands, \
+                     the log does not carry it",
+                    crate::ebpf::attest::log::ATTEST_LOG_PATH
+                );
+            }
             Ok(format!(
                 "attach: {}\ntap attached: program {} ({} bytes), link pinned, control plane \
                  live (preset: {}, volume: 100%, sound: off){ownership}",

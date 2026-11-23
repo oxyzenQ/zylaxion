@@ -38,6 +38,15 @@
 //! The pinned fingerprint is the SAME file build/gpg.rs reads —
 //! `include_str!` on both sides, one source of truth, zero drift
 //! between the verifier and the reporter.
+//!
+//! The module grew its second concern with the transparency log
+//! (night-netrunner-Z1's third deliverable): [`log`] — the
+//! append-only, hash-chained record of what the loader actually put
+//! in the kernel, replayable by any reader, broken lines named by
+//! number. The split into the dir/ shape follows the tree's LOC law
+//! (the tapstamp precedent: the concern gets its own module).
+
+pub(crate) mod log;
 
 /// The maintainer's pinned primary key fingerprint (ed25519,
 /// `F5324E0967F104D58CE025F347A50AEF4B65AAC2`, long id
@@ -47,7 +56,7 @@
 /// `assets/gpg/pinned-maintainer-fpr.txt` (no trailing newline: the
 /// include is the value).
 pub(crate) const PINNED_MAINTAINER_KEY_FPR: &str =
-    include_str!("../../assets/gpg/pinned-maintainer-fpr.txt");
+    include_str!("../../../assets/gpg/pinned-maintainer-fpr.txt");
 
 /// The commit-signature verdict: `(passed, detail)` for the sig
 /// ladder's D5 row and the loader's attestation record. Every state
@@ -227,6 +236,16 @@ fn hex32(bytes: &[u8]) -> String {
     out
 }
 
+/// The embedded tap object's blake3, bare hex — the digest the anchor
+/// gate verified, as the attestation record's `tap-b3` field. The
+/// record wants the value, not the verdict sentence; the gate's own
+/// recompute stays the enforcement, this is the transcription.
+pub(crate) fn tap_object_digest_hex() -> String {
+    blake3::hash(crate::ebpf::loader::TAP_ELF)
+        .to_hex()
+        .to_string()
+}
+
 #[cfg(test)]
-#[path = "../../test/ebpf/attest_tests.rs"]
+#[path = "../../../test/ebpf/attest_tests.rs"]
 mod tests;
