@@ -50,6 +50,17 @@
 //!   of the ring-0 asset is refused by name. The stamping lives in
 //!   build/tapstamp.rs; both lanes stamp the moment the object lands
 //!   in OUT_DIR.
+//! - `ZYLAXION_VCS_COMMIT_SIG` — the GPG commit-signature verdict over
+//!   HEAD (night-netrunner-Z1, the zelynic night-solid-defense-2
+//!   shape): `verified:<primary-fpr>` when the commit the binary is
+//!   built from carries a GPG signature made by the pinned maintainer
+//!   key (verified in an isolated throwaway keyring against the repo's
+//!   own tracked public key), or the honest degraded state (`unsigned`
+//!   / `no-vcs` / `wrong-key` / `no-key` / `bad-signature` /
+//!   `unavailable`). This is the stamp that binds the provenance claim
+//!   to the release channel — the runtime's sig ladder and the
+//!   loader's attestation record consume it. The lane lives in
+//!   build/gpg.rs.
 //!
 //! Every fallback degrades gracefully — a missing fact renders as
 //! "unknown", never a failed build.
@@ -153,6 +164,15 @@ fn main() {
         println!("cargo:rustc-env=ZYLAXION_BUILD={label}");
     }
 
+    // night-netrunner-Z1: the GPG commit-signature verdict over HEAD
+    // (the zelynic night-solid-defense-2 shape). Stamped AFTER the
+    // commit-sha chain above — the signature verdict is evidence
+    // ABOUT the commit that chain resolved, and the runtime surfaces
+    // read the two stamps together (the sig ladder's commit-signature
+    // row, the loader's attestation record). The stamp grammar and
+    // the isolated-keyring verification live in build/gpg.rs.
+    gpg::stamp_commit_signature();
+
     // night-strict-warnings-1: the zero-warning law. When the strict env
     // is exported (every CI workflow now carries it), the crate roots
     // deny `warnings` through the emitted cfg — one warning fails the
@@ -210,6 +230,14 @@ mod blake3;
 // pure move out of this file (the 600-line LOC law).
 #[path = "build/stamp.rs"]
 mod stamp;
+
+// The GPG commit-signature stamp lane (night-netrunner-Z1, the
+// zelynic night-solid-defense-2 shape): verifies HEAD's commit
+// signature against the pinned maintainer public key in an isolated
+// throwaway keyring and stamps the verdict the runtime's sig ladder
+// and attestation record consume.
+#[path = "build/gpg.rs"]
+mod gpg;
 
 // ── The commit-sha chain (the sibling zejtron build.rs lineage) ─────
 
