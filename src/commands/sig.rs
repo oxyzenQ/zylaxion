@@ -1,15 +1,16 @@
 // SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 // SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
-//! The `sig` command surface — the five-depth signature report
+//! The `sig` command surface — the six-depth signature report
 //! (night-signature-advanced-1, the cosmostrix reference port;
 //! night-depth-hardening-Z1 D2 adds the fifth depth, the zejtron
-//! night-frontier-Z5 shape).
+//! night-frontier-Z5 shape; night-netrunner-Z1 adds the sixth, the
+//! zelynic night-solid-defense-2 shape).
 //!
-//! The owner runs sibling tools across the fleet (zejtron renders the
-//! same ladder over its own provenance layers, its object row named
-//! for its camera), so `zylaxion sig` renders the same verdict ladder
-//! over zylaxion's own provenance layers:
+//! The owner runs sibling tools across the fleet (zejtron and zelynic
+//! render the same ladder over their own provenance layers), so
+//! `zylaxion sig` renders the same verdict ladder over zylaxion's own
+//! provenance layers:
 //!
 //!   D0  runtime-identity — the masked manifest materializes, carries
 //!       the marker and the identity shape.
@@ -21,6 +22,16 @@
 //!   D4  tap-object — the embedded eBPF object re-hashes to the
 //!       build-time stamp (night-depth-hardening-Z1 D2): the ring-0
 //!       asset joins the self-verification circle.
+//!   D5  commit-signature — the commit the binary claims is GPG-signed
+//!       by the PINNED maintainer key, verified at build time against
+//!       the repo's own pinned public key in an isolated keyring
+//!       (night-netrunner-Z1; the policy lives in
+//!       [`crate::ebpf::attest`]). This is the row that binds the
+//!       provenance claim to the release channel: with the maintainer
+//!       key verified out-of-band and releases cut from signed tags,
+//!       D5 closes the key → tag → commit → binary chain — the binary
+//!       swapped on the wire can no longer replay its claims
+//!       unanswered.
 //!
 //! Numbering note: these D0-D3 are the four VERIFICATION depths
 //! (family-parity labels, the owner's cross-tool contract). The `-V`
@@ -33,8 +44,9 @@
 //! The first three depths are the `-V` Depth-matrix line rendered per
 //! depth; they reuse `provenance_view()`'s single pass (the invariant
 //! documented there — the report shows exactly the bytes the integrity
-//! folds verify). D3 and D4 are exclusive to this command: D3 reads
-//! the whole image and D4 re-hashes the embedded object, and neither
+//! folds verify). D3, D4 and D5 are exclusive to this command: D3
+//! reads the whole image, D4 re-hashes the embedded object, D5 reports
+//! the build-time commit-signature verdict, and none of the three
 //! belongs on the `-V` path.
 //!
 //! # Honest limits of D3
@@ -57,6 +69,21 @@
 //! a post-build patch by name — the ring-0 asset is proven to be the
 //! object the build staged (and on the registry lane, the object the
 //! manifest pins).
+//!
+//! # D5 closes the channel gap the artifact's own bytes cannot
+//!
+//! D4 seals the object INSIDE the binary; D5 binds the binary to the
+//! SOURCE CHANNEL it claims. The row reports the BUILD's own verified
+//! verdict (not a runtime re-verification — the keyring is a build-time
+//! fact), so a tree on an unsigned HEAD reads FAIL "no GPG signature"
+//! (5/6) and a tree whose HEAD is signed by the pinned maintainer key
+//! reads AUTHENTIC 6/6 — both are the pristine truth for their build,
+//! and the report never claims otherwise (the honesty law the tests
+//! pin). An AGPL fork built from its own (differently-signed or
+//! unsigned) commits fails D5 by name: that is the verdict working,
+//! not a false positive — the fork is honestly not the maintainer's
+//! build, and its own sig report says so under its own identity
+//! layers.
 
 use std::io::Read;
 
@@ -111,10 +138,10 @@ fn binary_self_hash() -> Result<String, String> {
     Ok(hex)
 }
 
-/// Run the five-depth ladder and render the full report block.
+/// Run the six-depth ladder and render the full report block.
 ///
 /// The text is stable by contract (tests pin its shape, like the `-V`
-/// report): the purple banner header, four depth rows, an identity
+/// report): the purple banner header, six depth rows, an identity
 /// field block, then the verdict. Exit code is the dispatcher's job
 /// (`sig` exits 2 on [`SigVerdict::Tampered`], the fatal-CLI code this
 /// tree already uses), so the report itself stays side-effect free.
@@ -150,6 +177,17 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     // (night-depth-hardening-Z1 D2) - the verification now covers the
     // bytes that execute at ring 0, not only the identity claim.
     let tap_object = crate::info::signature::tap_object_digest_check();
+
+    // D5: the commit-signature binding (night-netrunner-Z1). The
+    // stamp is the build's own verified verdict over the claimed
+    // commit; the policy (pinned fingerprint, honest sentences for
+    // every state) lives in ebpf/attest.rs — the same module the
+    // loader's attestation record binds through, one policy for the
+    // row that reports and the lane that loads.
+    let (sig_ok, sig_detail) = crate::ebpf::attest::commit_signature_verdict(
+        crate::info::build::vcs_commit_sig(),
+        crate::info::build::build_hash(),
+    );
 
     // night-ux-orion-3 (completing the night-ux-orion-2 form): the
     // manifest itself no longer carries the claim year, so the holder
@@ -199,6 +237,17 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
             name: "tap-object",
             passed: tap_object.0,
             detail: tap_object.1,
+        },
+        DepthRow {
+            // night-netrunner-Z1: the commit-signature binding. The
+            // row reports the BUILD's own verified verdict over the
+            // claimed commit — an unsigned HEAD honestly reads FAIL
+            // here (the chain stops at an unbound commit), a HEAD
+            // signed by the pinned maintainer key reads pass, and a
+            // foreign signer is named by fingerprint (the MITM shape).
+            name: "commit-signature",
+            passed: sig_ok,
+            detail: sig_detail,
         },
     ];
 

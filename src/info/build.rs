@@ -200,6 +200,20 @@ pub(crate) fn build_hash() -> &'static str {
     option_env!("GIT_HASH").unwrap_or("unknown")
 }
 
+/// The GPG commit-signature verdict build/gpg.rs stamped over the
+/// commit [`build_hash`] names (night-netrunner-Z1, the zelynic
+/// night-solid-defense-2 shape): `verified:<primary-fpr>` when HEAD's
+/// signature verified against the pinned maintainer key in the
+/// isolated keyring, or the honest degraded state (`unsigned`,
+/// `no-vcs`, `wrong-key:<fpr>`, `no-key[:<fpr>]`, `bad-signature`,
+/// `unavailable`). "unstamped" survives only for an out-of-tree
+/// compile that bypassed build.rs — the sig ladder's D5 row and the
+/// loader's attestation record fail closed on it, never a silent
+/// pass.
+pub(crate) fn vcs_commit_sig() -> &'static str {
+    option_env!("ZYLAXION_VCS_COMMIT_SIG").unwrap_or("unstamped")
+}
+
 /// The build timestamp injected at build time by build.rs.
 ///
 /// Computed by Howard Hinnant's civil_from_days algorithm inside

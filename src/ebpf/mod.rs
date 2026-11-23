@@ -12,6 +12,10 @@
 //! - [`attach_error`] — the classified attach failure taxonomy plus
 //!   the marker wire format (the code a failed attach leaves on
 //!   bpffs for the doctor to read back).
+//! - [`attest`] — the supply-chain attestation core
+//!   (night-netrunner-Z1): the commit-signature verdict policy the
+//!   sig ladder's D5 row reports and the loader's anchor gate and
+//!   attestation record bind to.
 //! - [`embedded`] — the tap object's aligned embedding (the zelynic
 //!   NIGHT-hunt-30 lesson: aya's ELF parser needs 8-byte-aligned bytes,
 //!   and `include_bytes!` placement is linker luck — the AlignedElf
@@ -35,6 +39,7 @@
 
 pub mod args;
 pub mod attach_error;
+pub mod attest;
 pub mod bpf_syscall;
 pub mod embedded;
 pub mod loader;

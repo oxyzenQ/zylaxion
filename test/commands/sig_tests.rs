@@ -13,19 +13,43 @@ use super::*;
     miri,
     ignore = "sig_report runs the D3 probe (current_exe/readlink) which Miri isolation refuses - the native CI lane owns it"
 )]
-fn pristine_build_reports_authentic_five_of_five() {
+fn pristine_build_reports_the_stamped_signature_truth() {
     let (text, verdict) = sig_report();
-    assert_eq!(verdict, SigVerdict::Authentic);
-    assert!(
-        text.contains("SIGNATURE: AUTHENTIC (5/5 depths verified)"),
-        "{text}"
-    );
+    // The ladder's honesty law (night-netrunner-Z1, the zelynic
+    // night-solid-defense-2 shape): the D5 row reports the BUILD's
+    // own verified verdict, so a tree on an unsigned HEAD reads FAIL
+    // "no GPG signature" (5/6) and a tree whose HEAD is signed by the
+    // pinned maintainer key reads AUTHENTIC 6/6 — both are the
+    // pristine truth for their build, and the report must never claim
+    // otherwise.
+    let stamp = crate::info::build::vcs_commit_sig();
+    let sig_verified = stamp
+        .strip_prefix("verified:")
+        .is_some_and(|fpr| fpr == crate::ebpf::attest::PINNED_MAINTAINER_KEY_FPR);
+    if sig_verified {
+        assert_eq!(verdict, SigVerdict::Authentic, "{text}");
+        assert!(
+            text.contains("SIGNATURE: AUTHENTIC (6/6 depths verified)"),
+            "{text}"
+        );
+    } else {
+        assert_eq!(verdict, SigVerdict::Tampered, "{text}");
+        let d5 = text
+            .lines()
+            .find(|line| line.starts_with("D5 commit-signature"))
+            .unwrap_or_else(|| panic!("the D5 row must exist:\n{text}"));
+        assert!(
+            d5.contains(" FAIL "),
+            "an unstamped-truth build must fail D5 by name:\n{text}"
+        );
+    }
     for row in [
         "D0 runtime-identity",
         "D1 embedded-marker",
         "D2 anchor-integrity",
         "D3 binary-self-hash",
         "D4 tap-object",
+        "D5 commit-signature",
     ] {
         assert!(text.contains(row), "missing depth row {row}:\n{text}");
     }

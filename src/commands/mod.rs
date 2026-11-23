@@ -17,9 +17,10 @@
 //!   --verbose` (night-improve-24: no longer a verb; the module stays
 //!   split out of sound.rs per the 600-LOC no-mercy cap)
 //! - `update`  — `--check-update` (GitHub release check, v10.2.0+ — I9)
-//! - `sig`     — `sig` (night-signature-advanced-1: the five-depth
+//! - `sig`     — `sig` (night-signature-advanced-1: the six-depth
 //!   provenance report over the masked signature layers, the D4
-//!   tap-object row added by night-depth-hardening-Z1 D2; exits 2 on
+//!   tap-object row added by night-depth-hardening-Z1 D2, the D5
+//!   commit-signature row added by night-netrunner-Z1; exits 2 on
 //!   any failed depth so scripts can gate on it)
 
 pub mod attach;

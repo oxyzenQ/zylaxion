@@ -18,7 +18,12 @@
 # them verbatim), flip one byte in a patched COPY (the original
 # artifact is never modified), and run `sig` from the copy:
 #
-#   control arm - the pristine binary reports AUTHENTIC (5/5 depths)
+#   control arm - the pristine binary reports the build's OWN stamped
+#                 truth (night-netrunner-Z1): AUTHENTIC (6/6) on a
+#                 HEAD signed by the pinned maintainer key, honestly
+#                 TAMPERED (5/6) with the D5 commit-signature row
+#                 FAILing on an unsigned HEAD (a CI build from an
+#                 unsigned commit)
 #   tamper arm  - the patched binary exits 2, the verdict line reads
 #                 TAMPERED, and the D4 tap-object row FAILs naming
 #                 both digests ("the tap was patched after the build")
@@ -82,13 +87,40 @@ sys.exit(3)
 PY
 chmod 755 "$PATCHED"
 
-# Control arm: the pristine binary is AUTHENTIC with the D4 row green.
-CTRL="$("$BIN" sig 2>&1)" || die "control arm: the pristine binary's sig exited non-zero - the build itself is not authentic"
-grep -F "SIGNATURE: AUTHENTIC (5/5 depths verified)" <<<"$CTRL" >/dev/null \
-    || die "control arm: no AUTHENTIC (5/5) verdict in the pristine report:\n$CTRL"
+# Control arm: the pristine binary reports the build's OWN stamped
+# truth (night-netrunner-Z1, the six-depth honesty law): AUTHENTIC
+# (6/6) when HEAD's commit is signed by the pinned maintainer key,
+# TAMPERED (5/6) with the D5 commit-signature row FAILing on an
+# unsigned HEAD (a contributor/CI build from an unsigned commit is
+# the pristine truth for its build, not a tamper). The probe derives
+# the expectation from the repo's own HEAD the same way build/gpg.rs
+# does - a gpgsig header on the commit object - so the control arm
+# can never demand a verdict the build could not honestly produce.
+# The rc capture rides `|| RC=$?` (the tamper arm's pattern): under
+# set -e a bare assignment whose substitution exits non-zero (the
+# unsigned-HEAD exit 2) would kill the probe before the expectation
+# arms can read it.
+CTRL_RC=0
+CTRL="$("$BIN" sig 2>&1)" || CTRL_RC=$?
+if git -C "$ROOT" cat-file commit HEAD 2>/dev/null | grep -q '^gpgsig '; then
+    [[ "$CTRL_RC" -eq 0 ]] \
+        || die "control arm: a signed-HEAD build must report AUTHENTIC, got exit $CTRL_RC:\n$CTRL"
+    grep -F "SIGNATURE: AUTHENTIC (6/6 depths verified)" <<<"$CTRL" >/dev/null \
+        || die "control arm: no AUTHENTIC (6/6) verdict in the signed-HEAD report:\n$CTRL"
+    grep -E '^D5 commit-signature +pass' <<<"$CTRL" >/dev/null \
+        || die "control arm: the signed-HEAD D5 commit-signature row is not green:\n$CTRL"
+    pass "control arm: signed-HEAD sig AUTHENTIC (6/6), D4 tap-object and D5 commit-signature pass"
+else
+    [[ "$CTRL_RC" -eq 2 ]] \
+        || die "control arm: an unsigned-HEAD build must fail D5 and exit 2, got exit $CTRL_RC:\n$CTRL"
+    grep -F "SIGNATURE: TAMPERED (5/6 depths verified)" <<<"$CTRL" >/dev/null \
+        || die "control arm: no TAMPERED (5/6) verdict in the unsigned-HEAD report:\n$CTRL"
+    grep -E '^D5 commit-signature +FAIL' <<<"$CTRL" >/dev/null \
+        || die "control arm: the unsigned-HEAD D5 row did not fail:\n$CTRL"
+    pass "control arm: unsigned-HEAD sig honestly TAMPERED (5/6), D5 commit-signature FAIL by name"
+fi
 grep -E '^D4 tap-object +pass' <<<"$CTRL" >/dev/null \
     || die "control arm: the pristine D4 tap-object row is not green:\n$CTRL"
-pass "control arm: pristine sig AUTHENTIC (5/5), D4 tap-object pass"
 
 # Tamper arm: the patched copy refuses BY NAME, exit 2. The copy is
 # addressed by its absolute path - the "./" prefix would turn an
