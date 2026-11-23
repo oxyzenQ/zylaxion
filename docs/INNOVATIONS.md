@@ -625,14 +625,15 @@ official vectors. `provenance_view()` materializes the plaintext in
 ONE unmask pass per layer (the single-pass invariant: the displayed
 bytes are exactly the bytes the integrity folds); `-V` reports
 `status=verified` or `tampered` on the Depth-matrix line, and
-`zylaxion sig` walks the five verification depths (runtime identity,
+`zylaxion sig` walks the six verification depths (runtime identity,
 layer binding, anchor integrity, the running image's own self-hash
 fingerprint — a fingerprint by law, it cannot embed its own digest —
-and, since night-depth-hardening-Z1 D2, the tap-object row: the
-embedded eBPF object re-hashed against the build-time stamp
+the tap-object row since night-depth-hardening-Z1 D2: the embedded
+eBPF object re-hashed against the build-time stamp
 `ZYLAXION_TAP_OBJECT_B3`, the ring-0 asset pulled inside the
 self-verification circle, a post-build patch refused by name with both
-digests; the zejtron night-frontier-Z5 shape) and exits 2 on any
+digests, the zejtron night-frontier-Z5 shape; and the commit-signature
+row since night-netrunner-Z1, entry 55 below) and exits 2 on any
 tamper. Files of truth: `src/info/signature.rs`,
 `src/commands/sig.rs`, and
 `scripts/release/generate-provenance-words.py`; the stamping lives in
@@ -1136,6 +1137,53 @@ zero new machinery. The live bytes are witnessed by the
 three seats, and the pty contract (frame legality against the helix
 seat, the full-width clear, the clean stdout) — frames drew or did
 not, both green wherever the suite runs.
+
+**55. The eBPF supply-chain attestation — the loader refuses what
+the seal does not name (night-netrunner-Z1;
+`src/ebpf/attest/`, `build/gpg.rs`,
+`src/ebpf/loader/orchestrate.rs`).** The hole the owner's
+adversarial review named: the depth matrix proved the artifact (the
+claim, the image, the ring-0 object) but nothing bound the claimed
+COMMIT to a signature — a MITM'd release channel could swap the
+whole binary and the ladder would read its own claims back; and the
+LOADER loaded the embedded object unverified, so a binary that
+failed `sig` still attached its ring-0 payload. The close is three
+circles, one module: (1) the commit-signature stamp — build/gpg.rs
+verifies HEAD's GPG signature against the repo's tracked maintainer
+public key (`assets/gpg/`, primary
+`F5324E0967F104D58CE025F347A50AEF4B65AAC2`) in an isolated
+throwaway keyring (never the building user's), stamping
+`ZYLAXION_VCS_COMMIT_SIG` with the verdict — `verified:<primary-fpr>`
+through the subkey-to-primary VALIDSIG resolution, or the honest
+degraded states (unsigned, no-vcs, wrong-key, no-key, bad-signature,
+unavailable); the sig ladder's D5 row reports it, failing closed on
+everything except a verified match against the pin, so an unsigned
+HEAD honestly reads 5/6 TAMPERED and a release cut from a signed
+commit reads AUTHENTIC 6/6. (2) The anchor gate — attach re-hashes
+the embedded object against the build-time stamp BEFORE anything
+else it does (the artifact's own integrity is a precondition for
+every probe and syscall that follows), refusing the load as
+`AttachError::ObjectUnsealed` (marker code 10, appended past 9 so
+old markers keep reading the same failure); the verification core is
+the SAME function the D4 row renders
+(`ebpf::attest::object_anchor_verdict`, one implementation, zero
+drift between the surface that reports and the gate that loads).
+(3) The transparency log — every successful attach appends one
+record to `/var/lib/zylaxion/attestation.log` (the loaded object's
+digest, the commit, the commit-signature state, the chain step, the
+runtime timestamp), each record's blake3 folding the previous
+record's digest, certificate-transparency style; `sig`'s
+`attest-log` field line replays the chain and names the first break
+by line number (an edited field, a spliced record, a torn tail), and
+the honest limits are stated in the module docs: a local audit
+trail, not a public witness network — wholesale replacement from the
+genesis is invisible to the chain, in-band edits are not, and a
+failed append never blocks a legitimate attach. Pinned by
+`test/ebpf/attest_tests.rs`, `test/ebpf/attest_log_tests.rs`, and
+the widened Kani band proofs (`src/engine/kani_laws.rs`); the
+tamper-sig probe's control arm now derives its expectation from the
+repo's own HEAD, so a CI build from an unsigned commit verifies the
+honest 5/6 verdict, never a wrong one.
 
 ## The test tree that pins the ledger
 

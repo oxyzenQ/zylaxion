@@ -46,6 +46,38 @@ v80.0.0-beta.2
 v80.0.0-beta.1
 v80.0.0-alpha.1
 
+## [Unreleased]
+
+### Added
+
+- **night-netrunner-Z1, the eBPF supply-chain attestation — the
+  loader refuses what the seal does not name.** Three circles, one
+  module (`src/ebpf/attest/`): the GPG commit-signature stamp
+  (`build/gpg.rs` + `assets/gpg/`: HEAD's signature verified against
+  the pinned maintainer key in an isolated throwaway keyring,
+  `ZYLAXION_VCS_COMMIT_SIG`), the sig ladder's D5 commit-signature
+  row (six depths now; an unsigned HEAD honestly reads 5/6 TAMPERED,
+  exit 2 — never a silent pass; a foreign signer is named by
+  fingerprint, the MITM shape), the loader's anchor gate (attach
+  re-hashes the embedded tap object against the build-time stamp
+  BEFORE anything else it does and refuses the load as
+  `AttachError::ObjectUnsealed`, marker code 10 — until now a binary
+  that failed `sig` still attached its ring-0 payload), and the
+  attestation transparency log (`/var/lib/zylaxion/attestation.log`:
+  every successful attach appends one hash-chained record — the
+  loaded object's digest, the commit, the commit-signature state,
+  the chain step, the timestamp; `sig`'s new `attest-log` field line
+  replays the chain and names the first break by line number). The
+  object-anchor verification core moved from `info/signature.rs`
+  into `ebpf/attest/` so the D4 row and the loader gate share ONE
+  implementation; the Kani marker-code proofs and the tamper-sig
+  probe's control arm were widened to the new shapes (the probe now
+  derives its expectation from the repo's own HEAD, so CI builds
+  from unsigned commits verify the honest 5/6 verdict). Docs:
+  VERIFY_RELEASE.md (the sixth depth and the gate), GLOSSARY.md
+  (anchor gate, attestation transparency log), INNOVATIONS.md entry
+  55.
+
 ## [v80.5.2-night.1] — focus and be honest — 2026-11-21
 
 ### Changed

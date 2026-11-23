@@ -111,10 +111,30 @@ drifts between docs is a bug.
   opaque splitmix64-masked u64 words (no printable run of four or
   more bytes at rest), sealed by FNV-1a 64 fingerprints and a
   blake3 anchor over the framed payload. Materializes to plaintext
-  only on the `-V` surface; `zylaxion sig` renders the five-depth
+  only on the `-V` surface; `zylaxion sig` renders the six-depth
   verification ladder (night-depth-hardening-Z1 D2 added the D4
   tap-object row: the embedded eBPF object re-hashes against the
-  build-time stamp) and exits 2 on any tamper.
+  build-time stamp; night-netrunner-Z1 added the D5 commit-signature
+  row: the claimed commit's GPG signature verified at build time
+  against the pinned maintainer key — an unsigned HEAD fails the row
+  honestly, 5/6, never a silent pass) and exits 2 on any tamper.
+- **anchor gate** — the loader's supply-chain refusal
+  (night-netrunner-Z1): attach re-hashes the embedded tap object
+  against the build-time stamp BEFORE anything else it does and
+  classifies a mismatch or a missing stamp as
+  `AttachError::ObjectUnsealed` (marker code 10) — the ring-0
+  payload runs only on the strength of bytes the build staged. The
+  same verification core the sig report's D4 row renders
+  (`src/ebpf/attest.rs`), one implementation, zero drift.
+- **attestation transparency log** — the append-only, hash-chained
+  record of what the loader actually put in the kernel
+  (night-netrunner-Z1): every successful attach appends one line to
+  `/var/lib/zylaxion/attestation.log` (the loaded object's digest,
+  the commit, the commit-signature state, the chain step, the
+  timestamp), each record's blake3 folding the previous record's
+  digest. `sig`'s `attest-log` field line replays the chain and
+  names the first break by line number; a local audit trail, not a
+  public witness network (the module docs state the limits plainly).
 - **word verdicts** — the doctor's PASS:/FAIL: lines through the
   green/red lanes. No glyph decorations anywhere in the tree.
 - **color gate** — color renders only on a TTY with `NO_COLOR`

@@ -93,7 +93,7 @@ name's platform id:
 # Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
 # Depth-matrix: ... status=verified ...       <- the provenance seal, green on a TTY
 ./zylaxion sig
-# verdict: SIGNATURE: AUTHENTIC (5/5 depths verified)  <- exit 2 on any tamper
+# verdict: SIGNATURE: AUTHENTIC (6/6 depths verified)  <- exit 2 on any tamper
 ```
 
 The ownership claim is embedded MASKED (night-signature-advanced-1):
@@ -113,6 +113,36 @@ layers and still exits 2 with the `D4 tap-object` row FAIL naming both
 digests. CI proves this end to end: the `Dragon Guard - CI` check job
 runs `scripts/audit/tamper-sig-probe.sh`, which patches one byte of a
 real built binary and demands the refusal by name.
+
+The sixth depth (`commit-signature`, night-netrunner-Z1 — the zelynic
+night-solid-defense-2 shape) closes the channel gap the artifact's
+own bytes cannot: the commit the binary claims is GPG-signed by the
+PINNED maintainer key, verified at build time against the repo's
+tracked public key (`assets/gpg/`, primary
+`F5324E0967F104D58CE025F347A50AEF4B65AAC2` — the same key the
+signature lane above imports) in an isolated throwaway keyring. The
+row reports the BUILD's own verdict honestly: a tree on an unsigned
+HEAD reads FAIL "no GPG signature" (5/6, exit 2 — the provenance
+chain stops at an unbound commit), a HEAD signed by the pinned key
+reads AUTHENTIC 6/6, and a foreign signer is named by fingerprint
+(the MITM shape). With the maintainer key verified out of band (the
+signature lane above) and releases cut from signed commits and tags,
+the chain from key to tag to commit to binary closes — a binary
+swapped on the wire can no longer replay its claims unanswered.
+
+night-netrunner-Z1 binds the same verdict at the loader: attach
+re-hashes the embedded object against the build-time stamp BEFORE
+anything else it does and refuses the load on drift or a missing
+stamp (`AttachError::ObjectUnsealed`, marker code 10) — until this
+gate existed, a patched binary failed `sig` but attached anyway.
+Every successful attach then appends one record to the local
+hash-chained attestation log (`/var/lib/zylaxion/attestation.log`:
+the loaded object's digest, the commit, the commit-signature state,
+the chain step, the timestamp — each record's blake3 folding the
+previous record's digest); `sig`'s `attest-log` field line replays
+the chain and names the first break by line number. The log is a
+local audit trail, not a public witness network — its module docs
+(`src/ebpf/attest/log.rs`) state the limits plainly.
 
 ### What the fp= token hashes (night-pro-1)
 
