@@ -74,6 +74,19 @@ pub enum AttachError {
     /// Kernel lockdown 'confidentiality' is active — the kernel
     /// withdraws BPF entirely.
     LockdownActive,
+    /// The embedded tap object failed the supply-chain anchor gate
+    /// (night-netrunner-Z1): its blake3 does not recompute to the
+    /// build-time stamp, or the stamp is absent (an out-of-tree
+    /// compile that bypassed build.rs). The loader refuses the load —
+    /// the ring-0 payload runs only on the strength of bytes the
+    /// build staged, never on unverified bytes. The detail carries
+    /// the verdict's own words (both digests on drift, the absence on
+    /// a missing stamp).
+    ObjectUnsealed {
+        /// The anchor verdict's own words (the same detail the sig
+        /// report's D4 row renders).
+        detail: String,
+    },
     /// The failure fits none of the classified ways; the detail
     /// carries the raw story.
     Unknown {
@@ -121,6 +134,12 @@ impl fmt::Display for AttachError {
                 the kernel withdraws BPF; choose a lockdown mode that allows it (integrity \
                 or none)."
                 .to_string(),
+            AttachError::ObjectUnsealed { detail } => format!(
+                "the tap object failed the supply-chain anchor gate: {} — the loader \
+                 refuses to load an unsealed object into the kernel (run `zylaxion sig` \
+                 for the full depth-matrix verdict)",
+                detail.trim_end()
+            ),
             AttachError::Unknown { detail } => {
                 // Command-neutral verb (night-total-lts-2): the detach
                 // lane's classified races render through this variant
@@ -153,6 +172,7 @@ impl AttachError {
             AttachError::BpffsUnavailable => 6,
             AttachError::PinFailed { .. } => 7,
             AttachError::LockdownActive => 8,
+            AttachError::ObjectUnsealed { .. } => 10,
             AttachError::Unknown { .. } => 9,
         }
     }
@@ -179,6 +199,12 @@ impl AttachError {
             },
             8 => AttachError::LockdownActive,
             9 => AttachError::Unknown {
+                detail: "see the attach run's output".to_string(),
+            },
+            // The night-netrunner-Z1 variant takes the next free
+            // code: 9 stays Unknown (the wire-format law — an old
+            // marker's code must keep reading as the same failure).
+            10 => AttachError::ObjectUnsealed {
                 detail: "see the attach run's output".to_string(),
             },
             _ => return None,

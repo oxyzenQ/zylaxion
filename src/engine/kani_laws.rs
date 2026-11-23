@@ -12,6 +12,9 @@ mod errno_proofs {
     /// The classification a marker code reconstructs to, as one byte —
     /// the harness compares KINDS, not details (the detail-carrying
     /// variants return canonical placeholder texts from `from_code`).
+    /// ObjectUnsealed carries 10 (night-netrunner-Z1): the band's
+    /// newest member, appended after 9 so Unknown keeps its code for
+    /// every old marker file (the wire-format law).
     fn kind_of(e: &AttachError) -> u32 {
         match e {
             AttachError::FentryUnavailable { .. } => 1,
@@ -23,18 +26,19 @@ mod errno_proofs {
             AttachError::PinFailed { .. } => 7,
             AttachError::LockdownActive => 8,
             AttachError::Unknown { .. } => 9,
+            AttachError::ObjectUnsealed { .. } => 10,
         }
     }
 
     /// The marker wire format's law (entry 28): every code in the
-    /// pinned 1..=9 band reconstructs to a variant of the SAME kind
+    /// pinned 1..=10 band reconstructs to a variant of the SAME kind
     /// that round-trips to the same code, and every code outside the
     /// band reconstructs to nothing — the doctor can never read a
     /// failure the taxonomy does not name.
     #[kani::proof]
     fn attach_error_codes_round_trip_inside_the_pinned_band() {
         let code: u32 = kani::any();
-        kani::assume((1..=9).contains(&code));
+        kani::assume((1..=10).contains(&code));
         let restored =
             AttachError::from_code(code).expect("every code in the pinned band must reconstruct");
         assert_eq!(restored.code(), code, "the wire code drifted on round-trip");
@@ -48,7 +52,7 @@ mod errno_proofs {
     #[kani::proof]
     fn attach_error_codes_refuse_outside_the_band() {
         let code: u32 = kani::any();
-        kani::assume(!(1..=9).contains(&code));
+        kani::assume(!(1..=10).contains(&code));
         assert!(
             AttachError::from_code(code).is_none(),
             "code {code} reconstructed outside the pinned band"

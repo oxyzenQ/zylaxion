@@ -95,3 +95,16 @@ fn keymap_domain_is_the_keyboard_range() {
     // mouse buttons never sound.
     assert!(*domain.end() < 256, "the button block starts at 0x100");
 }
+
+/// night-netrunner-Z1, the anchor gate's wiring pin: a pristine build
+/// PASSES the gate — the real build-time stamp against the real
+/// embedded TAP_ELF bytes, exactly the two inputs the load path reads
+/// (the refusal arms are pinned in test/ebpf/attest_tests.rs over the
+/// pure core with flipped bytes; this pin proves the WIRING, that the
+/// gate the attach path calls feeds it the true constants and not a
+/// stub).
+#[test]
+fn a_pristine_build_passes_the_anchor_gate() {
+    // The name must be spelled correctly — the test tree's own law.
+    assert!(super::orchestrate::anchor_gate().is_ok());
+}

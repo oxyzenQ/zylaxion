@@ -105,3 +105,65 @@ fn degraded_states_fail_their_honest_sentences() {
         assert!(!detail.is_empty(), "{stamp} must say why");
     }
 }
+
+// ── the object anchor verification pins (moved with the core from
+// test/info/signature_tests.rs, night-netrunner-Z1: the re-hash is
+// the loader gate's core now, and the pins live beside it) ──────────
+
+/// The pristine build's real self-check: the stamp this test binary's
+/// own build.rs produced recomputes from the very TAP_ELF bytes the
+/// binary carries. A build whose object was patched after staging
+/// fails HERE, in every lane that compiles the crate — and the
+/// loader's anchor gate refuses the same bytes before they reach
+/// ring 0.
+#[test]
+fn the_embedded_tap_object_recomputes_the_build_stamp() {
+    // env!, not option_env!.unwrap(): a test binary of this tree
+    // cannot exist without the stamp (the build.rs lanes always
+    // produce it), and the honest shape is the hard compile error.
+    let stamped = env!("ZYLAXION_TAP_OBJECT_B3");
+    let (passed, detail) = object_anchor_verdict(Some(stamped), crate::ebpf::loader::TAP_ELF);
+    assert!(passed, "{detail}");
+    assert!(
+        detail.contains("recomputes from the embedded tap object"),
+        "{detail}"
+    );
+    assert!(detail.starts_with("b3:"), "{detail}");
+    // The pass detail carries the digest and nothing else - no drift
+    // prose on the happy arm (the drift prose is the failure arm's).
+    assert!(
+        detail.ends_with("recomputes from the embedded tap object"),
+        "{detail}"
+    );
+}
+
+/// The tamper arm, through the real verify path: one flipped byte in
+/// the embedded object must fail, naming BOTH digests - the recomputed
+/// one and the stamped one. This is the exact verdict the loader's
+/// anchor gate refuses the load on (AttachError::ObjectUnsealed).
+#[test]
+fn a_patched_tap_object_fails_naming_both_digests() {
+    let stamped = "e642ace8b8e9a3f549434d21c45413688fc6e3ec3afb7292f078cd0850f996ec";
+    let mut patched = crate::ebpf::loader::TAP_ELF.to_vec();
+    let middle = patched.len() / 2;
+    patched[middle] ^= 0x01;
+    let (passed, detail) = object_anchor_verdict(Some(stamped), &patched);
+    assert!(!passed, "{detail}");
+    assert!(detail.contains("hashes to b3:"), "{detail}");
+    assert!(detail.contains(stamped), "{detail}");
+    assert!(detail.contains("patched after the build"), "{detail}");
+}
+
+/// The absence arm: a build without the stamp (an out-of-tree compile
+/// that bypassed build.rs) fails with the reason named - never a
+/// guess, never a pass. The loader refuses this shape too: an
+/// unsealed camera is an unloaded camera.
+#[test]
+fn a_build_without_the_stamp_fails_naming_the_absence() {
+    let (passed, detail) = object_anchor_verdict(None, crate::ebpf::loader::TAP_ELF);
+    assert!(!passed, "{detail}");
+    assert!(
+        detail.contains("did not stamp the tap object digest"),
+        "{detail}"
+    );
+}

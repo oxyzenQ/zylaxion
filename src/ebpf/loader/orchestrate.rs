@@ -13,6 +13,22 @@ use crate::ebpf::pin;
 use super::chain::{hand_pins_to_desktop_user, plant};
 use super::{TAP_ELF, last_attach_error};
 
+/// The supply-chain anchor gate (night-netrunner-Z1), as its own
+/// function so the wiring is pinnable in the test tree: a pristine
+/// build must PASS it (the real stamp against the real embedded
+/// bytes — the test proves the gate reads exactly what the load path
+/// reads), and the refusal arms live in the pure core
+/// (`ebpf::attest::object_anchor_verdict`, pinned there with flipped
+/// bytes). `Err` carries the classified
+/// [`AttachError::ObjectUnsealed`] the failure protocol plants.
+pub(super) fn anchor_gate() -> Result<(), AttachError> {
+    match crate::ebpf::attest::object_anchor_verdict(option_env!("ZYLAXION_TAP_OBJECT_B3"), TAP_ELF)
+    {
+        (true, _) => Ok(()),
+        (false, verdict) => Err(AttachError::ObjectUnsealed { detail: verdict }),
+    }
+}
+
 /// Attach the tap: the privileged one-shot.
 ///
 /// Returns a human-readable summary the CLI prints verbatim; every
@@ -47,6 +63,28 @@ pub fn attach() -> Result<String, AttachError> {
             "tap is already attached — nothing to do (all pins present; `zylaxion detach` \
              removes it){ownership}"
         ));
+    }
+
+    // 1b. THE SUPPLY-CHAIN ANCHOR GATE (night-netrunner-Z1): the
+    //     loader refuses an unsealed object BEFORE anything else it
+    //     does — the artifact's own integrity is a precondition for
+    //     every probe and syscall that follows (a tampered binary
+    //     must not be trusted to report about the host either). The
+    //     gate re-hashes the bytes it is about to hand the kernel
+    //     against the build-time stamp (ZYLAXION_TAP_OBJECT_B3) — the
+    //     SAME verification core the sig report's D4 row renders
+    //     (ebpf/attest.rs, one implementation, zero drift). Until
+    //     this gate existed, a binary whose embedded object was
+    //     patched after the build failed `sig` but ATTACHED anyway:
+    //     the ring-0 payload ran on the strength of bytes the build
+    //     never staged. Fail-closed on every arm: drift (both digests
+    //     named), a missing stamp (an out-of-tree compile that
+    //     bypassed build.rs — an unsealed camera is an unloaded
+    //     camera). The already-attached early return above stays
+    //     first: that path loads nothing into the kernel, and there
+    //     is nothing to seal.
+    if let Err(e) = anchor_gate() {
+        return fail(e);
     }
 
     // 2. The kernel gate (night-improve-23, the eBPF-only floor): one

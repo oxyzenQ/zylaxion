@@ -117,7 +117,10 @@ fn marker_codes_round_trip_the_wire_format() {
         },
     ];
     for (i, e) in samples.iter().enumerate() {
-        // Codes are 1..=9, distinct, in the declared variant order.
+        // The original nine keep codes 1..=9, distinct, in the
+        // declared variant order (ObjectUnsealed, declared tenth,
+        // takes code 10 — the appended slot, pinned separately
+        // below, so 9 stays Unknown for old marker files).
         assert_eq!(e.code(), i as u32 + 1);
         let reconstructed = AttachError::from_code(e.code())
             .unwrap_or_else(|| panic!("code {} must reconstruct", e.code()));
@@ -132,8 +135,17 @@ fn marker_codes_round_trip_the_wire_format() {
     ] {
         assert_eq!(AttachError::from_code(e.code()), Some(e));
     }
+    // night-netrunner-Z1: the anchor-gate refusal takes the NEXT free
+    // code (10), not the positional slot its declaration order would
+    // suggest — 9 stays Unknown so an old marker file keeps reading
+    // as the failure it recorded (the wire-format law above).
+    let unsealed = AttachError::ObjectUnsealed {
+        detail: "the tap was patched after the build".to_string(),
+    };
+    assert_eq!(unsealed.code(), 10);
+    assert_eq!(AttachError::from_code(10).map(|e| e.code()), Some(10));
     assert_eq!(AttachError::from_code(0), None);
-    assert_eq!(AttachError::from_code(10), None);
+    assert_eq!(AttachError::from_code(11), None);
     assert_eq!(AttachError::from_code(u32::MAX), None);
 }
 
@@ -301,16 +313,18 @@ fn every_errno_classifies_by_the_shared_law() {
     }
 }
 
-/// The marker wire format over its domain edges: codes 1..=9
-/// reconstruct (pinned per-variant above); EVERY other value — 0, the
-/// 10..=1000 band, the powers-of-two neighborhood, and both u32
+/// The marker wire format over its domain edges: codes 1..=10
+/// reconstruct (pinned per-variant above — 10 joined the space with
+/// night-netrunner-Z1's ObjectUnsealed, appended so 9 stays Unknown
+/// for every old marker file); EVERY other value — 0, the
+/// 11..=1000 band, the powers-of-two neighborhood, and both u32
 /// extremes — answers None. A renumbered or widened code space would
 /// make an old marker read as a different failure; this sweep holds
 /// the door.
 #[test]
-fn the_marker_code_domain_answers_none_outside_one_to_nine() {
+fn the_marker_code_domain_answers_none_outside_one_to_ten() {
     assert_eq!(AttachError::from_code(0), None);
-    for code in 10u32..=1000 {
+    for code in 11u32..=1000 {
         assert!(
             AttachError::from_code(code).is_none(),
             "code {code} must not reconstruct"

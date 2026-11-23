@@ -330,67 +330,24 @@ pub(crate) fn manifest_fingerprint() -> u64 {
 // embedded eBPF object, the one component that executes at ring 0.
 // The build stamps the staged object's blake3 (build/tapstamp.rs,
 // `ZYLAXION_TAP_OBJECT_B3`); here the runtime re-hashes the bytes the
-// binary actually carries and compares them to that stamp. Until this
-// row existed, a post-build patch of the embedded copy rode every
-// later run silently: the identity layers verified, the release
-// checksum described the pre-patch file - the verification circle now
-// closes around the camera itself.
+// binary actually carries and compares them to that stamp.
 //
-// The black_box barrier rides the same law the anchor recompute
-// documents above: the embedded bytes are compile-time constants, so
-// the fold must be forced to read the artifact's real memory - a
-// constant-folded recompute would verify a patched binary as happily
-// as a pristine one. The pure row function takes (stamped, embedded)
-// so every arm is pinnable in the test tree without patching a real
-// artifact: the pristine build feeds the real stamp and the real
-// bytes.
-//
-// Honest limits (the same shape the D3 self-hash row documents): an
-// attacker who fully understands the stamp can re-stamp a rebuilt
-// binary; the row proves the embedded object is exactly what the
-// build staged, not what the author intended. The release checksum
-// files and the legal layer remain the outer circle.
+// night-netrunner-Z1 moved the verification core into
+// ebpf/attest.rs (`object_anchor_verdict`) so the sig row and the
+// loader's anchor gate share ONE implementation — the two surfaces
+// can never disagree about whether the object is sealed. This
+// delegate keeps the D4 row's call site stable and its detail
+// strings byte-identical (the tests pin them).
 
 /// The `sig` surface's tap-object verification: the stamp the build
 /// emitted against the bytes the binary embeds. The stamp is absent
 /// only for an out-of-tree compile that bypassed build.rs - never for
 /// a build of this tree, whose build.rs lanes always produce it.
 pub(crate) fn tap_object_digest_check() -> (bool, String) {
-    tap_object_row(
+    crate::ebpf::attest::object_anchor_verdict(
         option_env!("ZYLAXION_TAP_OBJECT_B3"),
         crate::ebpf::loader::TAP_ELF,
     )
-}
-
-/// The pure verification core: recompute the blake3 over the embedded
-/// bytes (through the black_box barrier) and compare it to the
-/// build-time stamp. Three arms, all named: absent stamp (the check
-/// cannot run - an honest fail, never a pass), match (the embedded
-/// object is exactly what the build staged), drift (both digests
-/// named - the tap was patched after the build).
-fn tap_object_row(stamped: Option<&str>, embedded: &[u8]) -> (bool, String) {
-    use std::hint::black_box;
-    let Some(stamped) = stamped else {
-        return (
-            false,
-            "the build did not stamp the tap object digest".to_string(),
-        );
-    };
-    let recomputed = hex32(blake3::hash(black_box(embedded)).as_bytes());
-    if recomputed == stamped {
-        (
-            true,
-            format!("b3:{recomputed} recomputes from the embedded tap object"),
-        )
-    } else {
-        (
-            false,
-            format!(
-                "the embedded tap object hashes to b3:{recomputed}, the build stamped \
-                 b3:{stamped} - the tap was patched after the build"
-            ),
-        )
-    }
 }
 
 // --- Identity binding -------------------------------------------------

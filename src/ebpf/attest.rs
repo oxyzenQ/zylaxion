@@ -156,6 +156,77 @@ fn short_fpr(fpr: &str) -> String {
     }
 }
 
+// --- The object anchor verification (the loader gate's core) ---------
+//
+// night-netrunner-Z1: the ONE verification core both consumers ride —
+// the sig ladder's D4 tap-object row REPORTS it, the loader's anchor
+// gate REFUSES on it. Until this move the re-hash lived in
+// info/signature.rs and the loader loaded TAP_ELF unverified: a
+// binary whose embedded object was patched after the build failed
+// the sig report but ATTACHED anyway — the ring-0 payload ran on the
+// strength of bytes the build never staged. The gate (loader/
+// orchestrate.rs) now refuses the load on the same verdict the
+// report renders, so the two surfaces can never disagree about
+// whether the object is sealed.
+//
+// The black_box barrier rides the same law the anchor recompute in
+// info/signature.rs documents: the embedded bytes are compile-time
+// constants, so the fold must be forced to read the artifact's real
+// memory — a constant-folded recompute would verify a patched binary
+// as happily as a pristine one. The pure function takes (stamped,
+// embedded) so every arm is pinnable in the test tree without
+// patching a real artifact: the pristine build feeds the real stamp
+// and the real bytes.
+//
+// Honest limits (the same shape the D3 self-hash row documents): an
+// attacker who fully understands the stamp can re-stamp a rebuilt
+// binary; the verdict proves the embedded object is exactly what the
+// build staged, not what the author intended. The commit-signature
+// binding above and the release checksum files remain the outer
+// circles.
+
+/// The object anchor verification: recompute the blake3 over the
+/// embedded tap object bytes (through the black_box barrier) and
+/// compare it to the build-time stamp. Three arms, all named: absent
+/// stamp (the check cannot run — an honest fail, never a pass),
+/// match (the embedded object is exactly what the build staged),
+/// drift (both digests named — the tap was patched after the build).
+#[must_use]
+pub(crate) fn object_anchor_verdict(stamped: Option<&str>, embedded: &[u8]) -> (bool, String) {
+    use std::hint::black_box;
+    let Some(stamped) = stamped else {
+        return (
+            false,
+            "the build did not stamp the tap object digest".to_string(),
+        );
+    };
+    let recomputed = hex32(blake3::hash(black_box(embedded)).as_bytes());
+    if recomputed == stamped {
+        (
+            true,
+            format!("b3:{recomputed} recomputes from the embedded tap object"),
+        )
+    } else {
+        (
+            false,
+            format!(
+                "the embedded tap object hashes to b3:{recomputed}, the build stamped \
+                 b3:{stamped} - the tap was patched after the build"
+            ),
+        )
+    }
+}
+
+/// Lowercase hex for the `b3:` renderings (the D4 row and the gate's
+/// refusal detail name both digests in this shape).
+fn hex32(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        out.push_str(&format!("{byte:02x}"));
+    }
+    out
+}
+
 #[cfg(test)]
 #[path = "../../test/ebpf/attest_tests.rs"]
 mod tests;
