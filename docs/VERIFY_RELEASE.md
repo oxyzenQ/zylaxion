@@ -128,7 +128,11 @@ reads AUTHENTIC 6/6, and a foreign signer is named by fingerprint
 (the MITM shape). With the maintainer key verified out of band (the
 signature lane above) and releases cut from signed commits and tags,
 the chain from key to tag to commit to binary closes — a binary
-swapped on the wire can no longer replay its claims unanswered.
+swapped on the wire can no longer replay its claims unanswered. The
+trust anchors themselves carry recorded BLAKE3 digests in
+`assets/signature.b3sum` (`b3sum -c assets/signature.b3sum` from the
+repo root), so a swapped or re-keyed key file fails by name before
+it can vouch for anything.
 
 night-netrunner-Z1 binds the same verdict at the loader: attach
 re-hashes the embedded object against the build-time stamp BEFORE
