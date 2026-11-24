@@ -31,6 +31,14 @@ mod voice;
 // vectors live in the module and its test tree).
 pub mod detmath;
 
+// night-netrunner-Z2: the gain-law core — the volume cell, the
+// percent-of-default gain law, and the PRNG's signed-float mapping,
+// extracted to ONE crate-path-free module so the detached proofs
+// package (proofs/, the sampled tier) can include the SAME bytes the
+// binary ships (the fuzz harnesses' include law). A pure move: every
+// former site imports from here.
+pub mod gain;
+
 pub use pool::VoicePool;
 
 // night-depth-hardening-2, the proven datapath: the Kani bounded-model

@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+
+# night-netrunner-Z2: the proof-harness package — the sampled tier
+# (the zelynic night-frontier-Z6 lineage, adapted to this tree). A
+# detached nested package — the same detachment shape fuzz/ carries —
+# so the proof instruments never enter the root manifest's dependency
+# graph (the "minimal dependencies, easy to audit" philosophy holds:
+# nothing here ships in any binary, and the root crate's Cargo.lock
+# never sees these crates).
+#
+# Two instruments, one package, each with its own lane:
+#
+#  * proptest  (dev-dependency): property-based exhaustion of the
+#    pure gain-law cores' laws on stable — thousands of shrinkable
+#    cases per law per run, the sampled-but-shrinking instrument the
+#    estate's Kani lane (cfg(kani), .github/workflows/kani.yml) rides
+#    above. A red is a real counterexample with a shrunk witness;
+#    the regression store (proptest-regressions/) replays every
+#    counterexample ever caught on each subsequent run.
+#  * kani      (sysroot-provided by cargo kani, no manifest entry):
+#    stays in the root crate's own src/engine harnesses — the
+#    existing kani.yml lane owns the for-all tier there; this package
+#    owns the sampled tier only, no duplicated theorem.
+#
+# The included sources are #[path] wirings of the tree's crate-path-
+# free law files — the SAME bytes the binary ships (the fuzz
+# harnesses' include law): a law the proofs verify is a law the
+# datapath runs. The include law holds because night-netrunner-Z2
+# extracted the gain laws to src/engine/gain.rs (std-only, imports
+# nothing from the crate); src/info/clock.rs already carried the law
+# (std-only date math, the fuzz lane's own include).
+
+[package]
+name = "zylaxion-proofs"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+publish = false
+
+[dev-dependencies]
+# The property-exhaustion instrument (the shrinkable counterexample
+# machine). Dev-only: the property harness module is #[cfg(test)].
+proptest = "1"
+
+[lints]
+# The cfg name the root manifest already registers (the same shape,
+# one seat here): unexpected_cfgs stays quiet for the tree's cfg
+# vocabulary this package compiles beside.
+rust = { unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] } }

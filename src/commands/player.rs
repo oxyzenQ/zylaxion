@@ -65,8 +65,13 @@ const BRIDGE_POLL_MS: u16 = 100;
 /// The percent-of-default gain law: the control map carries a percent,
 /// the pool wants a linear gain. 100 percent means the compiled laptop
 /// default (5.5x); 0 percent is silence.
+///
+/// night-netrunner-Z2: the body's home is `engine::gain` (the
+/// gain-law core the detached proofs package includes — the SAME
+/// bytes the watcher writes); this seat stays as the tree's own
+/// import path (a pure move, zero behavior change).
 pub(crate) fn gain_from_percent(percent: u32) -> f32 {
-    percent as f32 / 100.0 * crate::engine::VoicePool::DEFAULT_MASTER_VOLUME
+    crate::engine::gain::gain_from_percent(percent)
 }
 
 /// Look up a preset profile by its registry index. Out-of-range indexes

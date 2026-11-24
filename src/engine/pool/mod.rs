@@ -79,7 +79,12 @@ impl VoicePool {
     /// users should override this to ~1.5× via ZYLAXION_VOLUME=1.5 in
     /// the environment (night-improve-22 — the env var replaced the
     /// config-era `master` table).
-    pub const DEFAULT_MASTER_VOLUME: f32 = 5.5;
+    ///
+    /// night-netrunner-Z2: the constant's home is `engine::gain`
+    /// (the gain-law core the detached proofs package includes);
+    /// this seat stays as the compatibility alias the tree's own
+    /// call sites read (a pure move, zero behavior change).
+    pub const DEFAULT_MASTER_VOLUME: f32 = crate::engine::gain::DEFAULT_MASTER_VOLUME;
 
     /// Create a new voice pool with all voices initialized to inactive
     /// and the default master volume (5.5× — laptop-speaker tuned).
@@ -146,18 +151,19 @@ impl VoicePool {
     /// everything else falls back to the compiled default. Stored as
     /// f32 bits for the atomic cell. PUB (night-hunter-1) because the
     /// player's control-plane watcher retunes through the SAME cell —
-    /// every writer of the volume atomic must ride this one law, or
-    /// the startup lane and the live-retune lane disagree about what
-    /// a map value means (they did: the watcher stored raw bits, so
-    /// a forced retune above ~1818% outranged what a fresh `on` would
-    /// have clamped to).
+    /// every writer of the volume atomic must ride this one law, or the
+    /// startup lane and the live-retune lane disagree about what a map
+    /// value means (they did: the watcher stored raw bits, so a forced
+    /// retune above ~1818% outranged what a fresh `on` would have
+    /// clamped to).
+    ///
+    /// night-netrunner-Z2: the body's home is `engine::gain`
+    /// (the gain-law core) — this seat stays as the compatibility
+    /// shim the tree's own call sites and the Kani harnesses read
+    /// (a pure move, zero behavior change).
+    #[inline]
     pub fn volume_bits(volume: f32) -> u32 {
-        let clamped = if volume.is_finite() {
-            volume.clamp(-100.0, 100.0)
-        } else {
-            Self::DEFAULT_MASTER_VOLUME
-        };
-        clamped.to_bits()
+        crate::engine::gain::volume_bits(volume)
     }
 
     /// Trigger a new voice for a key press event.
