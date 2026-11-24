@@ -3645,5 +3645,3 @@ v80.0.0-alpha.1
   gate, and the proof obligation arrives only if the realism lane
   opens.
 
-## [Unreleased]
-
