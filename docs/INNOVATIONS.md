@@ -1228,6 +1228,42 @@ silently regress. Measured locally on the pinned toolchain: 11
 tests pass in 0.02 s; the lane's run step is the exact CI command
 (`cargo test --locked --manifest-path proofs/Cargo.toml`).
 
+**57. The concurrency census — the interleaving theorem weighed and
+answered NO, on the record (night-frontier-Z17;
+`docs/audit-night-frontier-Z17-census.md`).** The zelynic lineage
+names the one tier this estate's proof family did not have a
+verdict for: the interleaving theorem — an exhaustive,
+solver-checked proof that NO interleaving of a multi-actor
+concurrency protocol can reach a corrupt state — the instrument a
+tree needs when two threads own different fields of one packed
+word and can race each other's half-protocols. This estate asked
+the honest prior question first: does the target class exist here
+at all? The census enumerated every cross-thread and cross-CPU
+share in the tree (the seven surfaces: the SPSC `HeapRb` audio
+bridge, the volume cell, the ArcSwap model snapshot, the
+crossbeam event channel, the kernel-side `fetch_add` counters, the
+flat signal/wake flags, the per-instance PRNG cells) and the
+finding is structural: ZERO `compare_exchange`, zero CAS retry
+loops, zero packed-word multi-actor protocols — every share is
+either a vendor primitive (its internal protocol is the vendor's
+surface — model-checking it would be theater, the kani.yml loom
+stance's own recorded law), a single-RMW-width cell whose value
+domain is already a standing Kani for-all theorem (both the old
+bits and the new bits are inside the proven domain — which is what
+"for ALL inputs" means when the reachable states ARE the value
+domain), or a commutative-by-construction counter. The verdict:
+**STAND-DOWN, recorded** — no instrument lands, no dependency
+joins, no CI lane is spent, and the census itself is the
+deliverable: an LTS claim is only honest when the refusal to build
+an instrument is on the record with its evidence beside the
+instruments that were built. The live evidence rode the census's
+own runs (`ring_lanes` 2/2 and `live_lanes` 2/2, fresh, 0.01 s
+each); the day a hand-rolled multi-actor protocol enters the tree,
+the census is the document that reopens — the target class named,
+the zelynic two-CPU instrument designed, the Z12
+lemma-decomposition wall discipline cited, the retirement door the
+recorded precedent.
+
 ## The test tree that pins the ledger
 
 The ledger is not honored by prose alone: 41 test files carrying 327

@@ -78,6 +78,53 @@ v80.0.0-alpha.1
   (anchor gate, attestation transparency log), INNOVATIONS.md entry
   55.
 
+- **night-netrunner-Z2, the sampled tier — the proof layer between
+  unit pins and solver theorems.** The zelynic night-frontier-Z6
+  lineage names two proof instruments; this estate carried only the
+  for-all half. Landed, adapted to this tree's own law: the gain-law
+  core extracted to ONE crate-path-free, std-only module
+  (`src/engine/gain.rs`: the volume clamp cell, the
+  percent-of-default gain law, the default constant, the PRNG's
+  signed-float mapping — a pure move, every former site keeps its
+  compatibility seat); the detached `proofs/` package (the fuzz
+  workspace's own detachment shape, the five-lock estate — the root
+  manifest's Cargo.lock never sees proptest) whose harnesses
+  compile the law files by `#[path]`, the SAME bytes the binary
+  ships; and the per-push CI lane (`.github/workflows/proofs.yml`,
+  rootless, stable-only on the pinned 1.98.1 toolchain, the
+  fifteen-minute estate ceiling) running eleven properties over the
+  included cores — the volume clamp and band identity, the gain
+  monotonicity, the end-to-end control-map write path, the signed
+  mapping's symmetric range (the old divisor bug's +3.0 escape is
+  the regression it exists to catch) and injectivity, and the
+  Hinnant calendar's month-length and monotone laws. A red is a
+  real counterexample with a shrunk witness; the regression store
+  (`proofs/proptest-regressions/`) replays every one ever caught.
+  Measured: 11 tests in 0.02 s locally, the lane's run step the
+  exact CI command. Docs: INNOVATIONS.md entry 56; the audit
+  counts synced (41 test files / 327 functions, the five-lock
+  estate named in RULES.md and MAINTENANCE.md).
+
+- **night-frontier-Z17, the concurrency census — the interleaving
+  theorem weighed and answered NO, on the record.** The zelynic
+  lineage's one missing tier (an exhaustive interleaving theorem
+  over a multi-actor concurrency protocol) was asked the honest
+  prior question: does the target class exist in this tree at all?
+  The census enumerated every cross-thread and cross-CPU share —
+  the SPSC `HeapRb` bridge, the volume cell, the ArcSwap snapshot,
+  the crossbeam channel, the kernel `fetch_add` counters, the flat
+  signal/wake flags, the per-instance PRNG cells — and the finding
+  is structural: zero `compare_exchange`, zero CAS retry loops,
+  zero packed-word multi-actor protocols; every share is
+  vendor-owned, already-subsumed by a standing Kani for-all
+  theorem, or commutative by construction. Verdict: STAND-DOWN,
+  recorded — no instrument lands, no dependency joins, and the
+  census itself is the deliverable (`docs/audit-night-frontier-
+  Z17-census.md`), so the LTS claim stays honest on the refusal
+  side too. Live evidence: the census's own fresh runs
+  (`ring_lanes` 2/2, `live_lanes` 2/2, 0.01 s each). Docs:
+  INNOVATIONS.md entry 57.
+
 ## [v80.5.2-night.1] — focus and be honest — 2026-11-21
 
 ### Changed
