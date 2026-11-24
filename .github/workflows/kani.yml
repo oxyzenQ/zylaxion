@@ -4,19 +4,25 @@
 #
 # Dragon Guard - Kani (night-depth-hardening-2/3): the proven datapath lane.
 # The bounded-model-checking verifier compiles the pure law harnesses in
-# src/engine/kani_proofs.rs and src/engine/kani_laws.rs — nineteen of
-# them — and proves each invariant over the WHOLE reachable input
+# src/engine/kani_proofs.rs and src/engine/kani_laws.rs — twenty of
+# them after night-depth-hardening-4's tail split — and proves each
+# invariant over the WHOLE reachable input
 # space, not a sampled slice of it. Unit tests sample; this lane
-# quantifies. Fourteen of the nineteen harnesses measure fast (the
-# push gate below: seven legs, every leg inside the twelve-minute
-# cap); five carry symbolic domains wide enough that their SAT
-# instances need their own wall clock, and they ride the deep job at
-# the bottom of this file. night-fly-1 puts the owner's fifteen-minute
-# wall under the whole estate and retires the test-lane schedules:
-# the fourteen fast harnesses ride every push, and the five atomic
-# proofs return to the on-demand lane (workflow_dispatch only) until
-# the reshaping filed with the deep job lands — no test lane keeps a
-# clock, and no job outmeasures the wall.
+# quantifies. night-depth-hardening-4's second measurement round
+# landed the reshaping the on-demand era was waiting for: the three
+# string-walking bodies the deep legs ride (the errno classifiers'
+# fallthrough, the verifier tail's keep and join stages, the cmdline
+# matcher) are flattened to manual scans the verifier's pointer model
+# carries without the iterator machinery's memory bombs, and every
+# deep leg now measures seconds locally (2/3/2 s classifiers,
+# 12/8 s tail, 9 s cmdline). So ALL twenty harnesses ride push:
+# seventeen through the fast families below (eight legs, every leg
+# inside the twelve-minute cap) and three through the deep job at
+# the bottom of this file — the on-demand gate is retired, no job
+# skips, and night-fly-1's fifteen-minute wall still caps every
+# leg. The deep job's fifteen-minute cap is now headroom, not a
+# cliff: a leg that outmeasures it still goes red as the honest
+# signal that a reshape regressed.
 #
 # night-depth-hardening-3 makes the lane a push net, not an absent one: the
 # push and pull_request triggers ride UNFILTERED (the owner's unfiltered-CI
@@ -45,8 +51,9 @@ name: Dragon Guard - Kani
 on:
   push:
   pull_request:
-  # Manual trigger from the Actions tab — the deep proofs' only door
-  # (night-fly-1: no schedule rides the test lanes).
+  # Manual trigger from the Actions tab — the on-demand full run
+  # (night-fly-1: no schedule rides the test lanes). Every job runs
+  # on push and PR; the deep legs are no longer dispatch-only.
   workflow_dispatch:
 
 # Least privilege: the job only reads the repo.
@@ -71,17 +78,19 @@ jobs:
     name: prove ${{ matrix.family.name }}
     runs-on: ubuntu-24.04
     # night-frontier-Z7 verify: the micro-matrix split. The lane ran
-    # all nineteen harnesses in ONE job — the only job in the estate
+    # all harnesses in ONE job — the only job in the estate
     # that ever approached or passed the fifteen-minute wall (the
     # owner's hard line: nothing waits that long), and the single-job
     # shape turned the install stall into a total lane outage. The
-    # push gate now keeps only what measures fast: three families and
-    # four singles cover fourteen harnesses, each leg its own runner,
+    # push gate keeps what measures fast: four families and
+    # four singles cover seventeen harnesses, each leg its own runner,
     # its own twelve-minute cap, and its own named verdict (fail-fast
     # false — one red leg never hides the others). Every leg measured
-    # 1.6 to 4.4 minutes on the first split run. The five atomic
-    # harnesses that outmeasure any acceptable wall clock ride the
-    # deep job below, gated off push and PR.
+    # 1.6 to 4.4 minutes on the first split run, and the
+    # errno-classifiers family joined at measured second-scale weight
+    # (night-depth-hardening-4). The three deep harnesses ride the
+    # deep job below, on every push now that their bodies are
+    # flattened.
     strategy:
       fail-fast: false
       matrix:
@@ -102,6 +111,19 @@ jobs:
               --harness engine::kani_laws::errno_proofs::attach_error_codes_round_trip_inside_the_pinned_band
               --harness engine::kani_laws::errno_proofs::attach_error_codes_refuse_outside_the_band
               --harness engine::kani_laws::errno_proofs::errno_text_is_total_and_nonempty
+          # The whole-i32 classifier trio, graduated from the deep job
+          # by measurement (night-depth-hardening-4): the structured
+          # errno fallthrough (UnknownErrno, render deferred to
+          # Display) freed the constructors of the eager format! that
+          # burned the wall, and the three proofs now measure
+          # 2-26 s locally (cold first run to warm rerun) —
+          # fast-lane weight, riding every push instead of the
+          # manual dispatch the on-demand era gave them.
+          - name: errno-classifiers (the whole-i32 trio)
+            args: >-
+              --harness engine::kani_laws::errno_proofs::kprobe_open_classifies_the_whole_errno_domain
+              --harness engine::kani_laws::errno_proofs::fentry_link_classifies_the_whole_errno_domain
+              --harness engine::kani_laws::errno_proofs::link_create_classifies_the_whole_errno_domain
           # The fast singles: proved solo in under three minutes on the
           # first matrix run (they were the victims of the earlier
           # family serialization, not of their own weight).
@@ -193,51 +215,41 @@ jobs:
           kani-version: '0.68.0'
           args: --output-format terse --exact ${{ matrix.family.args }}
 
-  # night-frontier-Z7 verify: the atomic five. The first matrix run
-  # proved fourteen of the nineteen harnesses inside minutes and
-  # measured the remaining five as atomic proofs that exceed the
-  # twelve-minute push gate: each whole-i32 classifier ran past that
-  # cap alone, the verifier-log tail bound ran out of memory at the
-  # four-gigabyte mark, and the cmdline matcher's five byte roles
-  # still outweigh the cap after the in-tree reshaping its own
-  # comments record. No split shrinks an atomic proof - one harness
-  # is one SAT instance, and this tree's own docs name the cause (the
-  # errno text carried through format! under a symbolic i32: the SAT
-# encoding's death valley, the same valley the privilege-table
-# harness was shaped to avoid). So the five ride their own job with
-# their own wall clock. night-fly-1 returns them to the on-demand
-# lane (the job-level gate below — the workflow still wakes on every
-# push for the fast lane, the deep job rides workflow_dispatch only):
-# the owner's fifteen-minute wall outlaws a ninety-minute push job,
-# and no schedule may keep the lane awake. The cap is fifteen minutes
-# now — a leg that outmeasures it goes red instead of hanging, the
-# honest signal that the reshaping filed below must land: a lazy
-# detail text on AttachError, or a stubbed errno_text under the
-# verifier's own stubbing contract — the owner's call, kept here with
-# the evidence.
+  # night-frontier-Z7 verify: the deep legs, once the atomic five.
+  # The first matrix run measured the five as atomic proofs that
+  # exceed the twelve-minute push gate: each whole-i32 classifier ran
+  # past that cap alone, the verifier-log tail bound ran out of
+  # memory at the four-gigabyte mark, and the cmdline matcher's five
+  # byte roles outweighed the cap. night-depth-hardening-4 then
+  # landed the reshaping in THREE rounds of measured forensics: the
+  # classifier trio's eager errno render moved to Display (the legs
+  # measure 26/3/2 s and now ride the fast lane's errno-classifiers
+  # family above), and the tail and cmdline legs traced to intrinsic
+  # memory bombs in the string-walking BODIES themselves —
+  # str::lines() dying at 90 s on a seven-byte fully concrete probe,
+  # the split-and-filter iterator dying at 300 s on an eight-byte
+  # probe with one symbolic byte, the 121-character cap probe dying
+  # at 778 s even after the char-boundary slice. The flattened
+  # manual-scan bodies carry the same laws at 12/9/7 s measured
+  # locally (the harness docs and the bodies' own notes record every
+  # number), so the deep job rides push like every other lane — the
+  # night-fly-1 on-demand gate is retired, nothing skips, and the
+  # fifteen-minute cap below stands as headroom: a leg that
+  # outmeasures it goes red as the honest signal that a reshape
+  # regressed.
   deep:
     name: deep proof ${{ matrix.harness.name }}
     runs-on: ubuntu-24.04
-    # night-fly-1: the deep legs ride the manual dispatch only — the
-    # push and PR runs show this job as skipped by design, and the
-    # fifteen-minute cap below is the wall every estate job answers to.
-    if: github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
         harness:
-          - name: cmdline-tamper (the matcher's five byte roles)
+          - name: cmdline-tamper (the whole single-flip space)
             args: --harness engine::kani_proofs::proofs::cmdline_tamper_breaks_the_real_player_shape
           - name: verifier-tail keep bound (the line count)
             args: --harness engine::kani_laws::errno_proofs::verifier_tail_keeps_at_most_the_keep_bound
-          - name: verifier-tail cap boundary (the 120-character cut)
+          - name: verifier-tail cap boundary (the cut mechanism)
             args: --harness engine::kani_laws::errno_proofs::verifier_tail_caps_every_line_at_the_bound
-          - name: kprobe-open classifier (whole i32)
-            args: --harness engine::kani_laws::errno_proofs::kprobe_open_classifies_the_whole_errno_domain
-          - name: fentry-link classifier (whole i32)
-            args: --harness engine::kani_laws::errno_proofs::fentry_link_classifies_the_whole_errno_domain
-          - name: link-create classifier (whole i32)
-            args: --harness engine::kani_laws::errno_proofs::link_create_classifies_the_whole_errno_domain
     timeout-minutes: 15
     steps:
       - name: Checkout
