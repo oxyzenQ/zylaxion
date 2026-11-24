@@ -56,11 +56,52 @@ pub const SETTLE_BUDGET_STEPS: u32 = 5;
 /// rejected by construction: a different binary path, a different
 /// argument, extra arguments, a shell wrapper (`sh -c ...` carries
 /// three-plus tokens), or an empty cmdline (a zombie) never match.
+///
+/// The token walk is a manual NUL scan, not `split(closure).filter()`
+/// adaptor machinery: the split iterator is a measured memory bomb
+/// under the Kani verifier (the tamper law's harness needs the
+/// matcher over a buffer with one symbolic byte, and the iterator
+/// machinery ran CBMC out of memory at the 300-second mark on an
+/// EIGHT-byte probe — the search state multiplies through the
+/// pointer model at any byte count; the flat scan verifies in
+/// seconds). Behavior is the identical two-non-empty-token contract:
+/// the first token is the path, the second the verb, a third
+/// non-empty token is a refusal, and a missing trailing NUL still
+/// ends the last token — the unit tree pins every refusal shape.
 pub fn cmdline_matches_player(raw: &[u8], exe: &OsStr) -> bool {
     let exe_bytes = exe.as_bytes();
-    let mut tokens = raw.split(|b| *b == 0).filter(|t| !t.is_empty());
-    match (tokens.next(), tokens.next(), tokens.next()) {
-        (Some(path), Some(arg), None) => path == exe_bytes && arg == PLAYER_ARG.as_bytes(),
+    let verb = PLAYER_ARG.as_bytes();
+    let mut path: Option<&[u8]> = None;
+    let mut arg: Option<&[u8]> = None;
+    let mut start = 0;
+    let mut index = 0;
+    while index < raw.len() {
+        if raw[index] == 0 {
+            let token = &raw[start..index];
+            if !token.is_empty() {
+                match (path, arg) {
+                    (None, _) => path = Some(token),
+                    (Some(_), None) => arg = Some(token),
+                    // A third non-empty token: extra arguments or a
+                    // shell wrapper — never the player shape.
+                    (Some(_), Some(_)) => return false,
+                }
+            }
+            start = index + 1;
+        }
+        index += 1;
+    }
+    // The trailing token when the cmdline is not NUL-terminated.
+    if start < raw.len() {
+        let token = &raw[start..];
+        match (path, arg) {
+            (None, _) => path = Some(token),
+            (Some(_), None) => arg = Some(token),
+            (Some(_), Some(_)) => return false,
+        }
+    }
+    match (path, arg) {
+        (Some(p), Some(a)) => p == exe_bytes && a == verb,
         _ => false,
     }
 }

@@ -69,6 +69,38 @@ fn near_miss_arguments_never_match() {
     }
 }
 
+/// night-depth-hardening-4's manual NUL-scan equivalence pins: the
+/// flat walk must yield the SAME verdicts the split-and-filter
+/// iterator yielded on the shapes where the two could drift — a
+/// missing trailing NUL (the last token still ends), empty tokens
+/// between real ones (skipped, not counted), a third real token
+/// after skipped empties (still a refusal), and an empty head before
+/// the path token (one real token, never a match).
+#[test]
+fn the_matcher_walks_untampered_nul_shapes_like_split() {
+    let exe = std::path::Path::new("/usr/bin/zylaxion");
+    // No trailing NUL: the trailing segment is still the verb token.
+    let mut raw = exe.as_os_str().as_bytes().to_vec();
+    raw.push(0);
+    raw.extend_from_slice(b"_play");
+    assert!(cmdline_matches_player(&raw, exe.as_os_str()));
+    // Empty tokens between the real ones are skipped, not counted.
+    assert!(cmdline_matches_player(
+        b"/usr/bin/zylaxion\0\0_play\0",
+        exe.as_os_str()
+    ));
+    // A third real token after skipped empties is still a refusal.
+    assert!(!cmdline_matches_player(
+        b"/usr/bin/zylaxion\0\0_play\0\0extra\0",
+        exe.as_os_str()
+    ));
+    // A lone token plus an empty head: single-token, never a match.
+    assert!(!cmdline_matches_player(
+        b"\0/usr/bin/zylaxion\0",
+        exe.as_os_str()
+    ));
+}
+
 /// The detach-side identity gate (night-total-lts-1): the exact
 /// player shape passes; unreadable cmdlines, foreign processes, wrong
 /// verbs, extra arguments, and a failed current_exe are all refusals
