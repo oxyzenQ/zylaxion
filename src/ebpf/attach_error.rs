@@ -407,8 +407,8 @@ fn is_permission(e: &std::io::Error) -> bool {
 /// a loop over a heap `Vec` (a symbolic trip count, unrolled to the
 /// unwind bound) AND heap `String` growth multiplies the memory model
 /// into a bomb; the stages prove in their OWN instances —
-/// [`Self::keep_last_lines`] over the line-count axis,
-/// [`Self::cap_and_join`] at the cap's exact boundary — and the
+/// [`keep_last_lines`] over the line-count axis,
+/// [`cap_and_join`] at the cap's exact boundary — and the
 /// composition here (slice, call) is pinned byte-exact by the unit
 /// tree. No behavior moved: same lines, same filter, same cap, same
 /// separator, same empty-log verdict. The decomposition was necessary
@@ -426,7 +426,7 @@ pub(crate) fn verifier_tail(log_text: &str, keep: usize) -> String {
 /// the keep bound over this stage's whole (bounded) line-count domain
 /// — the harness rides a symbolic selector over concrete logs, whose
 /// trip counts stay small enough for the verifier's memory ceiling
-/// (the decomposition note on [`Self::verifier_tail`] carries the
+/// (the decomposition note on [`verifier_tail`] carries the
 /// measurement). The line walk is a manual `\n` scan, not
 /// `str::lines()`: the lines() iterator machinery is a measured
 /// memory bomb under the verifier (an 85-second out-of-memory on a
@@ -467,7 +467,7 @@ pub(crate) fn keep_last_lines(log_text: &str, keep: usize) -> Vec<&str> {
 /// plus the ellipsis. A named constant, not a magic number at the cut
 /// site — the binding is data the unit tree pins (the 200-character
 /// probe), while the cut mechanism itself is cap-generic and rides
-/// [`Self::cap_and_join_at`] where the proof lane can quantify it
+/// [`cap_and_join_at`] where the proof lane can quantify it
 /// (the harness doc in `kani_laws.rs` carries the measurement story).
 const VERIFIER_LINE_CAP: usize = 120;
 
@@ -488,7 +488,7 @@ pub(crate) fn cap_and_join(lines: &[&str]) -> String {
 /// line over `cap` characters cuts to its `cap`-th char boundary plus
 /// the ellipsis, shorter lines ride through whole, and adjacent lines
 /// join with the separator. Production binds `cap` to
-/// [`VERIFIER_LINE_CAP`] (120) at [`Self::cap_and_join`]; the binding
+/// [`VERIFIER_LINE_CAP`] (120) at [`cap_and_join`]; the binding
 /// is pinned by the unit tree's 200-character probe, and the
 /// mechanism is what the proof lane quantifies — at a small cap the
 /// same law verifies in seconds where the 121-character probe ground
