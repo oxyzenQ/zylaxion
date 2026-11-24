@@ -36,7 +36,7 @@
 
 [package]
 name = "zylaxion-fuzz"
-version = "80.5.6-arc.1"
+version = "80.5.6"
 publish = false
 edition = "2024"
 

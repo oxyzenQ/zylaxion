@@ -18,6 +18,7 @@ and the pre-v10 release notes live next to it in
 
 ## [Released]
 
+v80.5.6
 v80.5.6-arc.1
 v80.5.5
 v80.5.4
@@ -48,7 +49,7 @@ v80.0.0-beta.2
 v80.0.0-beta.1
 v80.0.0-alpha.1
 
-## [Unreleased]
+## [v80.5.6] — 2026-11-24
 
 ### Added
 
@@ -171,6 +172,8 @@ v80.0.0-alpha.1
   metadata lands on the NEXT version bump — the already-published
   80.5.6-arc.1 is immutable on crates.io, versions are never
   rewritten.
+
+## [Unreleased]
 
 ## [v80.5.2-night.1] — focus and be honest — 2026-11-21
 
