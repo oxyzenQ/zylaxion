@@ -1,0 +1,190 @@
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
+# OS: Linux only — zylaxion is a Linux keyboard-sound tool; no other OS is supported.
+# =============================================================================
+#
+# Dragon Guard - Proofs (night-netrunner-Z2): the sampled tier's
+# per-push verdict vehicle, the zelynic night-frontier-Z6 lineage
+# adapted to this tree. The for-all tier rides kani.yml (twenty
+# cfg(kani) harnesses over the root crate's own laws); this lane owns
+# the LAYER BETWEEN unit pins and solver theorems — proptest
+# exhaustion of the #[path]-included law cores in proofs/, thousands
+# of shrinkable cases per law per run, rootless, stable-only, seconds
+# of wall on the measured record (11 tests in 0.02 s locally, cold
+# compile under a minute).
+#
+# The include law is the lane's whole honesty: the harnesses compile
+# src/engine/gain.rs and src/info/clock.rs by #[path] — the SAME
+# bytes the binary ships (the fuzz lane's own discipline) — so a law
+# this lane verifies is a law the datapath runs, with no harness
+# drift and no copied grammar. The gain core became includeable the
+# same commit this lane landed (the pure move out of pool/player/
+# mechanical); a future edit that breaks the include law breaks this
+# lane's compile loudly.
+#
+# The three-tier posture the estate now carries, one sentence each:
+#   * unit pins (ci.yml's cargo test) — hand-picked edges;
+#   * this lane — sampled, shrinkable, thousands of cases per law;
+#   * kani.yml — for-all over the harness's whole stated domain.
+# A red here is a real counterexample with a shrunk witness; the
+# regression store (proofs/proptest-regressions/) replays every
+# counterexample ever caught on each subsequent run, so a fixed bug
+# can never silently regress.
+#
+# Trigger discipline (the estate's standing shape, unfiltered since
+# night-dragon-maintenance-2 — no path filter, no branch filter): the
+# push and pull_request triggers ride the same blind posture ci.yml
+# and miri.yml carry; workflow_dispatch is the on-demand full run
+# (night-fly-1: no schedule rides the test lanes — every test wakes
+# on commit alone). The detached package's own lockfile
+# (proofs/Cargo.lock, the five-lock estate) is what the cache key
+# hashes: a proptest bump changes the hash, a root-crate edit does
+# not re-key the sample lane's cache — the lane's own dependency
+# surface is exactly what it hashes.
+#
+# Why the DNS and apt guards ride at all (the miri.yml shape verbatim)
+# even though the test itself is seconds: the lane's compile still
+# resolves crates.io, and the runner's Azure resolver has served dead
+# ubuntu.com zones for hours on the incident record — the guards are
+# the estate's standing load-bearing steps, not theater.
+
+name: Dragon Guard - Proofs
+
+on:
+  push:
+  pull_request:
+  # Manual trigger from the Actions tab — the on-demand full run
+  # (night-fly-1: no schedule rides the test lanes).
+  workflow_dispatch:
+
+# Least privilege: the job only reads the repo.
+permissions:
+  contents: read
+
+# One run per ref: a new push supersedes the previous run's verdict
+# (the sibling lanes' concurrency shape, every workflow in the
+# estate).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  property:
+    name: Proptest exhaustion (the sampled tier, included bytes)
+    runs-on: ubuntu-24.04
+    # A cap, not a speed claim — the measured record lands in seconds
+    # (the local run's 0.02 s test phase plus a cold compile under a
+    # minute); fifteen minutes is the estate ceiling with headroom, so
+    # a runaway sampler (a future property whose shrink loop diverges)
+    # goes red loudly instead of burning the runner silently.
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7, the zelynic estate SHA pin
+        with:
+          # The checkout token never outlives this step — no later
+          # step can read it back (the miri.yml law).
+          persist-credentials: false
+
+      # The pinned stable toolchain the root manifest names
+      # (rust-toolchain.toml, 1.98.1) — the sampled tier is
+      # stable-only by design (the zelynic lane's own posture): no
+      # nightly-only surface rides this package, and the lockfile is
+      # resolved against the same pin the binary builds with.
+      - name: Install the pinned stable toolchain
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # v1, @stable, the zelynic estate SHA pin
+        with:
+          toolchain: 1.98.1
+
+      - name: Harden the runner DNS
+        run: |
+          # The zejtron night recipe, adopted for the same fleet (the
+          # 43048319555 outage evidence): the public resolvers go IN
+          # FRONT of /etc/resolv.conf — appending would fall past
+          # glibc's three-slot MAXNS window. This lane needs it for
+          # the crates.io resolution the package's cold compile rides.
+          {
+            printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n'
+            sudo cat /etc/resolv.conf
+          } | sudo tee /etc/resolv.conf > /dev/null
+
+      - name: Install system dependencies
+        run: |
+          # The miri.yml apt-stall shape, verbatim (the three named
+          # layers of the 43048319555 outage): the fast path, then
+          # the mirror repoint plus the three-attempt update lane.
+          # pkg-config rides preinstalled; no ALSA dev headers are
+          # needed here — the proofs package has no build script and
+          # no C linkage, its dependency surface is proptest and std
+          # alone (the detachment law: the root manifest's audio
+          # stack never enters this build). The step stays because
+          # the runner's own toolchain bootstrap rides apt for its
+          # CA certificates on the fallback path.
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 90 apt-get "${APT_OPTS[@]}" install -y -qq pkg-config; then
+            echo "apt: the fast path landed (the image's lists held)"
+          else
+            echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
+            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list 2>/dev/null || true
+            landed=""
+            for attempt in 1 2 3; do
+              echo "--- apt attempt $attempt: update + install ---"
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq pkg-config; then
+                landed="attempt $attempt"
+                break
+              fi
+              if [ "$attempt" = 3 ]; then
+                echo "::error::apt stalled on all three named attempts"
+                exit 1
+              fi
+              sleep 20
+            done
+            echo "apt: landed on $landed"
+          fi
+
+      # The sampled tier's dependency surface is exactly the
+      # package's own lockfile — the cache key hashes proofs/Cargo.lock
+      # alone (a proptest bump re-keys; a root-crate edit does not),
+      # and the path is the package's own target dir, never the root
+      # crate's (the two builds never share a fingerprint).
+      - name: Cache the proofs package build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, the zelynic estate SHA pin
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            proofs/target
+          key: proofs-${{ hashFiles('proofs/Cargo.lock') }}
+          restore-keys: |
+            proofs-
+
+      # The sampled tier's run: one invocation, all properties, the
+      # pinned lockfile (--locked — a drift between manifest and lock
+      # fails loudly instead of resolving a fresh graph mid-verdict).
+      # A failing property names its shrunk witness in the log; a
+      # counterexample lands in proofs/proptest-regressions/ for the
+      # contributor to commit, so every later run replays it.
+      - name: Run the property suite (cargo test --locked)
+        run: |
+          cargo test --locked --manifest-path proofs/Cargo.toml
+
+      # The failure evidence outlives the runner: the sampled tier's
+      # log (which property, which shrunk witness).
+      - name: Upload the property log on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7, the zelynic estate SHA pin
+        with:
+          name: proofs-log
+          path: |
+            proofs/target/proptest-dirty
+            proofs/proptest-regressions
+          retention-days: 30
+          if-no-files-found: ignore
