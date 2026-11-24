@@ -73,7 +73,7 @@ pub fn attach() -> Result<String, AttachError> {
     //     gate re-hashes the bytes it is about to hand the kernel
     //     against the build-time stamp (ZYLAXION_TAP_OBJECT_B3) — the
     //     SAME verification core the sig report's D4 row renders
-    //     (ebpf/attest.rs, one implementation, zero drift). Until
+    //     (ebpf/attest/, one implementation, zero drift). Until
     //     this gate existed, a binary whose embedded object was
     //     patched after the build failed `sig` but ATTACHED anyway:
     //     the ring-0 payload ran on the strength of bytes the build

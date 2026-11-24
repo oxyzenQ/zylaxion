@@ -333,7 +333,7 @@ pub(crate) fn manifest_fingerprint() -> u64 {
 // binary actually carries and compares them to that stamp.
 //
 // night-netrunner-Z1 moved the verification core into
-// ebpf/attest.rs (`object_anchor_verdict`) so the sig row and the
+// ebpf/attest/ (`object_anchor_verdict`) so the sig row and the
 // loader's anchor gate share ONE implementation — the two surfaces
 // can never disagree about whether the object is sealed. This
 // delegate keeps the D4 row's call site stable and its detail

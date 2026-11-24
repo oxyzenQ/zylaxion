@@ -1272,30 +1272,46 @@ test functions pin the entries above, wired into the crate through
 beside this tree, per entry 56). The family map, so an auditor can
 walk it in one pass:
 
-- `test/profiles/` (mechanical, profiles, registry) — the Zactrix
+- `test/profiles/` (mechanical, profiles, registry,
+  curve_anchor) — the Zactrix
   stages, the TPT chain, the housing window, the rate-normalized
   decay law, micro-randomization, the decoupled noise streams, the
-  pan table, interval attenuation, velocity scaling, and the registry
-  clamp contract (entries 1–10, 14).
-- `test/engine/` (pool, render, freeze, detmath) — oldest-first
+  pan table, interval attenuation, velocity scaling, the registry
+  clamp contract, and the response-curve anchor rows (entries
+  1–10, 14).
+- `test/engine/` (pool, render, freeze, detmath, detmath_vectors,
+  live_lanes,
+  denormal_policy) — oldest-first
   stealing, the smooth release ramp, the clamp and NaN silence net,
-  the engine freeze declaration, and the certified transcendental
-  lane's vectors and certificates (entries 9, 11, 12, 31, 47).
+  the engine freeze declaration, the certified transcendental
+  lane's vectors and certificates, the denormal flush policy, and
+  the bounded interleaving pins (concurrent retunes and model
+  swaps under render) (entries 9, 11, 12, 31, 47).
+- `test/audio/` (ring_lanes) — the SPSC ring's interleaving pins:
+  FIFO integrity under pressure, the accounting law, the drop
+  contract (night-frontier-Z1's A2 remainder; entry 57's census
+  re-ran them green).
 - `test/core/` — the Orchestrator: the pan law, the timestamp lane,
   the adaptive wait, the ring bridge behavior, and the Z4 park
   witness (entries 7, 8, 15, 29, 46).
 - `test/ebpf/` (args, loader, bpf_syscall, embedded, attach_error,
-  pin) — the tap ABI shapes, the chain vocabulary and its control
+  pin, attest, attest_log, notice) — the tap ABI shapes, the chain
+  vocabulary and its control
   slot, the raw-syscall lanes, the AlignedElf guard, the failure
-  taxonomy's wire format, and the classified pin cleanup (entries
-  16–21).
-- `test/session/` (kernel, orphan, privilege, preset) — the capability
+  taxonomy's wire format, the classified pin cleanup, the sig
+  ladder's D4/D5 verdicts, the hash-chained log replay, and the
+  notice record's slot shapes (entries 16–21, 55).
+- `test/session/` (kernel, orphan, privilege, preset, wake) — the
+  capability
   probe, the orphan identity gate and ladder, the privilege table,
-  and the no-config resolution and caps (entries 23, 25–27).
+  the no-config resolution and caps, and the wake-pipe lanes (entries
+  23, 25–27).
 - `test/commands/` (player, sound, sig, info, help) — the stateless
   player vocabulary, the errno classification law, the sig report
   shape, and the doctor surfaces (entries 24, 28, 38).
-- `test/cli/`, `test/info/`, `test/output/` — the CLI rescue
+- `test/cli/` (ux, suggestion, version_report), `test/info/` (build,
+  clock, signature, version), `test/output/` (output, spinner) — the
+  CLI rescue
   machinery, the build-stamp chain, the version grammar (fuzz-target
   covered), the journal door, and the provenance layer pins (entries
   33, 35–38).

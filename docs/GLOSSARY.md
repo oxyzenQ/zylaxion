@@ -125,7 +125,7 @@ drifts between docs is a bug.
   `AttachError::ObjectUnsealed` (marker code 10) — the ring-0
   payload runs only on the strength of bytes the build staged. The
   same verification core the sig report's D4 row renders
-  (`src/ebpf/attest.rs`), one implementation, zero drift.
+  (`src/ebpf/attest/`), one implementation, zero drift.
 - **attestation transparency log** — the append-only, hash-chained
   record of what the loader actually put in the kernel
   (night-netrunner-Z1): every successful attach appends one line to

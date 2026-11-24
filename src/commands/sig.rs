@@ -207,7 +207,7 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     // D5: the commit-signature binding (night-netrunner-Z1). The
     // stamp is the build's own verified verdict over the claimed
     // commit; the policy (pinned fingerprint, honest sentences for
-    // every state) lives in ebpf/attest.rs — the same module the
+    // every state) lives in ebpf/attest/ — the same module the
     // loader's attestation record binds through, one policy for the
     // row that reports and the lane that loads.
     let (sig_ok, sig_detail) = crate::ebpf::attest::commit_signature_verdict(
