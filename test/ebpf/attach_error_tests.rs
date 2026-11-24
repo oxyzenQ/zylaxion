@@ -291,6 +291,31 @@ fn verifier_tail_caps_line_length_and_handles_short_logs() {
     assert_eq!(verifier_tail("", 3), "");
 }
 
+/// night-depth-hardening-4's manual line-scan equivalence pins: the
+/// `\n`-cut plus `trim()` body must yield the SAME kept lines
+/// `str::lines()` yields on the shapes where the two could drift —
+/// CRLF endings (the `\r` rides inside the cut segment and the trim
+/// eats it), a trailing segment with no final newline, a log that
+/// ends with the newline, and whitespace-only padding lines.
+#[test]
+fn verifier_tail_cuts_crlf_and_trailing_segments_like_lines() {
+    // CRLF endings: the same two kept lines as the LF form.
+    assert_eq!(
+        verifier_tail("head\r\nstate 1: R0=inv1\r\nstate 42: R0_w=1\r\n", 2),
+        "state 1: R0=inv1 | state 42: R0_w=1"
+    );
+    // A trailing segment without a final newline is still a line.
+    assert_eq!(
+        verifier_tail("state 1: R0=inv1\nstate 42: R0_w=1", 2),
+        "state 1: R0=inv1 | state 42: R0_w=1"
+    );
+    // A log that ends with the newline adds no phantom trailing line.
+    assert_eq!(verifier_tail("one line\n", 3), "one line");
+    // Whitespace-only lines are the empty-line filter's, not the
+    // keep bound's.
+    assert_eq!(verifier_tail(" \t \none line\n \t \n", 3), "one line");
+}
+
 // ── night-hardening-2: the full-domain sweeps ─────────────────────────
 
 /// The kernel's errno space, swept end to end across all three raw

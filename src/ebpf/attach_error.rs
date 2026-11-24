@@ -406,13 +406,17 @@ fn is_permission(e: &std::io::Error) -> bool {
 /// the probe ladder isolated the cause. One SAT instance carrying BOTH
 /// a loop over a heap `Vec` (a symbolic trip count, unrolled to the
 /// unwind bound) AND heap `String` growth multiplies the memory model
-/// into a bomb; the same bodies over concrete trip counts verify in
-/// seconds. So the two stages prove in their OWN instances —
-/// [`Self::keep_last_lines`] whole-domain over the line-count axis,
+/// into a bomb; the stages prove in their OWN instances —
+/// [`Self::keep_last_lines`] over the line-count axis,
 /// [`Self::cap_and_join`] at the cap's exact boundary — and the
 /// composition here (slice, call) is pinned byte-exact by the unit
 /// tree. No behavior moved: same lines, same filter, same cap, same
-/// separator, same empty-log verdict.
+/// separator, same empty-log verdict. The decomposition was necessary
+/// but not sufficient — the second measurement round found a bomb
+/// inside each stage's own instance (the cap arm's per-char String
+/// collect on concrete input; the keep harness's wide symbolic
+/// selector) and reshaped both; the per-stage doc notes carry those
+/// records.
 pub(crate) fn verifier_tail(log_text: &str, keep: usize) -> String {
     cap_and_join(&keep_last_lines(log_text, keep))
 }
@@ -423,35 +427,96 @@ pub(crate) fn verifier_tail(log_text: &str, keep: usize) -> String {
 /// — the harness rides a symbolic selector over concrete logs, whose
 /// trip counts stay small enough for the verifier's memory ceiling
 /// (the decomposition note on [`Self::verifier_tail`] carries the
-/// measurement).
+/// measurement). The line walk is a manual `\n` scan, not
+/// `str::lines()`: the lines() iterator machinery is a measured
+/// memory bomb under the verifier (an 85-second out-of-memory on a
+/// seven-byte FULLY CONCRETE probe — the pointer model pays for the
+/// iterator's internal searcher whatever the input), while `trim()`
+/// and the explicit loop probe in seconds. Equivalence holds by the
+/// body's own contract: every kept line is trimmed, and `trim()`
+/// strips the `\r` that CRLF line endings leave inside a `\n`-cut
+/// segment — so cutting on `\n` alone and trimming yields the SAME
+/// kept lines `lines()` yields (the unit tree pins the exact render
+/// across CRLF, blank-line, and trailing-segment shapes).
 pub(crate) fn keep_last_lines(log_text: &str, keep: usize) -> Vec<&str> {
+    let bytes = log_text.as_bytes();
     let mut lines: Vec<&str> = Vec::with_capacity(16);
-    for line in log_text.lines() {
-        let trimmed = line.trim();
-        if !trimmed.is_empty() {
-            lines.push(trimmed);
+    let mut start = 0;
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'\n' {
+            let trimmed = log_text[start..index].trim();
+            if !trimmed.is_empty() {
+                lines.push(trimmed);
+            }
+            start = index + 1;
         }
+        index += 1;
     }
-    let start = lines.len().saturating_sub(keep);
-    lines[start..].to_vec()
+    // The trailing segment after the last newline (empty when the
+    // log ends with one): the same cut-and-trim arm as the loop body.
+    let trimmed = log_text[start..].trim();
+    if !trimmed.is_empty() {
+        lines.push(trimmed);
+    }
+    let drop = lines.len().saturating_sub(keep);
+    lines[drop..].to_vec()
 }
+
+/// The tail's stage-two cap as production binds it: 120 characters
+/// plus the ellipsis. A named constant, not a magic number at the cut
+/// site — the binding is data the unit tree pins (the 200-character
+/// probe), while the cut mechanism itself is cap-generic and rides
+/// [`Self::cap_and_join_at`] where the proof lane can quantify it
+/// (the harness doc in `kani_laws.rs` carries the measurement story).
+const VERIFIER_LINE_CAP: usize = 120;
 
 /// The tail's stage two: each line capped at 120 characters plus the
 /// ellipsis, joined with " | ". `pub(crate)`: the Kani lane proves the
 /// cap law over concrete array probes at the exact boundary (a
 /// 121-character line cuts to 120 plus the ellipsis; shorter lines
-/// ride through whole, joined) — concrete trip counts, the same
-/// memory shape the decomposition note on [`Self::verifier_tail`]
-/// records.
+/// ride through whole, joined). The cap arm's cut rides a char-
+/// boundary slice, not a per-char collect: the slice is the measured
+/// shape — the collect's String growth ground CBMC past six minutes
+/// on the concrete probe alone (the note inside the body carries the
+/// record).
 pub(crate) fn cap_and_join(lines: &[&str]) -> String {
+    cap_and_join_at(lines, VERIFIER_LINE_CAP)
+}
+
+/// The cap-and-join mechanism, parameterized over the cut bound: the
+/// line over `cap` characters cuts to its `cap`-th char boundary plus
+/// the ellipsis, shorter lines ride through whole, and adjacent lines
+/// join with the separator. Production binds `cap` to
+/// [`VERIFIER_LINE_CAP`] (120) at [`Self::cap_and_join`]; the binding
+/// is pinned by the unit tree's 200-character probe, and the
+/// mechanism is what the proof lane quantifies — at a small cap the
+/// same law verifies in seconds where the 121-character probe ground
+/// the verifier out of memory (the pointer model walks every byte of
+/// the probe through the heap objects regardless of the input's
+/// concreteness; a small cap carries the identical branch structure
+/// over a fraction of the instance — the tree's own laws-not-details
+/// idiom, the classifier table's shape applied to the cut).
+pub(crate) fn cap_and_join_at(lines: &[&str], cap: usize) -> String {
     let mut tail = String::with_capacity(64);
     for (index, line) in lines.iter().enumerate() {
         if index > 0 {
             tail.push_str(" | ");
         }
-        if line.chars().count() > 120 {
-            let capped: String = line.chars().take(120).collect();
-            tail.push_str(&capped);
+        // The cut point in one scan: the byte offset of the
+        // (cap+1)-th char, when one exists. Slicing there yields
+        // exactly the first `cap` chars — byte-identical to the
+        // former `chars().take(120).collect()` (the unit tree pins
+        // the render) without the per-char String growth. That
+        // growth was the second measured memory bomb on the proof
+        // lane: a 120-iteration collect rides ~six reallocations
+        // through the verifier's heap model, and CBMC ground past
+        // the six-minute mark on the concrete 121-character probe
+        // alone; the boundary scan plus one bounded push_str carries
+        // the same law in a fraction of the instance
+        // (night-depth-hardening-4, the second measurement).
+        if let Some((offset, _)) = line.char_indices().nth(cap) {
+            tail.push_str(&line[..offset]);
             tail.push_str("...");
         } else {
             tail.push_str(line);
