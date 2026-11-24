@@ -177,7 +177,7 @@ them in `audit.yml`, a scanner that cannot run is a red verdict (never
 a silent green), and the final verdict step is the job's only exit-1
 point so fixable bumps always land before the red is raised. The
 canonical push lane (`audit.yml`) and the local gatekeeper
-(`scripts/build.sh check-all`) scan the same four-lock surface, so no
+(`scripts/build.sh check-all`) scan the same five-lock surface, so no
 lane can certify a tree a sibling lock is poisoning. The scan-only
 dispatch (`scan_only`, the zejtron night-supply-1 red button) runs the
 whole verdict on the committed tree any day of the week and ships

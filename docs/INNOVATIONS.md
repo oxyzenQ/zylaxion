@@ -1188,12 +1188,53 @@ tamper-sig probe's control arm now derives its expectation from the
 repo's own HEAD, so a CI build from an unsigned commit verifies the
 honest 5/6 verdict, never a wrong one.
 
+**56. The sampled tier — the proof layer between unit pins and
+solver theorems (night-netrunner-Z2;
+`proofs/`, `src/engine/gain.rs`,
+`.github/workflows/proofs.yml`).** The zelynic night-frontier-Z6
+lineage names two proof instruments: the for-all tier (Kani, the
+bounded model checker — this estate's twenty `cfg(kani)` harnesses
+under the `kani.yml` micro-matrix) and the sampled tier (proptest,
+the shrinkable counterexample machine) — and the audit gap was real:
+the tree carried the first and not the second, so the layer that
+cheaply hunts what the solver-bound shapes cannot decide did not
+exist. The close is the zelynic shape, adapted to this tree's own
+law: (1) the gain-law core — `src/engine/gain.rs`, a pure move of
+the volume clamp cell (`volume_bits`), the percent-of-default gain
+law (`gain_from_percent`), `DEFAULT_MASTER_VOLUME`, and the PRNG's
+signed-float mapping (`u32_to_signed_f32`) into ONE crate-path-free,
+std-only module, every former site (pool, player, mechanical) now
+importing through compatibility seats — zero behavior change, the
+extraction existing for exactly one reason: the include law. (2)
+The detached package — `proofs/`, the same detachment shape `fuzz/`
+carries, so the instruments never enter the root manifest's
+dependency graph (the five-lock estate: the root `Cargo.lock` never
+sees proptest); its harnesses compile the law files by `#[path]`
+(the SAME bytes the binary ships), so a law the proofs verify is a
+law the datapath runs. (3) The lane — `.github/workflows/proofs.yml`,
+per-push beside the Kani lane, rootless, stable-only on the pinned
+1.98.1 toolchain, capped at the fifteen-minute estate ceiling;
+eleven properties over the included cores: the volume clamp and its
+band identity, the gain monotonicity, the end-to-end control-map
+write path (percent → gain → cell → restored f32, never each stage
+in isolation), the signed mapping's symmetric range (the old divisor
+bug's +3.0 escape is the regression it exists to catch) and its
+injectivity on the top 24 bits, and the Hinnant calendar's
+month-length and monotone laws over the whole four-digit ISO domain.
+A red is a real counterexample with a shrunk witness; the regression
+store (`proofs/proptest-regressions/`) replays every counterexample
+ever caught on each subsequent run, so a fixed bug can never
+silently regress. Measured locally on the pinned toolchain: 11
+tests pass in 0.02 s; the lane's run step is the exact CI command
+(`cargo test --locked --manifest-path proofs/Cargo.toml`).
+
 ## The test tree that pins the ledger
 
-The ledger is not honored by prose alone: 39 test files carrying 308
+The ledger is not honored by prose alone: 41 test files carrying 327
 test functions pin the entries above, wired into the crate through
-`#[path]` modules. The family map, so an auditor can walk it in one
-pass:
+`#[path]` modules (the sampled tier rides its own detached package
+beside this tree, per entry 56). The family map, so an auditor can
+walk it in one pass:
 
 - `test/profiles/` (mechanical, profiles, registry) — the Zactrix
   stages, the TPT chain, the housing window, the rate-normalized
@@ -1254,10 +1295,17 @@ parked-player law of entry 46 is `cargo run --release --example
 idle_cpu_sanity` (phase 1 prints the /proc wake count — the zero —
 and the CPU figure) and, on a root lane, the E2E parked-player
 witness leg (`scripts/supermassive/sm_idle.py` through the full
-battery). Entries 51 and 52 carry no instruments by their own
-verdict: LEARN is a filed decision, and the proof obligation arrives
-only if the realism lane opens. Where a number in any other doc
-disagrees with the code, the code wins — and the doc gets the PR.
+battery); the sampled tier of entry 56 verifies with
+`cargo test --locked --manifest-path proofs/Cargo.toml` (the
+detached package, the same command the proofs lane rides, seconds of
+wall); the include law itself is load-bearing twice — the lane and
+the fuzz workspace compile the same `src/engine/gain.rs` and
+`src/info/clock.rs` bytes the binary ships, so a drift breaks a
+compile, not a guarantee. Entries 51 and 52 carry no instruments by
+their own verdict: LEARN is a filed decision, and the proof
+obligation arrives only if the realism lane opens. Where a number in
+any other doc disagrees with the code, the code wins — and the doc
+gets the PR.
 
 <!-- ZYLAXION-DISCLAIMER -->
 <!--

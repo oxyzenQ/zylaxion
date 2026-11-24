@@ -195,8 +195,8 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
 - **Scanner rule:** a scanner workflow carries the surface it scans
   (the zelynic NIGHT-improve-11 law) — `Dragon Guard - Security
   Audit` (audit.yml, cargo-audit `--deny warnings` over every tracked
-  lockfile — the four-lock estate: root, fuzz/, ebpf/,
-  scripts/audit/harness/) scans on every
+  lockfile — the five-lock estate: root, fuzz/, ebpf/,
+  proofs/, scripts/audit/harness/) scans on every
   push and PR unfiltered (night-fly-1 retired the weekly Sunday
   clock — the no-schedule law: every test lane wakes on commit
   alone, and cargo-audit fetches the advisory DB fresh each run).
