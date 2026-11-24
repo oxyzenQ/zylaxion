@@ -1234,7 +1234,7 @@ dependencies = [
 
 [[package]]
 name = "zylaxion"
-version = "80.5.4"
+version = "80.5.5"
 dependencies = [
  "alsa-sys",
  "arc-swap",
