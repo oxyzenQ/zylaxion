@@ -221,12 +221,17 @@ grep -rn 'scancode' src/ examples/ --include='*.rs' | \
   minutes. The floor stays the ten-minute budget (night-zen-2): a
   job that cannot finish inside ten is mis-sized and gets fixed, not
   promoted; the Kani fast legs sit at their measured 12.
-- **Atomic proofs that cannot fit the wall ride the on-demand lane:**
-  the Kani deep five (one harness = one SAT instance; no split
-  shrinks an atomic proof) are `workflow_dispatch`-only with the
-  fifteen-minute cap — the fast fourteen ride every push, and a deep
-  leg that outmeasures the cap goes red as the honest signal that
-  its filed reshaping must land.
+- **Every deep proof rides push (night-depth-hardening-4's second
+  measurement round):** no verifier lane may skip on an
+  auto-trigger — the Kani deep legs (one harness = one SAT instance)
+  run on every push and PR inside the fifteen-minute cap, because
+  the reshaping landed: the string-walking bodies the deep harnesses
+  ride are flattened to manual scans (the iterator machinery was a
+  measured memory bomb at ANY input concreteness), and every leg
+  measures seconds locally (2-12 s). A leg that outmeasures the cap
+  goes red as the honest signal that a reshape regressed — the fast
+  sixteen ride the micro-matrix families, the deep three ride their
+  own named legs, and nothing is dispatch-only.
 - **Publish lanes are the ONE gated exception:** `crates-io.yml` and
   `release.yml` wake ONLY on a pushed `v*` tag (the tag-means-publish
   contract, the zelynic NIGHT-ask-1 shape) — never blind-triggered by

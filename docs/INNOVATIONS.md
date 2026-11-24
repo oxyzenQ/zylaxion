@@ -756,7 +756,8 @@ laws (night-depth-hardening-2).** Unit tests sample; this lane
 quantifies. Three pure law functions prove over their WHOLE
 reachable input spaces under Kani (bounded model checking — the
 verifier lane `Dragon Guard - Kani`, every push in the micro-matrix
-plus the manual dispatch for the deep proofs): the volume clamp
+and the deep job alike since night-depth-hardening-4's bodies
+reshape retired the on-demand gate): the volume clamp
 cell, where every f32
 the domain can name either clamps into [-100, 100] exactly with a
 lossless bit round-trip or, non-finite, falls back to the compiled
@@ -1237,14 +1238,15 @@ with `cargo test detmath` and regenerate through
 `scripts/engine/generate-detmath.py`; the tap-behavior corpus runs
 `scripts/audit/zactrix-tap-golden.sh` (root, beside PROOF 7 in the
 e2e guest); the proven control plane verifies with `cargo kani`
-(entry 49's sixteen harnesses, the verifier lane); the C-state
+(entry 49's harnesses, the verifier lane); the C-state
 witness rides the silent window of the parked-player battery
 (sm_idle) and the owner-machine benchmark (idle_cpu_sanity);
 `zylaxion doctor` prints the kernel report the attach
 gate consumes; `zylaxion status` reads the TAP_KIND slot the loader
 wrote; the proven-datapath harnesses of entry 44 verify under the
-Kani lane (`cargo kani` — the push micro-matrix, or a manual
-dispatch from the Actions tab for the deep proofs); the unsafe audit's score law of
+Kani lane (`cargo kani` — the push micro-matrix and the push deep
+job alike, night-depth-hardening-4's bodies reshape having retired
+the on-demand gate); the unsafe audit's score law of
 entry 45 is `cargo clippy --all-targets -- -D warnings` itself; the
 parked-player law of entry 46 is `cargo run --release --example
 idle_cpu_sanity` (phase 1 prints the /proc wake count — the zero —

@@ -82,6 +82,40 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-depth-hardening-4, the second measurement round — the
+  deep proofs ride push, nothing skips.** The Kani deep job's
+  `workflow_dispatch`-only gate is retired: the owner's no-skip
+  verdict on the skipped deep legs is answered with walls, not
+  words. The gate existed because five legs outmeasured any push
+  wall; three rounds of probe-ladder forensics (every number
+  measured on the pinned Kani 0.68.0) found the bombs INSIDE the
+  production bodies, not in the harness shapes: `str::lines()`
+  ran CBMC out of memory at the 90 s mark on a seven-byte FULLY
+  CONCRETE probe; the cmdline matcher's `split(closure).filter()`
+  iterator died at the 300 s mark on an eight-byte probe with ONE
+  symbolic byte; the cap arm's per-char `collect()` ground the
+  121-character probe past the six-minute mark even after the
+  char-boundary slice. The three bodies are flattened to manual
+  scans the verifier's pointer model carries flat —
+  `keep_last_lines` walks `\n` directly (the trim already eats the
+  CRLF `\r`; the equivalence is pinned), `cap_and_join_at` carries
+  the cap-generic cut mechanism (production binds the 120 constant,
+  the unit tree's 200-character probe pins the binding), and
+  `cmdline_matches_player` walks NULs in one flat pass (every
+  refusal shape pinned, including un-NUL-terminated and
+  empty-token forms). The harnesses follow the measured shapes: the
+  keep selector's calls ride inside the match arms (an indexed
+  `LOGS[count]` read phis symbolic pointers into the instance), the
+  cap probes quantify the mechanism at a small cap, and the cmdline
+  law rides the REAL 24 production bytes — every deep leg now
+  measures 2-12 s locally (the classifier trio 2/3/2 s, the tail
+  pair 12/8 s, the cmdline 9 s) against the fifteen-minute cap.
+  The classifier trio graduated to the fast lane's new
+  `errno-classifiers` family; the deep job's matrix is the three
+  remaining legs, on every push. Two equivalence pins joined the
+  unit tree (327 tests); the bodies' own doc comments record every
+  measurement so the next reshape starts from evidence.
+
 - **night-fly-1, the stale verification prose — the release notes
   answer with the live UID reality.** The verification block every
   release page prints (`### GPG signature`, emitted by
