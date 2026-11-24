@@ -34,13 +34,17 @@ rust-version = "1.98.1"
 # publish taught the registry law: the field accepts SPDX identifiers
 # only, and "Commercial" is not one — the server answered 400 "unknown
 # or invalid license expression" and v80.5.0 never landed. The manifest
-# now names the copyleft door in SPDX (the term the code is actually
-# available under); the commercial door stays documented in
-# COMMERCIAL_LICENSE.md, which ships inside the crate package, and the
-# `-V` report's License line still carries the dual expression verbatim
-# (the line is its own const — src/cli/mod.rs LICENSE_LINE — not this
-# field).
-license = "AGPL-3.0-only"
+# fell back to naming only the copyleft door while the commercial door
+# stayed documented in COMMERCIAL_LICENSE.md, which ships inside the
+# crate package. night-release-2 closes that gap the SPDX-honest way:
+# the LicenseRef-* namespace IS part of the expression grammar (a
+# locally defined license the registry never resolves), and the sibling
+# zejtron line has published "AGPL-3.0-only OR LicenseRef-Commercial"
+# on every release since 2026-11-21 — the registry accepts the
+# expression, the dual door rides the machine-readable metadata again,
+# and the `-V` report's License line still carries its own const
+# (src/cli/mod.rs LICENSE_LINE — not this field).
+license = "AGPL-3.0-only OR LicenseRef-Commercial"
 # night-ux-orion-2: the estate's masterclass author row - the holder
 # name and contact exactly as the sibling manifests carry them, the
 # same identity the -V report's Copyright line names.

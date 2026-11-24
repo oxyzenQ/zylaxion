@@ -154,6 +154,24 @@ v80.0.0-alpha.1
   that is the verdict working), so the tag move belongs to the
   signing machine.
 
+- **night-release-2: the crate's license metadata went back to
+  naming both doors — `AGPL-3.0-only OR LicenseRef-Commercial`.**
+  v80.5.0 taught the registry law the hard way (bare `Commercial`
+  is not an SPDX identifier; the server answered 400 and the
+  release never landed) and the field retreated to the copyleft
+  door alone, so crates.io advertised a single AGPL-3.0-only license
+  while the commercial door lived only in COMMERCIAL_LICENSE.md.
+  The SPDX-honest dual form is the `LicenseRef-*` namespace — a
+  locally defined license the registry never has to resolve — and
+  the sibling zejtron line has published exactly
+  `AGPL-3.0-only OR LicenseRef-Commercial` on every release since
+  2026-11-21, so the expression is proven registry-accepted. The
+  manifest now carries it (night-release-2), the comment above the
+  field tells the whole refusal-and-return story, and the fixed
+  metadata lands on the NEXT version bump — the already-published
+  80.5.6-arc.1 is immutable on crates.io, versions are never
+  rewritten.
+
 ## [v80.5.2-night.1] — focus and be honest — 2026-11-21
 
 ### Changed
