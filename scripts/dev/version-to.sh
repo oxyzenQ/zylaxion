@@ -205,8 +205,90 @@ changelog_release() {
 # never hardcoded. Probes: an ambiguous ledger (more than one
 # "## [Released]" or "## [Unreleased]" heading) writes nothing; an empty
 # running section is the expected steady state after a clean carry, not
-# a failure.
+# a failure. Bare stray anchors heal first (the heal documents its own
+# law below); only content-bearing strays stay ambiguous.
+
+# night-release-2: the bare stray anchor heal. A "## [Released]" or
+# "## [Unreleased]" heading whose whole body is blank lines is locally
+# provable as litter — the v80.5.6 bump found one at the CHANGELOG tail
+# (line 3648, riding since v80.5.5, stranded after the Frozen running
+# notes archive section) and every carry bailed into "detail not
+# carried" while the bump walked on to die at the stale lock. The heal
+# retires bare strays before the honesty probe runs. The keep-one law:
+# a content-bearing anchor keeps the post; when every anchor of the
+# kind is bare, the first one keeps it (the probe still needs its
+# single anchor). Two anchors that BOTH hold notes stay human work —
+# that ambiguity the machine must not resolve by guess, so the probe
+# below keeps refusing exactly as it always has.
+heal_bare_ledger_anchors() {
+    local kind scan tmp starts ends
+    local total own_count content_bearing first_bare is_own i
+    local -a s_lines s_own s_body
+    for kind in Released Unreleased; do
+        scan="$(awk -v kind="${kind}" '
+            /^## / {
+                if (hdr != "") print hdr, k, body
+                hdr = NR
+                k = ($0 == "## [" kind "]") ? "own" : "other"
+                body = 0
+                next
+            }
+            hdr != "" && $0 !~ /^[[:space:]]*$/ { body++ }
+            END { if (hdr != "") print hdr, k, body }
+        ' CHANGELOG.md)"
+        total=0; own_count=0; content_bearing=0; first_bare=""
+        s_lines=(); s_own=(); s_body=()
+        while IFS=' ' read -r line s_kind s_body_count; do
+            is_own=0
+            [ "${s_kind}" = "own" ] && is_own=1
+            s_lines+=("${line}"); s_own+=("${is_own}"); s_body+=("${s_body_count}")
+            if [ "${is_own}" = "1" ]; then
+                own_count=$((own_count + 1))
+                if [ "${s_body_count}" -gt 0 ]; then
+                    content_bearing=$((content_bearing + 1))
+                elif [ -z "${first_bare}" ]; then
+                    first_bare="${line}"
+                fi
+            fi
+        done <<< "${scan}"
+        total="${own_count}"
+        [ "${total}" -gt 1 ] || continue
+        [ "${content_bearing}" -lt 2 ] || continue
+        starts=""
+        ends=""
+        total="$(wc -l < CHANGELOG.md)"
+        for i in "${!s_lines[@]}"; do
+            [ "${s_own[$i]}" = "1" ] || continue
+            [ "${s_body[$i]}" = "0" ] || continue
+            if [ "${content_bearing}" = "0" ] && [ "${s_lines[$i]}" = "${first_bare}" ]; then
+                continue
+            fi
+            if [ $((i + 1)) -lt "${#s_lines[@]}" ]; then
+                starts+="${s_lines[$i]} "
+                ends+="$((s_lines[i + 1] - 1)) "
+            else
+                starts+="${s_lines[$i]} "
+                ends+="${total} "
+            fi
+        done
+        [ -n "${starts}" ] || continue
+        tmp="$(mktemp)"
+        ZYLAXION_HEAL_STARTS="${starts% }" ZYLAXION_HEAL_ENDS="${ends% }" awk '
+            BEGIN {
+                n = split(ENVIRON["ZYLAXION_HEAL_STARTS"], S, " ")
+                m = split(ENVIRON["ZYLAXION_HEAL_ENDS"], E, " ")
+                for (i = 1; i <= n && i <= m; i++) delstart[S[i]] = E[i]
+            }
+            skipping { if (NR <= skipto) next; skipping = 0 }
+            NR in delstart { skipto = delstart[NR]; skipping = 1; next }
+            { print }
+        ' CHANGELOG.md >"${tmp}" && mv "${tmp}" CHANGELOG.md
+        echo -e "  ${GREEN}OK${NC} CHANGELOG.md        → bare stray ## [${kind}] anchor(s) retired — the ledger heals to its one ${kind}"
+    done
+}
+
 changelog_carry_detail() {
+    heal_bare_ledger_anchors
     local ver="v$1"
     local tagline="${2:-}"
     local date_stamp
@@ -322,26 +404,50 @@ changelog_carry_detail() {
 # rewrite, dirtying the tree; night-improve-21 collapsed the members
 # into one package, and the contract is the same for the root entry).
 # cargo is the authority on its own lock format: `cargo update
-# --workspace --offline` moves the package version and stays frozen on
+# --workspace` moves the package version and stays frozen on
 # third-party deps. Verified per entry name afterwards; a verification
-# miss warns honestly instead of failing the whole bump.
+# miss fails the bump at the honest wall (the caller owns the FAIL
+# line) instead of letting a stale lock ambush the --locked builds
+# downstream.
+#
+# night-release-2: the resync runs at two speeds. The weekly dep
+# update rides CI — its Cargo.lock-only commit carries versions the
+# pulling machine's registry index has never fetched, so the offline
+# resync dies on resolution ("location searched: crates.io index";
+# the v80.5.6 bump hit exactly that behind crc32fast 1.5.5 → 1.5.6)
+# and the stale lock then ambushed both the lane refresh and
+# install-on-my-machine with "cannot update the lock file ...
+# because --locked was passed". The heal: offline first (the
+# reproducibility door), then one named online pass — the registry
+# is the source of truth for a version the lock already pins. Both
+# speeds failing returns non-zero; the callers stop the bump with
+# the tree's recovery named, before any --locked build can die.
+cargo_resync_heal() {
+    local where="${1:-root}"
+    if cargo update --workspace --offline > /dev/null 2>&1; then
+        return 0
+    fi
+    echo -e "  ${YELLOW}..${NC} Cargo.lock (${where})  → offline resync blocked (a cold index entry behind a lock-only dep bump) — one online pass warms the registry cache"
+    if cargo update --workspace > /dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
 lock_sync_and_verify() {
     local target="$1"
     if ! command -v cargo > /dev/null 2>&1; then
-        echo -e "  ${YELLOW}!${NC} Cargo.lock          → cargo not on PATH — run 'cargo update --workspace --offline' manually"
+        echo -e "  ${YELLOW}!${NC} Cargo.lock          → cargo not on PATH — run 'cargo update --workspace' manually"
         return 0
     fi
-    if ! cargo update --workspace --offline > /dev/null 2>&1; then
-        echo -e "  ${YELLOW}!${NC} Cargo.lock          → cargo update --workspace --offline failed — run it manually to resync"
-        return 0
-    fi
+    cargo_resync_heal "root" || return 1
     local member entry_ver all_ok=1
     while IFS= read -r member; do
         entry_ver="$(grep -A1 "^name = \"${member}\"$" Cargo.lock | grep '^version = "' | head -1 | sed 's/^version = "\(.*\)"/\1/')"
         if [ "${entry_ver}" = "${target}" ]; then
             echo -e "  ${GREEN}OK${NC} Cargo.lock          → ${member} version = ${target}"
         else
-            echo -e "  ${YELLOW}!${NC} Cargo.lock          → ${member}: expected ${target}, got ${entry_ver:-absent} (run 'cargo update --workspace --offline' to fix)"
+            echo -e "  ${YELLOW}!${NC} Cargo.lock          → ${member}: expected ${target}, got ${entry_ver:-absent}"
             all_ok=0
         fi
     done < <(if [ -d crates ]; then
@@ -355,6 +461,37 @@ lock_sync_and_verify() {
         xargs -0 -r grep -h -m1 '^name = ' |
         sed 's/name = "\(.*\)"/\1/')
     [ "${all_ok}" = "1" ]
+}
+
+# --- Sync each touched sibling's OWN Cargo.lock (night-improve-27) ---
+# A sibling that carries its own version line can also carry its own
+# DETACHED workspace lock (the ebpf lane does). A stale sibling lock
+# fails every --locked build of that lane — the nested eBPF build
+# refuses to rewrite the lock, which is exactly how the v80.0.0-alpha.1
+# rehearsal died ("cannot update the lock file ... because --locked was
+# passed"). cargo stays the authority on its own lock format, per lane;
+# the rust-toolchain.toml beside the lock resolves the toolchain.
+# night-release-2: the resync rides the same two-speed heal as the
+# root lock, and a sibling that cannot resync at either speed stops
+# the bump at the honest wall — a stale lane lock ships a CI failure,
+# never a release.
+sibling_lock_sync() {
+    local manifest="$1"
+    local dir name entry_ver
+    dir="$(dirname "${manifest}")"
+    [ -f "${dir}/Cargo.lock" ] || { echo -e "  ${YELLOW}!${NC} ${dir}/Cargo.lock  → absent, nothing to sync"; return 0; }
+    name="$(grep -m1 '^name = ' "${manifest}" | sed 's/.*"\(.*\)".*/\1/')"
+    if (cd "${dir}" && cargo_resync_heal "${dir}"); then
+        entry_ver="$(grep -A1 "^name = \"${name}\"$" "${dir}/Cargo.lock" | grep '^version = "' | head -1 | sed 's/^version = "\(.*\)"/\1/')"
+        if [ "${entry_ver}" = "${NEW_VERSION}" ]; then
+            echo -e "  ${GREEN}OK${NC} ${dir}/Cargo.lock  → ${name} version = ${NEW_VERSION}"
+        else
+            echo -e "  ${YELLOW}!${NC} ${dir}/Cargo.lock  → ${name}: expected ${NEW_VERSION}, got ${entry_ver:-absent}"
+        fi
+    else
+        echo -e "  ${RED}FAIL${NC} ${dir}/Cargo.lock  → resync impossible in ${dir}/ offline and online — the bump stops here ('git checkout -- .' discards the half-bump)"
+        exit 1
+    fi
 }
 
 # Show current version and exit
@@ -409,7 +546,40 @@ else
 fi
 
 if [ "${ALREADY}" = "true" ]; then
-    echo -e "${YELLOW}Already at v${NEW_VERSION} (root + all own-version siblings), nothing to change.${NC}"
+    # night-release-2: the re-run is a recovery door, not a shrug. The
+    # v80.5.6 bump died at the resync, the owner re-ran, and this
+    # branch answered "nothing to change" while the tree stayed
+    # half-bumped — manifests at target, locks stale, lane pin stale:
+    # the exact wreckage the recovery had to heal. A re-run now runs
+    # the same healing legs the fresh bump runs: locks resync at two
+    # speeds, the ledger carries what it refused when the run died
+    # (bare stray anchors heal first), the lane refreshes when its pin
+    # is stale. An honest completed bump re-runs to a quiet no-op — an
+    # empty running section carries nothing, a fresh lane passes
+    # parity untouched.
+    echo -e "${YELLOW}Already at v${NEW_VERSION} (root + all own-version siblings) — healing any half-bumped tree, not just reporting.${NC}"
+    if [ -f Cargo.lock ]; then
+        lock_sync_and_verify "${NEW_VERSION}" || {
+            echo -e "  ${RED}FAIL${NC} Cargo.lock          → could not be synced to v${NEW_VERSION} offline and online — the bump stops here ('git checkout -- .' discards the half-bump)"
+            exit 1
+        }
+    fi
+    while IFS=$'\t' read -r f n v; do
+        [ -z "${f}" ] && continue
+        sibling_lock_sync "${f}"
+    done <<< "${SIBLINGS}"
+    changelog_carry_detail "${NEW_VERSION}" "${TAGLINE}"
+    if ! bash scripts/gates/check-prebuilt-parity.sh >/dev/null 2>&1; then
+        echo -e "  ${YELLOW}..${NC} ebpf-prebuilt/     → lane pin stale on the half-bumped tree — auto-refreshing through the validated build pipeline"
+        if cargo pro-linux-amd64-gnu --locked \
+            && bash scripts/dev/regenerate-ebpf-prebuilt.sh > /dev/null \
+            && bash scripts/gates/check-prebuilt-parity.sh; then
+            echo -e "  ${GREEN}OK${NC} ebpf-prebuilt/     → lane regenerated in parity (commit ./ebpf/ + ./ebpf-prebuilt/ together)"
+        else
+            echo -e "  ${YELLOW}!${NC} ebpf-prebuilt/     → the refresh did not complete — finish by hand and commit the lane with its sources:"
+            echo "    cargo pro-linux-amd64-gnu --locked && ./scripts/dev/regenerate-ebpf-prebuilt.sh"
+        fi
+    fi
     exit 0
 fi
 
@@ -447,35 +617,21 @@ else
 fi
 
 # --- Sync + verify Cargo.lock (every workspace member entry) ---
+# night-release-2: a failed sync is a stop, not a warning — the stale
+# lock's real death came later (the --locked lane refresh and
+# install-on-my-machine), which is the ambush the bump now refuses to
+# arrange.
 if [ -f Cargo.lock ]; then
-    lock_sync_and_verify "${NEW_VERSION}" || true
+    lock_sync_and_verify "${NEW_VERSION}" || {
+        echo -e "  ${RED}FAIL${NC} Cargo.lock          → could not be synced to v${NEW_VERSION} offline and online — the bump stops here ('git checkout -- .' discards the half-bump, fix the registry cause, re-run)"
+        exit 1
+    }
 fi
 
 # --- Sync each touched sibling's OWN Cargo.lock (night-improve-27) ---
-# A sibling that carries its own version line can also carry its own
-# DETACHED workspace lock (the ebpf lane does). A stale sibling lock
-# fails every --locked build of that lane — the nested eBPF build
-# refuses to rewrite the lock, which is exactly how the v80.0.0-alpha.1
-# rehearsal died ("cannot update the lock file ... because --locked was
-# passed"). cargo stays the authority on its own lock format, per lane;
-# the rust-toolchain.toml beside the lock resolves the toolchain.
-sibling_lock_sync() {
-    local manifest="$1"
-    local dir name entry_ver
-    dir="$(dirname "${manifest}")"
-    [ -f "${dir}/Cargo.lock" ] || { echo -e "  ${YELLOW}!${NC} ${dir}/Cargo.lock  → absent, nothing to sync"; return 0; }
-    name="$(grep -m1 '^name = ' "${manifest}" | sed 's/.*"\(.*\)".*/\1/')"
-    if (cd "${dir}" && cargo update --workspace --offline > /dev/null 2>&1); then
-        entry_ver="$(grep -A1 "^name = \"${name}\"$" "${dir}/Cargo.lock" | grep '^version = "' | head -1 | sed 's/^version = "\(.*\)"/\1/')"
-        if [ "${entry_ver}" = "${NEW_VERSION}" ]; then
-            echo -e "  ${GREEN}OK${NC} ${dir}/Cargo.lock  → ${name} version = ${NEW_VERSION}"
-        else
-            echo -e "  ${YELLOW}!${NC} ${dir}/Cargo.lock  → ${name}: expected ${NEW_VERSION}, got ${entry_ver:-absent}"
-        fi
-    else
-        echo -e "  ${YELLOW}!${NC} ${dir}/Cargo.lock  → cargo update --workspace --offline failed in ${dir}/ — run it manually to resync"
-    fi
-}
+# (the sibling_lock_sync implementation lives beside
+# lock_sync_and_verify, where the ALREADY-branch recovery door calls
+# it too; the per-touched-sibling walk stays with the bump flow)
 SIBLING_LOCKS=()
 if [ "${#SIBLING_TOUCHED[@]}" -gt 0 ]; then
     for f in "${SIBLING_TOUCHED[@]}"; do
