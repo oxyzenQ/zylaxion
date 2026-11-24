@@ -988,7 +988,9 @@ night-frontier-Z5 moved the transcendentals to certified
 build-time tables precisely so the decay chain THIS entry proves
 became pure mul/add. The four dense-sweep detmath tests stay
 miri-gated and the harnesses stay cfg(kani)-invisible. Files of
-truth: `src/engine/kani_proofs.rs` (all sixteen harnesses), the
+truth: `src/engine/kani_proofs.rs` (the twelve harnesses that
+stayed after the Z6 errno split moved the law family to
+`kani_laws.rs`), the
 widened `pub(crate)` helpers in `src/ebpf/attach_error.rs` (the
 errno text and the tail, proved through). The lane's compile gate
 caught its first toolchain skew on the first full CI verdict after
