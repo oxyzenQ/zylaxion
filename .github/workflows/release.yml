@@ -335,8 +335,14 @@ jobs:
                 || { echo "::error::Expected materialized signature manifest in -V"; exit 1; }
               "${BIN}" -V | grep -F "status=verified" \
                 || { echo "::error::Expected Depth-matrix status=verified in -V"; exit 1; }
-              "${BIN}" sig | grep -F "SIGNATURE: AUTHENTIC (5/5 depths verified)" \
-                || { echo "::error::Expected sig verdict AUTHENTIC 5/5"; exit 1; }
+              # The verdict literal is the SAME string the test tree
+              # pins (test/commands/sig_tests.rs) — the ladder grew to
+              # six depths when night-netrunner-Z1 added the D5
+              # commit-signature row, and this gate greps the pinned
+              # shape, not a hand-maintained count. Bump the pin in the
+              # tests and here together, the way the MSRV pin syncs.
+              "${BIN}" sig | grep -F "SIGNATURE: AUTHENTIC (6/6 depths verified)" \
+                || { echo "::error::Expected sig verdict AUTHENTIC 6/6 (the test-pinned verdict shape)"; exit 1; }
               ;;
           esac
           echo "=== ldd ==="

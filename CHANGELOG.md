@@ -126,6 +126,33 @@ v80.0.0-alpha.1
   (`ring_lanes` 2/2, `live_lanes` 2/2, 0.01 s each). Docs:
   INNOVATIONS.md entry 57.
 
+### Fixed
+
+- **night-release-1: the v80.5.5 release lanes went red on two
+  first-exposure gaps the Z1 night left behind — both fixed, no
+  weakening of any gate.** The Release lane's post-build gate still
+  grepped the five-depth verdict literal `SIGNATURE: AUTHENTIC (5/5
+  depths verified)` while the ladder has printed six depths since
+  the D5 commit-signature row landed; the gate now greps the same
+  literal the test tree pins
+  (`test/commands/sig_tests.rs`, `6/6`), with a comment naming the
+  sync duty. And `cargo publish`'s verification build died with
+  `couldn't read build/../assets/gpg/pinned-maintainer-fpr.txt`:
+  build/gpg.rs and the runtime attest policy `include_str!` the
+  pinned fingerprint at compile time, but the package `include`
+  list never carried the file — the fingerprint now rides the
+  package, while the armored public key deliberately stays a
+  repo-side lane (a tarball build has no HEAD to verify; the lane
+  fail-closes to the honest `no-vcs` state). Evidence: the Release
+  run 72 log (the gate error line) and the crates.io publish run
+  33 log (the build-script compile error); reproduced locally on
+  `d5574d4` — the built binary printed
+  `SIGNATURE: AUTHENTIC (6/6 depths verified)` while the gate asked
+  for `5/5`, and `cargo package` lacked the pin file. The re-cut
+  tag must be signed (the D5 row fail-closes on an unsigned HEAD —
+  that is the verdict working), so the tag move belongs to the
+  signing machine.
+
 ## [v80.5.2-night.1] — focus and be honest — 2026-11-21
 
 ### Changed

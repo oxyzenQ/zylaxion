@@ -112,6 +112,14 @@ include = [
     "Cargo.toml",
     "Cargo.lock",
     "rust-toolchain.toml",
+    # The commit-signature pin's fingerprint (night-netrunner-Z1):
+    # build/gpg.rs and the runtime attest policy both include_str! it
+    # at compile time, so the bytes must ride the package or a
+    # registry tarball build cannot compile at all. The armored
+    # public key stays a repo-side lane on purpose — a tarball build
+    # has no HEAD to verify, and the lane fail-closes to the honest
+    # no-vcs state instead of carrying verifier material it cannot use.
+    "assets/gpg/pinned-maintainer-fpr.txt",
     # The registry-facing documentation and compliance set (flat
     # docs/ only — the archive/ tree stays a repo lane).
     "README.md",
