@@ -166,20 +166,28 @@ mod proofs {
     /// when ANY single byte flips — the root reaper's target cannot be
     /// retargeted by one mutated byte of map-driven /proc data. The
     /// quantifier shape is honest about the verifier's reach: string
-    /// machinery over symbolic bytes is SAT poison (the solver burns
-    /// minutes the lane's cap does not have — measured, not guessed),
-    /// so the harness carries the law in ONE matcher call: the slot
-    /// itself is symbolic, which puts every one of the cmdline's byte
-    /// positions — not the five semantic roles the earlier unroll
-    /// sampled — inside the same formula, each flipped to an arbitrary
-    /// other byte. The every-shape generality stays with the unit
-    /// tests, which enumerate the refusal shapes (near-misses, extra
-    /// tokens, empty cmdlines) concretely in
-    /// test/session/orphan_tests.rs. (night-depth-hardening-4: the
-    /// earlier five-call unroll measured 679 s and an unwind refusal
-    /// on the deep lane — the one-call slot form carries the whole law
-    /// at a second-scale wall, the probe's one-second matcher plus the
-    /// slot arithmetic.)
+    /// machinery over wide symbolic bytes is SAT poison (the solver
+    /// burns minutes the lane's cap does not have — measured, not
+    /// guessed), so the harness carries the law in ONE matcher call
+    /// over the REAL production bytes: this binary's 16-byte path,
+    /// the separating NUL, the five-byte verb, the terminator — and
+    /// the slot itself is symbolic, which puts every one of the
+    /// cmdline's byte positions — not the five semantic roles the
+    /// earlier unroll sampled — inside the same formula, each flipped
+    /// to an arbitrary other byte. The cost history, measured
+    /// (night-depth-hardening-4, three rounds): the five-call unroll
+    /// at 679 s and an unwind refusal; the one-call slot form at the
+    /// 701 s out-of-memory mark — the bomb was the matcher's own
+    /// `split(closure).filter()` iterator machinery, which multiplies
+    /// its search state through the verifier's pointer model at ANY
+    /// byte count (an EIGHT-byte probe with one symbolic byte still
+    /// died at the 300 s mark); and the flat manual NUL scan in the
+    /// body now carries the whole real-shape law in 7 s measured.
+    /// The every-shape generality beyond the single-byte tamper space
+    /// stays with the unit tests, which enumerate the refusal shapes
+    /// (near-misses, extra tokens, empty cmdlines, un-NUL-terminated
+    /// and empty-token forms) concretely in
+    /// test/session/orphan_tests.rs.
     #[kani::proof]
     #[kani::unwind(32)]
     fn cmdline_tamper_breaks_the_real_player_shape() {

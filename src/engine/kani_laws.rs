@@ -145,30 +145,41 @@ mod errno_proofs {
     /// assume-guarantee decomposition the deep lane measured: one SAT
     /// instance carrying a heap-Vec loop AND heap-String growth is a
     /// memory bomb, the same bodies split into per-stage instances
-    /// verify in seconds, and the composition is pinned byte-exact by
-    /// the unit tree.
+    /// carry their own walls, and the composition is pinned byte-exact
+    /// by the unit tree.
     ///
     /// The quantifier shape: the count axis rides a symbolic selector
-    /// over seven CONCRETE static logs — every distinct behavior of
-    /// the keep bound is a branch (the empty log, the below-bound
-    /// ramp, the exact-bound case, and the clamp plateau), every byte
-    /// the stage machinery touches is concrete, and only the selection
-    /// is symbolic.
+    /// over CONCRETE static logs — every distinct behavior of the
+    /// keep bound is a branch (the empty log, the below-bound ramp,
+    /// the exact-bound case, and the clamp plateau), only the
+    /// selection is symbolic. The cost history, measured: the FIRST
+    /// bomb was the stage's own `str::lines()` machinery — a fully
+    /// concrete seven-byte probe ran CBMC out of memory at the 90 s
+    /// mark on a four-gigabyte host — and that fix lives in the body
+    /// (the manual `\n` scan, its note carries the record). The
+    /// selector then needed its own shape: an indexed array read
+    /// (`LOGS[count]`) still OOMed at 91 s over five one-char logs
+    /// — the symbolic index reads an array of (pointer, length)
+    /// pairs, and every byte the stage walks resolves through a
+    /// symbolic pointer target — so the match below carries the SAME
+    /// selector with the calls INSIDE the arms: a concrete reference
+    /// per arm, no symbolic pointer arithmetic in the instance at
+    /// all. Measured wall after both fixes: 12 s whole. The five
+    /// probes are the law's whole outcome space (`count.min(3)`:
+    /// 0, 1, 2, 3, and the plateau at 3; one char per line, because
+    /// the line content is irrelevant to the count law).
     #[kani::proof]
     #[kani::unwind(64)]
     fn verifier_tail_keeps_at_most_the_keep_bound() {
-        const LOGS: [&str; 7] = [
-            "\n",
-            "\nxxxxxxxx\n",
-            "\nxxxxxxxx\nxxxxxxxx\n",
-            "\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\n",
-            "\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\n",
-            "\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\n",
-            "\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\nxxxxxxxx\n",
-        ];
         let count: usize = kani::any();
-        kani::assume(count < LOGS.len());
-        let kept = crate::ebpf::attach_error::keep_last_lines(LOGS[count], 3);
+        kani::assume(count < 5);
+        let kept = match count {
+            0 => crate::ebpf::attach_error::keep_last_lines("\n", 3),
+            1 => crate::ebpf::attach_error::keep_last_lines("\nx\n", 3),
+            2 => crate::ebpf::attach_error::keep_last_lines("\nx\nx\n", 3),
+            3 => crate::ebpf::attach_error::keep_last_lines("\nx\nx\nx\n", 3),
+            _ => crate::ebpf::attach_error::keep_last_lines("\nx\nx\nx\nx\n", 3),
+        };
         if count == 0 {
             assert!(kept.is_empty(), "the empty log must keep nothing");
         } else {
@@ -186,38 +197,54 @@ mod errno_proofs {
         }
     }
 
-    /// The verifier-log tail's CAP law: a line over the 120-character
-    /// bound is cut to 120 characters plus the ellipsis, shorter lines
-    /// ride through whole, and adjacent kept lines join with the
-    /// separator. Asserted against the join stage
-    /// ([`crate::ebpf::attach_error::cap_and_join`]) over CONCRETE
-    /// array probes at the exact boundary — the decomposition shape
-    /// the deep lane measured (concrete trip counts verify in seconds;
-    /// a symbolic trip count over the same body is the memory bomb).
+    /// The verifier-log tail's CAP law: a line over the cut bound is
+    /// cut to `cap` characters plus the ellipsis, a line at or under
+    /// the bound rides through whole, and adjacent kept lines join
+    /// with the separator. Asserted against the join stage's
+    /// parameterized mechanism
+    /// ([`crate::ebpf::attach_error::cap_and_join_at`]) — production
+    /// binds the cap at 120, a binding the unit tree pins with its
+    /// 200-character probe (123 in, 123 out), because the 121-
+    /// character probe itself is a measured memory bomb: the
+    /// verifier's pointer model walks every probe byte through the
+    /// heap objects however concrete the input, and CBMC ground past
+    /// the six-minute mark and out of memory on it twice. The
+    /// mechanism is cap-generic, so the harness quantifies it at
+    /// cap=3 over probes that carry the SAME branch structure —
+    /// under-bound, exact-bound, over-bound — at a byte count the
+    /// instance fits comfortably (the tree's own laws-not-details
+    /// idiom: the classifier table proves kinds, not sentences).
+    /// The selector's calls ride INSIDE the match arms: a symbolic
+    /// slice selected before the call would phi-merge the probe
+    /// pointers into the machinery (the indexed-selector shape the
+    /// KEEP harness above measured as a bomb); per-arm concrete
+    /// calls keep the pointer model out of the instance entirely.
     #[kani::proof]
-    #[kani::unwind(128)]
+    #[kani::unwind(32)]
     fn verifier_tail_caps_every_line_at_the_bound() {
-        // One static line just over the bound: 121 x's. A literal, not
-        // a runtime push loop — the harness adds zero machinery of its
-        // own. The cut is byte-exact: 120 characters plus the ellipsis.
-        const LONG: &str = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
-xxxxxxxxxxxxxxxxxxxxxxx";
-        const CAPPED: &str = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
-xxxxxxxxxxxxxxxxxxxx...";
-        assert_eq!(LONG.chars().count(), 121, "the probe line is over the cap");
-        let capped = crate::ebpf::attach_error::cap_and_join(&[LONG]);
+        let which: usize = kani::any();
+        kani::assume(which < 3);
+        let capped = match which {
+            0 => crate::ebpf::attach_error::cap_and_join_at(&["xx"], 3),
+            1 => crate::ebpf::attach_error::cap_and_join_at(&["xxx"], 3),
+            _ => crate::ebpf::attach_error::cap_and_join_at(&["xxxx"], 3),
+        };
+        let want = match which {
+            0 => "xx",
+            1 => "xxx",
+            _ => "xxx...",
+        };
         assert_eq!(
-            capped, CAPPED,
-            "the capped render drifted off the 120-character bound"
+            capped, want,
+            "the capped render drifted off the cut law at the boundary"
         );
-        // The pass-through and separator arms over the same concrete
-        // machinery: shorter lines ride through whole, joined once.
-        let joined = crate::ebpf::attach_error::cap_and_join(&["xxxxxxxx", "second line"]);
+        // The separator arm over the same concrete machinery: two
+        // over-bound lines each cut at the cap, joined once — the cut
+        // and the separator in one probe.
+        let joined = crate::ebpf::attach_error::cap_and_join_at(&["xxxxxxxx", "second line"], 3);
         assert_eq!(
-            joined, "xxxxxxxx | second line",
-            "the pass-through join drifted off the separator law"
+            joined, "xxx... | sec...",
+            "the joined render drifted off the separator law"
         );
     }
 }
