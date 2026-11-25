@@ -97,6 +97,27 @@ fn unsigned_fails_as_the_incomplete_chain() {
     );
 }
 
+/// night-dragon-fly-1: the state-name extractor the sig report's
+/// verdict split reads — the state token as a name, never a detail
+/// sentence, so the unsigned class (missing provenance link) stays
+/// distinguishable from the tampering classes without string-matching.
+#[test]
+fn commit_signature_state_names_the_stamp_state() {
+    assert_eq!(commit_signature_state("unsigned"), "unsigned");
+    assert_eq!(
+        commit_signature_state("verified:F5324E0967F104D58CE025F347A50AEF4B65AAC2"),
+        "verified"
+    );
+    assert_eq!(
+        commit_signature_state("wrong-key:0123456789abcdef"),
+        "wrong-key"
+    );
+    assert_eq!(commit_signature_state("no-vcs"), "no-vcs");
+    // The bare stamp (no colon, no evidence) IS the state.
+    assert_eq!(commit_signature_state("unstamped"), "unstamped");
+    assert_eq!(commit_signature_state(""), "");
+}
+
 #[test]
 fn degraded_states_fail_their_honest_sentences() {
     for stamp in ["bad-signature", "no-vcs", "unavailable", "unstamped", ""] {

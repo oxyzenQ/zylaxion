@@ -93,7 +93,9 @@ name's platform id:
 # Signature: Pure eBPF builtin — Official Build by rezky_nightky (oxyzenQ)
 # Depth-matrix: ... status=verified ...       <- the provenance seal, green on a TTY
 ./zylaxion sig
-# verdict: SIGNATURE: AUTHENTIC (6/6 depths verified)  <- exit 2 on any tamper
+# verdict: SIGNATURE: AUTHENTIC (6/6 depths verified)  <- exit 0; UNSIGNED (5/6) on a
+#            plain no-GPG build is a missing provenance link, not a modification
+#            (exit 1); TAMPERED is reserved for real integrity holes (exit 2)
 ```
 
 The ownership claim is embedded MASKED (night-signature-advanced-1):
@@ -101,8 +103,10 @@ the artifact carries no greppable identity, so a rebrand that strips
 the wording still materializes the original owner. The Depth-matrix
 line reports `status=verified` only when the masked layers, their
 fingerprints, the identity binding, and the blake3 anchor all
-recompute — `status=tampered` (or a nonzero `sig` exit) is the honest
-signal that the artifact was patched.
+recompute. A nonzero `sig` exit names the class honestly: 1 is the
+UNSIGNED verdict (a missing provenance link — a plain no-GPG build,
+every integrity depth green), 2 is TAMPERED and means the artifact
+was patched (or the signature is real but not the maintainer's).
 
 The fifth depth (`tap-object`, night-depth-hardening-Z1 D2) goes one
 circle tighter: the embedded eBPF object — the one component that
@@ -122,10 +126,12 @@ tracked public key (`assets/gpg/`, primary
 `F5324E0967F104D58CE025F347A50AEF4B65AAC2` — the same key the
 signature lane above imports) in an isolated throwaway keyring. The
 row reports the BUILD's own verdict honestly: a tree on an unsigned
-HEAD reads FAIL "no GPG signature" (5/6, exit 2 — the provenance
-chain stops at an unbound commit), a HEAD signed by the pinned key
-reads AUTHENTIC 6/6, and a foreign signer is named by fingerprint
-(the MITM shape). With the maintainer key verified out of band (the
+HEAD reads FAIL "no GPG signature" and the ladder reads UNSIGNED
+(5/6, exit 1 — the provenance chain stops at an unbound commit: a
+missing provenance link, not a modification), a HEAD signed by the
+pinned key reads AUTHENTIC 6/6, and a foreign signer is named by
+fingerprint (the MITM shape — TAMPERED, exit 2). With the maintainer
+key verified out of band (the
 signature lane above) and releases cut from signed commits and tags,
 the chain from key to tag to commit to binary closes — a binary
 swapped on the wire can no longer replay its claims unanswered. The

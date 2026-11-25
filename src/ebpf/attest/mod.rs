@@ -154,6 +154,21 @@ pub(crate) fn commit_signature_verdict(stamp: &str, commit_sha: &str) -> (bool, 
     }
 }
 
+/// The commit-signature stamp's STATE name — the token
+/// [`commit_signature_verdict`] dispatches on, as a name. The sig
+/// report's verdict split reads it beside the `(passed, detail)` pair
+/// so the unsigned class (a missing GPG binding) is distinguishable
+/// from the tampering classes (wrong key, failed check) without
+/// string-matching the detail sentences (night-dragon-fly-1, the
+/// zelynic night-dragon-fly-4 shape).
+#[must_use]
+pub(crate) fn commit_signature_state(stamp: &str) -> &str {
+    match stamp.split_once(':') {
+        Some((state, _)) => state,
+        None => stamp,
+    }
+}
+
 /// The display shape for fingerprints: 16-hex long id when the input
 /// carries at least that much, else the input as-is (an honest
 /// shorter token beats a truncated lie).

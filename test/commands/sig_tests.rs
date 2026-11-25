@@ -33,7 +33,25 @@ fn pristine_build_reports_the_stamped_signature_truth() {
             "{text}"
         );
     } else {
-        assert_eq!(verdict, SigVerdict::Tampered, "{text}");
+        // night-dragon-fly-1: the unsigned class is its own verdict —
+        // a missing provenance link, not a modification. The pristine
+        // truth mapping: stamp state `unsigned` with every integrity
+        // depth passing reads UNSIGNED (5/6) with its own note; every
+        // other failing state (foreign key, bad signature, no-vcs,
+        // unstamped) stays TAMPERED — tampering-class or fail-closed.
+        if crate::ebpf::attest::commit_signature_state(stamp) == "unsigned" {
+            assert_eq!(verdict, SigVerdict::Unsigned, "{text}");
+            assert!(
+                text.contains("SIGNATURE: UNSIGNED (5/6 depths verified)"),
+                "an unsigned-commit build reads UNSIGNED, not TAMPERED:\n{text}"
+            );
+            assert!(
+                text.contains("note: an unsigned commit is a missing provenance link, not a"),
+                "the unsigned verdict carries its own note:\n{text}"
+            );
+        } else {
+            assert_eq!(verdict, SigVerdict::Tampered, "{text}");
+        }
         let d5 = text
             .lines()
             .find(|line| line.starts_with("D5 commit-signature"))
@@ -129,7 +147,7 @@ fn report_shape_is_stable() {
     );
     assert!(matches!(
         verdict,
-        SigVerdict::Authentic | SigVerdict::Tampered
+        SigVerdict::Authentic | SigVerdict::Unsigned | SigVerdict::Tampered
     ));
 }
 

@@ -451,8 +451,16 @@ pub(crate) fn provenance_view() -> ProvenanceView {
     } else {
         "tampered"
     };
+    // night-dragon-fly-1 (the zelynic night-dragon-fly-4 shape): the
+    // line names its own coverage — the -V matrix carries the
+    // RUNTIME-verifiable storage layers (d0-d3); the depth ladder's D4
+    // rides the tap-object stamp and D5 the commit stamp, both
+    // rendered whole by `zylaxion sig`. The hint appends AFTER the
+    // pinned layers token, so the line's leading shape stays
+    // byte-stable for the fingerprint-token parsers (the tests split
+    // on the layers= field; grep scripts keep their handles).
     let depth_line = format!(
-        "Depth-matrix: fp={MANIFEST_FINGERPRINT:016x} status={status} anchor=b3:{} layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor",
+        "Depth-matrix: fp={MANIFEST_FINGERPRINT:016x} status={status} anchor=b3:{} layers=d0:masked-words,d1:masked-words,d2:dual-fingerprint,d3:blake3-anchor (runtime depths; d4/d5 ride zylaxion sig)",
         hex32(&runtime_anchor)
     );
 

@@ -132,6 +132,14 @@ fn signature_surface_materializes_the_masked_layers() {
         ),
         "the layers token describes the masked + anchored scheme"
     );
+    // night-dragon-fly-1 (the zelynic night-dragon-fly-4 shape): the
+    // line names its own coverage — the runtime depths live on `sig`
+    // — and the hint appends AFTER the layers token so fingerprint
+    // parsers splitting on layers= stay byte-stable.
+    assert!(
+        body.contains(" (runtime depths; d4/d5 ride zylaxion sig)"),
+        "the Depth-matrix line carries the runtime-depths hint:\n{body}"
+    );
     assert!(
         body.contains("License: AGPL-3.0-only OR Commercial"),
         "the release probe's license bytes stay contiguous (both doors, one line)"

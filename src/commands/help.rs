@@ -163,7 +163,8 @@ pub(crate) fn render_reference(color: bool) -> String {
     push(String::new());
     push(grey("  zylaxion sig"));
     push("      Provenance depth-matrix report: the embedded masked".into());
-    push("      signature, verified layer by layer (exit 2 on tamper).".into());
+    push("      signature, verified layer by layer (exit 2 on tamper,".into());
+    push("      1 on an unsigned commit).".into());
     push(String::new());
 
     push(brand("Global options:"));

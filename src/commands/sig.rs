@@ -76,14 +76,18 @@
 //! SOURCE CHANNEL it claims. The row reports the BUILD's own verified
 //! verdict (not a runtime re-verification — the keyring is a build-time
 //! fact), so a tree on an unsigned HEAD reads FAIL "no GPG signature"
-//! (5/6) and a tree whose HEAD is signed by the pinned maintainer key
-//! reads AUTHENTIC 6/6 — both are the pristine truth for their build,
-//! and the report never claims otherwise (the honesty law the tests
-//! pin). An AGPL fork built from its own (differently-signed or
-//! unsigned) commits fails D5 by name: that is the verdict working,
-//! not a false positive — the fork is honestly not the maintainer's
-//! build, and its own sig report says so under its own identity
-//! layers.
+//! and the ladder reads UNSIGNED (5/6) — a missing provenance link,
+//! not a modification, exit 1 (night-dragon-fly-1, the zelynic
+//! night-dragon-fly-4 shape) — and a tree whose HEAD is signed by the
+//! pinned maintainer key reads AUTHENTIC 6/6, exit 0. Both are the
+//! pristine truth for their build, and the report never claims
+//! otherwise (the honesty law the tests pin). TAMPERED stays reserved
+//! for the tampering classes: any integrity-depth failure (D0-D4), a
+//! foreign signer, or a failed cryptographic check — exit 2. An AGPL
+//! fork built from its own (differently-signed or unsigned) commits
+//! fails D5 by name: that is the verdict working, not a false
+//! positive — the fork is honestly not the maintainer's build, and
+//! its own sig report says so under its own identity layers.
 
 use std::io::Read;
 
@@ -94,7 +98,12 @@ use super::super::info::signature::provenance_view;
 pub(crate) enum SigVerdict {
     /// Every depth passed.
     Authentic,
-    /// At least one depth failed; the report names which.
+    /// The ONLY failure is the D5 commit-signature depth in its
+    /// `unsigned` state: a missing provenance link, not a modification
+    /// (night-dragon-fly-1, the zelynic night-dragon-fly-4 shape).
+    Unsigned,
+    /// At least one depth failed for a tampering-class reason; the
+    /// report names which.
     Tampered,
 }
 
@@ -209,11 +218,13 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     // commit; the policy (pinned fingerprint, honest sentences for
     // every state) lives in ebpf/attest/ — the same module the
     // loader's attestation record binds through, one policy for the
-    // row that reports and the lane that loads.
-    let (sig_ok, sig_detail) = crate::ebpf::attest::commit_signature_verdict(
-        crate::info::build::vcs_commit_sig(),
-        crate::info::build::build_hash(),
-    );
+    // row that reports and the lane that loads. The stamp's STATE
+    // name rides beside the verdict pair: the unsigned class needs
+    // the state, not the sentence (night-dragon-fly-1).
+    let sig_stamp = crate::info::build::vcs_commit_sig();
+    let (sig_ok, sig_detail) =
+        crate::ebpf::attest::commit_signature_verdict(sig_stamp, crate::info::build::build_hash());
+    let sig_state = crate::ebpf::attest::commit_signature_state(sig_stamp);
 
     // night-ux-orion-3 (completing the night-ux-orion-2 form): the
     // manifest itself no longer carries the claim year, so the holder
@@ -278,8 +289,19 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     ];
 
     let depths_passed = rows.iter().filter(|r| r.passed).count();
+    // night-dragon-fly-1: the verdict splits the unsigned class out of
+    // TAMPERED — an unsigned commit is a missing provenance link, not
+    // a modification (the zelynic night-dragon-fly-4 shape; a pristine
+    // local build without GPG read "SIGNATURE: TAMPERED" for a plain
+    // no-GPG commit). UNSIGNED fires only when the commit-signature
+    // depth is the ONE failure and the stamp state says `unsigned`;
+    // any integrity-depth failure, a foreign key, or a failed
+    // cryptographic check stays TAMPERED — those are tampering-class,
+    // not absent-provenance-class.
     let verdict = if depths_passed == rows.len() {
         SigVerdict::Authentic
+    } else if depths_passed + 1 == rows.len() && !sig_ok && sig_state == "unsigned" {
+        SigVerdict::Unsigned
     } else {
         SigVerdict::Tampered
     };
@@ -344,13 +366,23 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     text.push('\n');
     text.push_str(&format!(
         "verdict: SIGNATURE: {} ({depths_passed}/{} depths verified)\n",
-        if verdict == SigVerdict::Authentic {
-            "AUTHENTIC"
-        } else {
-            "TAMPERED"
+        match verdict {
+            SigVerdict::Authentic => "AUTHENTIC",
+            SigVerdict::Unsigned => "UNSIGNED",
+            SigVerdict::Tampered => "TAMPERED",
         },
         rows.len()
     ));
+    // night-dragon-fly-1: the unsigned class carries its own note —
+    // the verdict names the missing link honestly, and the self-hash
+    // note below stays the closing line for every verdict.
+    if verdict == SigVerdict::Unsigned {
+        text.push_str(
+            "note: an unsigned commit is a missing provenance link, not a\n\
+             modification — every integrity depth above verifies; releases\n\
+             still bind to signed commits/tags.\n",
+        );
+    }
     // The tail carries NO trailing newline (night-sig-tail-1): the
     // terminator is print_stdout_line's to own, the same convention
     // the -V report rides — sig_report's text ending in '\n' made the
@@ -362,22 +394,31 @@ pub(crate) fn sig_report() -> (String, SigVerdict) {
     (text, verdict)
 }
 
-/// Print the report (the `sig` dispatch calls this, then exits 2 on
-/// tamper so scripts can gate on the exit code).
+/// Print the report and gate the exit code on the verdict (scripts
+/// and release lanes read the code, not the prose): Authentic exits 0,
+/// Unsigned exits 1 (a missing provenance link — the runtime-fatal
+/// code, the zelynic sig's whole-ladder non-authentic exit), Tampered
+/// exits 2 (the fatal-CLI code this tree already uses).
 pub(crate) fn print_sig_report() {
     let (text, verdict) = sig_report();
     crate::output::print_stdout_line(&text);
-    if verdict == SigVerdict::Tampered {
+    if verdict != SigVerdict::Authentic {
         // Flush the report before the hard exit: the verdict IS the
         // error surface, and a swallowed buffer would hide it.
         use std::io::Write;
         let _ = std::io::stdout().flush();
-        std::process::exit(2);
+        let code = if verdict == SigVerdict::Tampered {
+            2
+        } else {
+            1
+        };
+        std::process::exit(code);
     }
 }
 
-/// The `zylaxion sig` verb: render the depth-matrix report and exit 2
-/// when any depth fails, so release lanes and scripts can gate on it.
+/// The `zylaxion sig` verb: render the depth-matrix report and exit
+/// 1 on an unsigned commit, 2 on a tampered verdict, so scripts and
+/// release lanes can gate on the class, not the prose.
 pub fn cmd_sig() {
     print_sig_report();
 }

@@ -1161,7 +1161,9 @@ through the subkey-to-primary VALIDSIG resolution, or the honest
 degraded states (unsigned, no-vcs, wrong-key, no-key, bad-signature,
 unavailable); the sig ladder's D5 row reports it, failing closed on
 everything except a verified match against the pin, so an unsigned
-HEAD honestly reads 5/6 TAMPERED and a release cut from a signed
+HEAD honestly reads 5/6 UNSIGNED — a missing provenance link, not a
+modification, exit 1 (night-dragon-fly-1, the zelynic
+night-dragon-fly-4 shape) — and a release cut from a signed
 commit reads AUTHENTIC 6/6. (2) The anchor gate — attach re-hashes
 the embedded object against the build-time stamp BEFORE anything
 else it does (the artifact's own integrity is a precondition for

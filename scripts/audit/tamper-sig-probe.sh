@@ -21,7 +21,7 @@
 #   control arm - the pristine binary reports the build's OWN stamped
 #                 truth (night-netrunner-Z1): AUTHENTIC (6/6) on a
 #                 HEAD signed by the pinned maintainer key, honestly
-#                 TAMPERED (5/6) with the D5 commit-signature row
+#                 UNSIGNED (5/6) with the D5 commit-signature row
 #                 FAILing on an unsigned HEAD (a CI build from an
 #                 unsigned commit)
 #   tamper arm  - the patched binary exits 2, the verdict line reads
@@ -98,7 +98,7 @@ chmod 755 "$PATCHED"
 # can never demand a verdict the build could not honestly produce.
 # The rc capture rides `|| RC=$?` (the tamper arm's pattern): under
 # set -e a bare assignment whose substitution exits non-zero (the
-# unsigned-HEAD exit 2) would kill the probe before the expectation
+# unsigned-HEAD exit 1) would kill the probe before the expectation
 # arms can read it.
 CTRL_RC=0
 CTRL="$("$BIN" sig 2>&1)" || CTRL_RC=$?
@@ -111,13 +111,13 @@ if git -C "$ROOT" cat-file commit HEAD 2>/dev/null | grep -q '^gpgsig '; then
         || die "control arm: the signed-HEAD D5 commit-signature row is not green:\n$CTRL"
     pass "control arm: signed-HEAD sig AUTHENTIC (6/6), D4 tap-object and D5 commit-signature pass"
 else
-    [[ "$CTRL_RC" -eq 2 ]] \
-        || die "control arm: an unsigned-HEAD build must fail D5 and exit 2, got exit $CTRL_RC:\n$CTRL"
-    grep -F "SIGNATURE: TAMPERED (5/6 depths verified)" <<<"$CTRL" >/dev/null \
-        || die "control arm: no TAMPERED (5/6) verdict in the unsigned-HEAD report:\n$CTRL"
+    [[ "$CTRL_RC" -eq 1 ]] \
+        || die "control arm: an unsigned-HEAD build must fail D5 and exit 1, got exit $CTRL_RC:\n$CTRL"
+    grep -F "SIGNATURE: UNSIGNED (5/6 depths verified)" <<<"$CTRL" >/dev/null \
+        || die "control arm: no UNSIGNED (5/6) verdict in the unsigned-HEAD report:\n$CTRL"
     grep -E '^D5 commit-signature +FAIL' <<<"$CTRL" >/dev/null \
         || die "control arm: the unsigned-HEAD D5 row did not fail:\n$CTRL"
-    pass "control arm: unsigned-HEAD sig honestly TAMPERED (5/6), D5 commit-signature FAIL by name"
+    pass "control arm: unsigned-HEAD sig honestly UNSIGNED (5/6), D5 commit-signature FAIL by name"
 fi
 grep -E '^D4 tap-object +pass' <<<"$CTRL" >/dev/null \
     || die "control arm: the pristine D4 tap-object row is not green:\n$CTRL"
