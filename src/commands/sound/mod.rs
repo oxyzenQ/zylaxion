@@ -15,9 +15,9 @@
 //!
 //! ```text
 //! sudo zylaxion attach     ONCE per boot: tap + pins live in the kernel
-//! zylaxion on [preset]     spawn the stateless player, enable the gate
+//! zylaxion on [--preset <NAME>]  spawn the stateless player, enable the gate
 //! zylaxion preset --switch topre   one map write — the playing preset swaps live
-//! zylaxion volume 60       one map write — the gain retunes live
+//! zylaxion volume --percent 60    one map write — the gain retunes live
 //! zylaxion off             clear the gate: player self-exits, ZERO processes
 //! zylaxion detach          (sudo) unpin everything: nothing in the kernel
 //! ```
@@ -141,7 +141,7 @@ pub(crate) fn classify_pin_stat(kind: Option<std::io::ErrorKind>) -> ControlPinS
 /// (night-last-total-lts-5): the plant seeds the volume slot at attach
 /// (the compiled default, 100 — loader/chain.rs's control init), so a
 /// successful read is always user-meaningful and `Some(0)` is a
-/// deliberate mute (`zylaxion volume 0`), never an unset shape — the
+/// deliberate mute (`zylaxion volume --percent 0`), never an unset shape — the
 /// restore honors it verbatim. Only a read that FAILED (the map is
 /// unreadable) defers to the already-resolved default, and the posture
 /// writes that follow fail loudly if the map stays dead, so the

@@ -17,7 +17,7 @@ use super::{
     open_control, preset_index_or_error, stored_volume_or_fallback,
 };
 
-/// Handle `zylaxion on [preset]` — enable the sound.
+/// Handle `zylaxion on [--preset <NAME>]` — enable the sound.
 /// The settle wait's three exits (night-ux-orion-2): the loop inside
 /// the loading bracket cannot print or exit — the verdict lands after
 /// the machine finishes, so a drawn line is erased before the first
@@ -80,7 +80,7 @@ pub fn cmd_on(cli_preset: Option<String>) {
     // preset's registry position, volume 100), so every successful
     // read is user-meaningful: preset slot 0 IS the compiled default's
     // registry position (seeded or zero-initialized, the same verdict),
-    // and a stored volume 0 is a deliberate mute (`zylaxion volume 0`)
+    // and a stored volume 0 is a deliberate mute (`zylaxion volume --percent 0`)
     // the promise honors verbatim (night-last-total-lts-5); only an
     // unreadable map defers to the resolved default, and the posture
     // writes below fail loudly if the map stays dead.

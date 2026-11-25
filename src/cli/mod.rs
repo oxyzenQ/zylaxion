@@ -206,7 +206,7 @@ pub struct Cli {
     /// auto-help and its `help` subcommand are disabled; this field is
     /// the only help surface, intercepted in `main` to print the
     /// curated reference from `commands::help`. At subcommand level
-    /// (`zylaxion start --help`) there is no help flag at all — clap
+    /// (`zylaxion on --help`) there is no help flag at all — clap
     /// answers unknown-argument with a suggestion, exit 2.
     #[arg(short = 'h', long = "help", global = false)]
     pub help: bool,
@@ -218,7 +218,7 @@ pub struct Cli {
     /// run_check_update` refuses euid 0 with a "do not use sudo" tip
     /// before any network I/O happens. Top-level only: under a
     /// subcommand this spelling is an unknown-argument error, which is
-    /// the honest reading of `zylaxion start --check-update`.
+    /// the honest reading of `zylaxion on --check-update`.
     #[arg(long = "check-update", global = false)]
     pub check_update: bool,
 

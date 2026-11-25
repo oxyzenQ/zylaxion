@@ -26,11 +26,13 @@
 //! no escape-hatch probe (zylaxion's subcommands carry no positionals,
 //! so clap never injects the "to pass as a value" tip), no removed-
 //! subcommand or hidden-vocabulary rescues (zylaxion renamed no
-//! subcommand and hides none), and no shadowed-suggestion rescue (the
+//! subcommand, and its one hidden verb — the `_play` player — is
+//! documented on the help reference, not a rescue candidate), and no
+//! shadowed-suggestion rescue (the
 //! subcommand flag pools are two flags wide — a shadowing typo cannot
 //! clear the 0.7 bar against them). The flag-pool fallback walks argv
 //! to the failing subcommand so a subcommand-level caps typo
-//! (`zylaxion start --PRESET`) rescues from the pool the user is
+//! (`zylaxion preset --PRESET`) rescues from the pool the user is
 //! actually in — the root-only pool the reference scores from would
 //! miss it.
 
@@ -104,7 +106,7 @@ fn failing_command_pool<'a>(
 ///    shadowed-suggestion rescue the reference runs has no honest work
 ///    on a two-flag pool; see the module doc).
 /// 2. the top-level authority table — a root-only flag typed at
-///    subcommand position (`zylaxion start --help`) tips the exact
+///    subcommand position (`zylaxion preset --help`) tips the exact
 ///    top-level spelling.
 /// 3. the case-insensitive Jaro fallback over the FAILING command's
 ///    flag pool — fires only where clap was silent, so it can never

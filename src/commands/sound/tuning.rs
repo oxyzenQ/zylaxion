@@ -63,7 +63,7 @@ pub fn cmd_preset(name: &str) {
     }
 }
 
-/// Handle `zylaxion volume <percent>` — one map write, live retune.
+/// Handle `zylaxion volume --percent <0-200>` — one map write, live retune.
 /// 100 percent is the compiled laptop-speaker default; the gate is the
 /// session layer's [`crate::session::preset::volume_gate`]: 0..=200 by
 /// default, `--force-this` lifts the ceiling to 10000, past that

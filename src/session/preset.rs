@@ -27,7 +27,7 @@
 //! its contract is unchanged; the stored-slot lane lives in `cmd_on`,
 //! which layers it between the resolver's verdict and the default.
 //! While the player runs, the runtime
-//! `zylaxion preset <name>` command applies changes live — it writes
+//! `zylaxion preset --switch <name>` command applies changes live — it writes
 //! the preset slot of the pinned control map and the player's watcher
 //! thread swaps the model through the ArcSwap within 100 ms, no
 //! restart involved.
@@ -38,7 +38,7 @@
 //! promise (night-dinner-18): env > the map's stored percent > the
 //! compiled default. The plant seeds the compiled 100 at attach
 //! (night-last-total-lts-5), so a stored 0 is a deliberate mute
-//! (`zylaxion volume 0`) and the restore honors it verbatim; only an
+//! (`zylaxion volume --percent 0`) and the restore honors it verbatim; only an
 //! unreadable map defers to the resolved default. An invalid value is
 //! a hard error — the no-silent-
 //! fallback contract the config era honored survives here.
