@@ -52,62 +52,57 @@ pub(super) fn kernel_station(root: bool) -> bool {
     let kernel = crate::session::kernel::probe();
     crate::output::print_stdout_line("");
     if kernel.release.is_empty() {
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::kv(
+        crate::output::print_stdout_line(
+            &crate::output::kv(
                 "Kernel:",
-                &crate::output::fail_line("unreadable (/proc/sys/kernel/osrelease)")
+                &crate::output::fail_line("unreadable (/proc/sys/kernel/osrelease)"),
             )
-        ));
+            .to_string(),
+        );
         ok = false;
     } else {
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::kv("Kernel:", &kernel.release)
-        ));
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::kv(
+        crate::output::print_stdout_line(
+            &crate::output::kv("Kernel:", &kernel.release).to_string(),
+        );
+        crate::output::print_stdout_line(
+            &crate::output::kv(
                 "Root:",
                 &if root {
                     crate::output::warn_line("YES — the session the verdicts describe")
                 } else {
                     "NO".to_string()
-                }
+                },
             )
-        ));
+            .to_string(),
+        );
         if kernel.supported() {
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv(
+            crate::output::print_stdout_line(
+                &crate::output::kv(
                     "eBPF:",
                     &crate::output::ok_line(&format!(
                         "{} ({} meets the 5.15 minimum)",
                         kernel.verdict(),
                         kernel.release
-                    ))
+                    )),
                 )
-            ));
+                .to_string(),
+            );
         } else {
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv(
+            crate::output::print_stdout_line(&crate::output::kv(
                     "eBPF:",
                     &crate::output::fail_line(&format!(
                         "{} ({} is below the 5.15 minimum — zylaxion is eBPF-only, upgrade the kernel)",
                         kernel.verdict(),
                         kernel.release
                     ))
-                )
-            ));
+                ).to_string());
             ok = false;
         }
         // BTF: the fentry lane's enabler (night-improve-25). The chain
         // does not NEED it — the kprobe steps run without BTF — so it
         // is reported for completeness, never fatal.
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::kv(
+        crate::output::print_stdout_line(
+            &crate::output::kv(
                 "BTF:",
                 &format!(
                     "{} ({})",
@@ -121,14 +116,15 @@ pub(super) fn kernel_station(root: bool) -> bool {
                     } else {
                         "the chain falls back to the kprobe lanes"
                     }
-                )
+                ),
             )
-        ));
+            .to_string(),
+        );
         if kernel.bpffs {
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv("bpffs:", &crate::output::ok_line("mounted at /sys/fs/bpf"))
-            ));
+            crate::output::print_stdout_line(
+                &crate::output::kv("bpffs:", &crate::output::ok_line("mounted at /sys/fs/bpf"))
+                    .to_string(),
+            );
             // The reach verdict (night-dinner-3): owning the pins is
             // not REACHING the pins — a bpffs mount in mode 0700 (the
             // Debian 13 default) lets attach plant user-owned pins
@@ -144,62 +140,62 @@ pub(super) fn kernel_station(root: bool) -> bool {
             let (uid, gid) = reach_identity();
             let reach = crate::session::kernel::bpffs_reach(uid, gid);
             if !reach.root_traversable {
-                crate::output::print_stdout_line(&format!(
-                    "{}",
-                    crate::output::kv(
+                crate::output::print_stdout_line(
+                    &crate::output::kv(
                         "pin reach:",
                         &crate::output::fail_line(&format!(
                             "the running identity cannot walk to the pins (mount mode \
                              {:o}) — a mode-0700 bpffs mount, the Debian 13 default",
                             reach.root_mode
-                        ))
+                        )),
                     )
-                ));
-                crate::output::print_stdout_line(&format!(
-                    "{}",
-                    crate::output::kv(
+                    .to_string(),
+                );
+                crate::output::print_stdout_line(
+                    &crate::output::kv(
                         "fix:",
                         &crate::output::tip_line(
                             "sudo chmod o+x /sys/fs/bpf (one command; attach does this \
-                             automatically whenever it has a desktop user to hand the pins to)"
-                        )
+                             automatically whenever it has a desktop user to hand the pins to)",
+                        ),
                     )
-                ));
+                    .to_string(),
+                );
                 ok = false;
             } else if reach.pin_dir_present && !reach.pin_dir_traversable {
-                crate::output::print_stdout_line(&format!(
-                    "{}",
-                    crate::output::kv(
+                crate::output::print_stdout_line(
+                    &crate::output::kv(
                         "pin reach:",
                         &crate::output::fail_line(&format!(
                             "the running identity walks the mount but /sys/fs/bpf/zylaxion \
                              denies the walk (mode {:o})",
                             reach.root_mode
-                        ))
+                        )),
                     )
-                ));
-                crate::output::print_stdout_line(&format!(
-                    "{}",
-                    crate::output::kv(
+                    .to_string(),
+                );
+                crate::output::print_stdout_line(
+                    &crate::output::kv(
                         "fix:",
                         &crate::output::tip_line(
                             "sudo chmod o+x /sys/fs/bpf/zylaxion (attach plants it 0755; \
-                             this one was tightened by hand)"
-                        )
+                             this one was tightened by hand)",
+                        ),
                     )
-                ));
+                    .to_string(),
+                );
                 ok = false;
             } else if reach.pin_dir_present {
-                crate::output::print_stdout_line(&format!(
-                    "{}",
-                    crate::output::kv(
+                crate::output::print_stdout_line(
+                    &crate::output::kv(
                         "pin reach:",
                         &crate::output::ok_line(&format!(
                             "the running identity walks to the pins (mount mode {:o})",
                             reach.root_mode
-                        ))
+                        )),
                     )
-                ));
+                    .to_string(),
+                );
                 // The ownership verdict (night-dinner-19): reaching is
                 // not OPENING — the boot oneshot ran before the first
                 // login, so a walkable pin set can still be root-owned
@@ -213,34 +209,34 @@ pub(super) fn kernel_station(root: bool) -> bool {
                         .map(|m| std::os::unix::fs::MetadataExt::uid(&m))
                 {
                     if owner == uid {
-                        crate::output::print_stdout_line(&format!(
-                            "{}",
-                            crate::output::kv(
+                        crate::output::print_stdout_line(
+                            &crate::output::kv(
                                 "ownership:",
-                                &crate::output::ok_line("the control map is yours")
+                                &crate::output::ok_line("the control map is yours"),
                             )
-                        ));
+                            .to_string(),
+                        );
                     } else {
-                        crate::output::print_stdout_line(&format!(
-                            "{}",
-                            crate::output::kv(
+                        crate::output::print_stdout_line(
+                            &crate::output::kv(
                                 "ownership:",
                                 &crate::output::fail_line(
                                     "the control map is owned by another uid, not yours — \
                                      the boot attach ran before your login",
-                                )
+                                ),
                             )
-                        ));
-                        crate::output::print_stdout_line(&format!(
-                            "{}",
-                            crate::output::kv(
+                            .to_string(),
+                        );
+                        crate::output::print_stdout_line(
+                            &crate::output::kv(
                                 "fix:",
                                 &crate::output::tip_line(
                                     "sudo zylaxion attach (heals in place — it hands the \
-                                     pins over without a detach cycle)"
-                                )
+                                     pins over without a detach cycle)",
+                                ),
                             )
-                        ));
+                            .to_string(),
+                        );
                         ok = false;
                     }
                 }
@@ -255,38 +251,38 @@ pub(super) fn kernel_station(root: bool) -> bool {
                 // pins planted the reach is a capability, not a state.
                 // The line now names the absence dynamically — the
                 // same stat that fed the old wording feeds the branch.
-                crate::output::print_stdout_line(&format!(
-                    "{}",
-                    crate::output::kv(
+                crate::output::print_stdout_line(
+                    &crate::output::kv(
                         "pin reach:",
                         &crate::output::ok_line(&format!(
                             "no pins planted — the mount is walkable by the running \
                              identity (mount mode {:o}); the next attach decides the \
                              pins' reach",
                             reach.root_mode
-                        ))
+                        )),
                     )
-                ));
+                    .to_string(),
+                );
             }
         } else {
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv(
+            crate::output::print_stdout_line(
+                &crate::output::kv(
                     "bpffs:",
                     &crate::output::fail_line(
-                        "not mounted at /sys/fs/bpf — the pinned state store has nowhere to live"
-                    )
+                        "not mounted at /sys/fs/bpf — the pinned state store has nowhere to live",
+                    ),
                 )
-            ));
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv(
+                .to_string(),
+            );
+            crate::output::print_stdout_line(
+                &crate::output::kv(
                     "fix:",
                     &crate::output::tip_line(
-                        "sudo mount -t bpf bpf /sys/fs/bpf (normally automatic)"
-                    )
+                        "sudo mount -t bpf bpf /sys/fs/bpf (normally automatic)",
+                    ),
                 )
-            ));
+                .to_string(),
+            );
             ok = false;
         }
         // The input-tap verdict (night-improve-25): the probe's
@@ -308,10 +304,9 @@ pub(super) fn kernel_station(root: bool) -> bool {
         } else {
             crate::output::ok_line(tap_value)
         };
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::kv("tap chain:", &tap_colored)
-        ));
+        crate::output::print_stdout_line(
+            &crate::output::kv("tap chain:", &tap_colored).to_string(),
+        );
         // The last attach failure, if one left its marker
         // (night-improve-25): a failed attach plants a small pinned map
         // carrying the classified error code; naming it here is the
@@ -319,35 +314,35 @@ pub(super) fn kernel_station(root: bool) -> bool {
         // line says exactly which step of the chain failed and how it
         // was classified.
         if let Some(err) = crate::ebpf::loader::last_attach_error() {
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv(
+            crate::output::print_stdout_line(
+                &crate::output::kv(
                     "last attach:",
                     &crate::output::tip_line(&format!(
                         "failed: {err} — `sudo zylaxion attach` prints the per-step log"
-                    ))
+                    )),
                 )
-            ));
+                .to_string(),
+            );
         }
         if kernel.lockdown_readable && kernel.lockdown_blocks_bpf {
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv(
+            crate::output::print_stdout_line(
+                &crate::output::kv(
                     "lockdown:",
                     &crate::output::fail_line(
-                        "'confidentiality' active — the kernel withdraws BPF"
-                    )
+                        "'confidentiality' active — the kernel withdraws BPF",
+                    ),
                 )
-            ));
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv(
+                .to_string(),
+            );
+            crate::output::print_stdout_line(
+                &crate::output::kv(
                     "fix:",
                     &crate::output::tip_line(
-                        "choose a kernel lockdown mode that allows BPF (integrity or none)"
-                    )
+                        "choose a kernel lockdown mode that allows BPF (integrity or none)",
+                    ),
                 )
-            ));
+                .to_string(),
+            );
             ok = false;
         }
         // The unprivileged-bpf posture (night-badas-4 round 5, the
@@ -366,15 +361,15 @@ pub(super) fn kernel_station(root: bool) -> bool {
             .unwrap_or(&unpriv_verdict)
             .to_string();
         if kernel.unpriv_map_ops_allowed(root) {
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv("unpriv bpf:", &crate::output::ok_line(&unpriv_value))
-            ));
+            crate::output::print_stdout_line(
+                &crate::output::kv("unpriv bpf:", &crate::output::ok_line(&unpriv_value))
+                    .to_string(),
+            );
         } else {
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv("unpriv bpf:", &crate::output::fail_line(&unpriv_value))
-            ));
+            crate::output::print_stdout_line(
+                &crate::output::kv("unpriv bpf:", &crate::output::fail_line(&unpriv_value))
+                    .to_string(),
+            );
             ok = false;
         }
     }

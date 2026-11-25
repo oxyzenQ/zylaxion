@@ -28,10 +28,9 @@ pub fn cmd_overview() {
     } else {
         crate::output::fail_line(kernel.verdict())
     };
-    crate::output::print_stdout_line(&format!(
-        "{}",
-        crate::output::kv("kernel:", &format!("{} ({})", kernel.release, verdict))
-    ));
+    crate::output::print_stdout_line(
+        &crate::output::kv("kernel:", &format!("{} ({})", kernel.release, verdict)).to_string(),
+    );
 
     // 2. Tap residency + active posture. The posture reads the control plane
     //    through the named slot constants (night-hunter-2 — the raw
@@ -41,13 +40,13 @@ pub fn cmd_overview() {
         ENABLED_SLOT, PLAYER_PID_SLOT, PRESET_ID_SLOT, TAP_KIND_SLOT, VOLUME_PCT_SLOT,
     };
     if !pin::any_pin_present() {
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::kv(
+        crate::output::print_stdout_line(
+            &crate::output::kv(
                 "tap:",
-                &crate::output::tip_line("not attached (sudo zylaxion attach)")
+                &crate::output::tip_line("not attached (sudo zylaxion attach)"),
             )
-        ));
+            .to_string(),
+        );
     } else if pin::all_pins_present() {
         // The chain step that owns the tap (night-improve-25) —
         // the same TAP_KIND read the status line carries.
@@ -57,21 +56,21 @@ pub fn cmd_overview() {
             .and_then(crate::ebpf::loader::TapKind::from_slot)
             .map(crate::ebpf::loader::TapKind::label)
             .unwrap_or("unknown step");
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::kv(
+        crate::output::print_stdout_line(
+            &crate::output::kv(
                 "tap:",
-                &format!("{} ({step})", crate::output::ok_line("attached"))
+                &format!("{} ({step})", crate::output::ok_line("attached")),
             )
-        ));
+            .to_string(),
+        );
     } else {
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::kv(
+        crate::output::print_stdout_line(
+            &crate::output::kv(
                 "tap:",
-                &crate::output::warn_line("PARTIAL pin set (sudo zylaxion attach replants it)")
+                &crate::output::warn_line("PARTIAL pin set (sudo zylaxion attach replants it)"),
             )
-        ));
+            .to_string(),
+        );
     }
     if let Ok(control) = crate::commands::sound::open_control() {
         let enabled = control.get(&ENABLED_SLOT, 0).unwrap_or(0) == 1;
@@ -107,37 +106,34 @@ pub fn cmd_overview() {
             };
             (name, volume, line)
         };
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::kv(
+        crate::output::print_stdout_line(
+            &crate::output::kv(
                 "sound:",
                 &if enabled {
                     crate::output::ok_line("on")
                 } else {
                     crate::output::tip_line("off")
-                }
+                },
             )
-        ));
-        crate::output::print_stdout_line(&format!("{}", crate::output::kv("preset:", preset_name)));
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::kv(
+            .to_string(),
+        );
+        crate::output::print_stdout_line(&crate::output::kv("preset:", preset_name).to_string());
+        crate::output::print_stdout_line(
+            &crate::output::kv(
                 "volume:",
-                &format!("{volume_percent}% (100 = the compiled default)")
+                &format!("{volume_percent}% (100 = the compiled default)"),
             )
-        ));
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::kv("player:", &player_line)
-        ));
+            .to_string(),
+        );
+        crate::output::print_stdout_line(&crate::output::kv("player:", &player_line).to_string());
     } else if pin::any_pin_present() {
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::kv(
+        crate::output::print_stdout_line(
+            &crate::output::kv(
                 "control:",
-                &crate::output::warn_line("not openable by this user (pin ownership?)")
+                &crate::output::warn_line("not openable by this user (pin ownership?)"),
             )
-        ));
+            .to_string(),
+        );
     }
 
     // 3. Audio device (the quiet-ALSA guard keeps libasound's C-level
@@ -155,39 +151,39 @@ pub fn cmd_overview() {
                 .map(|d| d.name().to_owned())
                 .unwrap_or_else(|_| "<unknown>".into());
             if let Ok(dev_config) = device.default_output_config() {
-                crate::output::print_stdout_line(&format!(
-                    "{}",
-                    crate::output::kv(
+                crate::output::print_stdout_line(
+                    &crate::output::kv(
                         "audio:",
                         &format!(
                             "{name} ({} Hz, {}ch, {:?})",
                             dev_config.sample_rate(),
                             dev_config.channels(),
                             dev_config.sample_format()
-                        )
+                        ),
                     )
-                ));
+                    .to_string(),
+                );
             } else {
                 // night-dragon-maintenance-4: an unreadable device
                 // config is a caution — the warning yellow tier, the
                 // same lane the no-device arm below already rides.
-                crate::output::print_stdout_line(&format!(
-                    "{}",
-                    crate::output::kv(
+                crate::output::print_stdout_line(
+                    &crate::output::kv(
                         "audio:",
                         &format!(
                             "{name} {}",
                             crate::output::warn_line("(config unavailable)")
-                        )
+                        ),
                     )
-                ));
+                    .to_string(),
+                );
             }
         }
         None => {
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv("audio:", &crate::output::warn_line("no device found"))
-            ));
+            crate::output::print_stdout_line(
+                &crate::output::kv("audio:", &crate::output::warn_line("no device found"))
+                    .to_string(),
+            );
         }
     }
 

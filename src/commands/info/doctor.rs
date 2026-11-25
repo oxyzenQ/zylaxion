@@ -56,48 +56,33 @@ pub fn cmd_doctor() {
     // a git checkout, registry-prebuilt on a registry tarball). The
     // verdict stays an honest statement of that fact, not a branch.
     let lane = option_env!("ZYLAXION_EBPF_LANE").unwrap_or("unknown");
-    crate::output::print_stdout_line(&format!(
-        "{}",
-        crate::output::kv(
+    crate::output::print_stdout_line(
+        &crate::output::kv(
             "Build:",
-            &crate::output::ok_line(&format!("FULL-LIFE (eBPF objects: {lane})"))
+            &crate::output::ok_line(&format!("FULL-LIFE (eBPF objects: {lane})")),
         )
-    ));
-    crate::output::print_stdout_line(&format!(
-        "{}",
-        crate::output::kv("Version:", &format!("v{}", build.version))
-    ));
-    crate::output::print_stdout_line(&format!("{}", crate::output::kv("Commit:", &build.git_sha)));
-    crate::output::print_stdout_line(&format!(
-        "{}",
-        crate::output::kv("Variant:", &build.variant)
-    ));
-    crate::output::print_stdout_line(&format!(
-        "{}",
-        crate::output::kv(
+        .to_string(),
+    );
+    crate::output::print_stdout_line(
+        &crate::output::kv("Version:", &format!("v{}", build.version)).to_string(),
+    );
+    crate::output::print_stdout_line(&crate::output::kv("Commit:", &build.git_sha).to_string());
+    crate::output::print_stdout_line(&crate::output::kv("Variant:", &build.variant).to_string());
+    crate::output::print_stdout_line(
+        &crate::output::kv(
             // night-frontier-2B: the stamp names its own clock — the
             // reproducible posture (SOURCE_DATE_EPOCH pinned) reads
             // differently from a live wall-clock build.
             "Built:",
-            &format!("{} ({})", build.build_time, build.epoch_source)
+            &format!("{} ({})", build.build_time, build.epoch_source),
         )
-    ));
-    crate::output::print_stdout_line(&format!(
-        "{}",
-        crate::output::kv("Rustc:", &build.rustc_version)
-    ));
-    crate::output::print_stdout_line(&format!(
-        "{}",
-        crate::output::kv("Profile:", &build.profile)
-    ));
-    crate::output::print_stdout_line(&format!(
-        "{}",
-        // night-frontier-2B, the lockfile attestation: the dependency
-        // set's fingerprint — two builds of one commit stamp the same
-        // value, a manifest or registry drift shows here before any
-        // run.
-        crate::output::kv("Lock:", &build.lock_hash)
-    ));
+        .to_string(),
+    );
+    crate::output::print_stdout_line(
+        &crate::output::kv("Rustc:", &build.rustc_version).to_string(),
+    );
+    crate::output::print_stdout_line(&crate::output::kv("Profile:", &build.profile).to_string());
+    crate::output::print_stdout_line(&crate::output::kv("Lock:", &build.lock_hash).to_string());
 
     // 1. Kernel / eBPF capability (night-improve-23, the eBPF-only
     //    floor): the whole station lives in doctor_kernel.rs now (the
@@ -135,42 +120,42 @@ pub fn cmd_doctor() {
             (Some(uid), Some(user)) if !user.is_empty() => {
                 let dir = format!("/run/user/{uid}");
                 if std::path::Path::new(&dir).is_dir() {
-                    crate::output::print_stdout_line(&format!(
-                        "{}",
-                        crate::output::kv(
+                    crate::output::print_stdout_line(
+                        &crate::output::kv(
                             "XDG dir:",
                             &crate::output::ok_line(
                                 "the sudo user's runtime dir (/run/user/<uid>) exists — \
                                  the desktop session checks out (root's shell has none of \
-                                 its own)"
-                            )
+                                 its own)",
+                            ),
                         )
-                    ));
+                        .to_string(),
+                    );
                 } else {
-                    crate::output::print_stdout_line(&format!(
-                        "{}",
-                        crate::output::kv(
+                    crate::output::print_stdout_line(
+                        &crate::output::kv(
                             "XDG dir:",
                             &crate::output::warn_line(
                                 "the sudo user's runtime dir (/run/user/<uid>) is missing — \
                                  their desktop session is missing the runtime dir the \
-                                 player opens"
-                            )
+                                 player opens",
+                            ),
                         )
-                    ));
+                        .to_string(),
+                    );
                 }
             }
             _ => {
-                crate::output::print_stdout_line(&format!(
-                    "{}",
-                    crate::output::kv(
+                crate::output::print_stdout_line(
+                    &crate::output::kv(
                         "XDG dir:",
                         &crate::output::warn_line(
                             "a plain root shell — the audio-session facts belong to a \
-                             desktop user; re-run without sudo"
-                        )
+                             desktop user; re-run without sudo",
+                        ),
                     )
-                ));
+                    .to_string(),
+                );
             }
         }
     } else {
@@ -178,41 +163,41 @@ pub fn cmd_doctor() {
             Ok(dir) => {
                 let path = std::path::Path::new(&dir);
                 if path.is_dir() {
-                    crate::output::print_stdout_line(&format!(
-                        "{}",
-                        crate::output::kv(
+                    crate::output::print_stdout_line(
+                        &crate::output::kv(
                             "XDG dir:",
-                            &crate::output::ok_line(&format!("$XDG_RUNTIME_DIR = {dir}"))
+                            &crate::output::ok_line(&format!("$XDG_RUNTIME_DIR = {dir}")),
                         )
-                    ));
+                        .to_string(),
+                    );
                 } else {
-                    crate::output::print_stdout_line(&format!(
-                        "{}",
-                        crate::output::kv(
+                    crate::output::print_stdout_line(
+                        &crate::output::kv(
                             "XDG dir:",
                             &crate::output::fail_line(&format!(
                                 "$XDG_RUNTIME_DIR = {dir} (not a directory)"
-                            ))
+                            )),
                         )
-                    ));
+                        .to_string(),
+                    );
                     ok = false;
                 }
             }
             Err(_) => {
-                crate::output::print_stdout_line(&format!(
-                    "{}",
-                    crate::output::kv(
+                crate::output::print_stdout_line(
+                    &crate::output::kv(
                         "XDG dir:",
-                        &crate::output::fail_line("$XDG_RUNTIME_DIR is not set")
+                        &crate::output::fail_line("$XDG_RUNTIME_DIR is not set"),
                     )
-                ));
-                crate::output::print_stdout_line(&format!(
-                    "{}",
-                    crate::output::kv(
+                    .to_string(),
+                );
+                crate::output::print_stdout_line(
+                    &crate::output::kv(
                         "fix:",
-                        &crate::output::tip_line("export XDG_RUNTIME_DIR=/run/user/$(id -u)")
+                        &crate::output::tip_line("export XDG_RUNTIME_DIR=/run/user/$(id -u)"),
                     )
-                ));
+                    .to_string(),
+                );
                 ok = false;
             }
         }
@@ -256,53 +241,53 @@ pub fn cmd_doctor() {
     indicator.finish();
     match probe {
         Some((name, Ok(config))) => {
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv(
+            crate::output::print_stdout_line(
+                &crate::output::kv(
                     "audio:",
                     &crate::output::ok_line(&format!(
                         "default output device: {name} ({} Hz, {}ch, {:?})",
                         config.sample_rate(),
                         config.channels(),
                         config.sample_format()
-                    ))
+                    )),
                 )
-            ));
+                .to_string(),
+            );
         }
         Some((name, Err(e))) => {
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv(
+            crate::output::print_stdout_line(
+                &crate::output::kv(
                     "audio:",
                     &crate::output::fail_line(&format!(
                         "default output device ({name}) present but not openable: {e}"
-                    ))
+                    )),
                 )
-            ));
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv(
+                .to_string(),
+            );
+            crate::output::print_stdout_line(
+                &crate::output::kv(
                     "fix:",
-                    &crate::output::tip_line("start PipeWire or PulseAudio")
+                    &crate::output::tip_line("start PipeWire or PulseAudio"),
                 )
-            ));
+                .to_string(),
+            );
             ok = false;
         }
         None => {
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv(
+            crate::output::print_stdout_line(
+                &crate::output::kv(
                     "audio:",
-                    &crate::output::fail_line("no audio output device found")
+                    &crate::output::fail_line("no audio output device found"),
                 )
-            ));
-            crate::output::print_stdout_line(&format!(
-                "{}",
-                crate::output::kv(
+                .to_string(),
+            );
+            crate::output::print_stdout_line(
+                &crate::output::kv(
                     "fix:",
-                    &crate::output::tip_line("start PipeWire or PulseAudio")
+                    &crate::output::tip_line("start PipeWire or PulseAudio"),
                 )
-            ));
+                .to_string(),
+            );
             ok = false;
         }
     }
@@ -316,23 +301,21 @@ pub fn cmd_doctor() {
         // warning tier with its rows — the caution block reads as one
         // yellow lane, scannable on a color terminal, byte-identical
         // plain otherwise.
-        crate::output::print_stdout_line(&format!("{}", crate::output::warn_line("Warnings:")));
+        crate::output::print_stdout_line(&crate::output::warn_line("Warnings:").to_string());
         for w in &warnings {
-            crate::output::print_stdout_line(&format!("{}", crate::output::warn_bullet(w)));
+            crate::output::print_stdout_line(&crate::output::warn_bullet(w).to_string());
         }
     }
 
     crate::output::print_stdout_line("");
     if ok {
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::ok_line("All checks passed — zylaxion is ready to run.")
-        ));
+        crate::output::print_stdout_line(
+            &crate::output::ok_line("All checks passed — zylaxion is ready to run.").to_string(),
+        );
     } else {
-        crate::output::print_stdout_line(&format!(
-            "{}",
-            crate::output::fail_line("Some checks failed — see above for fixes.")
-        ));
+        crate::output::print_stdout_line(
+            &crate::output::fail_line("Some checks failed — see above for fixes.").to_string(),
+        );
         process::exit(1);
     }
 }
