@@ -67,14 +67,23 @@ pub fn cmd_preset(name: &str) {
 /// 100 percent is the compiled laptop-speaker default; the gate is the
 /// session layer's [`crate::session::preset::volume_gate`]: 0..=200 by
 /// default, `--force-this` lifts the ceiling to 10000, past that
-/// nothing passes. The success print names the cap, no editorializing.
+/// nothing passes. The refusal is a runtime failure and exits 1 (the
+/// CLI contract: clap usage errors exit 2, runtime failures exit 1 —
+/// the value parsed, the session gate refused it). The success print
+/// names the cap, no editorializing.
 pub fn cmd_volume(percent: u32, force_this: bool) {
     init_logger();
     let percent = match crate::session::preset::volume_gate(percent, force_this) {
         Ok(p) => p,
         Err(e) => {
+            // The exit-code contract (the ux bridge's law): clap usage
+            // errors exit 2, runtime failures exit 1. The percent value
+            // PARSED (clap accepted the u32); the session gate refused
+            // the live write — a runtime failure, so exit 1 like every
+            // sibling refusal in this module (the preset lookup, the
+            // control-plane open, the slot writes).
             crate::output::error(e);
-            process::exit(2);
+            process::exit(1);
         }
     };
     kernel_policy_gate();
