@@ -320,6 +320,16 @@ pub fn print_stdout_line(text: &str) {
     let _ = out.write_all(b"\n");
 }
 
+/// Broken-pipe-safe stdout write WITHOUT a trailing newline: for the
+/// buffers that carry their own newlines (the presets table's single
+/// `print!`). A failed write is dropped, never a panic — the same
+/// semantic as [`print_stdout_line`], byte-for-byte what the caller
+/// passes.
+pub fn print_stdout_raw(text: &str) {
+    let mut out = std::io::stdout().lock();
+    let _ = out.write_all(text.as_bytes());
+}
+
 /// A single-line brand span — brand purple `#A855F7`, regular weight
 /// (the cosmostrix `version_report()` parity, night-dragon-maintenance-T1):
 /// the version report's header lines each ride their OWN wrap, never one

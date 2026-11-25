@@ -17,7 +17,7 @@ use super::alsa_guard::QuietAlsa;
 /// the active posture replace them — the same facts `status` prints,
 /// in the compact no-subcommand shape.
 pub fn cmd_overview() {
-    println!("{}\n", crate::output::section("zylaxion"));
+    crate::output::print_stdout_line(&format!("{}\n", crate::output::section("zylaxion")));
 
     // 1. Kernel verdict (both lanes — the kernel probe has no deps).
     //    night-hunter-4: the verdict rides the semantic tier, the same
@@ -28,10 +28,10 @@ pub fn cmd_overview() {
     } else {
         crate::output::fail_line(kernel.verdict())
     };
-    println!(
+    crate::output::print_stdout_line(&format!(
         "{}",
         crate::output::kv("kernel:", &format!("{} ({})", kernel.release, verdict))
-    );
+    ));
 
     // 2. Tap residency + active posture. The posture reads the control plane
     //    through the named slot constants (night-hunter-2 — the raw
@@ -41,13 +41,13 @@ pub fn cmd_overview() {
         ENABLED_SLOT, PLAYER_PID_SLOT, PRESET_ID_SLOT, TAP_KIND_SLOT, VOLUME_PCT_SLOT,
     };
     if !pin::any_pin_present() {
-        println!(
+        crate::output::print_stdout_line(&format!(
             "{}",
             crate::output::kv(
                 "tap:",
                 &crate::output::tip_line("not attached (sudo zylaxion attach)")
             )
-        );
+        ));
     } else if pin::all_pins_present() {
         // The chain step that owns the tap (night-improve-25) —
         // the same TAP_KIND read the status line carries.
@@ -57,21 +57,21 @@ pub fn cmd_overview() {
             .and_then(crate::ebpf::loader::TapKind::from_slot)
             .map(crate::ebpf::loader::TapKind::label)
             .unwrap_or("unknown step");
-        println!(
+        crate::output::print_stdout_line(&format!(
             "{}",
             crate::output::kv(
                 "tap:",
                 &format!("{} ({step})", crate::output::ok_line("attached"))
             )
-        );
+        ));
     } else {
-        println!(
+        crate::output::print_stdout_line(&format!(
             "{}",
             crate::output::kv(
                 "tap:",
                 &crate::output::warn_line("PARTIAL pin set (sudo zylaxion attach replants it)")
             )
-        );
+        ));
     }
     if let Ok(control) = crate::commands::sound::open_control() {
         let enabled = control.get(&ENABLED_SLOT, 0).unwrap_or(0) == 1;
@@ -107,7 +107,7 @@ pub fn cmd_overview() {
             };
             (name, volume, line)
         };
-        println!(
+        crate::output::print_stdout_line(&format!(
             "{}",
             crate::output::kv(
                 "sound:",
@@ -117,24 +117,27 @@ pub fn cmd_overview() {
                     crate::output::tip_line("off")
                 }
             )
-        );
-        println!("{}", crate::output::kv("preset:", preset_name));
-        println!(
+        ));
+        crate::output::print_stdout_line(&format!("{}", crate::output::kv("preset:", preset_name)));
+        crate::output::print_stdout_line(&format!(
             "{}",
             crate::output::kv(
                 "volume:",
                 &format!("{volume_percent}% (100 = the compiled default)")
             )
-        );
-        println!("{}", crate::output::kv("player:", &player_line));
+        ));
+        crate::output::print_stdout_line(&format!(
+            "{}",
+            crate::output::kv("player:", &player_line)
+        ));
     } else if pin::any_pin_present() {
-        println!(
+        crate::output::print_stdout_line(&format!(
             "{}",
             crate::output::kv(
                 "control:",
                 &crate::output::warn_line("not openable by this user (pin ownership?)")
             )
-        );
+        ));
     }
 
     // 3. Audio device (the quiet-ALSA guard keeps libasound's C-level
@@ -152,7 +155,7 @@ pub fn cmd_overview() {
                 .map(|d| d.name().to_owned())
                 .unwrap_or_else(|_| "<unknown>".into());
             if let Ok(dev_config) = device.default_output_config() {
-                println!(
+                crate::output::print_stdout_line(&format!(
                     "{}",
                     crate::output::kv(
                         "audio:",
@@ -163,12 +166,12 @@ pub fn cmd_overview() {
                             dev_config.sample_format()
                         )
                     )
-                );
+                ));
             } else {
                 // night-dragon-maintenance-4: an unreadable device
                 // config is a caution — the warning yellow tier, the
                 // same lane the no-device arm below already rides.
-                println!(
+                crate::output::print_stdout_line(&format!(
                     "{}",
                     crate::output::kv(
                         "audio:",
@@ -177,18 +180,18 @@ pub fn cmd_overview() {
                             crate::output::warn_line("(config unavailable)")
                         )
                     )
-                );
+                ));
             }
         }
         None => {
-            println!(
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv("audio:", &crate::output::warn_line("no device found"))
-            );
+            ));
         }
     }
 
-    println!();
+    crate::output::print_stdout_line("");
     // night-hunter-4: the runnable commands ride the status-green tier
     // (the help reference's example law), the trailing comments ride
     // the calm-grey grammar tier. Plain mode reproduces the exact
@@ -202,15 +205,15 @@ pub fn cmd_overview() {
     ];
     let width = rows.iter().map(|(cmd, _)| cmd.len()).max().unwrap_or(0);
     for (cmd, comment) in rows {
-        println!(
+        crate::output::print_stdout_line(&format!(
             "  {}{} {}",
             crate::output::ok_line(cmd),
             " ".repeat(width - cmd.len()),
             crate::output::tip_line(comment)
-        );
+        ));
     }
     // The report ends ON its last content line (night-sig-tail-2, the
-    // tail law): the final println!() here closed the overview with a
+    // tail law): the final crate::output::print_stdout_line("") here closed the overview with a
     // blank line no sibling report carries — blank lines separate
-    // sections (the println!() above), they never close a report.
+    // sections (the crate::output::print_stdout_line("") above), they never close a report.
 }

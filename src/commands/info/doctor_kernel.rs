@@ -50,19 +50,22 @@ pub(super) fn kernel_station(root: bool) -> bool {
     //    run. One probe feeds both this report and the attach path,
     //    so the two surfaces can never drift.
     let kernel = crate::session::kernel::probe();
-    println!();
+    crate::output::print_stdout_line("");
     if kernel.release.is_empty() {
-        println!(
+        crate::output::print_stdout_line(&format!(
             "{}",
             crate::output::kv(
                 "Kernel:",
                 &crate::output::fail_line("unreadable (/proc/sys/kernel/osrelease)")
             )
-        );
+        ));
         ok = false;
     } else {
-        println!("{}", crate::output::kv("Kernel:", &kernel.release));
-        println!(
+        crate::output::print_stdout_line(&format!(
+            "{}",
+            crate::output::kv("Kernel:", &kernel.release)
+        ));
+        crate::output::print_stdout_line(&format!(
             "{}",
             crate::output::kv(
                 "Root:",
@@ -72,9 +75,9 @@ pub(super) fn kernel_station(root: bool) -> bool {
                     "NO".to_string()
                 }
             )
-        );
+        ));
         if kernel.supported() {
-            println!(
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv(
                     "eBPF:",
@@ -84,9 +87,9 @@ pub(super) fn kernel_station(root: bool) -> bool {
                         kernel.release
                     ))
                 )
-            );
+            ));
         } else {
-            println!(
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv(
                     "eBPF:",
@@ -96,13 +99,13 @@ pub(super) fn kernel_station(root: bool) -> bool {
                         kernel.release
                     ))
                 )
-            );
+            ));
             ok = false;
         }
         // BTF: the fentry lane's enabler (night-improve-25). The chain
         // does not NEED it — the kprobe steps run without BTF — so it
         // is reported for completeness, never fatal.
-        println!(
+        crate::output::print_stdout_line(&format!(
             "{}",
             crate::output::kv(
                 "BTF:",
@@ -120,12 +123,12 @@ pub(super) fn kernel_station(root: bool) -> bool {
                     }
                 )
             )
-        );
+        ));
         if kernel.bpffs {
-            println!(
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv("bpffs:", &crate::output::ok_line("mounted at /sys/fs/bpf"))
-            );
+            ));
             // The reach verdict (night-dinner-3): owning the pins is
             // not REACHING the pins — a bpffs mount in mode 0700 (the
             // Debian 13 default) lets attach plant user-owned pins
@@ -141,7 +144,7 @@ pub(super) fn kernel_station(root: bool) -> bool {
             let (uid, gid) = reach_identity();
             let reach = crate::session::kernel::bpffs_reach(uid, gid);
             if !reach.root_traversable {
-                println!(
+                crate::output::print_stdout_line(&format!(
                     "{}",
                     crate::output::kv(
                         "pin reach:",
@@ -151,8 +154,8 @@ pub(super) fn kernel_station(root: bool) -> bool {
                             reach.root_mode
                         ))
                     )
-                );
-                println!(
+                ));
+                crate::output::print_stdout_line(&format!(
                     "{}",
                     crate::output::kv(
                         "fix:",
@@ -161,10 +164,10 @@ pub(super) fn kernel_station(root: bool) -> bool {
                              automatically whenever it has a desktop user to hand the pins to)"
                         )
                     )
-                );
+                ));
                 ok = false;
             } else if reach.pin_dir_present && !reach.pin_dir_traversable {
-                println!(
+                crate::output::print_stdout_line(&format!(
                     "{}",
                     crate::output::kv(
                         "pin reach:",
@@ -174,8 +177,8 @@ pub(super) fn kernel_station(root: bool) -> bool {
                             reach.root_mode
                         ))
                     )
-                );
-                println!(
+                ));
+                crate::output::print_stdout_line(&format!(
                     "{}",
                     crate::output::kv(
                         "fix:",
@@ -184,10 +187,10 @@ pub(super) fn kernel_station(root: bool) -> bool {
                              this one was tightened by hand)"
                         )
                     )
-                );
+                ));
                 ok = false;
             } else if reach.pin_dir_present {
-                println!(
+                crate::output::print_stdout_line(&format!(
                     "{}",
                     crate::output::kv(
                         "pin reach:",
@@ -196,7 +199,7 @@ pub(super) fn kernel_station(root: bool) -> bool {
                             reach.root_mode
                         ))
                     )
-                );
+                ));
                 // The ownership verdict (night-dinner-19): reaching is
                 // not OPENING — the boot oneshot ran before the first
                 // login, so a walkable pin set can still be root-owned
@@ -210,15 +213,15 @@ pub(super) fn kernel_station(root: bool) -> bool {
                         .map(|m| std::os::unix::fs::MetadataExt::uid(&m))
                 {
                     if owner == uid {
-                        println!(
+                        crate::output::print_stdout_line(&format!(
                             "{}",
                             crate::output::kv(
                                 "ownership:",
                                 &crate::output::ok_line("the control map is yours")
                             )
-                        );
+                        ));
                     } else {
-                        println!(
+                        crate::output::print_stdout_line(&format!(
                             "{}",
                             crate::output::kv(
                                 "ownership:",
@@ -227,8 +230,8 @@ pub(super) fn kernel_station(root: bool) -> bool {
                                      the boot attach ran before your login",
                                 )
                             )
-                        );
-                        println!(
+                        ));
+                        crate::output::print_stdout_line(&format!(
                             "{}",
                             crate::output::kv(
                                 "fix:",
@@ -237,7 +240,7 @@ pub(super) fn kernel_station(root: bool) -> bool {
                                      pins over without a detach cycle)"
                                 )
                             )
-                        );
+                        ));
                         ok = false;
                     }
                 }
@@ -252,7 +255,7 @@ pub(super) fn kernel_station(root: bool) -> bool {
                 // pins planted the reach is a capability, not a state.
                 // The line now names the absence dynamically — the
                 // same stat that fed the old wording feeds the branch.
-                println!(
+                crate::output::print_stdout_line(&format!(
                     "{}",
                     crate::output::kv(
                         "pin reach:",
@@ -263,10 +266,10 @@ pub(super) fn kernel_station(root: bool) -> bool {
                             reach.root_mode
                         ))
                     )
-                );
+                ));
             }
         } else {
-            println!(
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv(
                     "bpffs:",
@@ -274,8 +277,8 @@ pub(super) fn kernel_station(root: bool) -> bool {
                         "not mounted at /sys/fs/bpf — the pinned state store has nowhere to live"
                     )
                 )
-            );
-            println!(
+            ));
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv(
                     "fix:",
@@ -283,7 +286,7 @@ pub(super) fn kernel_station(root: bool) -> bool {
                         "sudo mount -t bpf bpf /sys/fs/bpf (normally automatic)"
                     )
                 )
-            );
+            ));
             ok = false;
         }
         // The input-tap verdict (night-improve-25): the probe's
@@ -305,7 +308,10 @@ pub(super) fn kernel_station(root: bool) -> bool {
         } else {
             crate::output::ok_line(tap_value)
         };
-        println!("{}", crate::output::kv("tap chain:", &tap_colored));
+        crate::output::print_stdout_line(&format!(
+            "{}",
+            crate::output::kv("tap chain:", &tap_colored)
+        ));
         // The last attach failure, if one left its marker
         // (night-improve-25): a failed attach plants a small pinned map
         // carrying the classified error code; naming it here is the
@@ -313,7 +319,7 @@ pub(super) fn kernel_station(root: bool) -> bool {
         // line says exactly which step of the chain failed and how it
         // was classified.
         if let Some(err) = crate::ebpf::loader::last_attach_error() {
-            println!(
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv(
                     "last attach:",
@@ -321,10 +327,10 @@ pub(super) fn kernel_station(root: bool) -> bool {
                         "failed: {err} — `sudo zylaxion attach` prints the per-step log"
                     ))
                 )
-            );
+            ));
         }
         if kernel.lockdown_readable && kernel.lockdown_blocks_bpf {
-            println!(
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv(
                     "lockdown:",
@@ -332,8 +338,8 @@ pub(super) fn kernel_station(root: bool) -> bool {
                         "'confidentiality' active — the kernel withdraws BPF"
                     )
                 )
-            );
-            println!(
+            ));
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv(
                     "fix:",
@@ -341,7 +347,7 @@ pub(super) fn kernel_station(root: bool) -> bool {
                         "choose a kernel lockdown mode that allows BPF (integrity or none)"
                     )
                 )
-            );
+            ));
             ok = false;
         }
         // The unprivileged-bpf posture (night-badas-4 round 5, the
@@ -360,15 +366,15 @@ pub(super) fn kernel_station(root: bool) -> bool {
             .unwrap_or(&unpriv_verdict)
             .to_string();
         if kernel.unpriv_map_ops_allowed(root) {
-            println!(
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv("unpriv bpf:", &crate::output::ok_line(&unpriv_value))
-            );
+            ));
         } else {
-            println!(
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv("unpriv bpf:", &crate::output::fail_line(&unpriv_value))
-            );
+            ));
             ok = false;
         }
     }

@@ -27,8 +27,14 @@ pub fn cmd_list_presets() {
         .ok()
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty());
-    println!("{}\n", crate::output::section("Available presets"));
-    print!("{}", presets_table_from(active, env_name.as_deref()));
+    crate::output::print_stdout_line(&format!(
+        "{}\n",
+        crate::output::section("Available presets")
+    ));
+    crate::output::print_stdout_raw(&format!(
+        "{}",
+        presets_table_from(active, env_name.as_deref())
+    ));
 }
 
 /// The pure render behind `list-presets` (night-improve-29): ONE line
@@ -74,11 +80,11 @@ pub fn cmd_list_backends() {
     // The report opens with the family banner (the zelynic output
     // law): one frame, one key/value geometry, same as the doctor and
     // the overview.
-    println!("{}\n", crate::output::section("Audio backends"));
+    crate::output::print_stdout_line(&format!("{}\n", crate::output::section("Audio backends")));
     #[cfg(target_os = "linux")]
     let _quiet = QuietAlsa::new();
     let host = cpal::default_host();
-    println!("{}", crate::output::kv("host:", host.id().name()));
+    crate::output::print_stdout_line(&format!("{}", crate::output::kv("host:", host.id().name())));
     match host.default_output_device() {
         Some(device) => {
             // night-dinner-10: DeviceTrait::name() became description() in cpal
@@ -89,7 +95,7 @@ pub fn cmd_list_backends() {
                 .map(|d| d.name().to_owned())
                 .unwrap_or_else(|_| "<unknown>".into());
             match device.default_output_config() {
-                Ok(config) => println!(
+                Ok(config) => crate::output::print_stdout_line(&format!(
                     "{}",
                     crate::output::kv(
                         "output:",
@@ -100,13 +106,13 @@ pub fn cmd_list_backends() {
                             config.sample_format()
                         )
                     )
-                ),
+                )),
                 Err(e) => {
                     // night-dragon-maintenance-4: a present-but-closed
                     // backend is a caution — the warning yellow tier
                     // names it (the fact stays plain, the verdict
                     // carries the lane).
-                    println!(
+                    crate::output::print_stdout_line(&format!(
                         "{}",
                         crate::output::kv(
                             "output:",
@@ -117,13 +123,13 @@ pub fn cmd_list_backends() {
                                 ))
                             )
                         )
-                    )
+                    ))
                 }
             }
         }
-        None => println!(
+        None => crate::output::print_stdout_line(&format!(
             "{}",
             crate::output::kv("output:", &crate::output::warn_line("none found"))
-        ),
+        )),
     }
 }

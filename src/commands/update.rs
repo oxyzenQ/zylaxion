@@ -193,15 +193,21 @@ pub fn run_check_update() {
             crate::output::tip_line("current is newer than latest release")
         }
     };
-    println!("{}\n", crate::output::section("zylaxion update check"));
-    println!(
+    crate::output::print_stdout_line(&format!(
+        "{}\n",
+        crate::output::section("zylaxion update check")
+    ));
+    crate::output::print_stdout_line(&format!(
         "{}",
         crate::output::kv("Current:", &normalize_version(CURRENT_VERSION))
-    );
-    println!(
+    ));
+    crate::output::print_stdout_line(&format!(
         "{}",
         crate::output::kv("Latest:", &normalize_version(&latest_tag))
-    );
-    println!("{}", crate::output::kv("Status:", &status_colored));
-    println!("{}", crate::output::kv("Source:", RELEASES_URL));
+    ));
+    crate::output::print_stdout_line(&format!(
+        "{}",
+        crate::output::kv("Status:", &status_colored)
+    ));
+    crate::output::print_stdout_line(&format!("{}", crate::output::kv("Source:", RELEASES_URL)));
 }

@@ -21,10 +21,10 @@ use super::alsa_guard::QuietAlsa;
 /// no time crate). The output geometry (banner, key/value rows,
 /// Warnings block) is the family law [`crate::output`] documents.
 pub fn cmd_doctor() {
-    println!(
+    crate::output::print_stdout_line(&format!(
         "{}\n",
         crate::output::section("zylaxion diagnostics report doctor")
-    );
+    ));
 
     let mut ok = true;
     // Privilege awareness (night-improve-16, the audit's warn lane):
@@ -56,20 +56,23 @@ pub fn cmd_doctor() {
     // a git checkout, registry-prebuilt on a registry tarball). The
     // verdict stays an honest statement of that fact, not a branch.
     let lane = option_env!("ZYLAXION_EBPF_LANE").unwrap_or("unknown");
-    println!(
+    crate::output::print_stdout_line(&format!(
         "{}",
         crate::output::kv(
             "Build:",
             &crate::output::ok_line(&format!("FULL-LIFE (eBPF objects: {lane})"))
         )
-    );
-    println!(
+    ));
+    crate::output::print_stdout_line(&format!(
         "{}",
         crate::output::kv("Version:", &format!("v{}", build.version))
-    );
-    println!("{}", crate::output::kv("Commit:", &build.git_sha));
-    println!("{}", crate::output::kv("Variant:", &build.variant));
-    println!(
+    ));
+    crate::output::print_stdout_line(&format!("{}", crate::output::kv("Commit:", &build.git_sha)));
+    crate::output::print_stdout_line(&format!(
+        "{}",
+        crate::output::kv("Variant:", &build.variant)
+    ));
+    crate::output::print_stdout_line(&format!(
         "{}",
         crate::output::kv(
             // night-frontier-2B: the stamp names its own clock — the
@@ -78,17 +81,23 @@ pub fn cmd_doctor() {
             "Built:",
             &format!("{} ({})", build.build_time, build.epoch_source)
         )
-    );
-    println!("{}", crate::output::kv("Rustc:", &build.rustc_version));
-    println!("{}", crate::output::kv("Profile:", &build.profile));
-    println!(
+    ));
+    crate::output::print_stdout_line(&format!(
+        "{}",
+        crate::output::kv("Rustc:", &build.rustc_version)
+    ));
+    crate::output::print_stdout_line(&format!(
+        "{}",
+        crate::output::kv("Profile:", &build.profile)
+    ));
+    crate::output::print_stdout_line(&format!(
         "{}",
         // night-frontier-2B, the lockfile attestation: the dependency
         // set's fingerprint — two builds of one commit stamp the same
         // value, a manifest or registry drift shows here before any
         // run.
         crate::output::kv("Lock:", &build.lock_hash)
-    );
+    ));
 
     // 1. Kernel / eBPF capability (night-improve-23, the eBPF-only
     //    floor): the whole station lives in doctor_kernel.rs now (the
@@ -106,7 +115,7 @@ pub fn cmd_doctor() {
     // though zylaxion itself writes no files there (the kernel control
     // map is the pidfile since night-improve-23 — RULES.md's file
     // inventory names it).
-    println!();
+    crate::output::print_stdout_line("");
     if root {
         // The root-session note (night-dinner-3): a root doctor used
         // to FAIL this station on root's own missing XDG_RUNTIME_DIR —
@@ -126,7 +135,7 @@ pub fn cmd_doctor() {
             (Some(uid), Some(user)) if !user.is_empty() => {
                 let dir = format!("/run/user/{uid}");
                 if std::path::Path::new(&dir).is_dir() {
-                    println!(
+                    crate::output::print_stdout_line(&format!(
                         "{}",
                         crate::output::kv(
                             "XDG dir:",
@@ -136,9 +145,9 @@ pub fn cmd_doctor() {
                                  its own)"
                             )
                         )
-                    );
+                    ));
                 } else {
-                    println!(
+                    crate::output::print_stdout_line(&format!(
                         "{}",
                         crate::output::kv(
                             "XDG dir:",
@@ -148,11 +157,11 @@ pub fn cmd_doctor() {
                                  player opens"
                             )
                         )
-                    );
+                    ));
                 }
             }
             _ => {
-                println!(
+                crate::output::print_stdout_line(&format!(
                     "{}",
                     crate::output::kv(
                         "XDG dir:",
@@ -161,7 +170,7 @@ pub fn cmd_doctor() {
                              desktop user; re-run without sudo"
                         )
                     )
-                );
+                ));
             }
         }
     } else {
@@ -169,15 +178,15 @@ pub fn cmd_doctor() {
             Ok(dir) => {
                 let path = std::path::Path::new(&dir);
                 if path.is_dir() {
-                    println!(
+                    crate::output::print_stdout_line(&format!(
                         "{}",
                         crate::output::kv(
                             "XDG dir:",
                             &crate::output::ok_line(&format!("$XDG_RUNTIME_DIR = {dir}"))
                         )
-                    );
+                    ));
                 } else {
-                    println!(
+                    crate::output::print_stdout_line(&format!(
                         "{}",
                         crate::output::kv(
                             "XDG dir:",
@@ -185,25 +194,25 @@ pub fn cmd_doctor() {
                                 "$XDG_RUNTIME_DIR = {dir} (not a directory)"
                             ))
                         )
-                    );
+                    ));
                     ok = false;
                 }
             }
             Err(_) => {
-                println!(
+                crate::output::print_stdout_line(&format!(
                     "{}",
                     crate::output::kv(
                         "XDG dir:",
                         &crate::output::fail_line("$XDG_RUNTIME_DIR is not set")
                     )
-                );
-                println!(
+                ));
+                crate::output::print_stdout_line(&format!(
                     "{}",
                     crate::output::kv(
                         "fix:",
                         &crate::output::tip_line("export XDG_RUNTIME_DIR=/run/user/$(id -u)")
                     )
-                );
+                ));
                 ok = false;
             }
         }
@@ -215,7 +224,7 @@ pub fn cmd_doctor() {
     //    the quiet-ALSA guard so libasound's C-level error log cannot
     //    spew across the report. The compact render matches the
     //    overview's audio line, one shape family-wide).
-    println!();
+    crate::output::print_stdout_line("");
     #[cfg(target_os = "linux")]
     let _quiet = QuietAlsa::new();
     // The loading lane (night-ux-orion-2): the audio probe is the
@@ -247,7 +256,7 @@ pub fn cmd_doctor() {
     indicator.finish();
     match probe {
         Some((name, Ok(config))) => {
-            println!(
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv(
                     "audio:",
@@ -258,10 +267,10 @@ pub fn cmd_doctor() {
                         config.sample_format()
                     ))
                 )
-            );
+            ));
         }
         Some((name, Err(e))) => {
-            println!(
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv(
                     "audio:",
@@ -269,31 +278,31 @@ pub fn cmd_doctor() {
                         "default output device ({name}) present but not openable: {e}"
                     ))
                 )
-            );
-            println!(
+            ));
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv(
                     "fix:",
                     &crate::output::tip_line("start PipeWire or PulseAudio")
                 )
-            );
+            ));
             ok = false;
         }
         None => {
-            println!(
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv(
                     "audio:",
                     &crate::output::fail_line("no audio output device found")
                 )
-            );
-            println!(
+            ));
+            crate::output::print_stdout_line(&format!(
                 "{}",
                 crate::output::kv(
                     "fix:",
                     &crate::output::tip_line("start PipeWire or PulseAudio")
                 )
-            );
+            ));
             ok = false;
         }
     }
@@ -302,28 +311,28 @@ pub fn cmd_doctor() {
     // that belong to the whole report, rendered between the facts and
     // the exit verdict.
     if !warnings.is_empty() {
-        println!();
+        crate::output::print_stdout_line("");
         // night-dragon-maintenance-4: the block's header rides the
         // warning tier with its rows — the caution block reads as one
         // yellow lane, scannable on a color terminal, byte-identical
         // plain otherwise.
-        println!("{}", crate::output::warn_line("Warnings:"));
+        crate::output::print_stdout_line(&format!("{}", crate::output::warn_line("Warnings:")));
         for w in &warnings {
-            println!("{}", crate::output::warn_bullet(w));
+            crate::output::print_stdout_line(&format!("{}", crate::output::warn_bullet(w)));
         }
     }
 
-    println!();
+    crate::output::print_stdout_line("");
     if ok {
-        println!(
+        crate::output::print_stdout_line(&format!(
             "{}",
             crate::output::ok_line("All checks passed — zylaxion is ready to run.")
-        );
+        ));
     } else {
-        println!(
+        crate::output::print_stdout_line(&format!(
             "{}",
             crate::output::fail_line("Some checks failed — see above for fixes.")
-        );
+        ));
         process::exit(1);
     }
 }
