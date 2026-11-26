@@ -43,6 +43,22 @@ pub fn cmd_on(cli_preset: Option<String>) {
 
     init_logger();
 
+    // Input errors come first (the volume verb's gate precedent): a
+    // typo'd --preset is deterministic user input, reportable without
+    // consulting the machine — the kernel verdict below describes the
+    // environment, and surfacing it first sent `on --preset <typo>` on
+    // a tap-less or unsupported-kernel host to the kernel error while
+    // the sibling verbs (`preset`, `volume`) answered their input
+    // first. The resolver below re-validates the RESOLVED name (the
+    // stored-slot lane may swap it after this); this front-loads only
+    // the CLI flag's own verdict.
+    if let Some(name) = cli_preset.as_deref()
+        && let Err(e) = preset_index_or_error(name)
+    {
+        crate::output::error(e);
+        process::exit(1);
+    }
+
     // The kernel gate: one probe, the same verdicts the doctor prints.
     let kernel = crate::session::kernel::probe();
     if !kernel.supported() {
