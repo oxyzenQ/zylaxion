@@ -436,7 +436,7 @@ dependencies = [
 
 [[package]]
 name = "zylaxion-proofs"
-version = "80.5.6"
+version = "80.5.7-dragon.1"
 dependencies = [
  "proptest",
 ]

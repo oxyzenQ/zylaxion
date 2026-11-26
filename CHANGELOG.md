@@ -18,6 +18,7 @@ and the pre-v10 release notes live next to it in
 
 ## [Released]
 
+v80.5.7-dragon.1
 v80.5.6
 v80.5.6-arc.1
 v80.5.5
