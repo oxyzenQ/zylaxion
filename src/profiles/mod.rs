@@ -36,8 +36,7 @@ mod registry;
 // always-on gate verifies all four names live.
 #[cfg_attr(zylaxion_audit_surface, allow(unused_imports))]
 pub use registry::{
-    DEFAULT_PRESET, all as registry_all, lookup as registry_lookup,
-    names_sorted as registry_names,
+    DEFAULT_PRESET, all as registry_all, lookup as registry_lookup, names_sorted as registry_names,
 };
 // The registry's identity name rides the same law as the engine
 // identity below: a documented public anchor no internal consumer
