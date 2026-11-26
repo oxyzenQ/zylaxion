@@ -168,6 +168,12 @@ grep -c 'name = "serde' Cargo.lock        # 2 (serde_core, serde_derive)
   already runs — cpal talks to the OS's default audio bridge).
 - Root **once per boot** for `sudo zylaxion attach`; every other verb
   is unprivileged (the attach hands the pins to your user).
+- An **x86-64-v3 CPU (AVX2/FMA/BMI)** for the release tarballs — both
+  shipped tiers ride the v3 baseline or the v4 tier, and no plain
+  baseline tarball ships (the release workflow's asset inventory gate
+  fixes the shape at exactly two tarballs per tag). A CPU older than
+  x86-64-v3 installs from crates.io or from source instead — both
+  build the portable baseline shape natively.
 
 ### Install from a release (recommended)
 
@@ -182,10 +188,15 @@ TAG=$(curl -fsSL https://github.com/oxyzenQ/zylaxion/releases.atom |
       sed -n 's|.*Repository/[0-9]*/\(.*\)</id>|\1|p' | head -1)
 echo "latest release: ${TAG}"
 
-# The v80-line shape ships two arch-baseline tarballs per tag.
+# The v80-line shape ships exactly two arch-baseline tarballs per
+# tag — the release workflow's asset inventory gate fixes the shape
+# at 2 tarballs + checksums. Pick the tier your CPU runs: v3
+# (AVX2/FMA/BMI) covers most machines, v4 (AVX-512) is the tuned
+# tier. A CPU older than x86-64-v3 must install from crates.io or
+# source instead.
 ASSET="zylaxion-${TAG}-linux-amd64-v3-gnu.tar.gz"
 curl -fsSfLO "https://github.com/oxyzenQ/zylaxion/releases/download/${TAG}/${ASSET}" ||
-  { ASSET="zylaxion-${TAG}-linux-amd64-gnu.tar.gz"; \
+  { ASSET="zylaxion-${TAG}-linux-amd64-v4-gnu.tar.gz"; \
     curl -fsSLO "https://github.com/oxyzenQ/zylaxion/releases/download/${TAG}/${ASSET}"; }
 
 mkdir zylaxion-pkg && tar xzf "${ASSET}" -C zylaxion-pkg
