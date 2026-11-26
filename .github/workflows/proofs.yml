@@ -96,7 +96,7 @@ jobs:
       # nightly-only surface rides this package, and the lockfile is
       # resolved against the same pin the binary builds with.
       - name: Install the pinned stable toolchain
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87  # v1, @stable, the zelynic estate SHA pin
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8  # v1, @stable, the zelynic estate SHA pin
         with:
           toolchain: 1.98.1
 
