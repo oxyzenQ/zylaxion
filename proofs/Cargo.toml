@@ -35,7 +35,13 @@
 name = "zylaxion-proofs"
 version = "80.5.7-dragon.2"
 edition = "2024"
-license = "AGPL-3.0-only"
+# night-arc-gems.3: the sibling manifests name BOTH doors — the same
+# SPDX-honest dual expression the root manifest carries (night-release-2:
+# `LicenseRef-*` is the locally defined namespace the registry never has
+# to resolve; bare `Commercial` is not SPDX and the registry answers
+# 400). A single-door field here advertised a license the tree does not
+# carry alone — every manifest states the same two-door contract.
+license = "AGPL-3.0-only OR LicenseRef-Commercial"
 publish = false
 
 [dev-dependencies]

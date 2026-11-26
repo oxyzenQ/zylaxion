@@ -203,6 +203,21 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
+### Changed
+
+- **night-arc-gems.3, every live license claim names both doors.**
+  The help reference closed with a stale single-door line
+  (`License: AGPL-3.0-only | …`) that predated night-release-2 and
+  carried its own copy of the string — the exact drift the shared
+  const exists to prevent. It rides `cli::LICENSE_LINE` now
+  (byte-identical to the `-V` signature's line), the pinned footer
+  test asserts against that same const, and the sibling manifests
+  that still advertised the copyleft door alone (the eBPF tap, the
+  proofs crate) carry the SPDX-honest dual expression the root
+  manifest publishes, story comment included. The eBPF license
+  comment names both doors too; the prebuilt lane re-baked through
+  its one writer (object bytes unchanged, tree digest refreshed).
+
 ## [v80.5.2-night.1] — focus and be honest — 2026-11-21
 
 ### Changed

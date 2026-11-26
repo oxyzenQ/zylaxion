@@ -55,7 +55,11 @@ pub(crate) const ABOUT: &str = env!("CARGO_PKG_DESCRIPTION");
 /// expression names both doors in the same bytes: AGPL-3.0-only, or
 /// the Commercial License for closed-source use — the exact string
 /// the manifest's license field and every file header carry.
-const LICENSE_LINE: &str = "License: AGPL-3.0-only OR Commercial";
+/// night-arc-gems.3: the help reference prints this same const (the
+/// reference is a human surface, never pipeline-grepped, so it may
+/// format! the line with its URL tail — but the license bytes
+/// themselves stay single-sourced here; no second copy can drift).
+pub(crate) const LICENSE_LINE: &str = "License: AGPL-3.0-only OR Commercial";
 
 /// The `Copyright` line as ONE contiguous literal (night-ux-orion-2,
 /// the owner's masterclass form): no colon after the Copyright word

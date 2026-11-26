@@ -91,8 +91,10 @@ fn reference_closes_with_contract_and_license() {
         "the no-subcommand contract must be taught"
     );
     assert!(
-        text.contains("License: AGPL-3.0-only | https://github.com/oxyzenQ/zylaxion"),
-        "the license footer must close the reference"
+        text.contains(&format!(
+            "{LICENSE_LINE} | https://github.com/oxyzenQ/zylaxion"
+        )),
+        "the license footer must close the reference, naming both doors"
     );
 }
 

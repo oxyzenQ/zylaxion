@@ -411,8 +411,9 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 // an "AGPL" spelling is not on its list — a mismatch here would fail
 // the program at load time on a real host. This is the kernel's
 // naming convention for helper access, not the project's license:
-// zylaxion's source is AGPL-3.0-only, and the string below is the
-// knob that unlocks the gpl-only helpers the tap needs.
+// zylaxion's source carries both doors (AGPL-3.0-only, or the
+// Commercial License for closed-source use), and the string below is
+// the knob that unlocks the gpl-only helpers the tap needs.
 #[unsafe(no_mangle)]
 #[unsafe(link_section = "license")]
 static LICENSE: [u8; 4] = *b"GPL\0";

@@ -25,7 +25,7 @@
 //! environment rows default prose (an environment variable is not a
 //! flag), examples green.
 
-use crate::cli::ABOUT;
+use crate::cli::{ABOUT, LICENSE_LINE};
 use crate::output::{BRAND_OPEN, GREY_OPEN, OK_OPEN, RESET};
 
 /// Greedy word-wrap at `width` columns (night-hunter-2): the banner's
@@ -303,7 +303,13 @@ pub(crate) fn render_reference(color: bool) -> String {
     push(String::new());
     push("Without a subcommand: a quick status overview.".into());
     push(String::new());
-    push("License: AGPL-3.0-only | https://github.com/oxyzenQ/zylaxion".into());
+    // night-arc-gems.3: the reference names BOTH license doors — the
+    // stale single-door line here was the exact rot the shared const
+    // exists to prevent; it rides `cli::LICENSE_LINE` now, no second
+    // copy in the tree.
+    push(format!(
+        "{LICENSE_LINE} | https://github.com/oxyzenQ/zylaxion"
+    ));
     out
 }
 
