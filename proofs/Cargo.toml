@@ -33,7 +33,7 @@
 
 [package]
 name = "zylaxion-proofs"
-version = "80.5.7-dragon.1"
+version = "80.5.7-dragon.2"
 edition = "2024"
 license = "AGPL-3.0-only"
 publish = false
