@@ -335,8 +335,11 @@ pub(crate) fn on_root_refusal(euid_is_root: bool) -> Option<&'static str> {
     crate::session::privilege::session_refusal(euid_is_root)
 }
 
-/// Shared logger wiring (the night-improve-13 lane): the verbs log the
-/// interesting transitions at info (preset swaps, retunes, stops).
+/// Shared logger wiring (the night-improve-13 lane): the sound verbs
+/// run the journal at `warn` (night-hunter-6 — the detached player's
+/// stderr dies at spawn, so the info transitions are noise without a
+/// reader; `RUST_LOG=info` restores the full story on a foreground
+/// `zylaxion _play` run).
 /// night-dragon-maintenance-xenric-1: the builder itself moved to
 /// `crate::output::journal` — the one door for every verb's journal
 /// wiring; this surface keeps only its loudness decision.
