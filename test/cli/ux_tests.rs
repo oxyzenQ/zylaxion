@@ -18,6 +18,8 @@ fn every_fatal_path_ends_with_exactly_one_footer() {
         vec!["zylaxion", "--CHECK-UPDATE"],
         vec!["zylaxion", "startt"],
         vec!["zylaxion", "on", "--PRESET", "x"],
+        vec!["zylaxion", "preset", "--HELP"],
+        vec!["zylaxion", "help"],
     ] {
         let rendered = render_via_bridge(&argv);
         let count = rendered.matches(FOOTER).count();
@@ -58,11 +60,58 @@ fn root_only_flag_typed_at_subcommand_position_tips_the_authority() {
 fn caps_typo_of_root_flag_rescues_the_authority() {
     let rendered = render_via_bridge(&["zylaxion", "--CHECK-UPDATE"]);
     assert!(
-        rendered.contains("'--check-update'"),
-        "the tip must point at the exact flag: {rendered}"
+        rendered.contains("'zylaxion --check-update'"),
+        "the tip must point at the root authority's invocation: {rendered}"
     );
-    // Exactly one tip line: clap's own engine (or, were it silent,
-    // the authority table) — never both.
+    // Exactly one tip line: the authority table — never the fuzzy
+    // engine behind it, never two.
+    assert_eq!(rendered.matches("tip:").count(), 1, "one tip: {rendered}");
+}
+
+/// The authority table is case-insensitive on BOTH sides (the rescue
+/// is for a typo'd intent): `--HELP` typed at a subcommand position
+/// must reach the same `zylaxion --help` authority the lowercase
+/// spelling reaches. Before the case-insensitive lookup only the
+/// exact-case spelling rescued — a caps typo sat tip-less at every
+/// subcommand level.
+#[test]
+fn caps_case_variant_at_subcommand_position_tips_the_authority() {
+    let rendered = render_via_bridge(&["zylaxion", "preset", "--HELP"]);
+    assert!(
+        rendered.contains("'zylaxion --help'"),
+        "the caps case variant must reach the top-level authority: {rendered}"
+    );
+    assert_eq!(rendered.matches("tip:").count(), 1, "one tip: {rendered}");
+}
+
+/// The bare version spelling rides the same authority law: `-v` typed
+/// at the root is the fuzzy engine's 0.714 borderline case the table
+/// exists to intent-correct — the tip must name the version surface,
+/// not fall through tip-less (the flag pool scored the unbuilt
+/// command before `build()` injected clap's automatic `--version`
+/// flag, so the fuzzy fallback could not even find it).
+#[test]
+fn bare_short_version_spelling_tips_the_version_authority() {
+    let rendered = render_via_bridge(&["zylaxion", "-v"]);
+    assert!(
+        rendered.contains("'zylaxion -V'"),
+        "the bare v spelling must tip the version report: {rendered}"
+    );
+    assert_eq!(rendered.matches("tip:").count(), 1, "one tip: {rendered}");
+}
+
+/// The help word typed in the subcommand position tips the reference
+/// surface it means: `zylaxion help` is the universal first instinct,
+/// the help subcommand is disabled (night-improve-15's single-tier
+/// law), and clap's own subcommand engine has no close match for the
+/// word — the word-rescue table gives the instinct its redirect.
+#[test]
+fn help_word_in_the_subcommand_position_tips_the_reference() {
+    let rendered = render_via_bridge(&["zylaxion", "help"]);
+    assert!(
+        rendered.contains("'zylaxion --help'"),
+        "the help word must tip the reference surface: {rendered}"
+    );
     assert_eq!(rendered.matches("tip:").count(), 1, "one tip: {rendered}");
 }
 
