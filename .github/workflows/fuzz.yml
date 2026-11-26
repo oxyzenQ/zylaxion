@@ -123,6 +123,11 @@ jobs:
 
       - name: Install nightly Rust
         uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8  # v1, @stable, the zelynic estate SHA pin
+        with:
+          # The action's own required input: the pinned SHA dropped the
+          # implicit default, so the env-level RUSTUP_TOOLCHAIN below no
+          # longer selects the toolchain for the install step itself.
+          toolchain: nightly
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0  # v2, SHA pin
