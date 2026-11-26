@@ -25,19 +25,25 @@ mod registry;
 
 // night-improve-22: the registry re-exports are consumed by the
 // session preset resolver and the commands tree (night-dragon-lts:
-// every name verified live in the non-test compilation — the scoped
+// every name verified live in the non-test compilation — the blanket
 // allow that hid future rot is gone).
-// night-strict-warnings-1: the audit harness #[path]-includes this
-// file WITHOUT those consumers (they sit outside the audit surface),
-// so under the strict gate the re-export answers unused there — the
-// same scoped-allow idiom the identity re-export below carries. Root
-// builds verify every name live; the marker names which includer
-// borrows the exemption.
-#[cfg_attr(zylaxion_strict_warnings, allow(unused_imports))]
+// night-arc-gems.2: the gate is unconditional, so the includer split
+// is explicit. The audit harness #[path]-includes this file WITHOUT
+// the session/commands consumers (they sit outside the audit surface)
+// — `registry_names` answers unused there, and the marker cfg the
+// harness build.rs emits (`zylaxion_audit_surface`) names the includer
+// that borrows the exemption. Root builds carry no marker, so the
+// always-on gate verifies all four names live.
+#[cfg_attr(zylaxion_audit_surface, allow(unused_imports))]
 pub use registry::{
-    DEFAULT_PRESET, Preset, all as registry_all, lookup as registry_lookup,
+    DEFAULT_PRESET, all as registry_all, lookup as registry_lookup,
     names_sorted as registry_names,
 };
+// The registry's identity name rides the same law as the engine
+// identity below: a documented public anchor no internal consumer
+// reads yet — the unconditional allow carries it until one lands.
+#[allow(unused_imports)]
+pub use registry::Preset;
 
 // The ZactrixEngine re-export is the engine's public identity surface
 // (docs/ZACTRIX_AUDIT.md, the CHANGELOG record); the tree's internal

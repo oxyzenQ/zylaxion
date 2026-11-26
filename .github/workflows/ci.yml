@@ -39,17 +39,6 @@ name: Dragon Guard - CI
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
-  # night-strict-warnings-1: the zero-warning contract is estate-wide —
-  # EVERY compile lane in every workflow now runs one-warning = build
-  # failure (this file no longer owns it alone). The gate rides this
-  # env var into the crate roots' build scripts, which emit the deny
-  # cfg (root crate, audit harness, fuzz targets, the eBPF tap); it
-  # deliberately does NOT ride RUSTFLAGS, because cargo's rustflags
-  # precedence is single-source and an env RUSTFLAGS would silently
-  # clobber the pro-* aliases' --config build.rustflags CPU tiers and
-  # the release matrix's pinned flags. Dependencies stay under cargo's
-  # cap-lints hygiene — only this estate's own code is denied.
-  ZYLAXION_STRICT_WARNINGS: "1"
 
 permissions:
   contents: read

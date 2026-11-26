@@ -61,9 +61,6 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
-  # night-strict-warnings-1: carried uniformly; this lane compiles
-  # nothing from the tree (the law lives in ci.yml's env block).
-  ZYLAXION_STRICT_WARNINGS: "1"
 
 jobs:
   audit:

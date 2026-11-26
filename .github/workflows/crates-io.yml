@@ -59,9 +59,6 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
-  # night-strict-warnings-1: the publish build runs strict too — one
-  # warning fails it (the law lives in ci.yml's env block).
-  ZYLAXION_STRICT_WARNINGS: "1"
 
 jobs:
   # The commit+tag collision gate (the zelynic wait-for-ci lineage).

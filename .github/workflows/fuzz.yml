@@ -62,13 +62,13 @@
 #
 # night-strict-warnings-1 (owner call, overriding the estate's old
 # "no strict here" scoping): the fuzz targets JOIN the zero-warning
-# law. The gate rides ZYLAXION_STRICT_WARNINGS (the env block below)
-# into fuzz/build.rs, which emits the deny cfg every target crate
-# root carries — the libfuzzer runtime's own warnings stay under
-# cargo's cap-lints hygiene, never this crate's. The gate rides the
-# env var, NOT RUSTFLAGS: cargo-fuzz builds its sanitizer flags
-# through RUSTFLAGS, so an env RUSTFLAGS would clobber the pro-*
-# alias CPU tiers if it ever rode a shared lane.
+# law. night-arc-gems.2 made the law unconditional: every target crate
+# root carries `#![deny(warnings)]` directly — one warning fails the
+# build, no env var involved — while the libfuzzer runtime's own
+# warnings stay under cargo's cap-lints hygiene, never this crate's.
+# The gate does NOT ride RUSTFLAGS: cargo-fuzz builds its sanitizer
+# flags through RUSTFLAGS, and the pro-* alias CPU tiers stay
+# untouched because the gate never touches that channel at all.
 
 name: Dragon Guard - Fuzz
 
@@ -91,9 +91,6 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-  # night-strict-warnings-1: strict compile lane — one warning fails
-  # the build (the full law lives in ci.yml's env block).
-  ZYLAXION_STRICT_WARNINGS: "1"
 
 jobs:
   fuzz:

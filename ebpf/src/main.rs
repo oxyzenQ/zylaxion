@@ -5,10 +5,11 @@
 // names its own safety argument — the audit's score law, wired as a
 // gate so the discipline cannot rot back.
 #![deny(clippy::undocumented_unsafe_blocks)]
-// night-strict-warnings-1: the zero-warning CI law — when the strict
-// env is exported, build.rs emits the cfg below and every warning in
-// the kernel-side tap fails the build.
-#![cfg_attr(zylaxion_strict_warnings, deny(warnings))]
+// night-arc-gems.2: the zero-warning law is UNCONDITIONAL — every
+// build of the kernel-side tap fails on the first warning. The gate
+// now lives in the crate root, not in the environment
+// (night-strict-warnings-1's env-gated cfg is gone).
+#![deny(warnings)]
 //
 // zylaxion eBPF tap, the pure-Rust BPF source (night-improve-23;
 // night-improve-25 restores the approved plan: a passive kernel-side

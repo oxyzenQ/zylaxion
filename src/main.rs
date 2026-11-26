@@ -5,10 +5,12 @@
 // names its own safety argument — the audit's score law, wired as a
 // gate so the discipline cannot rot back.
 #![deny(clippy::undocumented_unsafe_blocks)]
-// night-strict-warnings-1: the zero-warning CI law — when the strict
-// env is exported, build.rs emits the cfg below and every warning in
-// this crate fails the build.
-#![cfg_attr(zylaxion_strict_warnings, deny(warnings))]
+// night-arc-gems.2: the zero-warning law is UNCONDITIONAL — every
+// build of this crate fails on the first warning, strict env or not.
+// The former env-gated cfg (night-strict-warnings-1) let a local
+// build print warnings CI could never see; the gate now lives in the
+// crate root, not in the environment.
+#![deny(warnings)]
 
 //! **zylaxion** — real-time mechanical keyboard acoustic synthesizer for Linux.
 //!

@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
 // SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 
-// night-strict-warnings-1: the zero-warning CI law — when the strict
-// env is exported, build.rs emits the cfg below and every warning in
-// this target (the #[path]-included zylaxion module trees it
-// exercises included) fails the build.
-#![cfg_attr(zylaxion_strict_warnings, deny(warnings))]
+// night-arc-gems.2: the zero-warning law is UNCONDITIONAL — every
+// build of this target (the #[path]-included zylaxion module trees it
+// exercises included) fails on the first warning. The gate now lives
+// in the crate root, not in the environment.
+#![deny(warnings)]
 
 //! Fuzz target: the kernel-release parser (night-dragon-maintenance-5).
 //!

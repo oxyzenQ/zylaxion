@@ -48,11 +48,10 @@
 #
 # night-strict-warnings-1 (owner call, overriding the old "two
 # unrelated policies" scoping): the miri build JOINs the zero-warning
-# law. The gate rides ZYLAXION_STRICT_WARNINGS (the env block below)
-# into the crate's build script — which Miri interprets like any
-# build script — and the crate root's deny cfg makes one warning
-# fail the lane. The gate rides the env var, NOT RUSTFLAGS, so the
-# interpreter build's flags stay untouched.
+# law. night-arc-gems.2 made the law unconditional: the crate root
+# carries `#![deny(warnings)]` directly — one warning fails the lane,
+# no env var involved, and the interpreter build's flags stay
+# untouched because the gate never rides RUSTFLAGS at all.
 
 name: Dragon Guard - Miri
 
@@ -76,9 +75,6 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  # night-strict-warnings-1: strict compile lane — one warning fails
-  # the build (the full law lives in ci.yml's env block).
-  ZYLAXION_STRICT_WARNINGS: "1"
 
 jobs:
   miri:

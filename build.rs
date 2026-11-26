@@ -173,26 +173,18 @@ fn main() {
     // the isolated-keyring verification live in build/gpg.rs.
     gpg::stamp_commit_signature();
 
-    // night-strict-warnings-1: the zero-warning law. When the strict env
-    // is exported (every CI workflow now carries it), the crate roots
-    // deny `warnings` through the emitted cfg — one warning fails the
-    // build. The gate deliberately rides an env var, NOT RUSTFLAGS:
-    // cargo's rustflags precedence is single-source, so an env RUSTFLAGS
-    // would silently REPLACE the pro-* aliases' --config build.rustflags
-    // CPU tiers (-C target-cpu=native et al.) instead of adding to them,
-    // and the release matrix's pinned flags with them. Dependencies stay
-    // under cargo's --cap-lints hygiene — only this estate's own code
-    // answers to the law. The mirror gates live in
-    // scripts/audit/harness/build.rs, fuzz/build.rs and ebpf/build.rs;
-    // the crate roots carry the matching cfg_attr.
-    println!("cargo:rerun-if-env-changed=ZYLAXION_STRICT_WARNINGS");
-    // Declare the cfg for rustc's check-cfg machinery FIRST — an emitted
-    // rustc-cfg is not auto-expected, and under the deny gate the
-    // unexpected_cfgs warning would fail the build it polices.
-    println!("cargo::rustc-check-cfg=cfg(zylaxion_strict_warnings)");
-    if std::env::var("ZYLAXION_STRICT_WARNINGS").as_deref() == Ok("1") {
-        println!("cargo:rustc-cfg=zylaxion_strict_warnings");
-    }
+    // night-arc-gems.2: the zero-warning law is unconditional — the
+    // crate roots carry `#![deny(warnings)]` directly. The former
+    // env-gated cfg of night-strict-warnings-1 let a local build print
+    // what CI never saw (the audit harness surfaced exactly that); the
+    // gate now lives in the source, not the environment, and the env
+    // machinery is gone. Dependencies stay under cargo's --cap-lints
+    // hygiene — only this estate's own code answers to the law.
+    // One declaration remains: the audit harness's includer marker,
+    // which the #[path]-included profiles bridge references — rustc's
+    // check-cfg machinery must know the name even though the root
+    // build never emits it.
+    println!("cargo::rustc-check-cfg=cfg(zylaxion_audit_surface)");
 
     // night-improve-23: stage the eBPF object into OUT_DIR for the
     // loader's include_bytes! embedding (the machinery lives in

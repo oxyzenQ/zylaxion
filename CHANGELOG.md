@@ -176,6 +176,30 @@ v80.0.0-alpha.1
 
 ## [Unreleased]
 
+### Changed
+
+- **night-arc-gems.2, the zero-warning law goes unconditional — a
+  warning is a failure in every build, not only in CI.** The
+  night-strict-warnings-1 gate rode `ZYLAXION_STRICT_WARNINGS`: CI
+  exported it, so CI compiled one-warning-fails, while a local build
+  without the env printed warnings nobody ever saw — and the audit
+  harness's #[path]-included profiles bridge hid its unused names
+  behind a blanket strict-only allow (`Preset` and `registry_names`
+  surfaced exactly that way in the owner's `zactrix-audit.sh` run).
+  Every crate root now carries `#![deny(warnings)]` directly (the
+  root crate, the audit harness, the three fuzz targets, the eBPF
+  tap), the four build scripts' env machinery is deleted (the two
+  scripts that had no other job are gone), every workflow's env
+  export is removed, and the registry bridge is split honestly: the
+  four live names ride with no allow at all, the registry identity
+  name carries the same documented-pending-consumer allow as the
+  engine identity, and the harness-only exemption is named by a
+  per-includer marker cfg (`zylaxion_audit_surface`, emitted by the
+  harness build script) — root builds verify every name live again,
+  this time under a gate that cannot be switched off. The eBPF
+  source change rides its one-writer re-bake: the prebuilt object and
+  manifest are regenerated in the same commit.
+
 ## [v80.5.2-night.1] — focus and be honest — 2026-11-21
 
 ### Changed

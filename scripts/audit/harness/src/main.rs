@@ -5,11 +5,13 @@
 // names its own safety argument — the audit's score law, wired as a
 // gate so the discipline cannot rot back.
 #![deny(clippy::undocumented_unsafe_blocks)]
-// night-strict-warnings-1: the zero-warning CI law — when the strict
-// env is exported, build.rs emits the cfg below and every warning in
-// this crate (the #[path]-included zylaxion module trees included)
-// fails the build.
-#![cfg_attr(zylaxion_strict_warnings, deny(warnings))]
+// night-arc-gems.2: the zero-warning law is UNCONDITIONAL — every
+// build of this harness (the #[path]-included zylaxion module trees
+// included) fails on the first warning. The audit lane is the surface
+// that exposed the env-gate hole: a local audit build printed what CI
+// never saw. The gate now lives in the crate root, not in the
+// environment.
+#![deny(warnings)]
 
 //! The Zactrix Phase 0 acoustic audit harness
 //! (night-private-research-2xblade).
