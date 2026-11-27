@@ -21,4 +21,4 @@ https://mirror.yandex.ru/ubuntu
 https://mirrors.aliyun.com/ubuntu
 https://mirrors.tuna.tsinghua.edu.cn/ubuntu
 https://ftp.jaist.ac.jp/pub/Linux/ubuntu
-https://mirrors.kernel.org/ubuntu
+# down 2026-11-27 (unreachable (_ssl.c:983: The handshake operation timed out) after 2 attempt(s)) - https://mirrors.kernel.org/ubuntu
