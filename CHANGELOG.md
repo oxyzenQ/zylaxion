@@ -236,9 +236,31 @@ v80.0.0-alpha.1
   members stay invisible. 11 checks, wired as gate-keepers sections
   12-13 alongside the changelog battery, which rides CI for the first
   time.
+- night-cafe-mclaren-2: `docs/audit-night-cafe-mclaren-2.md`, the
+  engine and architecture depth audit — RT-safety, determinism, ring
+  budget math, and the honest enforcement map, with the numeric
+  proofs committed beside it (`scripts/audit/mclaren2_math.py`).
 
 ### Changed
 
+- night-cafe-mclaren-2: the TPT prewarp clamp ceiling rides one
+  certified constant (`FC_CERTIFIED_FRAC = 0.44`) at all three call
+  sites — the former `0.45 * sr` ceiling let the f32 argument land one
+  ULP past det_tan's `0.45 * PI` certificate at the 48k/96k/192k device
+  rates, and the init side's broadband ceiling could hand the render
+  loop exactly that fc. Shipped presets are bit-identical (their
+  broadband start sits under both ceilings), so every golden
+  coefficient and hash row reads what it read before.
+- night-cafe-mclaren-2: the audio rate negotiation now matches the
+  default config's own (channels, sample format) family — the former
+  any-family match could apply a rate from a foreign combo's range and
+  fail startup on a device that never offered it.
+- night-cafe-mclaren-2: the parameter-bounds docs name the true
+  enforcement — registry-authored constants, CI-proven in-range and
+  bit-stable by the registry test tree, detmath domain asserts as
+  tripwires, `validate_and_clamp` as the contract any future loader
+  must call (it had zero production call sites while two doc blocks
+  claimed it ran at load time).
 - night-cafe-mclaren-1: the bump's sibling discovery excludes any
   `/target/`, `/vendor/` and `/.git/` path segment at any depth —
   planted manifests under a lane's `target/package/` extraction and
