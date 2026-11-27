@@ -14,8 +14,8 @@ use crate::engine::detmath;
 use crate::profiles::{KeyProfile, SynthState};
 
 use super::{
-    AMPLITUDE_DRIFT_FRAC, PITCH_DRIFT_FRAC, ZactrixEngine, splitmix64, u32_to_signed_f32,
-    xorshift32,
+    AMPLITUDE_DRIFT_FRAC, FC_CERTIFIED_FRAC, PITCH_DRIFT_FRAC, ZactrixEngine, splitmix64,
+    u32_to_signed_f32, xorshift32,
 };
 
 // ── Zactrix physics shape constants (night-private-research-2xblade) ──
@@ -188,11 +188,14 @@ pub(super) fn init_state(
 
     // ── Zactrix stage A (click): the impact-collapse curve ─────
     // Physics shape, locked: first contact is broadband — the
-    // cutoff starts at 2.5x the click band (clamped below 0.45
-    // Nyquist so the bilinear prewarp stays honest) and collapses
-    // into the click band with a ~1 ms time constant (3 tau = the
-    // ~3 ms collapse), while Q starts at a quarter of the preset
-    // resonance (a broadband passage, not a narrow ping) and
+    // cutoff starts at 2.5x the click band (clamped to the
+    // certified prewarp ceiling, night-cafe-mclaren-2: 0.44 of the
+    // sample rate, inside det_tan's 0.45*pi certificate with a
+    // ~2.2% margin at every device rate — the former 0.45 ceiling
+    // let the f32 argument land one ULP past the bound) and
+    // collapses into the click band with a ~1 ms time constant (3
+    // tau = the ~3 ms collapse), while Q starts at a quarter of the
+    // preset resonance (a broadband passage, not a narrow ping) and
     // settles to it. The drifted click frequency rides as the
     // anchor, so micro-randomization moves the whole curve exactly
     // as it moved the frozen coefficient before.
@@ -202,7 +205,8 @@ pub(super) fn init_state(
     // converts exactly, so the only rounding the curve takes is its
     // final one.
     state.click_fc_end = click_freq;
-    let f_broad = (f64::from(click_freq) * CLICK_BREADTH).min(0.45 * f64::from(sr));
+    let f_broad =
+        (f64::from(click_freq) * CLICK_BREADTH).min(f64::from(FC_CERTIFIED_FRAC) * f64::from(sr));
     state.click_fc_delta = anchor(f_broad - f64::from(click_freq));
     // The k curve's start (e=1) is 4x its end — one f64 source feeds
     // BOTH anchors, so the quarter-resonance law holds before and

@@ -64,7 +64,8 @@ pub struct SynthState {
     // curve.
     //
     // Stage A (click): cutoff starts broadband (2.5x the click band,
-    // clamped below 0.45 Nyquist) and collapses into the click band
+    // clamped below the certified prewarp ceiling, night-cafe-mclaren-2)
+    // and collapses into the click band
     // over ~3 ms; Q starts at a quarter of the preset resonance
     // (broadband passage) and settles to it. Stage B (spring): the
     // cutoff travels from the click band to the spring band over ~5 ms

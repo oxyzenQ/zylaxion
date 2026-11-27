@@ -85,6 +85,19 @@ use crate::profiles::KeyProfile;
 /// temperature-induced stiffness changes).
 const PITCH_DRIFT_FRAC: f32 = 0.015;
 
+/// The certified fc ceiling for the TPT bilinear prewarp (night-cafe-
+/// mclaren-2): the prewarp argument is `PI * fc / sr` and det_tan's
+/// certificate ends at `0.45 * PI`. The former `0.45 * sr` clamp let the
+/// f32 argument land one ULP past that bound at the 48k / 96k / 192k
+/// device rates (proven bit-exactly: scripts/audit/mclaren2_math.py,
+/// section A) — a render-path assert panic one future preset away, with
+/// the init-side `min(0.45 * sr)` ceiling able to HAND the render loop
+/// exactly that fc. `0.44` restores a ~2.2% certificate margin (0.0314
+/// radians, ~260000 f32 ULPs past the bound at every device rate) while
+/// staying inaudible-ultrasonic where the ceiling binds. One constant,
+/// three call sites — the clamp law lives here, not at the clamps.
+const FC_CERTIFIED_FRAC: f32 = 0.44;
+
 /// Maximum amplitude drift applied to the excitation envelope, as a
 /// fraction of the profile value. ±5% matches the natural variation
 /// of how hard a user presses a key from one keystroke to the next

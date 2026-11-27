@@ -31,13 +31,16 @@
 //! | [`det_tan`] | `[0, 0.45*pi]` | absolute `TAN_ABS_BOUND` (8.8e-15) |
 //!
 //! The domains cover every reachable call site with large margins: the
-//! travel-path `tan` arguments are clamped to `[pi*20/sr, 0.45*pi]` by
-//! the render clamp law, the housing fade argument is `[-3, 0]` by
-//! construction, and the decay-power arguments ride the `c^(R/S)` law
-//! (`c` clamped to `[0, 0.9999]`, the rate ratio bounded by real device
-//! rates). A domain exit is UNREACHABLE by those construction laws; the
-//! guards below still refuse loudly instead of computing outside the
-//! certificate — the house's clear-refusal law, enforced as a tripwire.
+//! travel-path `tan` arguments are clamped to `[pi*20/sr, 0.44*pi]` by
+//! the render clamp law (night-cafe-mclaren-2: the certified ceiling —
+//! the former 0.45 fraction let the f32 argument land one ULP past this
+//! bound at the 48k/96k/192k device rates), the housing fade argument
+//! is `[-3, 0]` by construction, and the decay-power arguments ride the
+//! `c^(R/S)` law (`c` clamped to `[0, 0.9999]`, the rate ratio bounded
+//! by real device rates). A domain exit is UNREACHABLE by those
+//! construction laws; the guards below still refuse loudly instead of
+//! computing outside the certificate — the house's clear-refusal law,
+//! enforced as a tripwire.
 //!
 //! # Accuracy at the f32 anchor
 //!

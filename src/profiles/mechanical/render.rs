@@ -12,7 +12,7 @@ use std::sync::atomic::Ordering;
 use crate::engine::detmath;
 use crate::profiles::{AcousticModel, KeyProfile, KeyTrigger, SynthState};
 
-use super::{ZactrixEngine, init, u32_to_signed_f32};
+use super::{FC_CERTIFIED_FRAC, ZactrixEngine, init, u32_to_signed_f32};
 
 impl AcousticModel for ZactrixEngine {
     fn get_profile(&self, event: &KeyTrigger) -> KeyProfile {
@@ -148,13 +148,16 @@ impl AcousticModel for ZactrixEngine {
         let (a1, a2, a3) = if state.click_coeff_frozen {
             (state.click_a1, state.click_a2, state.click_a3)
         } else {
-            let fc =
-                (state.click_fc_end + state.click_fc_delta * state.click_e).clamp(20.0, 0.45 * sr);
+            let fc = (state.click_fc_end + state.click_fc_delta * state.click_e)
+                .clamp(20.0, FC_CERTIFIED_FRAC * sr);
             let k = (state.click_k + state.click_k_delta * state.click_e).clamp(0.1, 30.0);
             // night-frontier-Z5: the prewarp tan rides the certified lane
-            // — the f32 argument math is unchanged (the clamp law keeps it
-            // inside [pi*20/sr, 0.45*pi]), the transcendental is det_tan,
-            // bit-identical on every target.
+            // — the f32 argument math is unchanged (the clamp law keeps
+            // it inside det_tan's 0.45*pi certificate with the certified
+            // ceiling's ~2.2% margin, night-cafe-mclaren-2 — the former
+            // 0.45 ceiling let the argument land one ULP past the bound
+            // at the 48k/96k/192k device rates), the transcendental is
+            // det_tan, bit-identical on every target.
             let g = detmath::det_tan(f64::from(std::f32::consts::PI * fc / sr)) as f32;
             let a1 = 1.0 / (1.0 + g * (g + k));
             let a2 = g * a1;
@@ -164,9 +167,9 @@ impl AcousticModel for ZactrixEngine {
             // remaining travel is |delta| * e (the spring delta is
             // negative whenever a preset's spring sits above its
             // click). Both shipped-curve clamps are outside this law's
-            // reach: the click cutoff starts and stays below 0.45 * sr,
-            // and k lives in (0.1, 30) by construction (anchor >=
-            // 1/Q_max, start 4x the anchor).
+            // reach: the click cutoff starts and stays below the
+            // certified ceiling, and k lives in (0.1, 30) by
+            // construction (anchor >= 1/Q_max, start 4x the anchor).
             if state.click_fc_delta.abs() * state.click_e < fc * f32::EPSILON / 8.0
                 && state.click_k_delta.abs() * state.click_e < k * f32::EPSILON / 8.0
             {
@@ -201,14 +204,14 @@ impl AcousticModel for ZactrixEngine {
         // law as the click stage above (night-depth-hardening-1). The
         // curve may travel up or down per preset — monotonicity, not
         // direction, is what the travel bound requires. The spring
-        // cutoff starts at the click band (below 0.45 * sr by the
-        // click stage's own clamp) and k lives in (0.1, 30), so the
-        // clamps stay outside the law's reach.
+        // cutoff starts at the click band (below the certified
+        // ceiling by the click stage's own clamp) and k lives in
+        // (0.1, 30), so the clamps stay outside the law's reach.
         let (sa1, sa2, sa3) = if state.spring_coeff_frozen {
             (state.spring_a1, state.spring_a2, state.spring_a3)
         } else {
             let sfc = (state.spring_fc_end + state.spring_fc_delta * state.spring_e)
-                .clamp(20.0, 0.45 * sr);
+                .clamp(20.0, FC_CERTIFIED_FRAC * sr);
             let sk = (state.spring_k + state.spring_k_delta * state.spring_e).clamp(0.1, 30.0);
             // night-frontier-Z5: the certified lane, same law as the click
             // stage's prewarp above.
