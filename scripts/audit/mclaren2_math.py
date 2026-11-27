@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2025-2026 rezky_nightky (oxyzenQ)
+# SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 """night-cafe-mclaren-2 math proofs: detmath domain edges, ring budget,
 drift bounds. Every number the audit doc cites comes from this run."""
 import struct
