@@ -215,21 +215,37 @@ impl CpalSink {
         let preferred_rates = [48000_u32, 96000, 192000];
         let default_rate = default_config.sample_rate();
 
+        // The default config's own family (both Copy reads, taken
+        // before any consumption below). night-cafe-mclaren-2: the
+        // negotiation must pick a rate THIS family actually lists — the
+        // former any-family match could take 48000 from a foreign
+        // (channels, format) range and apply it to the default config,
+        // naming a combo the device never offered. The mismatch fails
+        // closed at build_output_stream, but fail-closed is not
+        // correct-by-construction: an exotic device paid a startup
+        // failure for nothing. A family-listed fallback rate stays
+        // honest — the preferred ladder only ever narrows the choice.
+        let default_channels = default_config.channels();
+        let default_format = default_config.sample_format();
+
         let chosen_rate = device
             .supported_output_configs()
             .ok()
             .and_then(|configs| {
-                // Find the first preferred rate that the device supports.
+                // Find the first preferred rate that the device supports
+                // within the default config's family.
                 // supported_output_configs() returns an iterator of
                 // SupportedStreamConfigRange, each covering a range of
-                // sample rates. We check if our preferred rate falls
-                // within any range.
+                // sample rates for one (channels, sample_format) combo.
                 let collected: Vec<_> = configs.collect();
                 preferred_rates
                     .iter()
                     .find(|&&preferred| {
                         collected.iter().any(|c| {
-                            c.min_sample_rate() <= preferred && c.max_sample_rate() >= preferred
+                            c.channels() == default_channels
+                                && c.sample_format() == default_format
+                                && c.min_sample_rate() <= preferred
+                                && c.max_sample_rate() >= preferred
                         })
                     })
                     .copied()
