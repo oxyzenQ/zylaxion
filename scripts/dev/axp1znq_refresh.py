@@ -26,6 +26,12 @@ The write law (mature LTS, minimal owner intervention):
   - the file is bounded by the 100-line law: over the cap, the OLDEST
     dated dead comments are pruned first, an active address is never
     pruned;
+  - the floor law: after a rewrite, fewer active addresses than
+    --min-lines (the owner's minimum, 10) is a warning state - the
+    pool is thinning and the owner must know; the survivors are real
+    so the file still rewrites, the warning rides the summary and the
+    CI log, and only a zero-alive pool escalates to the critical
+    never-empty guard below;
   - the never-empty guard: a catalog with zero live addresses is NOT
     rewritten (a flaky runner probe must never erase the owner's
     pool) - the lane warns (::warning:: in CI) and names CALL THE
@@ -76,6 +82,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--max-age-days", type=int, default=14, help="index age ceiling (d)")
     parser.add_argument("--max-lines", type=int, default=100, help="per-file line cap")
+    parser.add_argument(
+        "--min-lines",
+        type=int,
+        default=10,
+        help="active-address floor; below it the lane warns (0 disables)",
+    )
     parser.add_argument("--attempts", type=int, default=2, help="probe attempts per address")
     parser.add_argument("--connect-timeout", type=float, default=4.0, help="TCP connect timeout s")
     parser.add_argument("--total-timeout", type=float, default=15.0, help="whole-request timeout s")
@@ -121,6 +133,7 @@ def refresh_one(
     banner = "AXP1-ZnQ (Architect's eXecution Protocol 1) refresher"
     if not entries:
         return {"path": path, "changed": False, "critical": True, "wrote": False,
+                "warn": False,
                 "summary": f"{banner}: {path.name} carries no active address - CALL THE OWNER"}
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(args.workers, len(entries))) as pool:
@@ -144,6 +157,7 @@ def refresh_one(
 
     if alive == 0:
         return {"path": path, "changed": False, "critical": True, "wrote": False,
+                "warn": False,
                 "summary": (f"{banner}: {path.name} 0 alive of {len(entries)} probed "
                             f"({down} down, {stale} stale) - catalog untouched, CALL THE OWNER")}
 
@@ -166,12 +180,18 @@ def refresh_one(
         f"{banner}: {path.name} {alive} alive, {down} down, {stale} stale "
         f"({'rewrote' if changed else 'no change'})"
     )
+    warn = 0 < alive < args.min_lines
+    if warn:
+        summary += (
+            f" (the active pool {alive} is below the "
+            f"{args.min_lines}-address floor - CALL THE OWNER)"
+        )
     wrote = False
     if changed and not args.dry_run:
         path.write_text(new_text, encoding="utf-8")
         wrote = True
     return {"path": path, "changed": changed, "critical": False, "wrote": wrote,
-            "summary": summary}
+            "warn": warn, "summary": summary}
 
 
 def main() -> int:
@@ -192,6 +212,11 @@ def main() -> int:
         print(record["summary"])
         if record["critical"]:
             print("::warning::AXP1-ZnQ address refresh hit a critical state - CALL THE OWNER")
+        elif record.get("warn"):
+            print(
+                f"::warning::AXP1-ZnQ address refresh: {record['path'].name} active pool "
+                f"below the {args.min_lines}-address floor - CALL THE OWNER"
+            )
 
     moved = [r for r in records if r["changed"]]
     if moved and not args.dry_run and args.note_file:
