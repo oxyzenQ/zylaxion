@@ -73,15 +73,32 @@ if ! grep -q '^## \[Unreleased\]$' "${SCRIPT_DIR}/CHANGELOG.md"; then
 fi
 {
     # Drop whatever body the live running section holds this cycle; the
-    # seeded body replaces it below. A "## " heading at column zero ends
-    # the drop (the section is not always last — F7 covers that side).
+    # seeded body replaces it. The seed splices DIRECTLY under the
+    # anchored "## [Unreleased]" heading — night-cafe-mclaren-1: the
+    # live ledger carries historical sections below the running one
+    # (the Carried record and Frozen archives), so the old "append the
+    # seed at EOF" builder planted the body in the archive zone, the
+    # carry found the running section empty, and F1/F2 went red on the
+    # shipped tree while the carry itself was healthy (the failures
+    # were the fixture's, not the tool's — F7/F10 pass on the same
+    # extracted functions). A "## " heading at column zero still ends
+    # the drop (the running body ends where the next section starts).
     awk '
-        /^## \[Unreleased\]$/ { drop = 1; print; next }
+        /^## \[Unreleased\]$/ && !done {
+            drop = 1
+            print
+            print ""
+            print "### Changed"
+            print ""
+            print "- seed-alpha the carry rides a body the battery planted"
+            print "- seed-beta the second line rides along"
+            done = 1
+            next
+        }
         drop && /^## / { drop = 0 }
         drop { next }
         { print }
     ' "${SCRIPT_DIR}/CHANGELOG.md"
-    printf '\n### Changed\n\n- seed-alpha the carry rides a body the battery planted\n- seed-beta the second line rides along\n'
 } > "${WORK}/f1"
 
 echo "F1: real shape - ledger line, carry into own section, Unreleased emptied"
