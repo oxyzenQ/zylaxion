@@ -22,10 +22,16 @@
 #                                  (night-improve-9: the zelynic ebpf lane,
 #                                  generalized — sibling_scan() honors every
 #                                  such manifest the find turns up; today
-#                                  that is ebpf/, fuzz/, and
+#                                  that is ebpf/, fuzz/, proofs/, and
 #                                  scripts/audit/harness/, all carrying
 #                                  their own version = line, all mirrored
-#                                  on every bump)
+#                                  on every bump. night-cafe-mclaren-1:
+#                                  the find turns up LANE manifests only —
+#                                  any /target/, /vendor/ or /.git/ path
+#                                  segment is excluded wherever it sits,
+#                                  so cargo-package extractions and
+#                                  vendored upstream manifests are never
+#                                  rewritten as if they were lanes)
 # Files auto-derived: scripts/build.sh (reads from Cargo.toml), the binary
 # (env!("CARGO_PKG_VERSION")). README.md is probed for a version surface and
 # reported honestly either way (the zelynic NIGHT-hunt-32 rule: never claim a
@@ -87,8 +93,26 @@ current_version() {
 # Scan non-root manifests that carry their OWN version line. A
 # workspace-inherit member (version.workspace = true) has none and is
 # correctly absent here — its version moves with the root automatically.
+# night-cafe-mclaren-1: discovery is the adaptive core of the bump —
+# any manifest the repo authors, anywhere in the tree, rides every
+# bump without this script ever naming it. But not every Cargo.toml a
+# find turns up is a lane the repo authors. Two manifest classes are
+# GENERATED or THIRD-PARTY, and rewriting them corrupts the tree:
+#   - build artifacts: cargo package extracts target/package/<crate>/
+#     with its own manifest (and a Cargo.toml.orig beside it), at any
+#     depth — the root ./target/ exclusion never covered a nested
+#     lane's target/, and a packaged lane planted a manifest the scan
+#     would force-rewrite to the release version;
+#   - vendored dependencies: vendor/<crate>/Cargo.toml pins the
+#     upstream version behind .cargo-checksum.json — a rewrite ships
+#     a checksum failure, not a lane.
+# The exclusion is a path-SEGMENT law (any /target/, /vendor/ or
+# /.git/ component, wherever it sits), not a root-prefix law: it
+# holds for every lane the repo authors, so the scan stays adaptive
+# and the generated trees stay invisible.
 sibling_scan() {
-    find . -name Cargo.toml -not -path './target/*' -not -path './.git/*' \
+    find . -name Cargo.toml -not -path '*/target/*' \
+        -not -path '*/vendor/*' -not -path '*/.git/*' \
         -not -path './Cargo.toml' -print0 |
         while IFS= read -r -d '' f; do
             if grep -q '^version = ' "$f"; then
