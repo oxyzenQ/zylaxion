@@ -126,6 +126,11 @@ def probe_http(
     URL answering while the index 404s is a DOWN, the lane cannot apt
     from it). A 2xx verdict reads freshness off the response's own
     Date header and hands the STALE call to the caller's policy.
+
+    Timeout honesty: urllib rides one socket timeout, so this probe
+    runs on --total-timeout alone (connect and read share it); the
+    --connect-timeout flag binds the TCP kind (probe_tcp), never this
+    path - the stdlib-only law keeps it that way.
     """
     url = target
     if probe_path:

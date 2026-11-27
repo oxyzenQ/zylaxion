@@ -60,7 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--json", action="store_true", help="machine report instead of a table")
     parser.add_argument("--attempts", type=int, default=2, help="probe attempts per address")
-    parser.add_argument("--connect-timeout", type=float, default=4.0, help="TCP connect timeout s")
+    parser.add_argument("--connect-timeout", type=float, default=4.0, help="TCP-kind connect timeout s (HTTP probes ride the total timeout)")
     parser.add_argument("--total-timeout", type=float, default=15.0, help="whole-request timeout s")
     return parser
 
