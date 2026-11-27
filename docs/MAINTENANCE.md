@@ -22,11 +22,20 @@ What it does (all lanes verified in-situ):
 1. Validates the version shape (stable semver and the pre-release
    family `vX.Y.Z-rc.N` are both accepted).
 2. Rewrites the package version — the root manifest (night-improve-21:
-   one package; the sibling-manifest scanner stays honest for the day
-   a second manifest appears) — in one pass.
+   one package) and every own-version sibling manifest the scan
+   discovers, wherever it sits (night-improve-9 generalized; today
+   `ebpf/`, `fuzz/`, `proofs/`, and `scripts/audit/harness/`, each
+   carrying its own `version = ` line). night-cafe-mclaren-1: discovery
+   is dynamic — a manifest added tomorrow (a new test crate, a
+   `cosmostrix-*` lane) rides the next bump with zero script changes —
+   and segment-scoped: any `/target/`, `/vendor/` or `/.git/` path
+   component is excluded at any depth, so cargo-package extractions,
+   vendored upstream manifests, and `.git` trees are never rewritten as
+   if they were lanes.
 3. Syncs `Cargo.lock` through `cargo update --workspace --offline`,
    then verifies every member's lock entry actually moved (third-
-   party entries untouched).
+   party entries untouched). Each touched sibling's own detached lock
+   resyncs the same way (night-improve-27).
 4. Writes the `[Released]` ledger entry into CHANGELOG.md — honestly:
    an absent file, an already-recorded version, or a missing
    `[Unreleased]` anchor is a warning and a no-op, never a fabricated
@@ -44,6 +53,18 @@ What it does (all lanes verified in-situ):
    ambiguous ledger (more than one `[Released]` or `[Unreleased]`
    heading) refuses the carry; an empty running section is the
    expected steady state after a clean carry, not a failure.
+6. Leaves the tree auditable (night-cafe-mclaren-1):
+   `scripts/gates/check-version-parity.sh` — gate-keepers section 11,
+   the read-only CI arm — asserts between bumps that every own-version
+   sibling manifest equals the root version, every sibling lock equals
+   its manifest, and the root lock equals the root package; it imports
+   the bump's own scan functions verbatim, so the gate and the bump can
+   never disagree about what a lane is. The bump lane itself is
+   regression-tested by `scripts/dev/test-version-to-changelog.sh`
+   (the ledger and carry battery) and
+   `scripts/dev/test-version-to-sibling-scan.sh` (the discovery
+   battery: any lane the repo authors rides the bump, generated trees
+   stay invisible) — gate-keepers sections 12-13.
 
 The rule around it: versions move ONLY through this tool, by the
 Owner, and a release tag is only ever pushed by the Owner. A tag
