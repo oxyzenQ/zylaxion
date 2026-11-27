@@ -266,6 +266,16 @@ run_section 10 "Documentation disclaimer" \
 run_section 11 "Version parity" \
         bash scripts/gates/check-version-parity.sh
 
+# ── 12. Version-to changelog battery (night-ledger-1: the carry lane) ──────
+run_section 12 "Version-to changelog battery" \
+        bash scripts/dev/test-version-to-changelog.sh
+
+# ── 13. Version-to sibling-scan battery (night-cafe-mclaren-1: the ─────────
+#        adaptive discovery lane — every lane the repo authors rides the
+#        bump, generated trees stay invisible)
+run_section 13 "Version-to sibling-scan battery" \
+        bash scripts/dev/test-version-to-sibling-scan.sh
+
 # ── Verdict ─────────────────────────────────────────────────────────────
 echo ""
 if [ "${#FAILED_SECTIONS[@]}" -gt 0 ]; then
