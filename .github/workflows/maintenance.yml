@@ -69,7 +69,7 @@ jobs:
               libasound2-dev pkg-config; then
             echo "apt: the fast path landed (the image's lists held)"
           else
-            echo "apt: the fast path failed - repoint off the azure mirror, disable the third-party repos, then the update lane, three named attempts"
+            echo "apt: fast path failed - repoint azure, drop third-party repos, retry the update lane"
             sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
             sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
