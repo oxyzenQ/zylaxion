@@ -33,7 +33,7 @@
 
 [package]
 name = "zylaxion-proofs"
-version = "80.5.8"
+version = "80.5.7"
 edition = "2024"
 # night-arc-gems.3: the sibling manifests name BOTH doors — the same
 # SPDX-honest dual expression the root manifest carries (night-release-2:
