@@ -26,9 +26,16 @@ pub struct KeyProfile {
 
 /// Safe DSP parameter ranges.
 ///
-/// These are enforced by [`KeyProfile::validate_and_clamp`] when loading
-/// user-supplied TOML profiles. The hardcoded default profile bypasses
-/// validation (it is constructed in code and known to be safe).
+/// night-cafe-mclaren-2, the honest enforcement map: there is no TOML
+/// loader since night-improve-22 — every profile the engine renders is
+/// a registry-authored constant, and enforcement is the registry test
+/// tree (`every_profile_survives_clamp_without_drift` in
+/// test/profiles/registry_tests.rs, which runs
+/// [`KeyProfile::validate_and_clamp`] over all 24 presets and demands
+/// bit-equality) plus the detmath domain asserts, which refuse loudly
+/// as tripwires. The function is the CONTRACT for any future loader: a
+/// lane that starts carrying user-supplied numbers must call it at the
+/// load boundary, or the bounds below are prose, not law.
 ///
 /// # Why these bounds
 ///

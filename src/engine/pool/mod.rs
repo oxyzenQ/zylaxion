@@ -246,7 +246,9 @@ impl VoicePool {
     /// PipeWire or produce ear-splitting clicks), it is replaced with
     /// `0.0` (silence). This is the **final safety net** — if the DSP
     /// somehow blows up despite the TPT SVF's stability guarantees and
-    /// the `validate_and_clamp()` parameter guardrails, the worst the
+    /// the parameter-bounds law (night-cafe-mclaren-2: registry-authored
+    /// constants, CI-proven in-range by the registry test tree — the
+    /// detmath domain asserts refuse loudly as tripwires), the worst the
     /// user hears is a brief moment of silence, not a crash.
     #[inline]
     pub fn process_sample<M: AcousticModel>(&mut self, model: &M) -> [f32; 2] {
