@@ -36,7 +36,10 @@ voice; this document is the protocol's front door.
 - the authored order is the owner's trust ranking — canonical
   archive first, the runner-native azure mirror second, then the
   wide mirrors. It is never a latency leaderboard; see the write law;
-- bounded: 10 to 100 active lines per file, the owner's min and max;
+- bounded: 10 to 100 active lines per file, the owner's min and max
+  — both halves enforced (the refresher prunes tombstones at the
+  100-line file cap and warns when the alive pool drops under
+  `--min-lines`, default 10, `0` disables);
 - the shipped seed was probe-verified (12 of 15 candidates answered
   HTTP 200 on `dists/noble/InRelease` at authoring time;
   `security.ubuntu.com` is excluded on purpose — it serves the
@@ -131,17 +134,20 @@ pool).
 ## The honest edges
 
 - Probe verdicts are network-relative: the authoring sandbox verified
-  11 of the 12 shipped lines (one, mirrors.kernel.org, stayed dark
-  from that network and ships anyway — a canonical mirror the Sunday
-  run on real runners judges); a runner-region difference is exactly
-  what the weekly curation exists to reconcile.
+  11 of the 12 shipped lines, and the first runner pass has since
+  judged the last one — on 2026-11-27 the maintenance run found
+  mirrors.kernel.org dark from the runner network and the catalog now
+  carries its dated tombstone (11 active lines, above the
+  10-address floor). A runner-region difference is exactly what the
+  weekly curation exists to reconcile.
 - The fresh-index probe path is `dists/noble/InRelease` — the noble
   LTS the runner fleet runs. When the fleet moves to the next LTS,
   the probe path moves with it (one flag, both commands).
 - `--first` worst case on a dead-first catalog is bounded by
-  attempts x timeout per address (both are flags); on a runner the
-  connect timeout is what bites, on proxied networks the total
-  timeout.
+  attempts x timeout per address (both are flags); an HTTP probe
+  rides the whole-request timeout alone (urllib's one-socket law),
+  the connect timeout binds only the host:port kind, and on proxied
+  networks the total timeout is what bites.
 
 <!-- ZYLAXION-DISCLAIMER -->
 <!--

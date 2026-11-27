@@ -59,6 +59,10 @@ honestly cover.
 [MAINTENANCE.md](MAINTENANCE.md) — the maintainer lane: the version
 ladder (`scripts/dev/version-to.sh`), the release pipeline, the
 gate-keepers, and the honest ledgers (the 600-line-law debt list).
+[AXP1-ZnQ.md](AXP1-ZnQ.md) — the maintenance bot's one protocol
+(AXP1-ZnQ — Architect's eXecution Protocol 1): the repos-for-ci
+address pool, the failover resolver and the Sunday refresher, so no
+CI lane marries a hardcoded server again.
 [KERNEL_COMPATIBILITY.md](KERNEL_COMPATIBILITY.md) — the kernel floor
 and the per-distro bpffs layouts the tap meets, each entry resolved
 with its evidence.

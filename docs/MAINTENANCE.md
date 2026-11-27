@@ -206,6 +206,28 @@ dispatch (`scan_only`, the zejtron night-supply-1 red button) runs the
 whole verdict on the committed tree any day of the week and ships
 nothing — no update, no checks, no commit.
 
+The same lane also carries the address refresh (AXP1-ZnQ —
+Architect's eXecution Protocol 1, night-learning-into-darkness-1 —
+the protocol's front door is `docs/AXP1-ZnQ.md`): after `cargo test`
+and before the commit step, `scripts/dev/axp1znq_refresh.py` re-probes
+the whole `repos-for-ci/` catalog concurrently — an address survives
+only when it answers AND serves a fresh index (the InRelease `Date:`
+header is the freshness witness against `--max-age-days`, default 14)
+— and writes the survivors back in their authored order, the dead and
+stale left as dated tombstones the owner revives by deleting one
+line. The write law is bounded and guarded: the 100-line cap prunes
+the oldest tombstones first, an alive pool under the 10-address floor
+(`--min-lines`) warns by name, and the never-empty guard holds a
+zero-alive catalog untouched — that warning names CALL THE OWNER, the
+one critical the refresher escalates. The refresher never blocks the
+ship lane (it exits 0 with its warnings recorded); when the catalog
+moved, its note rides the weekly commit body next to the sweep's
+note, so the one commit carries deps AND addresses. The lane's own
+apt fallback is the protocol's first consumer: its repoint target is
+no longer a hardcoded server — `scripts/dev/axp1znq_resolve.py` hands
+it the first catalog address that actually answers, and a catalog
+with nothing alive fails the lane loud.
+
 ## The root-owned pycache trap (the zelynic incident, documented)
 
 Anatomy of the incident (observed on the zelynic sibling, recorded
