@@ -112,7 +112,7 @@ jobs:
 
       # AXP1-ZnQ (Architect's eXecution Protocol 1; the night-solid-defense-1
       # birth) runs the same scanner the
-      # canonical lane (audit.yml) runs, over the same four-lock surface
+      # canonical lane (audit.yml) runs, over the same five-lock surface
       # (night-zen-1). The scanner version is pinned to the exact CLI
       # contract the sentinel parses (--format json; 0.23 replaced the
       # old bare --json) — a scanner bump is a deliberate move, never an
