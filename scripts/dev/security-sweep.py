@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only OR Commercial
 # PLATFORM: UNIX-only (Linux). zylaxion is a Linux-only tool.
 #
-# ZYLAXION SECURITY SWEEP - AXP1-ZnQ, the owner's supply-chain sentinel
+# ZYLAXION SECURITY SWEEP - AXP1-ZnQ (Architect's eXecution Protocol 1),
+# the owner's supply-chain sentinel
 #
 """The maintenance lane's security classification pass (Dragon Guard
 - Dependency Maintenance).
@@ -26,8 +27,9 @@ that matter to a high-value tree whose owner is asleep at run time:
      at all (watch upstream, or remove/replace the dependency).
 
 Identity (night-solid-defense-1): the verdict speaks under the
-owner's sentinel name - AXP1-ZnQ. The banners, the annotations, and
-the step summary all sign as AXP1-ZnQ, so a red Sunday names its
+owner's sentinel name - AXP1-ZnQ (Architect's eXecution Protocol 1).
+The banners, the annotations, and the step summary all sign as
+AXP1-ZnQ (Architect's eXecution Protocol 1), so a red Sunday names its
 watcher and the run list reads like a sentinel on watch (the zejtron
 night-solid-defense-1 shape, ported whole). One deliberate divergence
 from the zejtron reference: their verdict gates the commit lane and
@@ -536,7 +538,7 @@ def build_report(
     red: bool,
 ) -> str:
     lines: list[str] = []
-    lines.append("## AXP1-ZnQ - the Sunday supply-chain sentinel (night-solid-defense-1)")
+    lines.append("## AXP1-ZnQ (Architect's eXecution Protocol 1) - the Sunday supply-chain sentinel (night-solid-defense-1)")
     lines.append("")
     lines.append(
         f"Swept {len(locks)} tracked lockfile(s): {', '.join(f'`{lock}`' for lock in locks)}."

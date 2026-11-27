@@ -136,7 +136,8 @@ release that fixed them. Historical audit evidence lives under
 `docs/` (the `audit-*` files); future audit rounds append there
 rather than rewriting history.
 
-The weekly supply-chain watch (AXP1-ZnQ, night-solid-defense-1) rides
+The weekly supply-chain watch (AXP1-ZnQ — Architect's eXecution
+Protocol 1; night-solid-defense-1) rides
 the Sunday maintenance lane: every tracked lockfile is audited against
 the RustSec advisory database twice (before and after the dependency
 sweep), an advisory the sweep cannot clear fails the run hard — CALL

@@ -169,8 +169,9 @@ rewritten manifest ride the same maintenance commit, so
 already bootstraps the ebpf prerequisites before the update step,
 which is what the regen path requires.
 
-The same lane carries the Sunday security sweep (AXP1-ZnQ,
-night-solid-defense-1 — the owner's supply-chain sentinel,
+The same lane carries the Sunday security sweep (AXP1-ZnQ —
+Architect's eXecution Protocol 1, born night-solid-defense-1 — the
+owner's supply-chain sentinel,
 `scripts/dev/security-sweep.py`), the watcher that turns the weekly
 run into a security verdict the sleeping owner can trust. It audits
 every tracked lockfile with `cargo audit --format json` twice — once
@@ -187,7 +188,8 @@ release exists but no requirement reaches it, so the manifest must
 move deliberately, or no patched release is published at all, so the
 dependency wants replacing). Identity (night-solid-defense-1): the
 verdict speaks under the owner's sentinel name — every banner,
-GitHub annotation, and summary signs as AXP1-ZnQ, so a red Sunday
+GitHub annotation, and summary signs as AXP1-ZnQ (Architect's
+eXecution Protocol 1), so a red Sunday
 names its watcher (the zejtron shape, ported whole). One deliberate
 divergence from that reference: zejtron's verdict gates the commit
 lane and ships nothing while red; this tree lands the fixable bumps

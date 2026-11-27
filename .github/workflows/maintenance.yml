@@ -7,10 +7,11 @@ name: Dragon Guard - Dependency Maintenance
 "on":
   workflow_dispatch:
     # night-supply-1 (the zejtron shape, ported): the scan-only dispatch
-    # runs the whole AXP1-ZnQ verdict (the pre-pass, the post-pass and
-    # the hard exit) but skips the ship lane — no update, no checks, no
-    # commit. The owner's red button: any day of the week, the advisory
-    # state of every tracked lockfile, one dispatch, ship nothing.
+    # runs the whole AXP1-ZnQ (Architect's eXecution Protocol 1)
+    # verdict (the pre-pass, the post-pass and the hard exit) but skips
+    # the ship lane — no update, no checks, no commit. The owner's red
+    # button: any day of the week, the advisory state of every tracked
+    # lockfile, one dispatch, ship nothing.
     inputs:
       scan_only:
         description: "Verdict only - scan the committed tree, ship nothing"
@@ -70,9 +71,19 @@ jobs:
             echo "apt: the fast path landed (the image's lists held)"
           else
             echo "apt: fast path failed - repoint azure, drop third-party repos, retry the update lane"
-            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+            # The repoint target is not a hardcoded server anymore: the
+            # AXP1-ZnQ (Architect's eXecution Protocol 1) resolver walks
+            # the repos-for-ci catalog and hands back the first address
+            # that actually answers (line 1 down, the lane moves on -
+            # line 5 answering is the one the lane uses). Exit 1 with no
+            # live address - a dead default is never a fallback.
+            MIRROR="$(python3 scripts/dev/axp1znq_resolve.py \
+              --file repos-for-ci/apt-mirrors.txt \
+              --probe-path dists/noble/InRelease \
+              --first)"
+            sudo sed -i "s|mirror+file:/etc/apt/apt-mirrors.txt|${MIRROR}/|g" \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+            sudo sed -i "s|http://azure.archive.ubuntu.com/ubuntu/|${MIRROR}/|g" \
               /etc/apt/sources.list 2>/dev/null || true
             sudo find /etc/apt/sources.list.d -maxdepth 1 -type f \
               \( -name '*.list' -o -name '*.sources' \) \
@@ -99,7 +110,8 @@ jobs:
       - name: Install Rust toolchain
         run: rustup default stable
 
-      # AXP1-ZnQ (night-solid-defense-1) runs the same scanner the
+      # AXP1-ZnQ (Architect's eXecution Protocol 1; the night-solid-defense-1
+      # birth) runs the same scanner the
       # canonical lane (audit.yml) runs, over the same four-lock surface
       # (night-zen-1). The scanner version is pinned to the exact CLI
       # contract the sentinel parses (--format json; 0.23 replaced the
@@ -132,7 +144,8 @@ jobs:
           ./scripts/dev/bootstrap-ebpf.sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      # AXP1-ZnQ (scripts/dev/security-sweep.py), the pre-pass: what the
+      # AXP1-ZnQ (Architect's eXecution Protocol 1) pre-pass, the
+      # scripts/dev/security-sweep.py pass: what the
       # as-committed lane carries BEFORE the refresh touches it. The
       # post-pass diffs against this snapshot to tell the owner's two
       # scenarios apart: a finding the sweep cleared (fixable — the fix
@@ -140,7 +153,8 @@ jobs:
       # (unfixable — CALL OWNER). The pre-pass never exits 1 on
       # findings — findings are data here; the final verdict step owns
       # the red. Identity (night-solid-defense-1): every banner,
-      # annotation, and summary signs as AXP1-ZnQ, so the Sunday
+      # annotation, and summary signs as AXP1-ZnQ (Architect's
+      # eXecution Protocol 1), so the Sunday
       # morning report names its watcher.
       - name: AXP1-ZnQ pre-pass (scan the committed lane)
         run: python3 scripts/dev/security-sweep.py pre
@@ -156,7 +170,8 @@ jobs:
         if: inputs.scan_only != true
         run: ./scripts/dev/update-deps.sh
 
-      # The AXP1-ZnQ post-pass re-sweeps the swept tree, classifies it
+      # The AXP1-ZnQ (Architect's eXecution Protocol 1) post-pass
+      # re-sweeps the swept tree, classifies it
       # against the snapshot and writes the job summary. An advisory an
       # in-range bump cleared is reported as an urgent auto-update (the
       # run stays green — the tree was exposed before the sweep, it is
@@ -191,11 +206,35 @@ jobs:
         if: inputs.scan_only != true
         run: cargo test
 
+      # AXP1-ZnQ (Architect's eXecution Protocol 1), the address refresh
+      # (night-learning-into-darkness-1): the whole repos-for-ci catalog
+      # is re-probed after the dependency update — alive AND fresh (the
+      # InRelease Date header is the freshness witness, the max-age law)
+      # — and the survivors are written back in their authored order,
+      # the dead left as dated tombstones, bounded by the 100-line cap,
+      # the never-empty guard refusing to erase the owner's pool. The
+      # refresher rides AFTER the deps update by the owner's design so
+      # the one weekly commit carries both (the note file lands in the
+      # commit message below), and it never blocks the ship lane: a
+      # critical catalog state warns and names CALL THE OWNER, the red
+      # stays the verdict step's.
+      - name: AXP1-ZnQ address refresh (repos-for-ci)
+        if: inputs.scan_only != true
+        run: |
+          python3 scripts/dev/axp1znq_refresh.py \
+            --root repos-for-ci \
+            --probe-path dists/noble/InRelease \
+            --note-file "${ZYLAXION_SWEEP_DIR}/axp1-address-note.txt"
+
       # The verdict lands AFTER the commit: fixable bumps ride the
       # weekly commit even when unfixable findings keep the run red
       # (the owner's contract — commit what can be fixed, then fail
       # hard). When the sweep auto-fixed advisories, the commit body
-      # carries the security note the sentinel wrote.
+      # carries the security note the sentinel wrote; when the address
+      # refresh moved a catalog, the body carries its note the same
+      # way (git add -A above picks the repos-for-ci edits up, so the
+      # one weekly commit carries deps AND addresses, the owner's
+      # single-commit contract).
       - name: Commit and push
         if: inputs.scan_only != true
         run: |
@@ -208,6 +247,9 @@ jobs:
           message="chore: weekly dependency update"
           if [ -f "${ZYLAXION_SWEEP_DIR}/commit-note.txt" ]; then
             message="${message}"$'\n\n'"$(cat "${ZYLAXION_SWEEP_DIR}/commit-note.txt")"
+          fi
+          if [ -f "${ZYLAXION_SWEEP_DIR}/axp1-address-note.txt" ]; then
+            message="${message}"$'\n\n'"$(cat "${ZYLAXION_SWEEP_DIR}/axp1-address-note.txt")"
           fi
           git commit -m "${message}"
           git push

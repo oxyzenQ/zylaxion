@@ -77,6 +77,39 @@ v80.0.0-alpha.1
 
 ### Changed
 
+- **night-learning-into-darkness-1, AXP1-ZnQ (Architect's eXecution
+  Protocol 1) — no CI lane marries a hardcoded server again.** The
+  owner named the bottleneck after the v80.5.8 week (an apt lane dead
+  on a runner-image repo answering 403 "no longer signed", the
+  fallback's repoint target itself a hardcoded address): the answer is
+  a tested address pool the bot curates, `repos-for-ci/apt-mirrors.txt`
+  (12 candidate Ubuntu mirrors, probe-verified at authoring time — 12
+  of 15 candidates answered 200 on `dists/noble/InRelease`;
+  `security.ubuntu.com` excluded on purpose, it serves the security
+  pocket, not the archive). Two stdlib-only commands share one probe
+  core (`scripts/dev/axp1znq_probe.py`): the failover resolver
+  (`axp1znq_resolve.py --first`) walks the catalog top to bottom and
+  hands the lane the first address that actually answers — the owner's
+  scenario proven live with four planted dead lines (NXDOMAIN,
+  blackhole timeout, closed port, 404-on-probe-path) all detected DOWN
+  and the first live address winning; the Sunday refresher
+  (`axp1znq_refresh.py`) re-probes the whole catalog after the
+  dependency update, keeps an address only when it answers AND serves
+  a fresh index (the InRelease `Date:` header is the witness, default
+  max age 14d), writes the survivors back in their authored order
+  (never a latency leaderboard), leaves the dead as dated tombstones,
+  prunes oldest-first at the 100-line cap, and carries the
+  never-empty guard (zero alive = the file is NOT rewritten, the lane
+  warns and names CALL THE OWNER — the one critical it escalates).
+  The wiring: the refresher rides the maintenance lane after `cargo
+  test`, so the one weekly commit carries deps AND addresses (its
+  note lands in the commit body beside the sweep's), and the apt
+  fallback's repoint target is the resolver's pick — a catalog with
+  nothing alive fails the lane loud, never a dead default. Every
+  mention of the bot's name now carries its expansion, by the owner's
+  standing law. Proof-of-law tests all pass: idempotent rerun writes
+  nothing, dry-run writes nothing, the never-empty guard holds, the
+  cap prune drops the oldest tombstones first.
 - night-cafe-mclaren-2: the TPT prewarp clamp ceiling rides one
   certified constant (`FC_CERTIFIED_FRAC = 0.44`) at all three call
   sites — the former `0.45 * sr` ceiling let the f32 argument land one
@@ -395,7 +428,8 @@ v80.0.0-alpha.1
   every auto-triggered job in the estate parses at or under fifteen
   minutes with the schedule grep answering maintenance.yml alone.
 
-- **night-solid-defense-1, AXP1-ZnQ — the Sunday security sweep gets
+- **night-solid-defense-1, AXP1-ZnQ (Architect's eXecution Protocol 1)
+  — the Sunday security sweep gets
   its sentinel name and the owner's red button.** The owner sleeps
   through the Sunday 10:00 WIB run, so the weekly dependency sweep now
   carries a supply-chain sentinel instead of a bare updater:
@@ -415,7 +449,8 @@ v80.0.0-alpha.1
   the advisory carries one. Identity (night-solid-defense-1, the
   zejtron shape ported whole): the verdict speaks under the owner's
   sentinel name — every banner, GitHub annotation (`::error::` /
-  `::warning::`) and summary signs as AXP1-ZnQ, so a red Sunday names
+  `::warning::`) and summary signs as AXP1-ZnQ (Architect's eXecution
+  Protocol 1), so a red Sunday names
   its watcher and the run list reads like a sentinel on watch. The
   scan-only dispatch rides the same port (`scan_only`, the zejtron
   night-supply-1 red button): one dispatch, the advisory state of
@@ -461,8 +496,10 @@ v80.0.0-alpha.1
   dispatch (maintenance run 44935331012, on the naming commit) shows
   the ship lane skipped at every step (no update, no eBPF bootstrap,
   no checks, no commit) while the sentinel's logs read
-  `AXP1-ZnQ pre-pass` over the four lockfiles one by one and answer
-  `AXP1-ZnQ: verdict: GREEN` — the first watch of the sentinel,
+  `AXP1-ZnQ` (Architect's eXecution Protocol 1) pre-pass over the
+  four lockfiles one by one and answer
+  `AXP1-ZnQ: verdict: GREEN` — the first watch of the sentinel
+  (Architect's eXecution Protocol 1),
   real, not claimed.
 
 - **night-remake-1, the estate email sweep — the proton address is
