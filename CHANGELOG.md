@@ -109,7 +109,15 @@ v80.0.0-alpha.1
   mention of the bot's name now carries its expansion, by the owner's
   standing law. Proof-of-law tests all pass: idempotent rerun writes
   nothing, dry-run writes nothing, the never-empty guard holds, the
-  cap prune drops the oldest tombstones first.
+  cap prune drops the oldest tombstones first. The follow-up pass
+  closes the claimed-but-unenforced gap: the floor law is real
+  (`--min-lines`, default 10 — an alive pool under it warns by name
+  while the survivors still write), the probe timeouts say what they
+  bind (an HTTP probe rides the whole-request timeout alone, the
+  connect timeout binds only the host:port kind), the protocol docs
+  carry their first runner verdict (2026-11-27: the maintenance pass
+  found mirrors.kernel.org dark and the catalog now holds its dated
+  tombstone), and the docs index links the protocol's front door.
 - night-cafe-mclaren-2: the TPT prewarp clamp ceiling rides one
   certified constant (`FC_CERTIFIED_FRAC = 0.44`) at all three call
   sites — the former `0.45 * sr` ceiling let the f32 argument land one
