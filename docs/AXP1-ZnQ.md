@@ -122,14 +122,31 @@ ship lane: it exits 0 with warnings recorded; the red stays the
 verdict step's (AXP1-ZnQ — Architect's eXecution Protocol 1 — and its
 own exit-1 law).
 
-The first wired consumer is the maintenance lane's own apt fallback:
-its repoint target is no longer a hardcoded server — the resolver
-hands the lane the first catalog address that actually answers, and a
-catalog with nothing alive fails the lane loud. The other lanes adopt
-incrementally (the E2E micro-VM guest floors and the DNS guard steps
-are candidates; a lane adopts by swapping its hardcoded address for a
-resolver call — no new machinery needed, that is the point of the
-pool).
+Every apt fallback lane in the CI estate walks the resolver: no
+repoint target is a hardcoded server anywhere anymore — the
+maintenance lane wired first, and the second pass (the same
+night-learning-into-darkness-1) landed the port across the rest of
+the estate: `ci.yml`, `codeql.yml`, `miri.yml`, both `kani.yml`
+seats, `proofs.yml`, `rates-parity-arm64.yml`, all seven
+`supermassive.yml` seats and both `supermassive-e2e.yml` seats —
+17 fallback sites over 9 workflows, every one swapping its hardcoded
+address for a resolver call (no new machinery needed, that is the
+point of the pool) and failing loud when nothing alive answers, never
+a dead default. The open adoption surface is the in-container fixture
+sources the e2e guests write for themselves (the jammy, focal and
+noble `deb` lines inside the test containers) — a lane adopts by
+swapping its address for a resolver call, so those move the same way
+when their container wiring wants it.
+
+The probe laws are proven, not claimed:
+`scripts/dev/axp1znq_edge_proof.py` serves a loopback InRelease whose
+`Date:` header the harness controls and walks the verdict paths end
+to end — the stale refusal (a frozen index fails the max-age law, the
+never-empty guard keeps the catalog untouched, the lane calls the
+owner), the failover pick ignoring a reported-but-nonblocking age,
+the all-dead exit-1 loud, and the fresh survivor written back. The
+harness doubles as the probe core's regression gate: any future probe
+change must keep all four green.
 
 ## The honest edges
 

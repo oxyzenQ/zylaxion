@@ -222,11 +222,11 @@ zero-alive catalog untouched — that warning names CALL THE OWNER, the
 one critical the refresher escalates. The refresher never blocks the
 ship lane (it exits 0 with its warnings recorded); when the catalog
 moved, its note rides the weekly commit body next to the sweep's
-note, so the one commit carries deps AND addresses. The lane's own
-apt fallback is the protocol's first consumer: its repoint target is
-no longer a hardcoded server — `scripts/dev/axp1znq_resolve.py` hands
-it the first catalog address that actually answers, and a catalog
-with nothing alive fails the lane loud.
+note, so the one commit carries deps AND addresses. The apt fallback
+was the protocol's first consumer; every CI lane now walks the
+resolver too (17 fallback sites over 9 workflows, the port landed
+estate-wide the same night) — no repoint target is a hardcoded server
+anymore, and a catalog with nothing alive fails the lane loud.
 
 ## The root-owned pycache trap (the zelynic incident, documented)
 

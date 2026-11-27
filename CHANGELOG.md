@@ -118,6 +118,25 @@ v80.0.0-alpha.1
   carry their first runner verdict (2026-11-27: the maintenance pass
   found mirrors.kernel.org dark and the catalog now holds its dated
   tombstone), and the docs index links the protocol's front door.
+- night-learning-into-darkness-1, the follow-up pass: the resolver
+  adoption went estate-wide — every apt fallback lane in the CI
+  workflows now repoints at the AXP1-ZnQ (Architect's eXecution
+  Protocol 1) pick instead of a hardcoded `archive.ubuntu.com`:
+  `ci.yml`, `codeql.yml`, `miri.yml`, both `kani.yml` seats,
+  `proofs.yml`, `rates-parity-arm64.yml`, all seven `supermassive.yml`
+  seats and both `supermassive-e2e.yml` seats (16 sites this pass,
+  17 over 9 workflows with the maintenance lane's original wiring;
+  zero hardcoded repoint targets remain). The in-container `deb`
+  fixture lines the e2e guests write stay as they are — sandbox
+  fixtures, not host repoint lanes, and the honest open adoption
+  surface. The probe laws moved from claimed to proven: the new
+  loopback harness `scripts/dev/axp1znq_edge_proof.py` controls a
+  fake InRelease's `Date:` header and walks the verdict paths end to
+  end (stale refusal with the never-empty guard holding, the
+  failover pick ignoring a reported age, the all-dead exit-1 loud,
+  the fresh survivor written back — all four green), doubling as the
+  probe core's regression gate. Docs synced: the protocol page's
+  adoption paragraph, the maintenance page's consumer claim.
 - night-cafe-mclaren-2: the TPT prewarp clamp ceiling rides one
   certified constant (`FC_CERTIFIED_FRAC = 0.44`) at all three call
   sites — the former `0.45 * sr` ceiling let the f32 argument land one
