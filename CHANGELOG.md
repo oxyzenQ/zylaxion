@@ -18,6 +18,7 @@ and the pre-v10 release notes live next to it in
 
 ## [Released]
 
+v80.5.8
 v80.5.7
 v80.5.7-dragon.2
 v80.5.7-dragon.1
@@ -51,6 +52,62 @@ v80.0.0-rc.1
 v80.0.0-beta.2
 v80.0.0-beta.1
 v80.0.0-alpha.1
+
+## [v80.5.8] — 2026-11-27
+
+### Added
+
+- night-cafe-mclaren-1: `scripts/gates/check-version-parity.sh`, the
+  read-only CI arm of the version bump — every own-version sibling
+  manifest must equal the root version, every sibling lock its
+  manifest, the root lock the root package, with the discovery law
+  imported verbatim from the bump script itself. Wired as gate-keepers
+  section 11.
+- night-cafe-mclaren-1: `scripts/dev/test-version-to-sibling-scan.sh`,
+  the discovery battery — a future `cosmostrix-*` lane (or any manifest
+  the repo authors, at any depth) rides every bump, while cargo-package
+  extractions, vendored manifests, `.git` trees and `version.workspace`
+  members stay invisible. 11 checks, wired as gate-keepers sections
+  12-13 alongside the changelog battery, which rides CI for the first
+  time.
+- night-cafe-mclaren-2: `docs/audit-night-cafe-mclaren-2.md`, the
+  engine and architecture depth audit — RT-safety, determinism, ring
+  budget math, and the honest enforcement map, with the numeric
+  proofs committed beside it (`scripts/audit/mclaren2_math.py`).
+
+### Changed
+
+- night-cafe-mclaren-2: the TPT prewarp clamp ceiling rides one
+  certified constant (`FC_CERTIFIED_FRAC = 0.44`) at all three call
+  sites — the former `0.45 * sr` ceiling let the f32 argument land one
+  ULP past det_tan's `0.45 * PI` certificate at the 48k/96k/192k device
+  rates, and the init side's broadband ceiling could hand the render
+  loop exactly that fc. Shipped presets are bit-identical (their
+  broadband start sits under both ceilings), so every golden
+  coefficient and hash row reads what it read before.
+- night-cafe-mclaren-2: the audio rate negotiation now matches the
+  default config's own (channels, sample format) family — the former
+  any-family match could apply a rate from a foreign combo's range and
+  fail startup on a device that never offered it.
+- night-cafe-mclaren-2: the parameter-bounds docs name the true
+  enforcement — registry-authored constants, CI-proven in-range and
+  bit-stable by the registry test tree, detmath domain asserts as
+  tripwires, `validate_and_clamp` as the contract any future loader
+  must call (it had zero production call sites while two doc blocks
+  claimed it ran at load time).
+- night-cafe-mclaren-1: the bump's sibling discovery excludes any
+  `/target/`, `/vendor/` and `/.git/` path segment at any depth —
+  planted manifests under a lane's `target/package/` extraction and
+  under `vendor/` were discovered by the shipped scan and would have
+  been force-rewritten to the release version (corrupting vendor
+  checksums); the four real lanes still list, and the script header's
+  stale sibling list gains the `proofs/` lane it forgot.
+- night-cafe-mclaren-1: the changelog battery's F1 fixture seeds its
+  body directly under the anchored `[Unreleased]` heading — the old
+  append-at-EOF builder assumed the running section is last, the live
+  ledger carries the archive sections below it, and 6 checks went red
+  on the shipped tree while the carry itself was healthy. 24 passed,
+  0 failed.
 
 ## [v80.5.7] — 2026-11-26
 
@@ -220,60 +277,6 @@ v80.0.0-alpha.1
   rewritten.
 
 ## [Unreleased]
-
-### Added
-
-- night-cafe-mclaren-1: `scripts/gates/check-version-parity.sh`, the
-  read-only CI arm of the version bump — every own-version sibling
-  manifest must equal the root version, every sibling lock its
-  manifest, the root lock the root package, with the discovery law
-  imported verbatim from the bump script itself. Wired as gate-keepers
-  section 11.
-- night-cafe-mclaren-1: `scripts/dev/test-version-to-sibling-scan.sh`,
-  the discovery battery — a future `cosmostrix-*` lane (or any manifest
-  the repo authors, at any depth) rides every bump, while cargo-package
-  extractions, vendored manifests, `.git` trees and `version.workspace`
-  members stay invisible. 11 checks, wired as gate-keepers sections
-  12-13 alongside the changelog battery, which rides CI for the first
-  time.
-- night-cafe-mclaren-2: `docs/audit-night-cafe-mclaren-2.md`, the
-  engine and architecture depth audit — RT-safety, determinism, ring
-  budget math, and the honest enforcement map, with the numeric
-  proofs committed beside it (`scripts/audit/mclaren2_math.py`).
-
-### Changed
-
-- night-cafe-mclaren-2: the TPT prewarp clamp ceiling rides one
-  certified constant (`FC_CERTIFIED_FRAC = 0.44`) at all three call
-  sites — the former `0.45 * sr` ceiling let the f32 argument land one
-  ULP past det_tan's `0.45 * PI` certificate at the 48k/96k/192k device
-  rates, and the init side's broadband ceiling could hand the render
-  loop exactly that fc. Shipped presets are bit-identical (their
-  broadband start sits under both ceilings), so every golden
-  coefficient and hash row reads what it read before.
-- night-cafe-mclaren-2: the audio rate negotiation now matches the
-  default config's own (channels, sample format) family — the former
-  any-family match could apply a rate from a foreign combo's range and
-  fail startup on a device that never offered it.
-- night-cafe-mclaren-2: the parameter-bounds docs name the true
-  enforcement — registry-authored constants, CI-proven in-range and
-  bit-stable by the registry test tree, detmath domain asserts as
-  tripwires, `validate_and_clamp` as the contract any future loader
-  must call (it had zero production call sites while two doc blocks
-  claimed it ran at load time).
-- night-cafe-mclaren-1: the bump's sibling discovery excludes any
-  `/target/`, `/vendor/` and `/.git/` path segment at any depth —
-  planted manifests under a lane's `target/package/` extraction and
-  under `vendor/` were discovered by the shipped scan and would have
-  been force-rewritten to the release version (corrupting vendor
-  checksums); the four real lanes still list, and the script header's
-  stale sibling list gains the `proofs/` lane it forgot.
-- night-cafe-mclaren-1: the changelog battery's F1 fixture seeds its
-  body directly under the anchored `[Unreleased]` heading — the old
-  append-at-EOF builder assumed the running section is last, the live
-  ledger carries the archive sections below it, and 6 checks went red
-  on the shipped tree while the carry itself was healthy. 24 passed,
-  0 failed.
 
 ## [v80.5.2-night.1] — focus and be honest — 2026-11-21
 
