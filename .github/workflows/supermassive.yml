@@ -144,9 +144,19 @@ jobs:
             echo "apt: the fast path landed (the image's lists held)"
           else
             echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
-            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+            # The repoint target is not a hardcoded server anymore: the
+            # AXP1-ZnQ (Architect's eXecution Protocol 1) resolver walks
+            # the repos-for-ci catalog and hands back the first address
+            # that actually answers (line 1 down, the lane moves on -
+            # line 5 answering is the one the lane uses). Exit 1 with no
+            # live address - a dead default is never a fallback.
+            MIRROR="$(python3 scripts/dev/axp1znq_resolve.py \
+              --file repos-for-ci/apt-mirrors.txt \
+              --probe-path dists/noble/InRelease \
+              --first)"
+            sudo sed -i "s|mirror+file:/etc/apt/apt-mirrors.txt|${MIRROR}/|g" \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+            sudo sed -i "s|http://azure.archive.ubuntu.com/ubuntu/|${MIRROR}/|g" \
               /etc/apt/sources.list 2>/dev/null || true
             landed=""
             for attempt in 1 2 3; do
@@ -284,9 +294,19 @@ jobs:
             echo "apt: the fast path landed (the image's lists held)"
           else
             echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
-            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+            # The repoint target is not a hardcoded server anymore: the
+            # AXP1-ZnQ (Architect's eXecution Protocol 1) resolver walks
+            # the repos-for-ci catalog and hands back the first address
+            # that actually answers (line 1 down, the lane moves on -
+            # line 5 answering is the one the lane uses). Exit 1 with no
+            # live address - a dead default is never a fallback.
+            MIRROR="$(python3 scripts/dev/axp1znq_resolve.py \
+              --file repos-for-ci/apt-mirrors.txt \
+              --probe-path dists/noble/InRelease \
+              --first)"
+            sudo sed -i "s|mirror+file:/etc/apt/apt-mirrors.txt|${MIRROR}/|g" \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+            sudo sed -i "s|http://azure.archive.ubuntu.com/ubuntu/|${MIRROR}/|g" \
               /etc/apt/sources.list 2>/dev/null || true
             landed=""
             for attempt in 1 2 3; do
@@ -420,9 +440,19 @@ jobs:
             echo "apt: the fast path landed (the image's lists held)"
           else
             echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
-            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+            # The repoint target is not a hardcoded server anymore: the
+            # AXP1-ZnQ (Architect's eXecution Protocol 1) resolver walks
+            # the repos-for-ci catalog and hands back the first address
+            # that actually answers (line 1 down, the lane moves on -
+            # line 5 answering is the one the lane uses). Exit 1 with no
+            # live address - a dead default is never a fallback.
+            MIRROR="$(python3 scripts/dev/axp1znq_resolve.py \
+              --file repos-for-ci/apt-mirrors.txt \
+              --probe-path dists/noble/InRelease \
+              --first)"
+            sudo sed -i "s|mirror+file:/etc/apt/apt-mirrors.txt|${MIRROR}/|g" \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+            sudo sed -i "s|http://azure.archive.ubuntu.com/ubuntu/|${MIRROR}/|g" \
               /etc/apt/sources.list 2>/dev/null || true
             landed=""
             for attempt in 1 2 3; do
@@ -563,9 +593,19 @@ jobs:
             echo "apt: the fast path landed (the image's lists held)"
           else
             echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
-            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+            # The repoint target is not a hardcoded server anymore: the
+            # AXP1-ZnQ (Architect's eXecution Protocol 1) resolver walks
+            # the repos-for-ci catalog and hands back the first address
+            # that actually answers (line 1 down, the lane moves on -
+            # line 5 answering is the one the lane uses). Exit 1 with no
+            # live address - a dead default is never a fallback.
+            MIRROR="$(python3 scripts/dev/axp1znq_resolve.py \
+              --file repos-for-ci/apt-mirrors.txt \
+              --probe-path dists/noble/InRelease \
+              --first)"
+            sudo sed -i "s|mirror+file:/etc/apt/apt-mirrors.txt|${MIRROR}/|g" \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+            sudo sed -i "s|http://azure.archive.ubuntu.com/ubuntu/|${MIRROR}/|g" \
               /etc/apt/sources.list 2>/dev/null || true
             landed=""
             for attempt in 1 2 3; do
@@ -701,9 +741,19 @@ jobs:
             echo "apt: the fast path landed (the image's lists held)"
           else
             echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
-            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+            # The repoint target is not a hardcoded server anymore: the
+            # AXP1-ZnQ (Architect's eXecution Protocol 1) resolver walks
+            # the repos-for-ci catalog and hands back the first address
+            # that actually answers (line 1 down, the lane moves on -
+            # line 5 answering is the one the lane uses). Exit 1 with no
+            # live address - a dead default is never a fallback.
+            MIRROR="$(python3 scripts/dev/axp1znq_resolve.py \
+              --file repos-for-ci/apt-mirrors.txt \
+              --probe-path dists/noble/InRelease \
+              --first)"
+            sudo sed -i "s|mirror+file:/etc/apt/apt-mirrors.txt|${MIRROR}/|g" \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+            sudo sed -i "s|http://azure.archive.ubuntu.com/ubuntu/|${MIRROR}/|g" \
               /etc/apt/sources.list 2>/dev/null || true
             landed=""
             for attempt in 1 2 3; do
@@ -853,9 +903,19 @@ jobs:
             echo "apt: the fast path landed (the image's lists held)"
           else
             echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
-            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+            # The repoint target is not a hardcoded server anymore: the
+            # AXP1-ZnQ (Architect's eXecution Protocol 1) resolver walks
+            # the repos-for-ci catalog and hands back the first address
+            # that actually answers (line 1 down, the lane moves on -
+            # line 5 answering is the one the lane uses). Exit 1 with no
+            # live address - a dead default is never a fallback.
+            MIRROR="$(python3 scripts/dev/axp1znq_resolve.py \
+              --file repos-for-ci/apt-mirrors.txt \
+              --probe-path dists/noble/InRelease \
+              --first)"
+            sudo sed -i "s|mirror+file:/etc/apt/apt-mirrors.txt|${MIRROR}/|g" \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+            sudo sed -i "s|http://azure.archive.ubuntu.com/ubuntu/|${MIRROR}/|g" \
               /etc/apt/sources.list 2>/dev/null || true
             landed=""
             for attempt in 1 2 3; do
@@ -1048,9 +1108,19 @@ jobs:
             echo "apt: the fast path landed (the image's lists held)"
           else
             echo "apt: the fast path failed - repoint off the azure mirror, then the update lane, three named attempts"
-            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+            # The repoint target is not a hardcoded server anymore: the
+            # AXP1-ZnQ (Architect's eXecution Protocol 1) resolver walks
+            # the repos-for-ci catalog and hands back the first address
+            # that actually answers (line 1 down, the lane moves on -
+            # line 5 answering is the one the lane uses). Exit 1 with no
+            # live address - a dead default is never a fallback.
+            MIRROR="$(python3 scripts/dev/axp1znq_resolve.py \
+              --file repos-for-ci/apt-mirrors.txt \
+              --probe-path dists/noble/InRelease \
+              --first)"
+            sudo sed -i "s|mirror+file:/etc/apt/apt-mirrors.txt|${MIRROR}/|g" \
               /etc/apt/sources.list.d/*.sources 2>/dev/null || true
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+            sudo sed -i "s|http://azure.archive.ubuntu.com/ubuntu/|${MIRROR}/|g" \
               /etc/apt/sources.list 2>/dev/null || true
             landed=""
             for attempt in 1 2 3; do
