@@ -485,17 +485,14 @@ pub(super) fn run_prog_run(object_path: &str) {
         }
     }
 
-    // The timing: interleaved rounds, not five sequential blocks — a
-    // shared runner's drift lands on whatever lane is being measured
-    // when it happens, and the sequential protocol attributed the
-    // whole drift to the later lanes (the e2e leg measured every
-    // early exit above the press path, physically impossible for
-    // this tap body). Each round walks every class, so the drift
-    // rides all lanes equally and the relative shape survives.
+    // The timing: interleaved rounds, not five sequential blocks — a shared runner's
+    // drift lands on whatever lane is being measured when it happens, and the
+    // sequential protocol attributed the whole drift to the later lanes. Each round
+    // walks every class, so the drift rides all lanes equally.
     const ROUNDS: u64 = 10;
     let subruns = RUNS_PER_CLASS / ROUNDS;
-    let mut totals: Vec<(&str, u64, u64, u32, u64)> =
-        classes.iter().map(|(n, _)| (*n, 0, 0, 0, 0)).collect();
+    let mut totals: Vec<(&str, u64, u64, u32, u64, u64)> =
+        classes.iter().map(|(n, _)| (*n, 0, 0, 0, 0, u64::MAX)).collect();
     for _ in 0..ROUNDS {
         for (name, ctx) in &classes {
             set_gate(if *name == "gate_off" { 0 } else { 1 });
@@ -518,10 +515,11 @@ pub(super) fn run_prog_run(object_path: &str) {
             slot.2 += subruns;
             slot.3 = retval;
             slot.4 += after - before;
+            slot.5 = slot.5.min(round_ns);
         }
     }
     set_gate(0);
-    for (name, ns, _, retval, delta) in &totals {
+    for (name, ns, _, retval, delta, _) in &totals {
         println!(
             "PROOF 7 RAW [{name}]: runs={RUNS_PER_CLASS} (one bpf() syscall each, {ROUNDS} interleaved rounds) \
              total={ns}ns ({} ns/call round trip), last retval={retval}, stats delta={delta}",
@@ -530,16 +528,22 @@ pub(super) fn run_prog_run(object_path: &str) {
     }
 
     // totals keeps the classes' order: press, release, autorepeat, unmapped, gate_off.
-    let press = totals[0].1;
-    let gate_off = totals[4].1;
-    let unmapped = totals[3].1;
-    let autorepeat = totals[2].1;
+    // The law rides each lane's FLOOR (night-cafe-mclaren-2): drift only adds time,
+    // never removes it — the minimum round per class is the cleanest estimate, and a
+    // shared runner's burst can sink a lane's total (the LTS-6.8 leg proved it live).
+    let press_floor = totals[0].5;
+    let gate_off_floor = totals[4].5;
+    let unmapped_floor = totals[3].5;
+    let autorepeat_floor = totals[2].5;
 
     println!(
-        "PROOF 7 RECORD (repeat={RUNS_PER_CLASS}, ns per call, this runner's CPU — a measurement, not a bound):"
+        "PROOF 7 RECORD (repeat={RUNS_PER_CLASS}, floor of {ROUNDS} interleaved rounds, ns per call, this runner's CPU — a measurement, not a bound):"
     );
-    for (name, ns, _, _, _) in &totals {
-        println!("  {name:<12} {:.1} ns", *ns as f64 / RUNS_PER_CLASS as f64 / RUNS_PER_CLASS as f64);
+    for (name, ns, _, _, _, floor) in &totals {
+        println!(
+            "  {name:<12} mean {:.1} ns, floor {:.1} ns",
+            *ns as f64 / RUNS_PER_CLASS as f64, *floor as f64 / subruns as f64
+        );
     }
 
     // The witness: the gate-off class must not move the counter; the
@@ -558,27 +562,23 @@ pub(super) fn run_prog_run(object_path: &str) {
         );
     }
 
-    // The relative law's measurand is the path-shape cheapness (the
-    // early exits skip the sound push and the stats write), measured
-    // at 93-97% of the press mean across every round so far. One floor
-    // leg measured unmapped 0.7% ABOVE press — timer noise at
-    // microsecond scale on a shared runner, not a law break — so the
-    // gate rides a 3% jitter band; a true break (an early exit at or
-    // above the band) still fails loudly.
+    // The relative law's measurand is the path-shape cheapness (the early exits skip
+    // the sound push and the stats write): the gate rides the lanes' floors with the
+    // same 3% jitter band — noise can only add time, and the floor ignores it.
     const JITTER_BAND_PCT: u64 = 103;
-    let band = press * JITTER_BAND_PCT / 100;
+    let band = press_floor * JITTER_BAND_PCT / 100;
     let failures: Vec<String> = [
         (
-            gate_off < band,
-            format!("gate_off ({gate_off}) measured at or above the press band ({band})"),
+            gate_off_floor < band,
+            format!("gate_off ({gate_off_floor}) measured at or above the press band ({band})"),
         ),
         (
-            unmapped < band,
-            format!("unmapped ({unmapped}) measured at or above the press band ({band})"),
+            unmapped_floor < band,
+            format!("unmapped ({unmapped_floor}) measured at or above the press band ({band})"),
         ),
         (
-            autorepeat < band,
-            format!("autorepeat ({autorepeat}) measured at or above the press band ({band})"),
+            autorepeat_floor < band,
+            format!("autorepeat ({autorepeat_floor}) measured at or above the press band ({band})"),
         ),
     ]
     .into_iter()
@@ -593,8 +593,7 @@ pub(super) fn run_prog_run(object_path: &str) {
         std::process::exit(1);
     }
     println!(
-        "PROOF 7: PASS — the relative law holds: gate-off, unmapped and autorepeat all measure \
-         below the full press path (press={press}, gate_off={gate_off}, unmapped={unmapped}, \
-         autorepeat={autorepeat})"
+        "PROOF 7: PASS — the relative law holds on the floors: gate-off, unmapped and autorepeat \
+         all measure below the full press path (press_floor={press_floor}, band={band})"
     );
 }

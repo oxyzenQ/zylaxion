@@ -158,12 +158,49 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          # The maintenance.yml idiom (retries + connect timeout):
-          # alsa-sys's pkg-config probe needs the dev headers before any
+          # The ci.yml apt idiom, hardened whole (night-cafe-mclaren-2):
+          # the fast path installs from the image's own lists and never
+          # runs `apt-get update` — the v80.5.8 LTS leg died on the
+          # runner image's packages.microsoft.com noble repo answering
+          # 403 Forbidden ("no longer signed"), which sinks every plain
+          # update lane while install-from-lists stays untouched. Only
+          # a failed fast path earns the repoint lane, and the update
+          # attempts run with the third-party image repos disabled —
+          # this lane's payload lives in the ubuntu archive, so a
+          # broken extra repo cannot sink it again. alsa-sys's
+          # pkg-config probe needs the dev headers before any
           # root-crate compile can start.
-          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 update -qq
-          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 install -y -qq \
-            libasound2-dev pkg-config
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 90 apt-get "${APT_OPTS[@]}" install -y -qq \
+              libasound2-dev pkg-config; then
+            echo "apt: the fast path landed (the image's lists held)"
+          else
+            echo "apt: the fast path failed - repoint off the azure mirror, disable the third-party repos, then the update lane, three named attempts"
+            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list 2>/dev/null || true
+            sudo find /etc/apt/sources.list.d -maxdepth 1 -type f \
+              \( -name '*.list' -o -name '*.sources' \) \
+              ! -iname '*ubuntu*' ! -iname '*archive*' \
+              -exec mv -- {} {}.disabled \; 2>/dev/null || true
+            landed=""
+            for attempt in 1 2 3; do
+              echo "--- apt attempt $attempt: update + install ---"
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq \
+                     libasound2-dev pkg-config; then
+                landed="attempt $attempt"
+                break
+              fi
+              if [ "$attempt" = 3 ]; then
+                echo "::error::apt stalled on all three named attempts"
+                exit 1
+              fi
+              sleep 20
+            done
+            echo "apt: landed on $landed"
+          fi
 
       - name: Restore the eBPF build prerequisites cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin
@@ -265,9 +302,43 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 update -qq
-          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=45 install -y -qq \
-            libasound2-dev pkg-config
+          # The same hardened idiom as the first seat above — the fast
+          # path installs from the image's own lists (the v80.5.8 leg
+          # watched the runner image's packages.microsoft.com noble
+          # repo answer 403 "no longer signed" to every plain update),
+          # the fallback disables the third-party repos it does not
+          # need, and only the ubuntu archive carries the payload.
+          APT_OPTS=(-o Acquire::Retries=5 -o Acquire::http::Timeout=45)
+          if sudo timeout 90 apt-get "${APT_OPTS[@]}" install -y -qq \
+              libasound2-dev pkg-config; then
+            echo "apt: the fast path landed (the image's lists held)"
+          else
+            echo "apt: the fast path failed - repoint off the azure mirror, disable the third-party repos, then the update lane, three named attempts"
+            sudo sed -i 's|mirror+file:/etc/apt/apt-mirrors.txt|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu/|http://archive.ubuntu.com/ubuntu/|g' \
+              /etc/apt/sources.list 2>/dev/null || true
+            sudo find /etc/apt/sources.list.d -maxdepth 1 -type f \
+              \( -name '*.list' -o -name '*.sources' \) \
+              ! -iname '*ubuntu*' ! -iname '*archive*' \
+              -exec mv -- {} {}.disabled \; 2>/dev/null || true
+            landed=""
+            for attempt in 1 2 3; do
+              echo "--- apt attempt $attempt: update + install ---"
+              if sudo timeout 240 apt-get "${APT_OPTS[@]}" update \
+                && sudo timeout 600 apt-get "${APT_OPTS[@]}" install -y -qq \
+                     libasound2-dev pkg-config; then
+                landed="attempt $attempt"
+                break
+              fi
+              if [ "$attempt" = 3 ]; then
+                echo "::error::apt stalled on all three named attempts"
+                exit 1
+              fi
+              sleep 20
+            done
+            echo "apt: landed on $landed"
+          fi
 
       - name: Restore the eBPF build prerequisites cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6, night-improve-8 SHA pin

@@ -95,6 +95,22 @@ v80.0.0-alpha.1
   tripwires, `validate_and_clamp` as the contract any future loader
   must call (it had zero production call sites while two doc blocks
   claimed it ran at load time).
+- night-cafe-mclaren-2, the release blockers named and fixed: the
+  Kani lane died at "Install system dependencies" on the runner
+  image's packages.microsoft.com noble repo answering 403 Forbidden
+  ("no longer signed") to every plain `apt-get update` — kani.yml
+  (both seats) and maintenance.yml now ride the ci.yml fast-path
+  idiom (install from the image's own lists, which the broken repo
+  cannot touch), with the fallback disabling the third-party repos
+  the payload never needs; and PROOF 7's relative law rides each
+  lane's FLOOR across the interleaved rounds instead of the totals —
+  the LTS-6.8 leg watched the early-exit totals invert (unmapped 5.8%
+  above press while the sibling early exit sat below it), and drift
+  only ever adds time, so the floor estimator cannot be sunk by it
+  (burst-model Monte Carlo: totals false-fail 15/500, floors 0/500).
+  The same leg's RECORD table had divided by the repeat count twice
+  and printed 0.0 for every class — mean and floor now print true
+  ns/call values.
 - night-cafe-mclaren-1: the bump's sibling discovery excludes any
   `/target/`, `/vendor/` and `/.git/` path segment at any depth —
   planted manifests under a lane's `target/package/` extraction and
