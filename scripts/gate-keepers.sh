@@ -261,6 +261,11 @@ run_section 9 "Name-case rule" \
 run_section 10 "Documentation disclaimer" \
         bash scripts/gates/inject-disclaimer.sh --check
 
+# ── 11. Version parity (night-cafe-mclaren-1: root vs every own-version ────
+#        sibling manifest and lock, discovered like the bump discovers them)
+run_section 11 "Version parity" \
+        bash scripts/gates/check-version-parity.sh
+
 # ── Verdict ─────────────────────────────────────────────────────────────
 echo ""
 if [ "${#FAILED_SECTIONS[@]}" -gt 0 ]; then
