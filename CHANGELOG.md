@@ -18,6 +18,7 @@ and the pre-v10 release notes live next to it in
 
 ## [Released]
 
+v80.5.9
 v80.5.8
 v80.5.7
 v80.5.7-dragon.2
@@ -52,6 +53,29 @@ v80.0.0-rc.1
 v80.0.0-beta.2
 v80.0.0-beta.1
 v80.0.0-alpha.1
+
+## [v80.5.9] — 2026-11-28
+
+### Added
+
+- night-cafe-mclaren-5: `scripts/gates/check-package-size.sh`, the
+  package-size gate (gate-keepers section 14 and a pre-upload step in
+  the crates-io publish workflow): the publish tarball must measure
+  under the crates.io 10485760-byte upload cap on the real
+  `cargo package --locked --no-verify` output, with the ten largest
+  members named in the failure log. The detector axis the crates.io
+  413 Payload Too Large incident exposed as missing: the cap is the
+  server's own number, and strictly-smaller-than is the law (a
+  tarball at exactly the cap fails the gate).
+- night-cafe-mclaren-5: `docs/audit-night-cafe-mclaren-5.md`, the
+  incident audit: the measured registry baseline (every published
+  version rides ~700-718 KB against the cap, dragon.1 and dragon.2
+  both live at 701869 and 702388 bytes), the tarball composition
+  today (173 members, zero webp/png/gif members, the README and the
+  CHANGELOG aboard), and the live-registry proof that crates.io
+  rewrites the README's relative asset references against the
+  repository, so the registry page renders without any README
+  rewrite.
 
 ## [v80.5.8] — 2026-11-27
 
@@ -353,27 +377,6 @@ v80.0.0-alpha.1
   rewritten.
 
 ## [Unreleased]
-
-### Added
-
-- night-cafe-mclaren-5: `scripts/gates/check-package-size.sh`, the
-  package-size gate (gate-keepers section 14 and a pre-upload step in
-  the crates-io publish workflow): the publish tarball must measure
-  under the crates.io 10485760-byte upload cap on the real
-  `cargo package --locked --no-verify` output, with the ten largest
-  members named in the failure log. The detector axis the crates.io
-  413 Payload Too Large incident exposed as missing: the cap is the
-  server's own number, and strictly-smaller-than is the law (a
-  tarball at exactly the cap fails the gate).
-- night-cafe-mclaren-5: `docs/audit-night-cafe-mclaren-5.md`, the
-  incident audit: the measured registry baseline (every published
-  version rides ~700-718 KB against the cap, dragon.1 and dragon.2
-  both live at 701869 and 702388 bytes), the tarball composition
-  today (173 members, zero webp/png/gif members, the README and the
-  CHANGELOG aboard), and the live-registry proof that crates.io
-  rewrites the README's relative asset references against the
-  repository, so the registry page renders without any README
-  rewrite.
 
 ## [v80.5.2-night.1] — focus and be honest — 2026-11-21
 
