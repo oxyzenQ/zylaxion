@@ -39,6 +39,10 @@
 #     re-run), the job skips the upload instead of failing.
 #   - --locked: the published dependency set is exactly the tagged
 #     Cargo.lock, the same tree every other CI job validated.
+#   - night-cafe-mclaren-5: the package size gate measures the real
+#     cargo package output before the upload step, so a tarball over
+#     the crates.io 10485760-byte cap fails the job instead of dying
+#     as a 413 Payload Too Large at the registry.
 #
 # Dependency version policy: actions are SHA-pinned (the night-improve-8
 # estate — kept current by scripts/gates/check-actions-pins.sh) and the
@@ -142,6 +146,14 @@ jobs:
             exit 1
           fi
           echo "Publishing zylaxion ${CARGO_VERSION} to crates.io"
+
+      # night-cafe-mclaren-5: the size gate measures the real tarball
+      # BEFORE the upload — the 413 incident reached the server because
+      # size was nobody's axis. --no-verify keeps this gate off the
+      # compile lanes; the publish step below still owns the
+      # verification build.
+      - name: Package size gate (the crates.io 413 law)
+        run: bash scripts/gates/check-package-size.sh
 
       - name: Publish to crates.io
         env:

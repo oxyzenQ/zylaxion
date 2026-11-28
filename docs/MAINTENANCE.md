@@ -124,6 +124,10 @@ sections. The sections and their home gates:
 | 8 | Release parity | `scripts/gates/check-release-parity.sh` |
 | 9 | Name-case rule (lowercase law, nothing excluded) | `scripts/gates/check-name-case.py` |
 | 10 | Documentation disclaimer (placement check; normalize is the explicit repair command) | `scripts/gates/inject-disclaimer.sh --check` |
+| 11 | Version parity | `scripts/gates/check-version-parity.sh` |
+| 12 | Version-to changelog battery | `scripts/dev/test-version-to-changelog.sh` |
+| 13 | Version-to sibling-scan battery | `scripts/dev/test-version-to-sibling-scan.sh` |
+| 14 | Package size cap (the crates.io 413 law) | `scripts/gates/check-package-size.sh` |
 
 A new gate joins this table and the orchestrator in the same commit —
 a gate that is not wired is a wish, not a gate.

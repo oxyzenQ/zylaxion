@@ -78,6 +78,21 @@
 #       the fix evaporates (night-zen-lts-2). CHANGELOG.md and
 #       docs/archive/ stay excluded: the frozen records are never
 #       rewritten)
+#   11. Version parity (night-cafe-mclaren-1 —
+#       scripts/gates/check-version-parity.sh: the root version vs
+#       every own-version sibling manifest and lock, discovered the
+#       way the bump discovers them)
+#   12. Version-to changelog battery (night-ledger-1 —
+#       scripts/dev/test-version-to-changelog.sh: the carry lane of
+#       scripts/dev/version-to.sh under test)
+#   13. Version-to sibling-scan battery (night-cafe-mclaren-1 —
+#       scripts/dev/test-version-to-sibling-scan.sh: the adaptive
+#       discovery lane's own battery)
+#   14. Package size cap (night-cafe-mclaren-5 —
+#       scripts/gates/check-package-size.sh: the publish tarball must
+#       measure under the crates.io 10485760-byte upload cap, the
+#       detector the 413 incident lacked; the crates-io publish
+#       workflow's pre-upload step runs the same gate)
 #
 # Usage:
 #   bash scripts/gate-keepers.sh             # full gate run
@@ -275,6 +290,12 @@ run_section 12 "Version-to changelog battery" \
 #        bump, generated trees stay invisible)
 run_section 13 "Version-to sibling-scan battery" \
         bash scripts/dev/test-version-to-sibling-scan.sh
+
+# ── 14. Package size cap (night-cafe-mclaren-5: the crates.io 413 law ──────
+#        the publish tarball measures under the server's upload cap,
+#        on the real cargo package output, before any lane uploads it)
+run_section 14 "Package size cap" \
+        bash scripts/gates/check-package-size.sh
 
 # ── Verdict ─────────────────────────────────────────────────────────────
 echo ""
